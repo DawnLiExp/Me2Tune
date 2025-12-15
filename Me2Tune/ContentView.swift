@@ -15,22 +15,26 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 0) {
             // MARK: - Drop Zone
+
             dropZone
             
             Divider()
             
             // MARK: - Playlist
+
             playlistView
             
             Divider()
             
             // MARK: - Player Controls
+
             playerControls
         }
         .frame(minWidth: 400, minHeight: 300)
     }
     
     // MARK: - Drop Zone
+
     private var dropZone: some View {
         VStack(spacing: 12) {
             Image(systemName: "music.note.list")
@@ -41,7 +45,7 @@ struct ContentView: View {
                 .font(.headline)
                 .foregroundStyle(.primary)
             
-            Text("支持 MP3、AAC、WAV、AIFF")
+            Text("支持 MP3、AAC、WAV、AIFF、FLAC、APE")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -52,9 +56,9 @@ struct ContentView: View {
             RoundedRectangle(cornerRadius: 8)
                 .strokeBorder(
                     isDragging ? Color.accentColor : Color.secondary.opacity(0.3),
-                    style: StrokeStyle(lineWidth: 2, dash: [8])
+                    style: StrokeStyle(lineWidth: 2, dash: [8]),
                 )
-                .padding(12)
+                .padding(12),
         )
         .onDrop(of: [.fileURL], isTargeted: $isDragging) { providers in
             handleDrop(providers: providers)
@@ -62,6 +66,7 @@ struct ContentView: View {
     }
     
     // MARK: - Playlist View
+
     private var playlistView: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
@@ -70,7 +75,7 @@ struct ContentView: View {
                         Text(track.title)
                             .lineLimit(1)
                             .foregroundStyle(
-                                playerManager.currentTrackIndex == index ? .primary : .secondary
+                                playerManager.currentTrackIndex == index ? .primary : .secondary,
                             )
                         
                         Spacer()
@@ -83,7 +88,7 @@ struct ContentView: View {
                     .padding(.vertical, 8)
                     .background(
                         playerManager.currentTrackIndex == index ?
-                        Color.accentColor.opacity(0.1) : Color.clear
+                            Color.accentColor.opacity(0.1) : Color.clear,
                     )
                     
                     if index < playerManager.playlist.count - 1 {
@@ -97,6 +102,7 @@ struct ContentView: View {
     }
     
     // MARK: - Player Controls
+
     private var playerControls: some View {
         VStack(spacing: 12) {
             if let currentTrack = playerManager.currentTrack {
@@ -114,9 +120,9 @@ struct ContentView: View {
                     Slider(
                         value: Binding(
                             get: { playerManager.currentTime },
-                            set: { playerManager.seek(to: $0) }
+                            set: { playerManager.seek(to: $0) },
                         ),
-                        in: 0...max(playerManager.duration, 0.1)
+                        in: 0 ... max(playerManager.duration, 0.1),
                     )
                     
                     Text(formatTime(playerManager.duration))
@@ -145,7 +151,7 @@ struct ContentView: View {
                 }
                 .disabled(
                     playerManager.currentTrackIndex == nil ||
-                    playerManager.currentTrackIndex == playerManager.playlist.count - 1
+                        playerManager.currentTrackIndex == playerManager.playlist.count - 1,
                 )
             }
             .buttonStyle(.plain)
@@ -163,7 +169,7 @@ struct ContentView: View {
             group.enter()
             _ = provider.loadObject(ofClass: URL.self) { url, _ in
                 defer { group.leave() }
-                if let url = url {
+                if let url {
                     urls.append(url)
                 }
             }
@@ -177,7 +183,7 @@ struct ContentView: View {
     }
     
     private func formatTime(_ time: TimeInterval) -> String {
-        guard time.isFinite && !time.isNaN else { return "0:00" }
+        guard time.isFinite, !time.isNaN else { return "0:00" }
         let minutes = Int(time) / 60
         let seconds = Int(time) % 60
         return String(format: "%d:%02d", minutes, seconds)

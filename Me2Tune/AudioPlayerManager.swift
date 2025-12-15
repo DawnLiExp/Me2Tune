@@ -2,11 +2,11 @@
 //  AudioPlayerManager.swift
 //  Me2Tune
 //
-//  音频播放器管理：播放控制、列表管理、进度更新
+//  音频播放器管理：使用SFBAudioEngine支持FLAC等格式
 //
 
 import Foundation
-import AVFoundation
+import SFBAudioEngine
 internal import Combine
 
 // MARK: - Audio Track Model
@@ -21,11 +21,11 @@ struct AudioTrack: Identifiable, Equatable {
         self.url = url
         self.title = url.deletingPathExtension().lastPathComponent
         
-        let asset = AVURLAsset(url: url)
-        do {
-            let duration = try await asset.load(.duration)
-            self.duration = duration.seconds
-        } catch {
+        if let audioFile = try? AudioFile(readingPropertiesAndMetadataFrom: url),
+           let duration = audioFile.properties.duration
+        {
+            self.duration = duration
+        } else {
             self.duration = 0
         }
     }
@@ -41,7 +41,7 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     @Published private(set) var currentTime: TimeInterval = 0
     @Published private(set) var duration: TimeInterval = 0
     
-    private var player: AVAudioPlayer?
+    private let player = AudioPlayer()
     private var timer: Timer?
     
     var currentTrack: AudioTrack? {
@@ -51,10 +51,15 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         return playlist[index]
     }
     
+    override init() {
+        super.init()
+        player.delegate = self
+    }
+    
     // MARK: - Playlist Management
     
     func addTracks(urls: [URL]) {
-        let supportedExtensions = ["mp3", "m4a", "aac", "wav", "aiff", "aif"]
+        let supportedExtensions = ["mp3", "m4a", "aac", "wav", "aiff", "aif", "flac", "ape", "wv", "tta", "mpc"]
         
         let validURLs = urls.filter { url in
             supportedExtensions.contains(url.pathExtension.lowercased())
@@ -70,7 +75,7 @@ final class AudioPlayerManager: NSObject, ObservableObject {
             await MainActor.run {
                 playlist.append(contentsOf: newTracks)
                 
-                if currentTrackIndex == nil && !playlist.isEmpty {
+                if currentTrackIndex == nil, !playlist.isEmpty {
                     currentTrackIndex = 0
                     loadTrack(at: 0)
                 }
@@ -81,15 +86,17 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     // MARK: - Playback Control
     
     func play() {
-        guard let player = player else { return }
-        
-        player.play()
-        isPlaying = true
-        startTimer()
+        do {
+            try player.play()
+            isPlaying = true
+            startTimer()
+        } catch {
+            print("❌ Play failed: \(error.localizedDescription)")
+        }
     }
     
     func pause() {
-        player?.pause()
+        player.pause()
         isPlaying = false
         stopTimer()
     }
@@ -113,7 +120,8 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     
     func next() {
         guard let currentIndex = currentTrackIndex,
-              currentIndex < playlist.count - 1 else {
+              currentIndex < playlist.count - 1
+        else {
             return
         }
         
@@ -122,8 +130,13 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     }
     
     func seek(to time: TimeInterval) {
-        player?.currentTime = time
-        currentTime = time
+        guard player.supportsSeeking else { return }
+        
+        if player.seek(time: time) {
+            currentTime = time
+        } else {
+            print("❌ Seek failed")
+        }
     }
     
     // MARK: - Private Methods
@@ -134,44 +147,30 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         let track = playlist[index]
         currentTrackIndex = index
         
-        DispatchQueue.global(qos: .utility).async { [weak self] in
-            do {
-                let newPlayer = try AVAudioPlayer(contentsOf: track.url)
-                newPlayer.prepareToPlay()
-                
-                DispatchQueue.main.async { [weak self] in
-                    guard let self = self else { return }
-                    self.player = newPlayer
-                    self.player?.delegate = self
-                    self.duration = newPlayer.duration
-                    self.currentTime = 0
-                }
-            } catch {
-                print("❌ Failed to load track: \(error.localizedDescription)")
-            }
+        do {
+            try player.play(track.url)
+            duration = track.duration
+            currentTime = 0
+            isPlaying = true
+            startTimer()
+        } catch {
+            print("❌ Failed to load track: \(error.localizedDescription)")
+            isPlaying = false
         }
     }
     
     private func loadAndPlay(at index: Int) {
-        let wasPlaying = isPlaying
         stopTimer()
-        
         loadTrack(at: index)
-        
-        if wasPlaying {
-            Task {
-                try? await Task.sleep(nanoseconds: 100_000_000)
-                play()
-            }
-        }
     }
     
     private func startTimer() {
         stopTimer()
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
-                guard let self = self, let player = self.player else { return }
-                self.currentTime = player.currentTime
+                guard let self else { return }
+                self.currentTime = self.player.currentTime ?? 0
+                self.duration = self.player.totalTime ?? 0
             }
         }
     }
@@ -182,14 +181,22 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     }
 }
 
-// MARK: - AVAudioPlayerDelegate
+// MARK: - AudioPlayer.Delegate
 
-extension AudioPlayerManager: AVAudioPlayerDelegate {
-    nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+extension AudioPlayerManager: AudioPlayer.Delegate {
+    nonisolated func audioPlayer(_ audioPlayer: AudioPlayer, playbackStateChanged playbackState: AudioPlayer.PlaybackState) {
         Task { @MainActor in
-            if flag {
-                next()
-            }
+            isPlaying = (playbackState == .playing)
         }
+    }
+    
+    nonisolated func audioPlayerEndOfAudio(_ audioPlayer: AudioPlayer) {
+        Task { @MainActor in
+            next()
+        }
+    }
+    
+    @objc nonisolated func audioPlayer(_ audioPlayer: AudioPlayer, encounteredError error: Error) {
+        print("❌ Player error: \(error.localizedDescription)")
     }
 }

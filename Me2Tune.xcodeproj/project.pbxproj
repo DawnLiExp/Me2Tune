@@ -3,8 +3,12 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 90;
 	objects = {
+
+/* Begin PBXBuildFile section */
+		FC354B382EEFECDD005657EB /* SFBAudioEngine in Frameworks */ = {isa = PBXBuildFile; productRef = FC354B372EEFECDD005657EB /* SFBAudioEngine */; };
+/* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		FC16622A2EEFAE2C00F01BCE /* Me2Tune.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Me2Tune.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -21,10 +25,9 @@
 /* Begin PBXFrameworksBuildPhase section */
 		FC1662272EEFAE2C00F01BCE /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
+				FC354B382EEFECDD005657EB /* SFBAudioEngine in Frameworks */,
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
@@ -58,13 +61,12 @@
 			);
 			buildRules = (
 			);
-			dependencies = (
-			);
 			fileSystemSynchronizedGroups = (
 				FC16622C2EEFAE2C00F01BCE /* Me2Tune */,
 			);
 			name = Me2Tune;
 			packageProductDependencies = (
+				FC354B372EEFECDD005657EB /* SFBAudioEngine */,
 			);
 			productName = Me2Tune;
 			productReference = FC16622A2EEFAE2C00F01BCE /* Me2Tune.app */;
@@ -91,10 +93,14 @@
 			knownRegions = (
 				en,
 				Base,
+				"zh-Hans",
 			);
 			mainGroup = FC1662212EEFAE2C00F01BCE;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
+			packageReferences = (
+				FC354B362EEFECDD005657EB /* XCRemoteSwiftPackageReference "SFBAudioEngine" */,
+			);
+			preferredProjectObjectVersion = 90;
 			productRefGroup = FC16622B2EEFAE2C00F01BCE /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -107,25 +113,21 @@
 /* Begin PBXResourcesBuildPhase section */
 		FC1662282EEFAE2C00F01BCE /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		FC1662262EEFAE2C00F01BCE /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		FC1662332EEFAE2E00F01BCE /* Debug */ = {
+		FC1662332EEFAE2E00F01BCE /* Debug configuration for PBXProject "Me2Tune" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -189,7 +191,7 @@
 			};
 			name = Debug;
 		};
-		FC1662342EEFAE2E00F01BCE /* Release */ = {
+		FC1662342EEFAE2E00F01BCE /* Release configuration for PBXProject "Me2Tune" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -245,20 +247,21 @@
 			};
 			name = Release;
 		};
-		FC1662362EEFAE2E00F01BCE /* Debug */ = {
+		FC1662362EEFAE2E00F01BCE /* Debug configuration for PBXNativeTarget "Me2Tune" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 20251215;
 				DEVELOPMENT_TEAM = 2XCFSMR77F;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -277,20 +280,21 @@
 			};
 			name = Debug;
 		};
-		FC1662372EEFAE2E00F01BCE /* Release */ = {
+		FC1662372EEFAE2E00F01BCE /* Release configuration for PBXNativeTarget "Me2Tune" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 20251215;
 				DEVELOPMENT_TEAM = 2XCFSMR77F;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -315,22 +319,39 @@
 		FC1662252EEFAE2C00F01BCE /* Build configuration list for PBXProject "Me2Tune" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				FC1662332EEFAE2E00F01BCE /* Debug */,
-				FC1662342EEFAE2E00F01BCE /* Release */,
+				FC1662332EEFAE2E00F01BCE /* Debug configuration for PBXProject "Me2Tune" */,
+				FC1662342EEFAE2E00F01BCE /* Release configuration for PBXProject "Me2Tune" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		FC1662352EEFAE2E00F01BCE /* Build configuration list for PBXNativeTarget "Me2Tune" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				FC1662362EEFAE2E00F01BCE /* Debug */,
-				FC1662372EEFAE2E00F01BCE /* Release */,
+				FC1662362EEFAE2E00F01BCE /* Debug configuration for PBXNativeTarget "Me2Tune" */,
+				FC1662372EEFAE2E00F01BCE /* Release configuration for PBXNativeTarget "Me2Tune" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		FC354B362EEFECDD005657EB /* XCRemoteSwiftPackageReference "SFBAudioEngine" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sbooth/SFBAudioEngine";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		FC354B372EEFECDD005657EB /* SFBAudioEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FC354B362EEFECDD005657EB /* XCRemoteSwiftPackageReference "SFBAudioEngine" */;
+			productName = SFBAudioEngine;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = FC1662222EEFAE2C00F01BCE /* Project object */;
 }
