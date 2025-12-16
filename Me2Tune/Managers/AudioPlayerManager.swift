@@ -2,22 +2,24 @@
 //  AudioPlayerManager.swift
 //  Me2Tune
 //
-//  音频播放器管理：使用SFBAudioEngine支持FLAC等格式
+//  音频播放器管理：支持FLAC等格式
 //
 
+import AppKit
 import Foundation
 import SFBAudioEngine
 internal import Combine
 
 // MARK: - Audio Track Model
 
-struct AudioTrack: Identifiable, Equatable {
-    let id = UUID()
+struct AudioTrack: Identifiable, Equatable, Codable, Sendable {
+    let id: UUID
     let url: URL
     let title: String
     let duration: TimeInterval
     
     init(url: URL) async {
+        self.id = UUID()
         self.url = url
         self.title = url.deletingPathExtension().lastPathComponent
         
@@ -28,6 +30,13 @@ struct AudioTrack: Identifiable, Equatable {
         } else {
             self.duration = 0
         }
+    }
+    
+    init(id: UUID, url: URL, title: String, duration: TimeInterval) {
+        self.id = id
+        self.url = url
+        self.title = title
+        self.duration = duration
     }
 }
 
@@ -40,8 +49,11 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     @Published private(set) var isPlaying = false
     @Published private(set) var currentTime: TimeInterval = 0
     @Published private(set) var duration: TimeInterval = 0
+    @Published private(set) var currentArtwork: NSImage?
     
     private let player = AudioPlayer()
+    private let artworkService = ArtworkService()
+    private let persistenceService = PersistenceService()
     private var timer: Timer?
     
     var currentTrack: AudioTrack? {
@@ -54,6 +66,10 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     override init() {
         super.init()
         player.delegate = self
+        
+        Task {
+            await loadPlaylist()
+        }
     }
     
     // MARK: - Playlist Management
@@ -79,8 +95,17 @@ final class AudioPlayerManager: NSObject, ObservableObject {
                     currentTrackIndex = 0
                     loadTrack(at: 0)
                 }
+                
+                Task {
+                    await savePlaylist()
+                }
             }
         }
+    }
+    
+    func playTrack(at index: Int) {
+        guard playlist.indices.contains(index) else { return }
+        loadAndPlay(at: index)
     }
     
     // MARK: - Playback Control
@@ -134,8 +159,6 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         
         if player.seek(time: time) {
             currentTime = time
-        } else {
-            print("❌ Seek failed")
         }
     }
     
@@ -153,6 +176,11 @@ final class AudioPlayerManager: NSObject, ObservableObject {
             currentTime = 0
             isPlaying = true
             startTimer()
+            
+            Task {
+                currentArtwork = await artworkService.artwork(for: track.url)
+                updateDockIcon()
+            }
         } catch {
             print("❌ Failed to load track: \(error.localizedDescription)")
             isPlaying = false
@@ -162,6 +190,10 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     private func loadAndPlay(at index: Int) {
         stopTimer()
         loadTrack(at: index)
+        
+        Task {
+            await savePlaylist()
+        }
     }
     
     private func startTimer() {
@@ -178,6 +210,54 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     private func stopTimer() {
         timer?.invalidate()
         timer = nil
+    }
+    
+    private func updateDockIcon() {
+        guard let artwork = currentArtwork else {
+            NSApp.dockTile.contentView = nil
+            NSApp.dockTile.display()
+            return
+        }
+        
+        let imageView = NSImageView(frame: NSRect(x: 0, y: 0, width: 128, height: 128))
+        imageView.image = artwork
+        imageView.imageScaling = .scaleProportionallyUpOrDown
+        
+        NSApp.dockTile.contentView = imageView
+        NSApp.dockTile.display()
+    }
+    
+    // MARK: - Persistence
+    
+    private func savePlaylist() async {
+        let state = PlaylistState(
+            trackURLs: playlist.map(\.url),
+            currentIndex: currentTrackIndex,
+        )
+        
+        try? await persistenceService.save(state)
+    }
+    
+    private func loadPlaylist() async {
+        guard let state = try? await persistenceService.load() else {
+            return
+        }
+        
+        var loadedTracks: [AudioTrack] = []
+        for url in state.trackURLs {
+            let track = await AudioTrack(url: url)
+            loadedTracks.append(track)
+        }
+        
+        await MainActor.run {
+            playlist = loadedTracks
+            
+            if let savedIndex = state.currentIndex,
+               playlist.indices.contains(savedIndex)
+            {
+                currentTrackIndex = savedIndex
+            }
+        }
     }
 }
 

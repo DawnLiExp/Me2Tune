@@ -1,0 +1,8 @@
+//  English Localization
+
+"playlist" = "Playlist";
+"unknown_artist" = "Unknown Artist";
+"collections" = "Collections";
+"collection_placeholder" = "Drag folders here to organize by album";
+"drop_files" = "Drop Audio Files Here";
+"supported_formats" = "Supports MP3, AAC, WAV, AIFF, FLAC, APE, and more";

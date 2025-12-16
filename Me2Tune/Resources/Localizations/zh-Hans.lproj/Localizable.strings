@@ -1,0 +1,8 @@
+// 简体中文本地化
+
+"playlist" = "播放列表";
+"unknown_artist" = "未知艺人";
+"collections" = "专辑列表";
+"collection_placeholder" = "拖拽文件夹到此处按专辑分类";
+"drop_files" = "拖入音频文件";
+"supported_formats" = "支持 MP3、AAC、WAV、AIFF、FLAC、APE 等格式";

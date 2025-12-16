@@ -1,0 +1,94 @@
+//
+//  PlayerControlsView.swift
+//  Me2Tune
+//
+//  播放控制面板
+//
+
+import SwiftUI
+
+struct PlayerControlsView: View {
+    let currentTrack: AudioTrack?
+    let currentTime: TimeInterval
+    let duration: TimeInterval
+    let isPlaying: Bool
+    let canGoPrevious: Bool
+    let canGoNext: Bool
+    
+    let onPlayPause: () -> Void
+    let onPrevious: () -> Void
+    let onNext: () -> Void
+    let onSeek: (TimeInterval) -> Void
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            // 曲目信息
+            if let track = currentTrack {
+                VStack(spacing: 4) {
+                    Text(track.title)
+                        .font(.system(size: 14, weight: .semibold))
+                        .lineLimit(1)
+                    
+                    Text(LocalizedStringKey("unknown_artist"))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            
+            // 进度条
+            HStack(spacing: 12) {
+                Text(formatTime(currentTime))
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 40, alignment: .trailing)
+                
+                Slider(
+                    value: Binding(
+                        get: { currentTime },
+                        set: { onSeek($0) },
+                    ),
+                    in: 0 ... max(duration, 0.1),
+                )
+                .controlSize(.small)
+                
+                Text(formatTime(duration))
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 40, alignment: .leading)
+            }
+            
+            // 控制按钮
+            HStack(spacing: 32) {
+                Button(action: onPrevious) {
+                    Image(systemName: "backward.fill")
+                        .font(.system(size: 18))
+                }
+                .disabled(!canGoPrevious)
+                .buttonStyle(.plain)
+                
+                Button(action: onPlayPause) {
+                    Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                        .font(.system(size: 40))
+                }
+                .disabled(currentTrack == nil)
+                .buttonStyle(.plain)
+                
+                Button(action: onNext) {
+                    Image(systemName: "forward.fill")
+                        .font(.system(size: 18))
+                }
+                .disabled(!canGoNext)
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+    }
+    
+    private func formatTime(_ time: TimeInterval) -> String {
+        guard time.isFinite, !time.isNaN else { return "0:00" }
+        let minutes = Int(time) / 60
+        let seconds = Int(time) % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+}
