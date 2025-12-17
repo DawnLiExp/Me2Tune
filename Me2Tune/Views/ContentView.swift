@@ -10,7 +10,7 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @EnvironmentObject private var playerManager: AudioPlayerManager
-    @EnvironmentObject private var collectionManager: CollectionManager // 修改为 @EnvironmentObject
+    @EnvironmentObject private var collectionManager: CollectionManager
     @State private var isDragging = false
     @State private var selectedTab: PlaylistTab = .playlist
     @FocusState private var isFocused: Bool
@@ -34,7 +34,7 @@ struct ContentView: View {
                 duration: playerManager.duration,
                 isPlaying: playerManager.isPlaying,
                 canGoPrevious: (playerManager.currentTrackIndex ?? 0) > 0,
-                canGoNext: playerManager.currentTrackIndex ?? 0 < playerManager.playlist.count - 1,
+                canGoNext: (playerManager.currentTrackIndex ?? 0) < playerManager.currentTracks.count - 1,
                 onPlayPause: { playerManager.togglePlayPause() },
                 onPrevious: { playerManager.previous() },
                 onNext: { playerManager.next() },
@@ -48,10 +48,15 @@ struct ContentView: View {
             
             PlaylistView(
                 tracks: playerManager.playlist,
+                currentTracks: playerManager.currentTracks,
                 currentIndex: playerManager.currentTrackIndex,
+                playingSource: playerManager.playingSource,
                 albums: collectionManager.albums,
                 selectedTab: $selectedTab,
                 onTrackSelected: { playerManager.playTrack(at: $0) },
+                onAlbumSelected: { album, index in
+                    playerManager.playAlbum(album, startAt: index)
+                },
             )
             .background(Color(white: 0.12))
             .frame(minHeight: 200)
@@ -107,21 +112,15 @@ struct ContentView: View {
     private func handleCollectionsDrop(_ urls: [URL]) {
         let fileManager = FileManager.default
         
-        print("🎵 Collections 收到 \(urls.count) 个项目")
-        
         Task {
             for url in urls {
                 var isDirectory: ObjCBool = false
                 guard fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
-                    print("⚠️ 路径不存在: \(url.path)")
                     continue
                 }
                 
                 if isDirectory.boolValue {
-                    print("📂 处理文件夹: \(url.lastPathComponent)")
                     await collectionManager.addAlbum(from: url)
-                } else {
-                    print("⏭️ 忽略文件: \(url.lastPathComponent)")
                 }
             }
         }
@@ -139,8 +138,11 @@ struct ContentView: View {
             }
             
             if isDirectory.boolValue {
-                // 递归扫描文件夹
-                if let enumerator = fileManager.enumerator(at: url, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]) {
+                if let enumerator = fileManager.enumerator(
+                    at: url,
+                    includingPropertiesForKeys: [.isRegularFileKey],
+                    options: [.skipsHiddenFiles],
+                ) {
                     for case let fileURL as URL in enumerator {
                         if supportedExtensions.contains(fileURL.pathExtension.lowercased()) {
                             result.append(fileURL)
@@ -148,7 +150,6 @@ struct ContentView: View {
                     }
                 }
             } else {
-                // 单文件
                 if supportedExtensions.contains(url.pathExtension.lowercased()) {
                     result.append(url)
                 }
@@ -162,5 +163,5 @@ struct ContentView: View {
 #Preview {
     ContentView()
         .environmentObject(AudioPlayerManager())
-        .environmentObject(CollectionManager()) // 预览也需要注入
+        .environmentObject(CollectionManager())
 }

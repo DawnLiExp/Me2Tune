@@ -12,8 +12,14 @@ internal import Combine
 
 @MainActor
 final class AudioPlayerManager: NSObject, ObservableObject {
+    // 持久化的主播放列表
     @Published private(set) var playlist: [AudioTrack] = []
+    
+    // 当前正在播放的歌曲列表（可能来自 playlist 或 album）
+    @Published private(set) var currentTracks: [AudioTrack] = []
     @Published private(set) var currentTrackIndex: Int?
+    @Published private(set) var playingSource: PlayingSource = .playlist
+    
     @Published private(set) var isPlaying = false
     @Published private(set) var currentTime: TimeInterval = 0
     @Published private(set) var duration: TimeInterval = 0
@@ -24,11 +30,16 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     private let persistenceService = PersistenceService()
     private var timer: Timer?
     
+    enum PlayingSource: Equatable {
+        case playlist
+        case album(UUID)
+    }
+    
     var currentTrack: AudioTrack? {
-        guard let index = currentTrackIndex, playlist.indices.contains(index) else {
+        guard let index = currentTrackIndex, currentTracks.indices.contains(index) else {
             return nil
         }
-        return playlist[index]
+        return currentTracks[index]
     }
     
     override init() {
@@ -36,6 +47,8 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         
         Task {
             await loadPlaylist()
+            // 初始化时，当前播放列表就是 playlist
+            currentTracks = playlist
         }
     }
     
@@ -58,7 +71,13 @@ final class AudioPlayerManager: NSObject, ObservableObject {
             await MainActor.run {
                 playlist.append(contentsOf: newTracks)
                 
-                if currentTrackIndex == nil, !playlist.isEmpty {
+                // 如果当前正在播放 playlist，同步更新
+                if playingSource == .playlist {
+                    currentTracks = playlist
+                }
+                
+                // 如果没有当前播放的歌曲，自动加载第一首
+                if currentTrackIndex == nil, !currentTracks.isEmpty {
                     currentTrackIndex = 0
                     loadTrack(at: 0)
                 }
@@ -70,12 +89,26 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         }
     }
     
+    // 播放 playlist 中的某首歌
     func playTrack(at index: Int) {
         guard playlist.indices.contains(index) else { return }
+        
+        // 切换到 playlist 播放源
+        playingSource = .playlist
+        currentTracks = playlist
+        
         loadAndPlay(at: index)
     }
     
-    // 移除 loadAlbum 方法，collections操作不应影响主播放列表 playlist
+    // 播放专辑
+    func playAlbum(_ album: Album, startAt index: Int = 0) {
+        guard !album.tracks.isEmpty else { return }
+        
+        playingSource = .album(album.id)
+        currentTracks = album.tracks
+        
+        loadAndPlay(at: index)
+    }
     
     // MARK: - Playback Control
     
@@ -89,7 +122,7 @@ final class AudioPlayerManager: NSObject, ObservableObject {
             isPlaying = true
             startTimer()
         } catch {
-            print("❌ Play failed: \(error.localizedDescription)")
+            print("⚠️ Play failed: \(error.localizedDescription)")
         }
     }
     
@@ -120,7 +153,7 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     
     func next() {
         guard let currentIndex = currentTrackIndex,
-              currentIndex < playlist.count - 1
+              currentIndex < currentTracks.count - 1
         else {
             return
         }
@@ -145,7 +178,7 @@ final class AudioPlayerManager: NSObject, ObservableObject {
             do {
                 try player.play()
             } catch {
-                print("❌ Resume after seek failed: \(error.localizedDescription)")
+                print("⚠️ Resume after seek failed: \(error.localizedDescription)")
                 isPlaying = false
             }
         }
@@ -161,23 +194,21 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     }
     
     private func loadTrack(at index: Int) {
-        guard playlist.indices.contains(index) else { return }
+        guard currentTracks.indices.contains(index) else { return }
         
         ensurePlayerInitialized()
         guard let player else { return }
         
-        // 停止当前播放
         if isPlaying {
             player.pause()
             isPlaying = false
         }
         stopTimer()
         
-        let track = playlist[index]
+        let track = currentTracks[index]
         currentTrackIndex = index
         
         do {
-            // 先加载，不自动播放
             try player.play(track.url)
             player.pause()
             
@@ -190,7 +221,7 @@ final class AudioPlayerManager: NSObject, ObservableObject {
                 updateDockIcon()
             }
         } catch {
-            print("❌ Failed to load track: \(error.localizedDescription)")
+            print("⚠️ Failed to load track: \(error.localizedDescription)")
             isPlaying = false
         }
     }
@@ -199,8 +230,11 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         loadTrack(at: index)
         play()
         
-        Task {
-            await savePlaylist()
+        // 只有播放 playlist 时才保存状态
+        if playingSource == .playlist {
+            Task {
+                await savePlaylist()
+            }
         }
     }
     
@@ -240,7 +274,7 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     private func savePlaylist() async {
         let state = PlaylistState(
             trackURLs: playlist.map(\.url),
-            currentIndex: currentTrackIndex,
+            currentIndex: playingSource == .playlist ? currentTrackIndex : nil,
         )
         
         try? await persistenceService.save(state)
@@ -285,6 +319,6 @@ extension AudioPlayerManager: AudioPlayer.Delegate {
     }
     
     @objc nonisolated func audioPlayer(_ audioPlayer: AudioPlayer, encounteredError error: Error) {
-        print("❌ Player error: \(error.localizedDescription)")
+        print("⚠️ Player error: \(error.localizedDescription)")
     }
 }
