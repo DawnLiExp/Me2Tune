@@ -9,8 +9,10 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct ContentView: View {
-    @StateObject private var playerManager = AudioPlayerManager()
+    @EnvironmentObject private var playerManager: AudioPlayerManager
+    @EnvironmentObject private var collectionManager: CollectionManager // 修改为 @EnvironmentObject
     @State private var isDragging = false
+    @State private var selectedTab: PlaylistTab = .playlist
     @FocusState private var isFocused: Bool
     
     var body: some View {
@@ -44,21 +46,19 @@ struct ContentView: View {
             
             // MARK: - Playlist
             
-            ZStack {
-                PlaylistView(
-                    tracks: playerManager.playlist,
-                    currentIndex: playerManager.currentTrackIndex,
-                    onTrackSelected: { playerManager.playTrack(at: $0) },
-                )
-                .background(Color(white: 0.12))
-                
-                if playerManager.playlist.isEmpty {
-                    dropZoneOverlay
-                }
-            }
+            PlaylistView(
+                tracks: playerManager.playlist,
+                currentIndex: playerManager.currentTrackIndex,
+                albums: collectionManager.albums,
+                selectedTab: $selectedTab,
+                onTrackSelected: { playerManager.playTrack(at: $0) },
+                onAlbumSelected: { album in
+                    playerManager.loadAlbum(album)
+                },
+            )
+            .background(Color(white: 0.12))
             .frame(minHeight: 200)
         }
-        .frame(minWidth: 400, minHeight: 600)
         .background(Color(white: 0.1))
         .preferredColorScheme(.dark)
         .focusable()
@@ -73,36 +73,6 @@ struct ContentView: View {
         .onDrop(of: [.fileURL], isTargeted: $isDragging) { providers in
             handleDrop(providers: providers)
         }
-    }
-    
-    // MARK: - Drop Zone Overlay
-    
-    private var dropZoneOverlay: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "music.note.list")
-                .font(.system(size: 48))
-                .foregroundStyle(.secondary)
-            
-            Text(LocalizedStringKey("drop_files"))
-                .font(.headline)
-                .foregroundStyle(.primary)
-            
-            Text(LocalizedStringKey("supported_formats"))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding(40)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(isDragging ? Color.orange.opacity(0.15) : Color.clear)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(
-                    isDragging ? Color.orange : Color.gray.opacity(0.3),
-                    style: StrokeStyle(lineWidth: 2, dash: [10]),
-                )
-                .padding(20),
-        )
     }
     
     // MARK: - Helpers
@@ -122,13 +92,78 @@ struct ContentView: View {
         }
         
         group.notify(queue: .main) {
-            playerManager.addTracks(urls: urls)
+            if selectedTab == .playlist {
+                handlePlaylistDrop(urls)
+            } else {
+                handleCollectionsDrop(urls)
+            }
         }
         
         return true
+    }
+    
+    private func handlePlaylistDrop(_ urls: [URL]) {
+        let allURLs = expandFolders(urls)
+        playerManager.addTracks(urls: allURLs)
+    }
+    
+    private func handleCollectionsDrop(_ urls: [URL]) {
+        let fileManager = FileManager.default
+        
+        print("🎵 Collections 收到 \(urls.count) 个项目")
+        
+        Task {
+            for url in urls {
+                var isDirectory: ObjCBool = false
+                guard fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
+                    print("⚠️ 路径不存在: \(url.path)")
+                    continue
+                }
+                
+                if isDirectory.boolValue {
+                    print("📂 处理文件夹: \(url.lastPathComponent)")
+                    await collectionManager.addAlbum(from: url)
+                } else {
+                    print("⏭️ 忽略文件: \(url.lastPathComponent)")
+                }
+            }
+        }
+    }
+    
+    private func expandFolders(_ urls: [URL]) -> [URL] {
+        var result: [URL] = []
+        let fileManager = FileManager.default
+        let supportedExtensions = ["mp3", "m4a", "aac", "wav", "aiff", "aif", "flac", "ape", "wv", "tta", "mpc"]
+        
+        for url in urls {
+            var isDirectory: ObjCBool = false
+            guard fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
+                continue
+            }
+            
+            if isDirectory.boolValue {
+                // 递归扫描文件夹
+                if let enumerator = fileManager.enumerator(at: url, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]) {
+                    for case let fileURL as URL in enumerator {
+                        if supportedExtensions.contains(fileURL.pathExtension.lowercased()) {
+                            result.append(fileURL)
+                        }
+                    }
+                }
+            } else {
+                // 单文件
+                if supportedExtensions.contains(url.pathExtension.lowercased()) {
+                    result.append(url)
+                }
+            }
+        }
+        
+        return result
     }
 }
 
 #Preview {
     ContentView()
+        .environmentObject(AudioPlayerManager())
+        .environmentObject(CollectionManager()) // 预览也需要注入
 }

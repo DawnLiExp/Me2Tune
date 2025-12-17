@@ -2,45 +2,13 @@
 //  AudioPlayerManager.swift
 //  Me2Tune
 //
-//  音频播放器管理：支持FLAC等格式
+//  音频播放器管理
 //
 
 import AppKit
 import Foundation
 import SFBAudioEngine
 internal import Combine
-
-// MARK: - Audio Track Model
-
-struct AudioTrack: Identifiable, Equatable, Codable, Sendable {
-    let id: UUID
-    let url: URL
-    let title: String
-    let duration: TimeInterval
-    
-    init(url: URL) async {
-        self.id = UUID()
-        self.url = url
-        self.title = url.deletingPathExtension().lastPathComponent
-        
-        if let audioFile = try? AudioFile(readingPropertiesAndMetadataFrom: url),
-           let duration = audioFile.properties.duration
-        {
-            self.duration = duration
-        } else {
-            self.duration = 0
-        }
-    }
-    
-    init(id: UUID, url: URL, title: String, duration: TimeInterval) {
-        self.id = id
-        self.url = url
-        self.title = title
-        self.duration = duration
-    }
-}
-
-// MARK: - Audio Player Manager
 
 @MainActor
 final class AudioPlayerManager: NSObject, ObservableObject {
@@ -51,7 +19,7 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     @Published private(set) var duration: TimeInterval = 0
     @Published private(set) var currentArtwork: NSImage?
     
-    private let player = AudioPlayer()
+    private var player: AudioPlayer?
     private let artworkService = ArtworkService()
     private let persistenceService = PersistenceService()
     private var timer: Timer?
@@ -65,7 +33,6 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     
     override init() {
         super.init()
-        player.delegate = self
         
         Task {
             await loadPlaylist()
@@ -108,9 +75,26 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         loadAndPlay(at: index)
     }
     
+    func loadAlbum(_ album: Album) {
+        playlist = album.tracks
+        currentTrackIndex = 0
+        
+        if !playlist.isEmpty {
+            loadAndPlay(at: 0)
+        }
+        
+        Task {
+            await savePlaylist()
+        }
+    }
+    
     // MARK: - Playback Control
     
     func play() {
+        ensurePlayerInitialized()
+        
+        guard let player else { return }
+        
         do {
             try player.play()
             isPlaying = true
@@ -121,6 +105,8 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     }
     
     func pause() {
+        guard let player else { return }
+        
         player.pause()
         isPlaying = false
         stopTimer()
@@ -155,27 +141,60 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     }
     
     func seek(to time: TimeInterval) {
-        guard player.supportsSeeking else { return }
+        guard let player, player.supportsSeeking else { return }
+        
+        let wasPlaying = isPlaying
+        if wasPlaying {
+            player.pause()
+        }
         
         if player.seek(time: time) {
             currentTime = time
+        }
+        
+        if wasPlaying {
+            do {
+                try player.play()
+            } catch {
+                print("❌ Resume after seek failed: \(error.localizedDescription)")
+                isPlaying = false
+            }
         }
     }
     
     // MARK: - Private Methods
     
+    private func ensurePlayerInitialized() {
+        guard player == nil else { return }
+        
+        player = AudioPlayer()
+        player?.delegate = self
+    }
+    
     private func loadTrack(at index: Int) {
         guard playlist.indices.contains(index) else { return }
+        
+        ensurePlayerInitialized()
+        guard let player else { return }
+        
+        // 停止当前播放
+        if isPlaying {
+            player.pause()
+            isPlaying = false
+        }
+        stopTimer()
         
         let track = playlist[index]
         currentTrackIndex = index
         
         do {
+            // 先加载，不自动播放
             try player.play(track.url)
+            player.pause()
+            
             duration = track.duration
             currentTime = 0
-            isPlaying = true
-            startTimer()
+            isPlaying = false
             
             Task {
                 currentArtwork = await artworkService.artwork(for: track.url)
@@ -188,8 +207,8 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     }
     
     private func loadAndPlay(at index: Int) {
-        stopTimer()
         loadTrack(at: index)
+        play()
         
         Task {
             await savePlaylist()
@@ -200,9 +219,9 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         stopTimer()
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
-                guard let self else { return }
-                self.currentTime = self.player.currentTime ?? 0
-                self.duration = self.player.totalTime ?? 0
+                guard let self, let player = self.player else { return }
+                self.currentTime = player.currentTime ?? 0
+                self.duration = player.totalTime ?? 0
             }
         }
     }

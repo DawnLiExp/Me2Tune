@@ -15,9 +15,10 @@ enum PlaylistTab {
 struct PlaylistView: View {
     let tracks: [AudioTrack]
     let currentIndex: Int?
+    let albums: [Album]
+    @Binding var selectedTab: PlaylistTab
     let onTrackSelected: (Int) -> Void
-    
-    @State private var selectedTab: PlaylistTab = .playlist
+    let onAlbumSelected: (Album) -> Void
     
     var body: some View {
         VStack(spacing: 0) {
@@ -134,12 +135,23 @@ struct PlaylistView: View {
     
     private var collectionView: some View {
         ScrollView {
-            VStack(spacing: 0) {
-                Text(LocalizedStringKey("collection_placeholder"))
-                    .font(.system(size: 12))
-                    .foregroundStyle(.tertiary)
-                    .padding(20)
-                    .frame(maxWidth: .infinity, alignment: .center)
+            LazyVStack(spacing: 0) {
+                if albums.isEmpty {
+                    Text(LocalizedStringKey("collection_placeholder"))
+                        .font(.system(size: 12))
+                        .foregroundStyle(.tertiary)
+                        .padding(20)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                } else {
+                    ForEach(albums) { album in
+                        AlbumRowView(album: album) {
+                            onAlbumSelected(album)
+                        }
+                        
+                        Divider()
+                            .padding(.leading, 16)
+                    }
+                }
             }
         }
     }
@@ -168,6 +180,56 @@ struct TabButton: View {
         }
         .buttonStyle(.plain)
         .contentShape(Rectangle())
+    }
+}
+
+// MARK: - Album Row View
+
+struct AlbumRowView: View {
+    let album: Album
+    let onSelect: () -> Void
+    
+    @State private var isHovered = false
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "opticaldisc")
+                .font(.system(size: 16))
+                .foregroundStyle(.secondary)
+                .frame(width: 16, alignment: .center)
+            
+            VStack(alignment: .leading, spacing: 3) {
+                Text(album.name)
+                    .font(.system(size: 13, weight: .regular))
+                    .lineLimit(1)
+                    .foregroundStyle(.primary)
+                
+                Text("\(album.tracks.count) tracks")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(
+            Group {
+                if isHovered {
+                    Color.white.opacity(0.05)
+                } else {
+                    Color.clear
+                }
+            },
+        )
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .onTapGesture(count: 2) {
+            onSelect()
+        }
     }
 }
 

@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		FC0A17402EF262620090B22C /* Album.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC0A173F2EF262600090B22C /* Album.swift */; };
+		FC0A17442EF262910090B22C /* CollectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC0A17432EF2628E0090B22C /* CollectionManager.swift */; };
 		FC354B382EEFECDD005657EB /* SFBAudioEngine in Frameworks */ = {isa = PBXBuildFile; productRef = FC354B372EEFECDD005657EB /* SFBAudioEngine */; };
 		FC480EA72EF107E8000D8393 /* AlbumArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480E9C2EF107E8000D8393 /* AlbumArtworkView.swift */; };
 		FC480EA82EF107E8000D8393 /* ArtworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480E9D2EF107E8000D8393 /* ArtworkService.swift */; };
@@ -20,9 +22,12 @@
 		FC480EB02EF107E8000D8393 /* info.plist in Resources */ = {isa = PBXBuildFile; fileRef = FC480EA12EF107E8000D8393 /* info.plist */; };
 		FC480EB72EF13722000D8393 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = FC480EB62EF13722000D8393 /* Localizable.strings */; };
 		FC480EBE2EF137BB000D8393 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = FC480EBC2EF137AE000D8393 /* Localizable.strings */; };
+		FC480EC42EF152BC000D8393 /* AudioTrack.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480EC32EF152A2000D8393 /* AudioTrack.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		FC0A173F2EF262600090B22C /* Album.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Album.swift; sourceTree = "<group>"; };
+		FC0A17432EF2628E0090B22C /* CollectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionManager.swift; sourceTree = "<group>"; };
 		FC16622A2EEFAE2C00F01BCE /* Me2Tune.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Me2Tune.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FC480E9C2EF107E8000D8393 /* AlbumArtworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumArtworkView.swift; sourceTree = "<group>"; };
 		FC480E9D2EF107E8000D8393 /* ArtworkService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkService.swift; sourceTree = "<group>"; };
@@ -36,6 +41,7 @@
 		FC480EA52EF107E8000D8393 /* PlaylistView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistView.swift; sourceTree = "<group>"; };
 		FC480EB52EF13722000D8393 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = Localizable.strings; sourceTree = "<group>"; };
 		FC480EBD2EF137AE000D8393 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = Localizable.strings; sourceTree = "<group>"; };
+		FC480EC32EF152A2000D8393 /* AudioTrack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioTrack.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -70,6 +76,7 @@
 				FC480EB22EF136E7000D8393 /* Resources */,
 				FC480EA12EF107E8000D8393 /* info.plist */,
 				FC480EC02EF13937000D8393 /* Managers */,
+				FC480EC22EF15296000D8393 /* Models */,
 				FC480EC12EF13946000D8393 /* Services */,
 				FC480EBF2EF13912000D8393 /* Views */,
 				FC480EA22EF107E8000D8393 /* Me2TuneApp.swift */,
@@ -126,6 +133,7 @@
 			isa = PBXGroup;
 			children = (
 				FC480E9F2EF107E8000D8393 /* AudioPlayerManager.swift */,
+				FC0A17432EF2628E0090B22C /* CollectionManager.swift */,
 			);
 			path = Managers;
 			sourceTree = "<group>";
@@ -137,6 +145,15 @@
 				FC480EA32EF107E8000D8393 /* PersistenceService.swift */,
 			);
 			path = Services;
+			sourceTree = "<group>";
+		};
+		FC480EC22EF15296000D8393 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				FC0A173F2EF262600090B22C /* Album.swift */,
+				FC480EC32EF152A2000D8393 /* AudioTrack.swift */,
+			);
+			path = Models;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -217,11 +234,14 @@
 				FC480EA72EF107E8000D8393 /* AlbumArtworkView.swift in Sources */,
 				FC480EA82EF107E8000D8393 /* ArtworkService.swift in Sources */,
 				FC480EA92EF107E8000D8393 /* AudioPlayerManager.swift in Sources */,
+				FC480EC42EF152BC000D8393 /* AudioTrack.swift in Sources */,
+				FC0A17442EF262910090B22C /* CollectionManager.swift in Sources */,
 				FC480EAA2EF107E8000D8393 /* ContentView.swift in Sources */,
 				FC480EAB2EF107E8000D8393 /* Me2TuneApp.swift in Sources */,
 				FC480EAC2EF107E8000D8393 /* PersistenceService.swift in Sources */,
 				FC480EAD2EF107E8000D8393 /* PlayerControlsView.swift in Sources */,
 				FC480EAE2EF107E8000D8393 /* PlaylistView.swift in Sources */,
+				FC0A17402EF262620090B22C /* Album.swift in Sources */,
 			);
 		};
 /* End PBXSourcesBuildPhase section */
@@ -376,10 +396,9 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 20251215;
 				DEVELOPMENT_TEAM = 2XCFSMR77F;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -410,10 +429,9 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 20251215;
 				DEVELOPMENT_TEAM = 2XCFSMR77F;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
