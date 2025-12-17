@@ -23,6 +23,9 @@ struct PlaylistView: View {
     let onAlbumSelected: (Album, Int) -> Void
     
     @State private var selectedAlbumId: UUID? // 当前查看的专辑详情
+    @State private var artworkCache: [UUID: NSImage] = [:] // 封面缓存
+    
+    private let artworkService = ArtworkService()
     
     var body: some View {
         VStack(spacing: 0) {
@@ -81,20 +84,7 @@ struct PlaylistView: View {
                         .buttonStyle(.plain)
                         .help("Clear")
                     } else {
-                        if selectedAlbumId != nil {
-                            // 专辑详情页的返回按钮
-                            Button(action: {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    selectedAlbumId = nil
-                                }
-                            }) {
-                                Image(systemName: "chevron.left.circle")
-                                    .font(.system(size: 16))
-                                    .foregroundStyle(.secondary)
-                            }
-                            .buttonStyle(.plain)
-                            .help("Back to albums")
-                        } else {
+                        if selectedAlbumId == nil {
                             Button(action: {}) {
                                 Image(systemName: "arrow.up.arrow.down.circle")
                                     .font(.system(size: 16))
@@ -184,6 +174,7 @@ struct PlaylistView: View {
                     ForEach(albums) { album in
                         AlbumRowView(
                             album: album,
+                            artwork: artworkCache[album.id],
                             isPlaying: {
                                 if case .album(let id) = playingSource {
                                     return id == album.id
@@ -196,6 +187,9 @@ struct PlaylistView: View {
                                 }
                             },
                         )
+                        .task {
+                            await loadArtwork(for: album)
+                        }
                         
                         Divider()
                             .padding(.leading, 16)
@@ -211,23 +205,52 @@ struct PlaylistView: View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 // 专辑标题
-                HStack {
-                    Image(systemName: "opticaldisc")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.secondary)
+                HStack(spacing: 12) {
+                    // 专辑封面
+                    Group {
+                        if let artwork = artworkCache[album.id] {
+                            Image(nsImage: artwork)
+                                .resizable()
+                                .scaledToFill()
+                        } else {
+                            Image(systemName: "opticaldisc")
+                                .font(.system(size: 16))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .frame(width: 40, height: 40)
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
                     
-                    Text(album.name)
-                        .font(.system(size: 13, weight: .semibold))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(album.name)
+                            .font(.system(size: 13, weight: .semibold))
+                        
+                        Text("\(album.tracks.count) tracks")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.tertiary)
+                    }
                     
                     Spacer()
                     
-                    Text("\(album.tracks.count) tracks")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
+                    // 返回按钮
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedAlbumId = nil
+                        }
+                    }) {
+                        Image(systemName: "chevron.left.circle")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Back to albums")
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
                 .background(Color.white.opacity(0.03))
+                .task {
+                    await loadArtwork(for: album)
+                }
                 
                 Divider()
                 
@@ -250,6 +273,22 @@ struct PlaylistView: View {
                             .padding(.leading, 36)
                     }
                 }
+            }
+        }
+    }
+    
+    // MARK: - Helpers
+    
+    private func loadArtwork(for album: Album) async {
+        guard artworkCache[album.id] == nil,
+              let firstTrack = album.tracks.first
+        else {
+            return
+        }
+        
+        if let artwork = await artworkService.artwork(for: firstTrack.url) {
+            await MainActor.run {
+                artworkCache[album.id] = artwork
             }
         }
     }
@@ -285,6 +324,7 @@ struct TabButton: View {
 
 struct AlbumRowView: View {
     let album: Album
+    let artwork: NSImage?
     let isPlaying: Bool
     let onSelect: () -> Void
     
@@ -292,11 +332,40 @@ struct AlbumRowView: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "opticaldisc")
-                .font(.system(size: 16))
-                .foregroundStyle(isPlaying ? .orange : .secondary)
-                .frame(width: 16, alignment: .center)
+            // 左侧指示器
+            Group {
+                if isPlaying {
+                    Image(systemName: "waveform")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.orange)
+                } else {
+                    Image(systemName: "opticaldisc")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .frame(width: 16, alignment: .center)
             
+            // 专辑封面
+            Group {
+                if let artwork {
+                    Image(nsImage: artwork)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.white.opacity(0.1))
+                        .overlay(
+                            Image(systemName: "music.note")
+                                .font(.system(size: 10))
+                                .foregroundStyle(.tertiary),
+                        )
+                }
+            }
+            .frame(width: 32, height: 32)
+            .clipShape(RoundedRectangle(cornerRadius: 3))
+            
+            // 专辑信息
             VStack(alignment: .leading, spacing: 3) {
                 Text(album.name)
                     .font(.system(size: 13, weight: isPlaying ? .semibold : .regular))
@@ -311,10 +380,11 @@ struct AlbumRowView: View {
             
             Spacer()
             
-            if isPlaying {
-                Image(systemName: "waveform")
+            // 右侧箭头（悬浮显示）
+            if isHovered {
+                Image(systemName: "chevron.right")
                     .font(.system(size: 11))
-                    .foregroundStyle(Color.orange)
+                    .foregroundStyle(.tertiary)
             }
         }
         .padding(.horizontal, 16)
