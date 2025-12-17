@@ -52,9 +52,6 @@ struct ContentView: View {
                 albums: collectionManager.albums,
                 selectedTab: $selectedTab,
                 onTrackSelected: { playerManager.playTrack(at: $0) },
-                onAlbumSelected: { album in
-                    playerManager.loadAlbum(album)
-                },
             )
             .background(Color(white: 0.12))
             .frame(minHeight: 200)

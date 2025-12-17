@@ -75,18 +75,7 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         loadAndPlay(at: index)
     }
     
-    func loadAlbum(_ album: Album) {
-        playlist = album.tracks
-        currentTrackIndex = 0
-        
-        if !playlist.isEmpty {
-            loadAndPlay(at: 0)
-        }
-        
-        Task {
-            await savePlaylist()
-        }
-    }
+    // 移除 loadAlbum 方法，collections操作不应影响主播放列表 playlist
     
     // MARK: - Playback Control
     

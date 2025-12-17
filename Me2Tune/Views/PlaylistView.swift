@@ -18,7 +18,7 @@ struct PlaylistView: View {
     let albums: [Album]
     @Binding var selectedTab: PlaylistTab
     let onTrackSelected: (Int) -> Void
-    let onAlbumSelected: (Album) -> Void
+    // 移除 onAlbumSelected，collections的操作不应影响AudioPlayerManager
     
     var body: some View {
         VStack(spacing: 0) {
@@ -145,7 +145,8 @@ struct PlaylistView: View {
                 } else {
                     ForEach(albums) { album in
                         AlbumRowView(album: album) {
-                            onAlbumSelected(album)
+                            // 专辑点击事件：未来用于进入专辑详情页，目前仅打印日志
+                            print("🎵 专辑点击: \(album.name)")
                         }
                         
                         Divider()
