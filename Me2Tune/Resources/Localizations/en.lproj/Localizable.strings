@@ -6,3 +6,11 @@
 "collection_placeholder" = "Drag folders here to organize by album";
 "drop_files" = "Drop Audio Files Here";
 "supported_formats" = "Supports MP3, AAC, WAV, AIFF, FLAC, APE, and more";
+
+// Delete actions
+"remove" = "Remove";
+"delete_album" = "Delete";
+"clear" = "Clear";
+"cancel" = "Cancel";
+"clear_playlist_confirm" = "Are you sure you want to clear the entire playlist?";
+"clear_collections_confirm" = "Are you sure you want to delete all collections?";

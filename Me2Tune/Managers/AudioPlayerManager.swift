@@ -89,6 +89,48 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         }
     }
     
+    func removeTrack(at index: Int) {
+        guard playlist.indices.contains(index) else { return }
+        
+        // 如果删除的是当前播放的歌曲
+        if playingSource == .playlist, let currentIndex = currentTrackIndex {
+            if index == currentIndex {
+                pause()
+                currentTrackIndex = nil
+            } else if index < currentIndex {
+                currentTrackIndex = currentIndex - 1
+            }
+        }
+        
+        playlist.remove(at: index)
+        
+        if playingSource == .playlist {
+            currentTracks = playlist
+        }
+        
+        Task {
+            await savePlaylist()
+        }
+    }
+    
+    func clearPlaylist() {
+        // 如果正在播放 playlist，停止播放
+        if playingSource == .playlist {
+            pause()
+            currentTrackIndex = nil
+        }
+        
+        playlist.removeAll()
+        
+        if playingSource == .playlist {
+            currentTracks = []
+        }
+        
+        Task {
+            await savePlaylist()
+        }
+    }
+    
     // 播放 playlist 中的某首歌
     func playTrack(at index: Int) {
         guard playlist.indices.contains(index) else { return }

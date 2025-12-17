@@ -6,3 +6,11 @@
 "collection_placeholder" = "拖拽文件夹到此处按专辑分类";
 "drop_files" = "拖入音频文件";
 "supported_formats" = "支持 MP3、AAC、WAV、AIFF、FLAC、APE 等格式";
+
+// 删除操作
+"remove" = "移除";
+"delete_album" = "删除";
+"clear" = "清空";
+"cancel" = "取消";
+"clear_playlist_confirm" = "确定要清空整个播放列表吗？";
+"clear_collections_confirm" = "确定要删除所有专辑吗？";

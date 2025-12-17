@@ -11,9 +11,9 @@ internal import Combine
 @MainActor
 final class CollectionManager: ObservableObject {
     @Published private(set) var albums: [Album] = []
-    private let persistenceService = PersistenceService() // 新增
+    private let persistenceService = PersistenceService()
     
-    init() { // 新增
+    init() {
         Task {
             await loadCollections()
         }
@@ -51,16 +51,21 @@ final class CollectionManager: ObservableObject {
             print("📚 当前专辑总数: \(self.albums.count)")
             print("📚 专辑列表: \(self.albums.map(\.name))")
             
-            Task { await saveCollections() } // 新增保存逻辑
+            Task { await saveCollections() }
         }
     }
     
     func removeAlbum(id: UUID) {
         albums.removeAll { $0.id == id }
-        Task { await saveCollections() } // 新增保存逻辑
+        Task { await saveCollections() }
     }
     
-    private func loadCollections() async { // 新增
+    func clearAllAlbums() {
+        albums.removeAll()
+        Task { await saveCollections() }
+    }
+    
+    private func loadCollections() async {
         do {
             let state = try await persistenceService.loadCollections()
             self.albums = state.albums
@@ -71,7 +76,7 @@ final class CollectionManager: ObservableObject {
         }
     }
     
-    private func saveCollections() async { // 新增
+    private func saveCollections() async {
         do {
             let state = CollectionState(albums: self.albums)
             try await persistenceService.save(state)

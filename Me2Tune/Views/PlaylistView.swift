@@ -21,9 +21,15 @@ struct PlaylistView: View {
     @Binding var selectedTab: PlaylistTab
     let onTrackSelected: (Int) -> Void
     let onAlbumSelected: (Album, Int) -> Void
+    let onTrackRemoved: (Int) -> Void // 删除歌曲回调
+    let onPlaylistCleared: () -> Void // 清空播放列表回调
+    let onAlbumRemoved: (UUID) -> Void // 删除专辑回调
+    let onCollectionCleared: () -> Void // 清空专辑列表回调
     
     @State private var selectedAlbumId: UUID? // 当前查看的专辑详情
     @State private var artworkCache: [UUID: NSImage] = [:] // 封面缓存
+    @State private var showClearPlaylistAlert = false // 清空播放列表确认
+    @State private var showClearCollectionAlert = false // 清空专辑列表确认
     
     private let artworkService = ArtworkService()
     
@@ -76,13 +82,15 @@ struct PlaylistView: View {
                         .buttonStyle(.plain)
                         .help("Add tracks")
                         
-                        Button(action: {}) {
+                        Button(action: {
+                            showClearPlaylistAlert = true
+                        }) {
                             Image(systemName: "xmark.circle")
                                 .font(.system(size: 16))
                                 .foregroundStyle(.secondary)
                         }
                         .buttonStyle(.plain)
-                        .help("Clear")
+                        .help("Clear playlist")
                     } else {
                         if selectedAlbumId == nil {
                             Button(action: {}) {
@@ -100,6 +108,16 @@ struct PlaylistView: View {
                             }
                             .buttonStyle(.plain)
                             .help("Add collection")
+                            
+                            Button(action: {
+                                showClearCollectionAlert = true
+                            }) {
+                                Image(systemName: "xmark.circle")
+                                    .font(.system(size: 16))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Clear all collections")
                         }
                     }
                 }
@@ -127,6 +145,22 @@ struct PlaylistView: View {
                 }
             }
         }
+        .alert("Clear Playlist", isPresented: $showClearPlaylistAlert) {
+            Button(LocalizedStringKey("cancel"), role: .cancel) {}
+            Button(LocalizedStringKey("clear"), role: .destructive) {
+                onPlaylistCleared()
+            }
+        } message: {
+            Text(LocalizedStringKey("clear_playlist_confirm"))
+        }
+        .alert("Clear All Collections", isPresented: $showClearCollectionAlert) {
+            Button(LocalizedStringKey("cancel"), role: .cancel) {}
+            Button(LocalizedStringKey("clear"), role: .destructive) {
+                onCollectionCleared()
+            }
+        } message: {
+            Text(LocalizedStringKey("clear_collections_confirm"))
+        }
     }
     
     // MARK: - Playlist View
@@ -148,6 +182,11 @@ struct PlaylistView: View {
                             isPlaying: playingSource == .playlist && currentIndex == index,
                             onSelect: { onTrackSelected(index) },
                         )
+                        .contextMenu {
+                            Button(LocalizedStringKey("remove")) {
+                                onTrackRemoved(index)
+                            }
+                        }
                         
                         if index < tracks.count - 1 {
                             Divider()
@@ -187,6 +226,11 @@ struct PlaylistView: View {
                                 }
                             },
                         )
+                        .contextMenu {
+                            Button(LocalizedStringKey("delete_album")) {
+                                onAlbumRemoved(album.id)
+                            }
+                        }
                         .task {
                             await loadArtwork(for: album)
                         }
@@ -267,6 +311,11 @@ struct PlaylistView: View {
                         }(),
                         onSelect: { onAlbumSelected(album, index) },
                     )
+                    .contextMenu {
+                        Button(LocalizedStringKey("remove")) {
+                            // TODO: 从专辑中删除歌曲
+                        }
+                    }
                     
                     if index < album.tracks.count - 1 {
                         Divider()

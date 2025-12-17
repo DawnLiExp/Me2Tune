@@ -57,6 +57,10 @@ struct ContentView: View {
                 onAlbumSelected: { album, index in
                     playerManager.playAlbum(album, startAt: index)
                 },
+                onTrackRemoved: { playerManager.removeTrack(at: $0) },
+                onPlaylistCleared: { playerManager.clearPlaylist() },
+                onAlbumRemoved: { collectionManager.removeAlbum(id: $0) },
+                onCollectionCleared: { collectionManager.clearAllAlbums() },
             )
             .background(Color(white: 0.12))
             .frame(minHeight: 200)
