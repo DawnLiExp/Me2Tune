@@ -8,14 +8,14 @@
 import AppKit
 import Foundation
 import SFBAudioEngine
-internal import Combine
+import Combine
+import OSLog
+
+private let logger = Logger(subsystem: "me2.Me2Tune", category: "AudioPlayerManager")
 
 @MainActor
 final class AudioPlayerManager: NSObject, ObservableObject {
-    // 持久化的主播放列表
     @Published private(set) var playlist: [AudioTrack] = []
-    
-    // 当前正在播放的歌曲列表（可能来自 playlist 或 album）
     @Published private(set) var currentTracks: [AudioTrack] = []
     @Published private(set) var currentTrackIndex: Int?
     @Published private(set) var playingSource: PlayingSource = .playlist
@@ -47,7 +47,6 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         
         Task {
             await loadPlaylist()
-            // 初始化时，当前播放列表就是 playlist
             currentTracks = playlist
         }
     }
@@ -61,6 +60,8 @@ final class AudioPlayerManager: NSObject, ObservableObject {
             supportedExtensions.contains(url.pathExtension.lowercased())
         }
         
+        logger.info("Adding \(validURLs.count) tracks to playlist")
+        
         Task {
             var newTracks: [AudioTrack] = []
             for url in validURLs {
@@ -71,12 +72,10 @@ final class AudioPlayerManager: NSObject, ObservableObject {
             await MainActor.run {
                 playlist.append(contentsOf: newTracks)
                 
-                // 如果当前正在播放 playlist，同步更新
                 if playingSource == .playlist {
                     currentTracks = playlist
                 }
                 
-                // 如果没有当前播放的歌曲，自动加载第一首
                 if currentTrackIndex == nil, !currentTracks.isEmpty {
                     currentTrackIndex = 0
                     loadTrack(at: 0)
@@ -92,11 +91,11 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     func removeTrack(at index: Int) {
         guard playlist.indices.contains(index) else { return }
         
-        // 如果删除的是当前播放的歌曲
         if playingSource == .playlist, let currentIndex = currentTrackIndex {
             if index == currentIndex {
                 pause()
                 currentTrackIndex = nil
+                logger.info("Removed currently playing track")
             } else if index < currentIndex {
                 currentTrackIndex = currentIndex - 1
             }
@@ -114,40 +113,41 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     }
     
     func clearPlaylist() {
-        // 如果正在播放 playlist，停止播放
         if playingSource == .playlist {
             pause()
             currentTrackIndex = nil
         }
         
+        let count = playlist.count
         playlist.removeAll()
         
         if playingSource == .playlist {
             currentTracks = []
         }
         
+        logger.info("Cleared playlist with \(count) tracks")
+        
         Task {
             await savePlaylist()
         }
     }
     
-    // 播放 playlist 中的某首歌
     func playTrack(at index: Int) {
         guard playlist.indices.contains(index) else { return }
         
-        // 切换到 playlist 播放源
         playingSource = .playlist
         currentTracks = playlist
         
         loadAndPlay(at: index)
     }
     
-    // 播放专辑
     func playAlbum(_ album: Album, startAt index: Int = 0) {
         guard !album.tracks.isEmpty else { return }
         
         playingSource = .album(album.id)
         currentTracks = album.tracks
+        
+        logger.info("Playing album: \(album.name)")
         
         loadAndPlay(at: index)
     }
@@ -163,8 +163,9 @@ final class AudioPlayerManager: NSObject, ObservableObject {
             try player.play()
             isPlaying = true
             startTimer()
+            logger.debug("Playback started")
         } catch {
-            print("⚠️ Play failed: \(error.localizedDescription)")
+            logger.error("Play failed: \(error.localizedDescription)")
         }
     }
     
@@ -174,6 +175,7 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         player.pause()
         isPlaying = false
         stopTimer()
+        logger.debug("Playback paused")
     }
     
     func togglePlayPause() {
@@ -214,13 +216,14 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         
         if player.seek(time: time) {
             currentTime = time
+            logger.debug("Seeked to \(time)s")
         }
         
         if wasPlaying {
             do {
                 try player.play()
             } catch {
-                print("⚠️ Resume after seek failed: \(error.localizedDescription)")
+                logger.error("Resume after seek failed: \(error.localizedDescription)")
                 isPlaying = false
             }
         }
@@ -233,6 +236,7 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         
         player = AudioPlayer()
         player?.delegate = self
+        logger.debug("Audio player initialized")
     }
     
     private func loadTrack(at index: Int) {
@@ -250,6 +254,8 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         let track = currentTracks[index]
         currentTrackIndex = index
         
+        logger.info("Loading track: \(track.title) by \(track.artist ?? "Unknown")")
+        
         do {
             try player.play(track.url)
             player.pause()
@@ -263,7 +269,7 @@ final class AudioPlayerManager: NSObject, ObservableObject {
                 updateDockIcon()
             }
         } catch {
-            print("⚠️ Failed to load track: \(error.localizedDescription)")
+            logger.error("Failed to load track: \(error.localizedDescription)")
             isPlaying = false
         }
     }
@@ -272,7 +278,6 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         loadTrack(at: index)
         play()
         
-        // 只有播放 playlist 时才保存状态
         if playingSource == .playlist {
             Task {
                 await savePlaylist()
@@ -316,14 +321,20 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     private func savePlaylist() async {
         let state = PlaylistState(
             trackURLs: playlist.map(\.url),
-            currentIndex: playingSource == .playlist ? currentTrackIndex : nil,
+            currentIndex: playingSource == .playlist ? currentTrackIndex : nil
         )
         
-        try? await persistenceService.save(state)
+        do {
+            try await persistenceService.save(state)
+            logger.debug("Playlist saved")
+        } catch {
+            logger.error("Failed to save playlist: \(error.localizedDescription)")
+        }
     }
     
     private func loadPlaylist() async {
         guard let state = try? await persistenceService.load() else {
+            logger.notice("No existing playlist to load")
             return
         }
         
@@ -341,6 +352,8 @@ final class AudioPlayerManager: NSObject, ObservableObject {
             {
                 currentTrackIndex = savedIndex
             }
+            
+            logger.info("Loaded playlist with \(loadedTracks.count) tracks")
         }
     }
 }
@@ -361,6 +374,8 @@ extension AudioPlayerManager: AudioPlayer.Delegate {
     }
     
     @objc nonisolated func audioPlayer(_ audioPlayer: AudioPlayer, encounteredError error: Error) {
-        print("⚠️ Player error: \(error.localizedDescription)")
+        Task { @MainActor in
+            logger.error("Player error: \(error.localizedDescription)")
+        }
     }
 }

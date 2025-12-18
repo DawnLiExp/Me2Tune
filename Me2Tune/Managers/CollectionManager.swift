@@ -6,7 +6,10 @@
 //
 
 import Foundation
-internal import Combine
+import Combine
+import OSLog
+
+private let logger = Logger(subsystem: "me2.Me2Tune", category: "CollectionManager")
 
 @MainActor
 final class CollectionManager: ObservableObject {
@@ -22,19 +25,17 @@ final class CollectionManager: ObservableObject {
     func addAlbum(from folderURL: URL) async {
         let albumName = folderURL.lastPathComponent
         
-        print("📁 开始扫描专辑: \(albumName)")
+        logger.info("Scanning album: \(albumName)")
         
-        // 扫描文件夹
         let audioURLs = scanFolder(folderURL)
         
-        print("📁 找到 \(audioURLs.count) 首歌曲")
+        logger.info("Found \(audioURLs.count) tracks")
         
         guard !audioURLs.isEmpty else {
-            print("⚠️ 文件夹中没有音频文件")
+            logger.warning("No audio files in folder: \(albumName)")
             return
         }
         
-        // 创建曲目
         var tracks: [AudioTrack] = []
         for url in audioURLs {
             let track = await AudioTrack(url: url)
@@ -47,9 +48,8 @@ final class CollectionManager: ObservableObject {
             self.albums.append(album)
             self.objectWillChange.send()
             
-            print("✅ 专辑创建成功: \(albumName), \(tracks.count) 首歌曲")
-            print("📚 当前专辑总数: \(self.albums.count)")
-            print("📚 专辑列表: \(self.albums.map(\.name))")
+            logger.info("Album created: \(albumName) with \(tracks.count) tracks")
+            logger.debug("Total albums: \(self.albums.count)")
             
             Task { await saveCollections() }
         }
@@ -57,32 +57,73 @@ final class CollectionManager: ObservableObject {
     
     func removeAlbum(id: UUID) {
         albums.removeAll { $0.id == id }
+        logger.info("Album removed: \(id)")
         Task { await saveCollections() }
     }
     
     func renameAlbum(id: UUID, newName: String) {
         guard let index = albums.firstIndex(where: { $0.id == id }) else { return }
         
-        var updatedAlbum = albums[index]
-        updatedAlbum.name = newName
-        albums[index] = updatedAlbum
+        let oldName = albums[index].name
+        albums[index].name = newName
         
+        logger.info("Album renamed: '\(oldName)' -> '\(newName)'")
         Task { await saveCollections() }
     }
     
     func clearAllAlbums() {
+        let count = albums.count
         albums.removeAll()
+        logger.info("Cleared all \(count) albums")
         Task { await saveCollections() }
     }
+    
+    // MARK: - Private Methods
     
     private func loadCollections() async {
         do {
             let state = try await persistenceService.loadCollections()
-            self.albums = state.albums
-            print("📚 成功加载 \(self.albums.count) 个专辑")
+            
+            // 检测并迁移旧数据：重新提取元数据
+            var migratedAlbums: [Album] = []
+            var needsMigration = false
+            
+            for album in state.albums {
+                // 检查是否有缺失元数据的track（title是文件名格式）
+                let hasOldData = album.tracks.contains { track in
+                    track.artist == nil && track.title.contains(".")
+                }
+                
+                if hasOldData {
+                    logger.info("Migrating album metadata: \(album.name)")
+                    needsMigration = true
+                    
+                    // 重新扫描并创建tracks
+                    let audioURLs = scanFolder(album.folderURL)
+                    var newTracks: [AudioTrack] = []
+                    for url in audioURLs {
+                        let track = await AudioTrack(url: url)
+                        newTracks.append(track)
+                    }
+                    
+                    var migratedAlbum = album
+                    migratedAlbum.tracks = newTracks
+                    migratedAlbums.append(migratedAlbum)
+                } else {
+                    migratedAlbums.append(album)
+                }
+            }
+            
+            self.albums = migratedAlbums
+            logger.info("Loaded \(self.albums.count) albums")
+            
+            // 如果进行了迁移，保存新数据
+            if needsMigration {
+                logger.info("Saving migrated metadata")
+                await saveCollections()
+            }
         } catch {
-            // 首次启动或文件不存在是正常的
-            print("⚠️ 无法加载专辑列表: \(error.localizedDescription)")
+            logger.notice("No existing collections to load")
         }
     }
     
@@ -90,9 +131,9 @@ final class CollectionManager: ObservableObject {
         do {
             let state = CollectionState(albums: self.albums)
             try await persistenceService.save(state)
-            print("💾 成功保存 \(self.albums.count) 个专辑")
+            logger.debug("Saved \(self.albums.count) albums")
         } catch {
-            print("❌ 无法保存专辑列表: \(error.localizedDescription)")
+            logger.error("Failed to save collections: \(error.localizedDescription)")
         }
     }
     
@@ -105,9 +146,9 @@ final class CollectionManager: ObservableObject {
         guard let enumerator = fileManager.enumerator(
             at: folderURL,
             includingPropertiesForKeys: [.isRegularFileKey],
-            options: [.skipsHiddenFiles],
+            options: [.skipsHiddenFiles]
         ) else {
-            print("❌ 无法访问文件夹: \(folderURL.path)")
+            logger.error("Cannot access folder: \(folderURL.path)")
             return []
         }
         
@@ -117,7 +158,6 @@ final class CollectionManager: ObservableObject {
             }
         }
         
-        // 按文件名排序
         audioURLs.sort { $0.lastPathComponent < $1.lastPathComponent }
         
         return audioURLs

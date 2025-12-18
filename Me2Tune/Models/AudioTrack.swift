@@ -9,7 +9,7 @@ import Foundation
 import SFBAudioEngine
 import OSLog
 
-private let logger = Logger(subsystem: "com.me2tune.app", category: "AudioTrack")
+private let logger = Logger(subsystem: "me2.Me2Tune", category: "AudioTrack")
 
 struct AudioTrack: Identifiable, Equatable, Codable, Sendable {
     let id: UUID

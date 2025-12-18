@@ -7,9 +7,11 @@
 
 import AppKit
 import SFBAudioEngine
+import OSLog
 
 actor ArtworkService {
     private var cache: [URL: NSImage] = [:]
+    private let logger = Logger(subsystem: "me2.Me2Tune", category: "ArtworkService")
     
     // MARK: - Public Methods
     
@@ -18,18 +20,19 @@ actor ArtworkService {
             return cached
         }
         
-        // 尝试从音频文件内嵌封面提取
         if let embedded = await extractEmbeddedArtwork(from: url) {
             cache[url] = embedded
+            logger.debug("Extracted embedded artwork for: \(url.lastPathComponent)")
             return embedded
         }
         
-        // 尝试从目录中查找图片
         if let folder = await extractFolderArtwork(from: url) {
             cache[url] = folder
+            logger.debug("Found folder artwork for: \(url.lastPathComponent)")
             return folder
         }
         
+        logger.info("No artwork found for: \(url.lastPathComponent)")
         return nil
     }
     
@@ -60,7 +63,7 @@ actor ArtworkService {
         guard let contents = try? fileManager.contentsOfDirectory(
             at: directory,
             includingPropertiesForKeys: nil,
-            options: [.skipsHiddenFiles],
+            options: [.skipsHiddenFiles]
         ) else {
             return nil
         }
