@@ -2,7 +2,7 @@
 //  ContentView.swift
 //  Me2Tune
 //
-//  主界面：拟真唱片动画、播放控制、双栏播放列表
+//  主界面：可收拢唱片、播放控制、双栏播放列表
 //
 
 import SwiftUI
@@ -13,6 +13,7 @@ struct ContentView: View {
     @EnvironmentObject private var collectionManager: CollectionManager
     @State private var isDragging = false
     @State private var selectedTab: PlaylistTab = .playlist
+    @State private var isArtworkExpanded = true
     @FocusState private var isFocused: Bool
     
     var body: some View {
@@ -22,6 +23,8 @@ struct ContentView: View {
             AlbumArtworkView(
                 artwork: playerManager.currentArtwork,
                 isPlaying: playerManager.isPlaying,
+                currentTrack: playerManager.currentTrack,
+                isExpanded: $isArtworkExpanded,
             )
             
             Divider()
@@ -64,7 +67,7 @@ struct ContentView: View {
                 onCollectionCleared: { collectionManager.clearAllAlbums() },
             )
             .background(Color(white: 0.12))
-            .frame(minHeight: 200)
+            .frame(maxHeight: .infinity)
         }
         .background(Color(white: 0.1))
         .preferredColorScheme(.dark)

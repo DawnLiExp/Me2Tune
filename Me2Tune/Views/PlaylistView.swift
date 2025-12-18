@@ -2,7 +2,7 @@
 //  PlaylistView.swift
 //  Me2Tune
 //
-//  播放列表视图：标签切换模式 + 专辑详情
+//  播放列表视图：紧凑精致设计
 //
 
 import SwiftUI
@@ -48,7 +48,7 @@ struct PlaylistView: View {
                         action: {
                             selectedTab = .playlist
                             selectedAlbumId = nil
-                        }
+                        },
                     )
                     .frame(width: 70, alignment: .leading)
                     
@@ -57,75 +57,34 @@ struct PlaylistView: View {
                         isSelected: selectedTab == .collections,
                         action: {
                             selectedTab = .collections
-                        }
+                        },
                     )
                     .frame(width: 90, alignment: .leading)
                 }
-                .padding(.leading, 16)
+                .padding(.leading, 12)
                 
                 Spacer()
                 
-                HStack(spacing: 12) {
+                HStack(spacing: 10) {
                     if selectedTab == .playlist {
-                        Button(action: {}) {
-                            Image(systemName: "arrow.right.circle")
-                                .font(.system(size: 16))
-                                .foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                        .help("Export playlist")
-                        
-                        Button(action: {}) {
-                            Image(systemName: "plus.circle")
-                                .font(.system(size: 16))
-                                .foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                        .help("Add tracks")
-                        
-                        Button(action: {
+                        ToolbarButton(icon: "arrow.right.circle", tooltip: "Export playlist", action: {})
+                        ToolbarButton(icon: "plus.circle", tooltip: "Add tracks", action: {})
+                        ToolbarButton(icon: "xmark.circle", tooltip: "Clear playlist") {
                             showClearPlaylistAlert = true
-                        }) {
-                            Image(systemName: "xmark.circle")
-                                .font(.system(size: 16))
-                                .foregroundStyle(.secondary)
                         }
-                        .buttonStyle(.plain)
-                        .help("Clear playlist")
                     } else {
                         if selectedAlbumId == nil {
-                            Button(action: {}) {
-                                Image(systemName: "arrow.up.arrow.down.circle")
-                                    .font(.system(size: 16))
-                                    .foregroundStyle(.secondary)
-                            }
-                            .buttonStyle(.plain)
-                            .help("Sort")
-                            
-                            Button(action: {}) {
-                                Image(systemName: "plus.circle")
-                                    .font(.system(size: 16))
-                                    .foregroundStyle(.secondary)
-                            }
-                            .buttonStyle(.plain)
-                            .help("Add collection")
-                            
-                            Button(action: {
+                            ToolbarButton(icon: "arrow.up.arrow.down.circle", tooltip: "Sort", action: {})
+                            ToolbarButton(icon: "plus.circle", tooltip: "Add collection", action: {})
+                            ToolbarButton(icon: "xmark.circle", tooltip: "Clear all collections") {
                                 showClearCollectionAlert = true
-                            }) {
-                                Image(systemName: "xmark.circle")
-                                    .font(.system(size: 16))
-                                    .foregroundStyle(.secondary)
                             }
-                            .buttonStyle(.plain)
-                            .help("Clear all collections")
                         }
                     }
                 }
-                .padding(.trailing, 16)
+                .padding(.trailing, 12)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.vertical, 10)
             .background(Color(white: 0.15))
             
             Divider()
@@ -164,7 +123,7 @@ struct PlaylistView: View {
         }
         .alert("Rename Album", isPresented: Binding(
             get: { renamingAlbumId != nil },
-            set: { if !$0 { renamingAlbumId = nil } }
+            set: { if !$0 { renamingAlbumId = nil } },
         )) {
             TextField(LocalizedStringKey("album_name"), text: $renameText)
             Button(LocalizedStringKey("cancel"), role: .cancel) {
@@ -198,7 +157,7 @@ struct PlaylistView: View {
                             track: track,
                             index: index,
                             isPlaying: playingSource == .playlist && currentIndex == index,
-                            onSelect: { onTrackSelected(index) }
+                            onSelect: { onTrackSelected(index) },
                         )
                         .contextMenu {
                             Button(LocalizedStringKey("show_in_finder")) {
@@ -214,7 +173,7 @@ struct PlaylistView: View {
                         
                         if index < tracks.count - 1 {
                             Divider()
-                                .padding(.leading, 36)
+                                .padding(.leading, 32)
                         }
                     }
                 }
@@ -248,7 +207,7 @@ struct PlaylistView: View {
                                 withAnimation(.easeInOut(duration: 0.2)) {
                                     selectedAlbumId = album.id
                                 }
-                            }
+                            },
                         )
                         .contextMenu {
                             Button(LocalizedStringKey("rename")) {
@@ -267,7 +226,7 @@ struct PlaylistView: View {
                         }
                         
                         Divider()
-                            .padding(.leading, 16)
+                            .padding(.leading, 12)
                     }
                 }
             }
@@ -279,7 +238,7 @@ struct PlaylistView: View {
     private func albumDetailView(_ album: Album) -> some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                HStack(spacing: 12) {
+                HStack(spacing: 10) {
                     Group {
                         if let artwork = artworkCache[album.id] {
                             Image(nsImage: artwork)
@@ -287,19 +246,19 @@ struct PlaylistView: View {
                                 .scaledToFill()
                         } else {
                             Image(systemName: "opticaldisc")
-                                .font(.system(size: 16))
+                                .font(.system(size: 14))
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    .frame(width: 40, height: 40)
+                    .frame(width: 36, height: 36)
                     .clipShape(RoundedRectangle(cornerRadius: 4))
                     
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text(album.name)
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 12, weight: .semibold))
                         
                         Text("\(album.tracks.count) tracks")
-                            .font(.system(size: 11))
+                            .font(.system(size: 10))
                             .foregroundStyle(.tertiary)
                     }
                     
@@ -311,14 +270,14 @@ struct PlaylistView: View {
                         }
                     }) {
                         Image(systemName: "chevron.left.circle")
-                            .font(.system(size: 16))
+                            .font(.system(size: 14))
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
                     .help("Back to albums")
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
                 .background(Color.white.opacity(0.03))
                 .task {
                     await loadArtwork(for: album)
@@ -336,23 +295,17 @@ struct PlaylistView: View {
                             }
                             return false
                         }(),
-                        onSelect: { onAlbumSelected(album, index) }
+                        onSelect: { onAlbumSelected(album, index) },
                     )
                     .contextMenu {
                         Button(LocalizedStringKey("show_in_finder")) {
                             NSWorkspace.shared.activateFileViewerSelecting([track.url])
                         }
-                        
-                        Divider()
-                        
-                        Button(LocalizedStringKey("remove")) {
-                            // TODO: 从专辑中删除歌曲
-                        }
                     }
                     
                     if index < album.tracks.count - 1 {
                         Divider()
-                            .padding(.leading, 36)
+                            .padding(.leading, 32)
                     }
                 }
             }
@@ -376,6 +329,29 @@ struct PlaylistView: View {
     }
 }
 
+// MARK: - Toolbar Button
+
+struct ToolbarButton: View {
+    let icon: String
+    let tooltip: String
+    let action: () -> Void
+    
+    @State private var isHovered = false
+    
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundStyle(isHovered ? .primary : .secondary)
+        }
+        .buttonStyle(.plain)
+        .help(tooltip)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+    }
+}
+
 // MARK: - Tab Button
 
 struct TabButton: View {
@@ -385,9 +361,9 @@ struct TabButton: View {
     
     var body: some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 5) {
                 Text(title)
-                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                    .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
                     .foregroundStyle(isSelected ? .primary : .secondary)
                 
                 Rectangle()
@@ -413,19 +389,19 @@ struct AlbumRowView: View {
     @State private var isHovered = false
     
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Group {
                 if isPlaying {
                     Image(systemName: "waveform")
-                        .font(.system(size: 11))
+                        .font(.system(size: 10))
                         .foregroundStyle(Color.orange)
                 } else {
                     Image(systemName: "opticaldisc")
-                        .font(.system(size: 11))
+                        .font(.system(size: 10))
                         .foregroundStyle(.tertiary)
                 }
             }
-            .frame(width: 16, alignment: .center)
+            .frame(width: 14, alignment: .center)
             
             Group {
                 if let artwork {
@@ -437,22 +413,21 @@ struct AlbumRowView: View {
                         .fill(Color.white.opacity(0.1))
                         .overlay(
                             Image(systemName: "music.note")
-                                .font(.system(size: 10))
-                                .foregroundStyle(.tertiary)
+                                .font(.system(size: 9))
+                                .foregroundStyle(.tertiary),
                         )
                 }
             }
-            .frame(width: 32, height: 32)
+            .frame(width: 28, height: 28)
             .clipShape(RoundedRectangle(cornerRadius: 3))
             
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(album.name)
-                    .font(.system(size: 13, weight: isPlaying ? .semibold : .regular))
+                    .font(.system(size: 12, weight: isPlaying ? .semibold : .regular))
                     .lineLimit(1)
-                    .foregroundStyle(isPlaying ? .primary : .primary)
                 
                 Text("\(album.tracks.count) tracks")
-                    .font(.system(size: 11))
+                    .font(.system(size: 10))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -461,12 +436,12 @@ struct AlbumRowView: View {
             
             if isHovered {
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 11))
+                    .font(.system(size: 10))
                     .foregroundStyle(.tertiary)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
         .background(
             Group {
                 if isPlaying {
@@ -476,7 +451,7 @@ struct AlbumRowView: View {
                 } else {
                     Color.clear
                 }
-            }
+            },
         )
         .contentShape(Rectangle())
         .onHover { hovering in
@@ -499,28 +474,27 @@ struct TrackRowView: View {
     @State private var isHovered = false
     
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Group {
                 if isPlaying {
                     Image(systemName: "waveform")
-                        .font(.system(size: 11))
+                        .font(.system(size: 10))
                         .foregroundStyle(Color.orange)
                 } else {
                     Text("\(index + 1)")
-                        .font(.system(size: 11, design: .monospaced))
+                        .font(.system(size: 10, design: .monospaced))
                         .foregroundStyle(.tertiary)
                 }
             }
-            .frame(width: 16, alignment: .trailing)
+            .frame(width: 14, alignment: .trailing)
             
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(track.title)
-                    .font(.system(size: 13, weight: isPlaying ? .semibold : .regular))
+                    .font(.system(size: 12, weight: isPlaying ? .semibold : .regular))
                     .lineLimit(1)
-                    .foregroundStyle(isPlaying ? .primary : .primary)
                 
                 Text(track.artist ?? String(localized: "unknown_artist"))
-                    .font(.system(size: 11))
+                    .font(.system(size: 10))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -528,11 +502,11 @@ struct TrackRowView: View {
             Spacer()
             
             Text(formatTime(track.duration))
-                .font(.system(size: 11, design: .monospaced))
+                .font(.system(size: 10, design: .monospaced))
                 .foregroundStyle(.tertiary)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
         .background(
             Group {
                 if isPlaying {
@@ -542,7 +516,7 @@ struct TrackRowView: View {
                 } else {
                     Color.clear
                 }
-            }
+            },
         )
         .contentShape(Rectangle())
         .onHover { hovering in
