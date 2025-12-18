@@ -60,6 +60,16 @@ final class CollectionManager: ObservableObject {
         Task { await saveCollections() }
     }
     
+    func renameAlbum(id: UUID, newName: String) {
+        guard let index = albums.firstIndex(where: { $0.id == id }) else { return }
+        
+        var updatedAlbum = albums[index]
+        updatedAlbum.name = newName
+        albums[index] = updatedAlbum
+        
+        Task { await saveCollections() }
+    }
+    
     func clearAllAlbums() {
         albums.removeAll()
         Task { await saveCollections() }

@@ -7,10 +7,18 @@
 "drop_files" = "Drop Audio Files Here";
 "supported_formats" = "Supports MP3, AAC, WAV, AIFF, FLAC, APE, and more";
 
-// Delete actions
+// Context menu
+"show_in_finder" = "Show in Finder";
+"rename" = "Rename";
 "remove" = "Remove";
 "delete_album" = "Delete";
+
+// Alerts
 "clear" = "Clear";
 "cancel" = "Cancel";
 "clear_playlist_confirm" = "Are you sure you want to clear the entire playlist?";
 "clear_collections_confirm" = "Are you sure you want to delete all collections?";
+
+// Rename dialog
+"album_name" = "Album Name";
+"enter_new_album_name" = "Enter a new name for this album";

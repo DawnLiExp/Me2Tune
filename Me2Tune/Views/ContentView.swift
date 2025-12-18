@@ -60,6 +60,7 @@ struct ContentView: View {
                 onTrackRemoved: { playerManager.removeTrack(at: $0) },
                 onPlaylistCleared: { playerManager.clearPlaylist() },
                 onAlbumRemoved: { collectionManager.removeAlbum(id: $0) },
+                onAlbumRenamed: { collectionManager.renameAlbum(id: $0, newName: $1) },
                 onCollectionCleared: { collectionManager.clearAllAlbums() },
             )
             .background(Color(white: 0.12))
