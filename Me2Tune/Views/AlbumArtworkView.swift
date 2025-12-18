@@ -15,6 +15,7 @@ struct AlbumArtworkView: View {
     
     @State private var rotation: Double = 0
     @State private var isHoveringToggle = false
+    @State private var rotationTimer: Timer?
     
     private let artworkSize: CGFloat = 220
     private let miniArtworkSize: CGFloat = 48
@@ -32,7 +33,7 @@ struct AlbumArtworkView: View {
         .onChange(of: isPlaying) { _, newValue in
             updateRotation(isPlaying: newValue)
         }
-        .onChange(of: isExpanded) { _, newValue in
+        .onChange(of: isExpanded) { _, _ in
             updateRotation(isPlaying: isPlaying)
         }
         .onAppear {
@@ -183,33 +184,38 @@ struct AlbumArtworkView: View {
     
     private func updateRotation(isPlaying: Bool) {
         if isExpanded {
-            // 展开模式：播放时旋转
             if isPlaying {
                 startRotation()
             } else {
                 stopRotation()
             }
         } else {
-            // mini模式：静止不旋转
             stopRotationImmediately()
         }
     }
     
     private func startRotation() {
-        withAnimation(.linear(duration: 10).repeatForever(autoreverses: false)) {
-            rotation = 360
+        // 使用Timer手动控制旋转，每0.016秒(约60fps)更新一次
+        stopRotation() // 先停止已有的timer
+        
+        rotationTimer = Timer.scheduledTimer(withTimeInterval: 0.016, repeats: true) { _ in
+            // 每10秒转360度，即每秒36度，每帧0.6度
+            rotation += 0.6
+            // 避免数值过大，超过360时取模
+            if rotation >= 360 {
+                rotation = rotation.truncatingRemainder(dividingBy: 360)
+            }
         }
     }
     
     private func stopRotation() {
-        withAnimation(.linear(duration: 0.5)) {
-            rotation = 0
-        }
+        // 停止Timer，rotation保持当前值
+        rotationTimer?.invalidate()
+        rotationTimer = nil
     }
     
     private func stopRotationImmediately() {
-        withAnimation(nil) {
-            rotation = 0
-        }
+        stopRotation()
+        rotation = 0
     }
 }

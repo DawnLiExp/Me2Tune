@@ -173,7 +173,7 @@ struct PlaylistView: View {
                         
                         if index < tracks.count - 1 {
                             Divider()
-                                .padding(.leading, 32)
+                                .padding(.leading, 44)
                         }
                     }
                 }
@@ -226,7 +226,7 @@ struct PlaylistView: View {
                         }
                         
                         Divider()
-                            .padding(.leading, 12)
+                            .padding(.leading, 42)
                     }
                 }
             }
@@ -305,7 +305,7 @@ struct PlaylistView: View {
                     
                     if index < album.tracks.count - 1 {
                         Divider()
-                            .padding(.leading, 32)
+                            .padding(.leading, 44)
                     }
                 }
             }
@@ -401,7 +401,7 @@ struct AlbumRowView: View {
                         .foregroundStyle(.tertiary)
                 }
             }
-            .frame(width: 14, alignment: .center)
+            .frame(width: 20, alignment: .center)
             
             Group {
                 if let artwork {
@@ -474,7 +474,8 @@ struct TrackRowView: View {
     @State private var isHovered = false
     
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 0) {
+            // 序号（右对齐，20px）
             Group {
                 if isPlaying {
                     Image(systemName: "waveform")
@@ -486,24 +487,41 @@ struct TrackRowView: View {
                         .foregroundStyle(.tertiary)
                 }
             }
-            .frame(width: 14, alignment: .trailing)
+            .frame(width: 20, alignment: .trailing)
             
-            VStack(alignment: .leading, spacing: 2) {
-                Text(track.title)
-                    .font(.system(size: 12, weight: isPlaying ? .semibold : .regular))
-                    .lineLimit(1)
-                
-                Text(track.artist ?? String(localized: "unknown_artist"))
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            
+            // 固定间距 12px
             Spacer()
+                .frame(width: 12)
             
+            // 歌曲名（占据剩余空间，左对齐截断）
+            Text(track.title)
+                .font(.system(size: 12, weight: isPlaying ? .semibold : .regular))
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .foregroundStyle(isPlaying ? .primary : .primary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            
+            // 固定间距 8px（调节位置A：歌曲名与艺术家名间距）
+            Spacer()
+                .frame(width: 8)
+            
+            // 艺术家名（固定宽度90px，左对齐）（调节位置B：艺术家名显示宽度）
+            Text(track.artist ?? String(localized: "unknown_artist"))
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(width: 90, alignment: .leading)
+            
+            // 固定间距 10px（调节位置C：艺术家名与时长间距）
+            Spacer()
+                .frame(width: 8)
+            
+            // 时长（固定宽度36px，右对齐）
             Text(formatTime(track.duration))
                 .font(.system(size: 10, design: .monospaced))
                 .foregroundStyle(.tertiary)
+                .frame(width: 36, alignment: .trailing)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
