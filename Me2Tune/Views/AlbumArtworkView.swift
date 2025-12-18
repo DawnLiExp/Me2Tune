@@ -30,16 +30,13 @@ struct AlbumArtworkView: View {
         .frame(width: 350)
         .background(Color(white: 0.1))
         .onChange(of: isPlaying) { _, newValue in
-            if newValue {
-                startRotation()
-            } else {
-                stopRotation()
-            }
+            updateRotation(isPlaying: newValue)
+        }
+        .onChange(of: isExpanded) { _, newValue in
+            updateRotation(isPlaying: isPlaying)
         }
         .onAppear {
-            if isPlaying {
-                startRotation()
-            }
+            updateRotation(isPlaying: isPlaying)
         }
     }
     
@@ -121,7 +118,7 @@ struct AlbumArtworkView: View {
     
     private var miniView: some View {
         HStack(spacing: 12) {
-            // Mini Artwork
+            // Mini Artwork (静止不旋转)
             ZStack {
                 if let artwork {
                     Image(nsImage: artwork)
@@ -136,7 +133,6 @@ struct AlbumArtworkView: View {
             }
             .frame(width: miniArtworkSize, height: miniArtworkSize)
             .clipShape(RoundedRectangle(cornerRadius: 4))
-            .rotationEffect(.degrees(rotation))
             
             // Track Info
             if let track = currentTrack {
@@ -183,7 +179,21 @@ struct AlbumArtworkView: View {
         .frame(height: 64)
     }
     
-    // MARK: - Animation
+    // MARK: - Animation Logic
+    
+    private func updateRotation(isPlaying: Bool) {
+        if isExpanded {
+            // 展开模式：播放时旋转
+            if isPlaying {
+                startRotation()
+            } else {
+                stopRotation()
+            }
+        } else {
+            // mini模式：静止不旋转
+            stopRotationImmediately()
+        }
+    }
     
     private func startRotation() {
         withAnimation(.linear(duration: 10).repeatForever(autoreverses: false)) {
@@ -193,6 +203,12 @@ struct AlbumArtworkView: View {
     
     private func stopRotation() {
         withAnimation(.linear(duration: 0.5)) {
+            rotation = 0
+        }
+    }
+    
+    private func stopRotationImmediately() {
+        withAnimation(nil) {
             rotation = 0
         }
     }
