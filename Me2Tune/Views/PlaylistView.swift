@@ -473,21 +473,47 @@ struct TrackRowView: View {
     
     @State private var isHovered = false
     
+    private var trackNumber: Int {
+        index + 1
+    }
+    
+    private var trackNumberText: String {
+        "\(trackNumber)"
+    }
+    
+    // 数字偏移量：根据位数调整位置
+    private var numberOffsetX: CGFloat {
+        if trackNumber < 10 {
+            // 1-9：向右偏移，在20px宽度内视觉居中
+            return 8.5 // 根据实际字体宽度微调
+        } else {
+            // 10-99：左对齐，不偏移（或微调）
+            return 3.5 // 微调使"10"的"1"对齐1-9的位置
+        }
+    }
+    
     var body: some View {
         HStack(spacing: 0) {
-            // 序号（右对齐，20px）
-            Group {
+            // 序号容器（固定20px宽度）
+            ZStack {
+                // 底层：用于保持列宽一致
+                Color.clear
+                    .frame(width: 20)
+                
+                // 数字显示
                 if isPlaying {
                     Image(systemName: "waveform")
                         .font(.system(size: 10))
                         .foregroundStyle(Color.orange)
+                        .frame(width: 20, alignment: .center)
                 } else {
-                    Text("\(index + 1)")
+                    Text(trackNumberText)
                         .font(.system(size: 10, design: .monospaced))
                         .foregroundStyle(.tertiary)
+                        .frame(width: 20, alignment: .leading) // 左对齐为基础
+                        .offset(x: numberOffsetX) // 根据位数偏移
                 }
             }
-            .frame(width: 20, alignment: .trailing)
             
             // 固定间距 12px
             Spacer()
@@ -513,7 +539,7 @@ struct TrackRowView: View {
                 .truncationMode(.tail)
                 .frame(width: 90, alignment: .leading)
             
-            // 固定间距 10px（调节位置C：艺术家名与时长间距）
+            // 固定间距（调节位置C：艺术家名与时长间距）
             Spacer()
                 .frame(width: 8)
             
@@ -521,7 +547,7 @@ struct TrackRowView: View {
             Text(formatTime(track.duration))
                 .font(.system(size: 10, design: .monospaced))
                 .foregroundStyle(.tertiary)
-                .frame(width: 36, alignment: .trailing)
+                .frame(width: 28, alignment: .trailing)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
