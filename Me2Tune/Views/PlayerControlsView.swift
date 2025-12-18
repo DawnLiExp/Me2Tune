@@ -22,20 +22,22 @@ struct PlayerControlsView: View {
     
     var body: some View {
         VStack(spacing: 16) {
-            // 曲目信息
+            // MARK: - Track Info
+            
             if let track = currentTrack {
                 VStack(spacing: 4) {
                     Text(track.title)
                         .font(.system(size: 14, weight: .semibold))
                         .lineLimit(1)
                     
-                    Text(LocalizedStringKey("unknown_artist"))
+                    Text(track.artist ?? String(localized: "unknown_artist"))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
             }
             
-            // 进度条
+            // MARK: - Progress Bar
+            
             HStack(spacing: 12) {
                 Text(formatTime(currentTime))
                     .font(.system(size: 10, design: .monospaced))
@@ -45,9 +47,9 @@ struct PlayerControlsView: View {
                 Slider(
                     value: Binding(
                         get: { currentTime },
-                        set: { onSeek($0) },
+                        set: { onSeek($0) }
                     ),
-                    in: 0 ... max(duration, 0.1),
+                    in: 0...max(duration, 0.1)
                 )
                 .controlSize(.small)
                 
@@ -57,7 +59,8 @@ struct PlayerControlsView: View {
                     .frame(width: 40, alignment: .leading)
             }
             
-            // 控制按钮
+            // MARK: - Control Buttons
+            
             HStack(spacing: 32) {
                 Button(action: onPrevious) {
                     Image(systemName: "backward.fill")

@@ -14,25 +14,25 @@ enum PlaylistTab {
 
 struct PlaylistView: View {
     let tracks: [AudioTrack]
-    let currentTracks: [AudioTrack] // 当前播放列表
+    let currentTracks: [AudioTrack]
     let currentIndex: Int?
     let playingSource: AudioPlayerManager.PlayingSource
     let albums: [Album]
     @Binding var selectedTab: PlaylistTab
     let onTrackSelected: (Int) -> Void
     let onAlbumSelected: (Album, Int) -> Void
-    let onTrackRemoved: (Int) -> Void // 删除歌曲回调
-    let onPlaylistCleared: () -> Void // 清空播放列表回调
-    let onAlbumRemoved: (UUID) -> Void // 删除专辑回调
-    let onAlbumRenamed: (UUID, String) -> Void // 重命名专辑回调
-    let onCollectionCleared: () -> Void // 清空专辑列表回调
+    let onTrackRemoved: (Int) -> Void
+    let onPlaylistCleared: () -> Void
+    let onAlbumRemoved: (UUID) -> Void
+    let onAlbumRenamed: (UUID, String) -> Void
+    let onCollectionCleared: () -> Void
     
-    @State private var selectedAlbumId: UUID? // 当前查看的专辑详情
-    @State private var artworkCache: [UUID: NSImage] = [:] // 封面缓存
-    @State private var showClearPlaylistAlert = false // 清空播放列表确认
-    @State private var showClearCollectionAlert = false // 清空专辑列表确认
-    @State private var renamingAlbumId: UUID? // 正在重命名的专辑
-    @State private var renameText = "" // 重命名输入框文本
+    @State private var selectedAlbumId: UUID?
+    @State private var artworkCache: [UUID: NSImage] = [:]
+    @State private var showClearPlaylistAlert = false
+    @State private var showClearCollectionAlert = false
+    @State private var renamingAlbumId: UUID?
+    @State private var renameText = ""
     
     private let artworkService = ArtworkService()
     
@@ -41,7 +41,6 @@ struct PlaylistView: View {
             // MARK: - Tab Selector
             
             HStack(spacing: 0) {
-                // 左侧标签区域
                 HStack(spacing: 4) {
                     TabButton(
                         title: LocalizedStringKey("playlist"),
@@ -49,7 +48,7 @@ struct PlaylistView: View {
                         action: {
                             selectedTab = .playlist
                             selectedAlbumId = nil
-                        },
+                        }
                     )
                     .frame(width: 70, alignment: .leading)
                     
@@ -58,7 +57,7 @@ struct PlaylistView: View {
                         isSelected: selectedTab == .collections,
                         action: {
                             selectedTab = .collections
-                        },
+                        }
                     )
                     .frame(width: 90, alignment: .leading)
                 }
@@ -66,7 +65,6 @@ struct PlaylistView: View {
                 
                 Spacer()
                 
-                // 右侧功能按钮区域
                 HStack(spacing: 12) {
                     if selectedTab == .playlist {
                         Button(action: {}) {
@@ -166,7 +164,7 @@ struct PlaylistView: View {
         }
         .alert("Rename Album", isPresented: Binding(
             get: { renamingAlbumId != nil },
-            set: { if !$0 { renamingAlbumId = nil } },
+            set: { if !$0 { renamingAlbumId = nil } }
         )) {
             TextField(LocalizedStringKey("album_name"), text: $renameText)
             Button(LocalizedStringKey("cancel"), role: .cancel) {
@@ -200,7 +198,7 @@ struct PlaylistView: View {
                             track: track,
                             index: index,
                             isPlaying: playingSource == .playlist && currentIndex == index,
-                            onSelect: { onTrackSelected(index) },
+                            onSelect: { onTrackSelected(index) }
                         )
                         .contextMenu {
                             Button(LocalizedStringKey("show_in_finder")) {
@@ -250,7 +248,7 @@ struct PlaylistView: View {
                                 withAnimation(.easeInOut(duration: 0.2)) {
                                     selectedAlbumId = album.id
                                 }
-                            },
+                            }
                         )
                         .contextMenu {
                             Button(LocalizedStringKey("rename")) {
@@ -281,9 +279,7 @@ struct PlaylistView: View {
     private func albumDetailView(_ album: Album) -> some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                // 专辑标题
                 HStack(spacing: 12) {
-                    // 专辑封面
                     Group {
                         if let artwork = artworkCache[album.id] {
                             Image(nsImage: artwork)
@@ -309,7 +305,6 @@ struct PlaylistView: View {
                     
                     Spacer()
                     
-                    // 返回按钮
                     Button(action: {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             selectedAlbumId = nil
@@ -331,7 +326,6 @@ struct PlaylistView: View {
                 
                 Divider()
                 
-                // 歌曲列表
                 ForEach(Array(album.tracks.enumerated()), id: \.element.id) { index, track in
                     TrackRowView(
                         track: track,
@@ -342,7 +336,7 @@ struct PlaylistView: View {
                             }
                             return false
                         }(),
-                        onSelect: { onAlbumSelected(album, index) },
+                        onSelect: { onAlbumSelected(album, index) }
                     )
                     .contextMenu {
                         Button(LocalizedStringKey("show_in_finder")) {
@@ -420,7 +414,6 @@ struct AlbumRowView: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            // 左侧指示器
             Group {
                 if isPlaying {
                     Image(systemName: "waveform")
@@ -434,7 +427,6 @@ struct AlbumRowView: View {
             }
             .frame(width: 16, alignment: .center)
             
-            // 专辑封面
             Group {
                 if let artwork {
                     Image(nsImage: artwork)
@@ -446,14 +438,13 @@ struct AlbumRowView: View {
                         .overlay(
                             Image(systemName: "music.note")
                                 .font(.system(size: 10))
-                                .foregroundStyle(.tertiary),
+                                .foregroundStyle(.tertiary)
                         )
                 }
             }
             .frame(width: 32, height: 32)
             .clipShape(RoundedRectangle(cornerRadius: 3))
             
-            // 专辑信息
             VStack(alignment: .leading, spacing: 3) {
                 Text(album.name)
                     .font(.system(size: 13, weight: isPlaying ? .semibold : .regular))
@@ -468,7 +459,6 @@ struct AlbumRowView: View {
             
             Spacer()
             
-            // 右侧箭头（悬浮显示）
             if isHovered {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 11))
@@ -486,7 +476,7 @@ struct AlbumRowView: View {
                 } else {
                     Color.clear
                 }
-            },
+            }
         )
         .contentShape(Rectangle())
         .onHover { hovering in
@@ -510,7 +500,6 @@ struct TrackRowView: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            // 序号/播放图标
             Group {
                 if isPlaying {
                     Image(systemName: "waveform")
@@ -524,14 +513,13 @@ struct TrackRowView: View {
             }
             .frame(width: 16, alignment: .trailing)
             
-            // 曲目信息
             VStack(alignment: .leading, spacing: 3) {
                 Text(track.title)
                     .font(.system(size: 13, weight: isPlaying ? .semibold : .regular))
                     .lineLimit(1)
                     .foregroundStyle(isPlaying ? .primary : .primary)
                 
-                Text(LocalizedStringKey("unknown_artist"))
+                Text(track.artist ?? String(localized: "unknown_artist"))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -539,7 +527,6 @@ struct TrackRowView: View {
             
             Spacer()
             
-            // 时长
             Text(formatTime(track.duration))
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(.tertiary)
@@ -555,7 +542,7 @@ struct TrackRowView: View {
                 } else {
                     Color.clear
                 }
-            },
+            }
         )
         .contentShape(Rectangle())
         .onHover { hovering in
