@@ -2,35 +2,35 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleName</key>
-    <string>Me2Tune</string>
-    <key>CFBundleDisplayName</key>
-    <string>Me2Tune</string>
-    <key>CFBundleIdentifier</key>
-    <string>com.me2tune.app</string>
-    <key>CFBundleVersion</key>
-    <string>1</string>
-    <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>15.0</string>
-    <key>CFBundleDocumentTypes</key>
-    <array>
-        <dict>
-            <key>CFBundleTypeName</key>
-            <string>Audio Files</string>
-            <key>CFBundleTypeRole</key>
-            <string>Viewer</string>
-            <key>LSItemContentTypes</key>
-            <array>
-                <string>public.mp3</string>
-                <string>public.mpeg-4-audio</string>
-                <string>public.aac-audio</string>
-                <string>public.audio</string>
-                <string>public.aifc-audio</string>
-                <string>public.aiff-audio</string>
-            </array>
-        </dict>
-    </array>
+	<key>CFBundleName</key>
+	<string>Me2Tune</string>
+	<key>CFBundleDisplayName</key>
+	<string>Me2Tune</string>
+	<key>CFBundleIdentifier</key>
+	<string>me2.Me2Tune</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>15.0</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Audio Files</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.mp3</string>
+				<string>public.mpeg-4-audio</string>
+				<string>public.aac-audio</string>
+				<string>public.audio</string>
+				<string>public.aifc-audio</string>
+				<string>public.aiff-audio</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
