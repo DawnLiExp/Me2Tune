@@ -3,6 +3,7 @@
 //  Me2Tune
 //
 //  主界面：可收拢唱片、播放控制、双栏播放列表
+//  混合加载策略：专辑列表延迟2秒后台加载 + 手动触发保底
 //
 
 import SwiftUI
@@ -82,6 +83,11 @@ struct ContentView: View {
         }
         .onDrop(of: [.fileURL], isTargeted: $isDragging) { providers in
             handleDrop(providers: providers)
+        }
+        .task {
+            // 延迟2秒后台预加载专辑数据
+            try? await Task.sleep(for: .seconds(2))
+            await collectionManager.ensureLoaded()
         }
     }
     
