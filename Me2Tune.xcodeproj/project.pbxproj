@@ -23,6 +23,8 @@
 		FC480EB72EF13722000D8393 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = FC480EB62EF13722000D8393 /* Localizable.strings */; };
 		FC480EBE2EF137BB000D8393 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = FC480EBC2EF137AE000D8393 /* Localizable.strings */; };
 		FC480EC42EF152BC000D8393 /* AudioTrack.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480EC32EF152A2000D8393 /* AudioTrack.swift */; };
+		FC8194F12EF4EF4300401C4F /* PlaylistComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8194F02EF4EF4200401C4F /* PlaylistComponents.swift */; };
+		FC8194F32EF4EF4F00401C4F /* PlaylistRowViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8194F22EF4EF4C00401C4F /* PlaylistRowViews.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -42,6 +44,8 @@
 		FC480EB52EF13722000D8393 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = Localizable.strings; sourceTree = "<group>"; };
 		FC480EBD2EF137AE000D8393 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = Localizable.strings; sourceTree = "<group>"; };
 		FC480EC32EF152A2000D8393 /* AudioTrack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioTrack.swift; sourceTree = "<group>"; };
+		FC8194F02EF4EF4200401C4F /* PlaylistComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistComponents.swift; sourceTree = "<group>"; };
+		FC8194F22EF4EF4C00401C4F /* PlaylistRowViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistRowViews.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -121,6 +125,7 @@
 		FC480EBF2EF13912000D8393 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				FC8194EF2EF4EF2000401C4F /* Components */,
 				FC480E9C2EF107E8000D8393 /* AlbumArtworkView.swift */,
 				FC480EA02EF107E8000D8393 /* ContentView.swift */,
 				FC480EA42EF107E8000D8393 /* PlayerControlsView.swift */,
@@ -154,6 +159,15 @@
 				FC480EC32EF152A2000D8393 /* AudioTrack.swift */,
 			);
 			path = Models;
+			sourceTree = "<group>";
+		};
+		FC8194EF2EF4EF2000401C4F /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				FC8194F22EF4EF4C00401C4F /* PlaylistRowViews.swift */,
+				FC8194F02EF4EF4200401C4F /* PlaylistComponents.swift */,
+			);
+			path = Components;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -232,12 +246,14 @@
 			isa = PBXSourcesBuildPhase;
 			files = (
 				FC480EA72EF107E8000D8393 /* AlbumArtworkView.swift in Sources */,
+				FC8194F32EF4EF4F00401C4F /* PlaylistRowViews.swift in Sources */,
 				FC480EA82EF107E8000D8393 /* ArtworkService.swift in Sources */,
 				FC480EA92EF107E8000D8393 /* AudioPlayerManager.swift in Sources */,
 				FC480EC42EF152BC000D8393 /* AudioTrack.swift in Sources */,
 				FC0A17442EF262910090B22C /* CollectionManager.swift in Sources */,
 				FC480EAA2EF107E8000D8393 /* ContentView.swift in Sources */,
 				FC480EAB2EF107E8000D8393 /* Me2TuneApp.swift in Sources */,
+				FC8194F12EF4EF4300401C4F /* PlaylistComponents.swift in Sources */,
 				FC480EAC2EF107E8000D8393 /* PersistenceService.swift in Sources */,
 				FC480EAD2EF107E8000D8393 /* PlayerControlsView.swift in Sources */,
 				FC480EAE2EF107E8000D8393 /* PlaylistView.swift in Sources */,
