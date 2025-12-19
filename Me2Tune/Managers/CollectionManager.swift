@@ -2,11 +2,11 @@
 //  CollectionManager.swift
 //  Me2Tune
 //
-//  专辑收藏管理
+//  专辑收藏管理 - 优化版：延迟加载
 //
 
-import Foundation
 import Combine
+import Foundation
 import OSLog
 
 private let logger = Logger(subsystem: "me2.Me2Tune", category: "CollectionManager")
@@ -14,15 +14,27 @@ private let logger = Logger(subsystem: "me2.Me2Tune", category: "CollectionManag
 @MainActor
 final class CollectionManager: ObservableObject {
     @Published private(set) var albums: [Album] = []
+    @Published private(set) var isLoaded = false
+    
     private let persistenceService = PersistenceService()
     
     init() {
-        Task {
-            await loadCollections()
-        }
+        // 不在init时加载，等待首次访问
     }
     
+    // MARK: - Lazy Loading
+    
+    func ensureLoaded() async {
+        guard !isLoaded else { return }
+        await loadCollections()
+        isLoaded = true
+    }
+    
+    // MARK: - Album Management
+    
     func addAlbum(from folderURL: URL) async {
+        await ensureLoaded()
+        
         let albumName = folderURL.lastPathComponent
         
         logger.info("Scanning album: \(albumName)")
@@ -36,10 +48,19 @@ final class CollectionManager: ObservableObject {
             return
         }
         
-        var tracks: [AudioTrack] = []
-        for url in audioURLs {
-            let track = await AudioTrack(url: url)
-            tracks.append(track)
+        // 并发解析元数据
+        let tracks = await withTaskGroup(of: AudioTrack.self) { group in
+            for url in audioURLs {
+                group.addTask {
+                    await AudioTrack(url: url)
+                }
+            }
+            
+            var result: [AudioTrack] = []
+            for await track in group {
+                result.append(track)
+            }
+            return result
         }
         
         let album = Album(name: albumName, folderURL: folderURL, tracks: tracks)
@@ -100,10 +121,18 @@ final class CollectionManager: ObservableObject {
                     
                     // 重新扫描并创建tracks
                     let audioURLs = scanFolder(album.folderURL)
-                    var newTracks: [AudioTrack] = []
-                    for url in audioURLs {
-                        let track = await AudioTrack(url: url)
-                        newTracks.append(track)
+                    let newTracks = await withTaskGroup(of: AudioTrack.self) { group in
+                        for url in audioURLs {
+                            group.addTask {
+                                await AudioTrack(url: url)
+                            }
+                        }
+                        
+                        var result: [AudioTrack] = []
+                        for await track in group {
+                            result.append(track)
+                        }
+                        return result
                     }
                     
                     var migratedAlbum = album
@@ -146,7 +175,7 @@ final class CollectionManager: ObservableObject {
         guard let enumerator = fileManager.enumerator(
             at: folderURL,
             includingPropertiesForKeys: [.isRegularFileKey],
-            options: [.skipsHiddenFiles]
+            options: [.skipsHiddenFiles],
         ) else {
             logger.error("Cannot access folder: \(folderURL.path)")
             return []

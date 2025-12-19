@@ -2,14 +2,14 @@
 //  PersistenceService.swift
 //  Me2Tune
 //
-//  播放列表持久化服务
+//  播放列表持久化服务 - 优化版：缓存元数据
 //
 
 import Foundation
 import OSLog
 
 struct PlaylistState: Codable, Sendable {
-    var trackURLs: [URL]
+    var tracks: [AudioTrack] // 保存完整track（含元数据）
     var currentIndex: Int?
 }
 
@@ -25,7 +25,7 @@ actor PersistenceService {
     init() {
         let appSupport = FileManager.default.urls(
             for: .applicationSupportDirectory,
-            in: .userDomainMask
+            in: .userDomainMask,
         ).first!
 
         let appDirectory = appSupport.appendingPathComponent("Me2Tune", isDirectory: true)
@@ -33,7 +33,7 @@ actor PersistenceService {
 
         fileURL = appDirectory.appendingPathComponent("playlist.json")
         collectionFileURL = appDirectory.appendingPathComponent("collections.json")
-        
+
         logger.debug("Persistence paths initialized")
     }
 
@@ -41,14 +41,14 @@ actor PersistenceService {
         let encoder = JSONEncoder()
         let data = try encoder.encode(state)
         try data.write(to: fileURL, options: .atomic)
-        logger.debug("Playlist state saved")
+        logger.debug("Playlist state saved with \(state.tracks.count) tracks")
     }
 
     func save(_ state: CollectionState) async throws {
         let encoder = JSONEncoder()
         let data = try encoder.encode(state)
         try data.write(to: collectionFileURL, options: .atomic)
-        logger.debug("Collection state saved")
+        logger.debug("Collection state saved with \(state.albums.count) albums")
     }
 
     func load() async throws -> PlaylistState {

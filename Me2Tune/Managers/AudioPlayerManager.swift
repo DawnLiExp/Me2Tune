@@ -2,14 +2,14 @@
 //  AudioPlayerManager.swift
 //  Me2Tune
 //
-//  音频播放器管理
+//  音频播放器管理 - 优化版：缓存元数据，避免重复解析
 //
 
 import AppKit
-import Foundation
-import SFBAudioEngine
 import Combine
+import Foundation
 import OSLog
+import SFBAudioEngine
 
 private let logger = Logger(subsystem: "me2.Me2Tune", category: "AudioPlayerManager")
 
@@ -63,10 +63,19 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         logger.info("Adding \(validURLs.count) tracks to playlist")
         
         Task {
-            var newTracks: [AudioTrack] = []
-            for url in validURLs {
-                let track = await AudioTrack(url: url)
-                newTracks.append(track)
+            // 并发解析元数据
+            let newTracks = await withTaskGroup(of: AudioTrack.self) { group in
+                for url in validURLs {
+                    group.addTask {
+                        await AudioTrack(url: url)
+                    }
+                }
+                
+                var tracks: [AudioTrack] = []
+                for await track in group {
+                    tracks.append(track)
+                }
+                return tracks
             }
             
             await MainActor.run {
@@ -320,13 +329,13 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     
     private func savePlaylist() async {
         let state = PlaylistState(
-            trackURLs: playlist.map(\.url),
-            currentIndex: playingSource == .playlist ? currentTrackIndex : nil
+            tracks: playlist,
+            currentIndex: playingSource == .playlist ? currentTrackIndex : nil,
         )
         
         do {
             try await persistenceService.save(state)
-            logger.debug("Playlist saved")
+            logger.debug("Playlist saved with metadata cache")
         } catch {
             logger.error("Failed to save playlist: \(error.localizedDescription)")
         }
@@ -338,14 +347,9 @@ final class AudioPlayerManager: NSObject, ObservableObject {
             return
         }
         
-        var loadedTracks: [AudioTrack] = []
-        for url in state.trackURLs {
-            let track = await AudioTrack(url: url)
-            loadedTracks.append(track)
-        }
-        
+        // 直接使用缓存数据，不再重新解析元数据
         await MainActor.run {
-            playlist = loadedTracks
+            playlist = state.tracks
             
             if let savedIndex = state.currentIndex,
                playlist.indices.contains(savedIndex)
@@ -353,7 +357,7 @@ final class AudioPlayerManager: NSObject, ObservableObject {
                 currentTrackIndex = savedIndex
             }
             
-            logger.info("Loaded playlist with \(loadedTracks.count) tracks")
+            logger.info("Loaded playlist with \(state.tracks.count) tracks from cache")
         }
     }
 }

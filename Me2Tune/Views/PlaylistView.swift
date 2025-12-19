@@ -2,7 +2,7 @@
 //  PlaylistView.swift
 //  Me2Tune
 //
-//  播放列表视图：紧凑精致设计
+//  播放列表视图 - 优化版：延迟加载Collections
 //
 
 import SwiftUI
@@ -26,6 +26,8 @@ struct PlaylistView: View {
     let onAlbumRemoved: (UUID) -> Void
     let onAlbumRenamed: (UUID, String) -> Void
     let onCollectionCleared: () -> Void
+    
+    @EnvironmentObject private var collectionManager: CollectionManager
     
     @State private var selectedAlbumId: UUID?
     @State private var artworkCache: [UUID: NSImage] = [:]
@@ -57,6 +59,10 @@ struct PlaylistView: View {
                         isSelected: selectedTab == .collections,
                         action: {
                             selectedTab = .collections
+                            // 切换到collections时触发加载
+                            Task {
+                                await collectionManager.ensureLoaded()
+                            }
                         },
                     )
                     .frame(width: 90, alignment: .leading)
@@ -187,11 +193,17 @@ struct PlaylistView: View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 if albums.isEmpty {
-                    Text(LocalizedStringKey("collection_placeholder"))
-                        .font(.system(size: 12))
-                        .foregroundStyle(.tertiary)
-                        .padding(20)
-                        .frame(maxWidth: .infinity, alignment: .center)
+                    if collectionManager.isLoaded {
+                        Text(LocalizedStringKey("collection_placeholder"))
+                            .font(.system(size: 12))
+                            .foregroundStyle(.tertiary)
+                            .padding(20)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                    } else {
+                        ProgressView()
+                            .padding(20)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                    }
                 } else {
                     ForEach(albums) { album in
                         AlbumRowView(
@@ -277,7 +289,7 @@ struct PlaylistView: View {
                     .help("Back to albums")
                 }
                 .padding(.horizontal, 12)
-                .padding(.vertical, 12) // 专辑详情顶部信息栏高度
+                .padding(.vertical, 12)
                 .background(Color.white.opacity(0.03))
                 .task {
                     await loadArtwork(for: album)

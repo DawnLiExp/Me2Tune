@@ -2,7 +2,7 @@
 //  PlayerControlsView.swift
 //  Me2Tune
 //
-//  播放控制面板：紧凑精致设计
+//  播放控制面板 - 优化版：固定布局避免抖动
 //
 
 import SwiftUI
@@ -22,10 +22,10 @@ struct PlayerControlsView: View {
     
     var body: some View {
         VStack(spacing: 12) {
-            // MARK: - Track Info
+            // MARK: - Track Info (固定高度占位)
             
-            if let track = currentTrack {
-                VStack(spacing: 3) {
+            VStack(spacing: 3) {
+                if let track = currentTrack {
                     Text(track.title)
                         .font(.system(size: 13, weight: .semibold))
                         .lineLimit(1)
@@ -33,9 +33,16 @@ struct PlayerControlsView: View {
                     Text(track.artist ?? String(localized: "unknown_artist"))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
+                } else {
+                    Text(" ")
+                        .font(.system(size: 13, weight: .semibold))
+                    
+                    Text(" ")
+                        .font(.system(size: 11))
                 }
-                .frame(maxWidth: .infinity)
             }
+            .frame(maxWidth: .infinity)
+            .frame(height: 32) // 固定高度避免抖动
             
             // MARK: - Progress Bar
             
