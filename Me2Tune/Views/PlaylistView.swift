@@ -22,6 +22,7 @@ struct PlaylistView: View {
     let onTrackSelected: (Int) -> Void
     let onAlbumSelected: (Album, Int) -> Void
     let onTrackRemoved: (Int) -> Void
+    let onTrackMoved: (Int, Int) -> Void
     let onPlaylistCleared: () -> Void
     let onAlbumRemoved: (UUID) -> Void
     let onAlbumRenamed: (UUID, String) -> Void
@@ -159,11 +160,12 @@ struct PlaylistView: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                 } else {
                     ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
-                        TrackRowView(
+                        DraggableTrackRow(
                             track: track,
                             index: index,
                             isPlaying: playingSource == .playlist && currentIndex == index,
                             onSelect: { onTrackSelected(index) },
+                            onMove: onTrackMoved,
                         )
                         .contextMenu {
                             Button(LocalizedStringKey("show_in_finder")) {

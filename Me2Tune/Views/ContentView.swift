@@ -3,7 +3,7 @@
 //  Me2Tune
 //
 //  主界面：可收拢唱片、播放控制、双栏播放列表
-//  混合加载策略：专辑列表延迟2秒后台加载 + 手动触发保底
+//  混合加载策略：延迟2秒后台加载 + 手动触发保底
 //
 
 import SwiftUI
@@ -62,6 +62,9 @@ struct ContentView: View {
                     playerManager.playAlbum(album, startAt: index)
                 },
                 onTrackRemoved: { playerManager.removeTrack(at: $0) },
+                onTrackMoved: { from, to in
+                    playerManager.moveTrack(from: from, to: to)
+                },
                 onPlaylistCleared: { playerManager.clearPlaylist() },
                 onAlbumRemoved: { collectionManager.removeAlbum(id: $0) },
                 onAlbumRenamed: { collectionManager.renameAlbum(id: $0, newName: $1) },

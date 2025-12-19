@@ -141,6 +141,42 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         }
     }
     
+    func moveTrack(from source: Int, to destination: Int) {
+        guard playlist.indices.contains(source),
+              playlist.indices.contains(destination),
+              source != destination
+        else {
+            return
+        }
+        
+        let movedTrack = playlist.remove(at: source)
+        playlist.insert(movedTrack, at: destination)
+        
+        // 更新当前播放索引
+        if playingSource == .playlist, let currentIndex = currentTrackIndex {
+            if source == currentIndex {
+                // 移动的是当前播放的曲目
+                currentTrackIndex = destination
+            } else if source < currentIndex, destination >= currentIndex {
+                // 从前面移到后面，索引-1
+                currentTrackIndex = currentIndex - 1
+            } else if source > currentIndex, destination <= currentIndex {
+                // 从后面移到前面，索引+1
+                currentTrackIndex = currentIndex + 1
+            }
+        }
+        
+        if playingSource == .playlist {
+            currentTracks = playlist
+        }
+        
+        logger.debug("Moved track from \(source) to \(destination)")
+        
+        Task {
+            await savePlaylist()
+        }
+    }
+    
     func playTrack(at index: Int) {
         guard playlist.indices.contains(index) else { return }
         

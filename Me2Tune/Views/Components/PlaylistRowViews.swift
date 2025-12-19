@@ -2,10 +2,56 @@
 //  PlaylistRowViews.swift
 //  Me2Tune
 //
-//  播放列表行视图组件
+//  播放列表行视图组件 - 支持拖动排序
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
+
+// MARK: - Draggable Track Row
+
+struct DraggableTrackRow: View {
+    let track: AudioTrack
+    let index: Int
+    let isPlaying: Bool
+    let onSelect: () -> Void
+    let onMove: (Int, Int) -> Void
+    
+    @State private var isDropTarget = false
+    
+    var body: some View {
+        TrackRowView(
+            track: track,
+            index: index,
+            isPlaying: isPlaying,
+            onSelect: onSelect,
+        )
+        .background(
+            isDropTarget ? Color.orange.opacity(0.3) : Color.clear,
+        )
+        .onDrag {
+            NSItemProvider(object: String(index) as NSString)
+        }
+        .onDrop(of: [.text], isTargeted: $isDropTarget) { providers in
+            guard let provider = providers.first else { return false }
+            
+            provider.loadItem(forTypeIdentifier: UTType.text.identifier, options: nil) { data, _ in
+                guard let data = data as? Data,
+                      let sourceIndexString = String(data: data, encoding: .utf8),
+                      let sourceIndex = Int(sourceIndexString)
+                else {
+                    return
+                }
+                
+                DispatchQueue.main.async {
+                    onMove(sourceIndex, index)
+                }
+            }
+            
+            return true
+        }
+    }
+}
 
 // MARK: - Album Row View
 
@@ -47,7 +93,7 @@ struct AlbumRowView: View {
                         )
                 }
             }
-            .frame(width: 48, height: 48) // 封面图尺寸
+            .frame(width: 48, height: 48)
             .clipShape(RoundedRectangle(cornerRadius: 3))
             
             VStack(alignment: .leading, spacing: 2) {
@@ -70,7 +116,7 @@ struct AlbumRowView: View {
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 12) // 专辑列表高度
+        .padding(.vertical, 12)
         .background(
             Group {
                 if isPlaying {
@@ -167,7 +213,7 @@ struct TrackRowView: View {
                 .frame(width: 28, alignment: .trailing)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 12) // playlist高度
+        .padding(.vertical, 12)
         .background(
             Group {
                 if isPlaying {
