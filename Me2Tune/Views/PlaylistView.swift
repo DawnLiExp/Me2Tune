@@ -250,7 +250,7 @@ struct PlaylistView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    .frame(width: 36, height: 36)
+                    .frame(width: 48, height: 48)
                     .clipShape(RoundedRectangle(cornerRadius: 4))
                     
                     VStack(alignment: .leading, spacing: 2) {
@@ -277,7 +277,7 @@ struct PlaylistView: View {
                     .help("Back to albums")
                 }
                 .padding(.horizontal, 12)
-                .padding(.vertical, 10)
+                .padding(.vertical, 12) // 专辑详情顶部信息栏高度
                 .background(Color.white.opacity(0.03))
                 .task {
                     await loadArtwork(for: album)

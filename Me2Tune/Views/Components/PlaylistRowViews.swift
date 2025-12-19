@@ -43,11 +43,11 @@ struct AlbumRowView: View {
                         .overlay(
                             Image(systemName: "music.note")
                                 .font(.system(size: 9))
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(.tertiary),
                         )
                 }
             }
-            .frame(width: 28, height: 28)
+            .frame(width: 48, height: 48) // 封面图尺寸
             .clipShape(RoundedRectangle(cornerRadius: 3))
             
             VStack(alignment: .leading, spacing: 2) {
@@ -70,7 +70,7 @@ struct AlbumRowView: View {
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 7)
+        .padding(.vertical, 12) // 专辑列表高度
         .background(
             Group {
                 if isPlaying {
@@ -80,7 +80,7 @@ struct AlbumRowView: View {
                 } else {
                     Color.clear
                 }
-            }
+            },
         )
         .contentShape(Rectangle())
         .onHover { hovering in
@@ -167,7 +167,7 @@ struct TrackRowView: View {
                 .frame(width: 28, alignment: .trailing)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 7)
+        .padding(.vertical, 12) // playlist高度
         .background(
             Group {
                 if isPlaying {
@@ -177,7 +177,7 @@ struct TrackRowView: View {
                 } else {
                     Color.clear
                 }
-            }
+            },
         )
         .contentShape(Rectangle())
         .onHover { hovering in
