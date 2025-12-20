@@ -2,7 +2,7 @@
 //  Me2TuneApp.swift
 //  Me2Tune
 //
-//  应用入口：Command+W 最小化而非关闭
+//  应用入口：Command+W 最小化而非关闭，动态窗口高度
 //
 
 import SwiftUI
@@ -18,6 +18,9 @@ struct Me2TuneApp: App {
             ContentView()
                 .environmentObject(playerManager)
                 .environmentObject(collectionManager)
+                .onAppear {
+                    appDelegate.window = NSApp.windows.first
+                }
         }
         .windowStyle(.hiddenTitleBar)
         .commands {
@@ -30,6 +33,7 @@ struct Me2TuneApp: App {
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var windowDelegate: WindowInterceptor?
+    weak var window: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         configureWindow()
@@ -45,10 +49,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         windowDelegate = WindowInterceptor()
         window.delegate = windowDelegate
 
-        window.minSize = NSSize(width: 350, height: 600)
+        // 动态高度
+        window.minSize = NSSize(width: 350, height: 150)
         window.maxSize = NSSize(width: 350, height: CGFloat.greatestFiniteMagnitude)
 
-        window.setContentSize(NSSize(width: 350, height: 900))
+        // 初始大小由ContentView的contentHeight决定
+        window.setContentSize(NSSize(width: 350, height: 600))
         window.center()
     }
 }

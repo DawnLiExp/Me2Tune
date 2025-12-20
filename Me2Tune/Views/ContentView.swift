@@ -17,6 +17,28 @@ struct ContentView: View {
     @State private var isPlaylistVisible = true
     @FocusState private var isFocused: Bool
     
+    // 计算内容高度
+    private var contentHeight: CGFloat {
+        var height: CGFloat = 0
+        
+        // 唱片区域
+        height += isArtworkExpanded ? 350 : 64
+        
+        // Divider
+        height += 1
+        
+        // 播放控件（进度条16 + 音量行42 + 播放键行54）
+        height += 112
+        
+        // Playlist
+        if isPlaylistVisible {
+            height += 1 // Divider
+            height += 500 // Playlist固定高度
+        }
+        
+        return height
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             // MARK: - Album Artwork
@@ -48,9 +70,6 @@ struct ContentView: View {
                 onToggleMiniMode: {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                         isPlaylistVisible.toggle()
-                        if !isPlaylistVisible {
-                            isArtworkExpanded = false
-                        }
                     }
                 },
                 onToggleRepeat: { playerManager.toggleRepeatMode() },
@@ -58,10 +77,10 @@ struct ContentView: View {
             )
             .background(Color(white: 0.15))
             
+            // MARK: - Playlist (条件显示)
+            
             if isPlaylistVisible {
                 Divider()
-                
-                // MARK: - Playlist
                 
                 PlaylistView(
                     tracks: playerManager.playlist,
@@ -84,10 +103,25 @@ struct ContentView: View {
                     onCollectionCleared: { collectionManager.clearAllAlbums() },
                 )
                 .background(Color(white: 0.12))
-                .frame(maxHeight: .infinity)
+                .frame(height: 500)
             }
         }
         .background(Color(white: 0.1))
+        .frame(width: 350, height: contentHeight)
+        .onChange(of: contentHeight) { _, newHeight in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                if let window = NSApp.windows.first {
+                    let currentFrame = window.frame
+                    let newFrame = NSRect(
+                        x: currentFrame.origin.x,
+                        y: currentFrame.origin.y + currentFrame.height - newHeight,
+                        width: 350,
+                        height: newHeight,
+                    )
+                    window.setFrame(newFrame, display: true, animate: true)
+                }
+            }
+        }
         .preferredColorScheme(.dark)
         .focusable()
         .focused($isFocused)
