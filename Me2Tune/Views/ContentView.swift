@@ -164,8 +164,11 @@ struct ContentView: View {
             handleWindowChange()
         }
         .task {
-            try? await Task.sleep(for: .seconds(2))
+            try? await Task.sleep(for: .seconds(1))
             await collectionManager.ensureLoaded()
+            
+            // 专辑加载完成后，恢复专辑播放状态（如果有）
+            await playerManager.restoreAlbumPlayback(albums: collectionManager.albums)
         }
         .onDisappear {
             saveTask?.cancel()

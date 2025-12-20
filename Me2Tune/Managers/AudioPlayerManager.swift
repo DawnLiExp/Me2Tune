@@ -2,7 +2,7 @@
 //  AudioPlayerManager.swift
 //  Me2Tune
 //
-//  音频播放器管理 - 添加循环播放和音量控制
+//  音频播放器管理 - 添加循环播放和音量控制 + 播放状态记忆
 //
 
 import AppKit
@@ -55,7 +55,6 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         
         Task {
             await loadPlaylist()
-            currentTracks = playlist
         }
     }
     
@@ -221,6 +220,19 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         
         guard let player else { return }
         
+        // 如果没有加载任何歌曲，且 playlist 不为空，加载第一首
+        if currentTrack == nil, !playlist.isEmpty {
+            playingSource = .playlist
+            currentTracks = playlist
+            loadAndPlay(at: 0)
+            return
+        }
+        
+        guard currentTrack != nil else {
+            logger.warning("No track loaded, cannot play")
+            return
+        }
+        
         do {
             try player.play()
             isPlaying = true
@@ -340,10 +352,9 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         loadTrack(at: index)
         play()
         
-        if playingSource == .playlist {
-            Task {
-                await savePlaylist()
-            }
+        // 保存播放状态
+        Task {
+            await savePlaylist()
         }
     }
     
@@ -381,16 +392,57 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     // MARK: - Persistence
     
     private func savePlaylist() async {
+        let sourceData: PlaylistState.PlayingSourceData? = {
+            switch playingSource {
+            case .playlist:
+                return .playlist
+            case .album(let id):
+                return .album(id)
+            }
+        }()
+        
         let state = PlaylistState(
             tracks: playlist,
-            currentIndex: playingSource == .playlist ? currentTrackIndex : nil,
+            playlistCurrentIndex: playingSource == .playlist ? currentTrackIndex : nil,
+            albumCurrentIndex: {
+                if case .album = playingSource {
+                    return currentTrackIndex
+                }
+                return nil
+            }(),
+            playingSource: sourceData,
         )
         
         do {
             try await persistenceService.save(state)
-            logger.debug("Playlist saved with metadata cache")
+            logger.debug("Playlist saved with playing source: \(String(describing: sourceData))")
         } catch {
             logger.error("Failed to save playlist: \(error.localizedDescription)")
+        }
+    }
+    
+    func restoreAlbumPlayback(albums: [Album]) async {
+        guard let state = try? await persistenceService.load() else { return }
+        
+        // 如果上次播放的是专辑
+        if let source = state.playingSource,
+           case .album(let albumId) = source,
+           let albumIndex = state.albumCurrentIndex
+        {
+            // 查找专辑是否还存在
+            if let album = albums.first(where: { $0.id == albumId }),
+               album.tracks.indices.contains(albumIndex)
+            {
+                await MainActor.run {
+                    playingSource = .album(albumId)
+                    currentTracks = album.tracks
+                    currentTrackIndex = albumIndex
+                    loadTrack(at: albumIndex)
+                    logger.info("Restored album playback: \(album.name), track \(albumIndex)")
+                }
+            } else {
+                logger.warning("Album or track not found, resetting to playlist")
+            }
         }
     }
     
@@ -403,13 +455,38 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         await MainActor.run {
             playlist = state.tracks
             
-            if let savedIndex = state.currentIndex,
-               playlist.indices.contains(savedIndex)
-            {
-                currentTrackIndex = savedIndex
+            // 根据上次播放源决定行为
+            if let source = state.playingSource {
+                switch source {
+                case .playlist:
+                    // 恢复 playlist 播放状态
+                    playingSource = .playlist
+                    currentTracks = playlist
+                    
+                    if let savedIndex = state.playlistCurrentIndex,
+                       playlist.indices.contains(savedIndex)
+                    {
+                        currentTrackIndex = savedIndex
+                        loadTrack(at: savedIndex)
+                        logger.info("Restored playlist at track \(savedIndex)")
+                    }
+                    
+                case .album:
+                    // 专辑状态需要等专辑列表加载后恢复
+                    // 暂时设为空状态
+                    playingSource = .playlist
+                    currentTracks = playlist
+                    currentTrackIndex = nil
+                    logger.info("Waiting for albums to restore album playback")
+                }
+            } else {
+                // 无播放源信息，默认为 playlist
+                playingSource = .playlist
+                currentTracks = playlist
+                currentTrackIndex = nil
             }
             
-            logger.info("Loaded playlist with \(state.tracks.count) tracks from cache")
+            logger.info("Loaded playlist with \(state.tracks.count) tracks")
         }
     }
 }
@@ -440,7 +517,8 @@ extension AudioPlayerManager: AudioPlayer.Delegate {
                 }
             case .off:
                 if let currentIndex = currentTrackIndex,
-                   currentIndex < currentTracks.count - 1 {
+                   currentIndex < currentTracks.count - 1
+                {
                     next()
                 }
             }

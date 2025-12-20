@@ -10,7 +10,14 @@ import OSLog
 
 struct PlaylistState: Codable, Sendable {
     var tracks: [AudioTrack]
-    var currentIndex: Int?
+    var playlistCurrentIndex: Int?
+    var albumCurrentIndex: Int?
+    var playingSource: PlayingSourceData?
+
+    enum PlayingSourceData: Codable, Sendable {
+        case playlist
+        case album(UUID)
+    }
 }
 
 struct CollectionState: Codable, Sendable {
@@ -61,7 +68,7 @@ actor PersistenceService {
         let encoder = JSONEncoder()
         let data = try encoder.encode(state)
         try data.write(to: fileURL, options: .atomic)
-        logger.debug("Playlist state saved with \(state.tracks.count) tracks")
+        logger.debug("Playlist state saved with \(state.tracks.count) tracks, source: \(String(describing: state.playingSource))")
     }
 
     func load() async throws -> PlaylistState {
