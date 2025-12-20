@@ -2,7 +2,7 @@
 //  PlaylistRowViews.swift
 //  Me2Tune
 //
-//  播放列表行视图组件 - 支持拖动排序
+//  播放列表行视图组件 - 支持拖动排序 + 列表行接收文件
 //
 
 import SwiftUI
@@ -16,6 +16,7 @@ struct DraggableTrackRow: View {
     let isPlaying: Bool
     let onSelect: () -> Void
     let onMove: (Int, Int) -> Void
+    let onFilesDropped: ([URL]) -> Void
     
     @State private var isDropTarget = false
     
@@ -32,10 +33,15 @@ struct DraggableTrackRow: View {
         .onDrag {
             NSItemProvider(object: String(index) as NSString)
         }
-        .onDrop(of: [.text], isTargeted: $isDropTarget) { providers in
-            guard let provider = providers.first else { return false }
-            
-            provider.loadItem(forTypeIdentifier: UTType.text.identifier, options: nil) { data, _ in
+        .onDrop(of: [.text, .fileURL], isTargeted: $isDropTarget) { providers in
+            handleDrop(providers: providers)
+        }
+    }
+    
+    private func handleDrop(providers: [NSItemProvider]) -> Bool {
+        // 检查是否是内部排序（text类型）
+        if let textProvider = providers.first(where: { $0.hasItemConformingToTypeIdentifier(UTType.text.identifier) }) {
+            textProvider.loadItem(forTypeIdentifier: UTType.text.identifier, options: nil) { data, _ in
                 guard let data = data as? Data,
                       let sourceIndexString = String(data: data, encoding: .utf8),
                       let sourceIndex = Int(sourceIndexString)
@@ -47,9 +53,38 @@ struct DraggableTrackRow: View {
                     onMove(sourceIndex, index)
                 }
             }
+            return true
+        }
+        
+        // 检查是否是文件拖入（fileURL类型）
+        if providers.contains(where: { $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }) {
+            var urls: [URL] = []
+            let group = DispatchGroup()
+            
+            for provider in providers {
+                guard provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) else {
+                    continue
+                }
+                
+                group.enter()
+                _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                    defer { group.leave() }
+                    if let url {
+                        urls.append(url)
+                    }
+                }
+            }
+            
+            group.notify(queue: .main) {
+                if !urls.isEmpty {
+                    onFilesDropped(urls)
+                }
+            }
             
             return true
         }
+        
+        return false
     }
 }
 

@@ -37,23 +37,15 @@ struct ContentView: View {
         _lastSavedY = State(initialValue: initialUIState.windowY ?? 0)
     }
     
-    // 计算最小内容高度
     private var minContentHeight: CGFloat {
         var height: CGFloat = 0
-        
-        // 唱片区域
         height += isArtworkExpanded ? 350 : 64
-        
-        // Divider
         height += 1
-        
-        // 播放控件
         height += 112
         
-        // Playlist
         if isPlaylistVisible {
-            height += 1 // Divider
-            height += 300 // Playlist最小高度
+            height += 1
+            height += 300
         }
         
         return height
@@ -61,8 +53,6 @@ struct ContentView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // MARK: - Album Artwork
-            
             AlbumArtworkView(
                 artwork: playerManager.currentArtwork,
                 isPlaying: playerManager.isPlaying,
@@ -71,8 +61,6 @@ struct ContentView: View {
             )
             
             Divider()
-            
-            // MARK: - Player Controls
             
             PlayerControlsView(
                 currentTrack: playerManager.currentTrack,
@@ -97,8 +85,6 @@ struct ContentView: View {
             )
             .background(Color(white: 0.15))
             
-            // MARK: - Playlist (条件显示)
-            
             if isPlaylistVisible {
                 Divider()
                 
@@ -121,6 +107,13 @@ struct ContentView: View {
                     onAlbumRemoved: { collectionManager.removeAlbum(id: $0) },
                     onAlbumRenamed: { collectionManager.renameAlbum(id: $0, newName: $1) },
                     onCollectionCleared: { collectionManager.clearAllAlbums() },
+                    onFilesDropped: { urls in
+                        if selectedTab == .playlist {
+                            handlePlaylistDrop(urls)
+                        } else {
+                            handleCollectionsDrop(urls)
+                        }
+                    },
                 )
                 .background(Color(white: 0.12))
                 .frame(minHeight: 300, maxHeight: .infinity)
@@ -131,7 +124,6 @@ struct ContentView: View {
         .onChange(of: isPlaylistVisible) { _, _ in
             updateWindowSizeForPlaylistToggle()
             if !isLoadingUIState {
-                // 状态切换立即保存，不需要防抖动
                 saveTask?.cancel()
                 Task { await saveUIState() }
             }
@@ -139,7 +131,6 @@ struct ContentView: View {
         .onChange(of: isArtworkExpanded) { _, _ in
             updateWindowSizeForArtworkToggle()
             if !isLoadingUIState {
-                // 状态切换立即保存，不需要防抖动
                 saveTask?.cancel()
                 Task { await saveUIState() }
             }
@@ -166,8 +157,6 @@ struct ContentView: View {
         .task {
             try? await Task.sleep(for: .seconds(1))
             await collectionManager.ensureLoaded()
-            
-            // 专辑加载完成后，恢复专辑播放状态（如果有）
             await playerManager.restoreAlbumPlayback(albums: collectionManager.albums)
         }
         .onDisappear {
@@ -185,7 +174,6 @@ struct ContentView: View {
         let currentX = window.frame.origin.x
         let currentY = window.frame.origin.y
         
-        // 检查是否有实质性变化（大于5像素）
         let heightChanged = abs(currentHeight - lastSavedHeight) > 5
         let positionChanged = abs(currentX - lastSavedX) > 5 || abs(currentY - lastSavedY) > 5
         
@@ -195,10 +183,8 @@ struct ContentView: View {
         lastSavedX = currentX
         lastSavedY = currentY
         
-        // 取消之前的保存任务，实现防抖动
         saveTask?.cancel()
         
-        // 延迟0.5秒保存，避免拖动时频繁写入
         saveTask = Task {
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
@@ -230,7 +216,6 @@ struct ContentView: View {
         guard let window = NSApp.windows.first else { return }
         
         let currentFrame = window.frame
-        // 唱片展开350，折叠64，差值286
         let heightDelta: CGFloat = isArtworkExpanded ? 286 : -286
         let newHeight = currentFrame.height + heightDelta
         
@@ -250,17 +235,13 @@ struct ContentView: View {
         let newHeight: CGFloat
         
         if isPlaylistVisible {
-            // 正在展开playlist
             if let savedHeight = heightBeforeHidingPlaylist {
-                // 恢复之前的高度
                 newHeight = savedHeight
                 heightBeforeHidingPlaylist = nil
             } else {
-                // 首次展开或没有保存的高度，使用最小内容高度
                 newHeight = minContentHeight
             }
         } else {
-            // 正在隐藏playlist，保存当前高度
             heightBeforeHidingPlaylist = currentFrame.height
             newHeight = minContentHeight
         }

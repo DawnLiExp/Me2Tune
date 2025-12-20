@@ -2,7 +2,7 @@
 //  PlaylistView.swift
 //  Me2Tune
 //
-//  播放列表视图 - 优化版：延迟加载Collections
+//  播放列表视图 - 优化版：延迟加载Collections + 列表行支持文件拖入
 //
 
 import SwiftUI
@@ -27,6 +27,7 @@ struct PlaylistView: View {
     let onAlbumRemoved: (UUID) -> Void
     let onAlbumRenamed: (UUID, String) -> Void
     let onCollectionCleared: () -> Void
+    let onFilesDropped: ([URL]) -> Void
     
     @EnvironmentObject private var collectionManager: CollectionManager
     
@@ -60,7 +61,6 @@ struct PlaylistView: View {
                         isSelected: selectedTab == .collections,
                         action: {
                             selectedTab = .collections
-                            // 切换到collections时触发加载
                             Task {
                                 await collectionManager.ensureLoaded()
                             }
@@ -166,6 +166,7 @@ struct PlaylistView: View {
                             isPlaying: playingSource == .playlist && currentIndex == index,
                             onSelect: { onTrackSelected(index) },
                             onMove: onTrackMoved,
+                            onFilesDropped: onFilesDropped,
                         )
                         .contextMenu {
                             Button(LocalizedStringKey("show_in_finder")) {
