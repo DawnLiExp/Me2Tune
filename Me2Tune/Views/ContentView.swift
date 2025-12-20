@@ -2,8 +2,7 @@
 //  ContentView.swift
 //  Me2Tune
 //
-//  主界面：可收拢唱片、播放控制、双栏播放列表
-//  混合加载策略：延迟2秒后台加载 + 手动触发保底
+//  主界面：可收拢唱片、播放控制、双栏播放列表、Mini模式
 //
 
 import SwiftUI
@@ -15,6 +14,7 @@ struct ContentView: View {
     @State private var isDragging = false
     @State private var selectedTab: PlaylistTab = .playlist
     @State private var isArtworkExpanded = true
+    @State private var isPlaylistVisible = true
     @FocusState private var isFocused: Bool
     
     var body: some View {
@@ -43,35 +43,45 @@ struct ContentView: View {
                 onPrevious: { playerManager.previous() },
                 onNext: { playerManager.next() },
                 onSeek: { playerManager.seek(to: $0) },
+                onToggleMiniMode: {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        isPlaylistVisible.toggle()
+                        if !isPlaylistVisible {
+                            isArtworkExpanded = false
+                        }
+                    }
+                },
             )
             .background(Color(white: 0.15))
             
-            Divider()
-            
-            // MARK: - Playlist
-            
-            PlaylistView(
-                tracks: playerManager.playlist,
-                currentTracks: playerManager.currentTracks,
-                currentIndex: playerManager.currentTrackIndex,
-                playingSource: playerManager.playingSource,
-                albums: collectionManager.albums,
-                selectedTab: $selectedTab,
-                onTrackSelected: { playerManager.playTrack(at: $0) },
-                onAlbumSelected: { album, index in
-                    playerManager.playAlbum(album, startAt: index)
-                },
-                onTrackRemoved: { playerManager.removeTrack(at: $0) },
-                onTrackMoved: { from, to in
-                    playerManager.moveTrack(from: from, to: to)
-                },
-                onPlaylistCleared: { playerManager.clearPlaylist() },
-                onAlbumRemoved: { collectionManager.removeAlbum(id: $0) },
-                onAlbumRenamed: { collectionManager.renameAlbum(id: $0, newName: $1) },
-                onCollectionCleared: { collectionManager.clearAllAlbums() },
-            )
-            .background(Color(white: 0.12))
-            .frame(maxHeight: .infinity)
+            if isPlaylistVisible {
+                Divider()
+                
+                // MARK: - Playlist
+                
+                PlaylistView(
+                    tracks: playerManager.playlist,
+                    currentTracks: playerManager.currentTracks,
+                    currentIndex: playerManager.currentTrackIndex,
+                    playingSource: playerManager.playingSource,
+                    albums: collectionManager.albums,
+                    selectedTab: $selectedTab,
+                    onTrackSelected: { playerManager.playTrack(at: $0) },
+                    onAlbumSelected: { album, index in
+                        playerManager.playAlbum(album, startAt: index)
+                    },
+                    onTrackRemoved: { playerManager.removeTrack(at: $0) },
+                    onTrackMoved: { from, to in
+                        playerManager.moveTrack(from: from, to: to)
+                    },
+                    onPlaylistCleared: { playerManager.clearPlaylist() },
+                    onAlbumRemoved: { collectionManager.removeAlbum(id: $0) },
+                    onAlbumRenamed: { collectionManager.renameAlbum(id: $0, newName: $1) },
+                    onCollectionCleared: { collectionManager.clearAllAlbums() },
+                )
+                .background(Color(white: 0.12))
+                .frame(maxHeight: .infinity)
+            }
         }
         .background(Color(white: 0.1))
         .preferredColorScheme(.dark)
@@ -88,7 +98,6 @@ struct ContentView: View {
             handleDrop(providers: providers)
         }
         .task {
-            // 延迟2秒后台预加载专辑数据
             try? await Task.sleep(for: .seconds(2))
             await collectionManager.ensureLoaded()
         }
