@@ -39,6 +39,8 @@ struct ContentView: View {
                 isPlaying: playerManager.isPlaying,
                 canGoPrevious: (playerManager.currentTrackIndex ?? 0) > 0,
                 canGoNext: (playerManager.currentTrackIndex ?? 0) < playerManager.currentTracks.count - 1,
+                repeatMode: playerManager.repeatMode,
+                volume: playerManager.volume,
                 onPlayPause: { playerManager.togglePlayPause() },
                 onPrevious: { playerManager.previous() },
                 onNext: { playerManager.next() },
@@ -51,6 +53,8 @@ struct ContentView: View {
                         }
                     }
                 },
+                onToggleRepeat: { playerManager.toggleRepeatMode() },
+                onVolumeChange: { playerManager.volume = $0 },
             )
             .background(Color(white: 0.15))
             

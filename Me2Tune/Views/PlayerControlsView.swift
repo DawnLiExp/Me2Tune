@@ -2,7 +2,7 @@
 //  PlayerControlsView.swift
 //  Me2Tune
 //
-//  紧凑型播放控制面板 - 优化进度条交互和间距
+//  紧凑型播放控制面板 - 循环播放和音量控制
 //
 
 import SwiftUI
@@ -14,17 +14,20 @@ struct PlayerControlsView: View {
     let isPlaying: Bool
     let canGoPrevious: Bool
     let canGoNext: Bool
+    let repeatMode: AudioPlayerManager.RepeatMode
+    let volume: Double
     
     let onPlayPause: () -> Void
     let onPrevious: () -> Void
     let onNext: () -> Void
     let onSeek: (TimeInterval) -> Void
     let onToggleMiniMode: () -> Void
+    let onToggleRepeat: () -> Void
+    let onVolumeChange: (Double) -> Void
     
     @State private var isSeekingManually = false
     @State private var manualSeekValue: TimeInterval = 0
     @State private var showRemainingTime = false
-    @State private var volume: Double = 0.5
     @State private var hoveredButton: String? = nil
     
     var body: some View {
@@ -36,46 +39,53 @@ struct PlayerControlsView: View {
             // MARK: - Controls Row 1: 循环 + 音量 + 时间
             
             HStack(spacing: 12) {
-                IconButton(
-                    icon: "repeat",
-                    size: 14,
-                    isHovered: hoveredButton == "repeat",
-                    isEnabled: false,
-                ) {}
-                    .onHover { hoveredButton = $0 ? "repeat" : nil }
-                
-                Spacer()
-                
-                HStack(spacing: 8) {
-                    IconButton(
-                        icon: "minus",
-                        size: 12,
-                        isHovered: hoveredButton == "volume-down",
-                        isEnabled: false,
-                    ) {}
-                        .onHover { hoveredButton = $0 ? "volume-down" : nil }
-                    
-                    Slider(value: $volume, in: 0 ... 1)
-                        .controlSize(.small)
-                        .frame(width: 80)
-                        .disabled(true)
-                    
-                    IconButton(
-                        icon: "plus",
-                        size: 12,
-                        isHovered: hoveredButton == "volume-up",
-                        isEnabled: false,
-                    ) {}
-                        .onHover { hoveredButton = $0 ? "volume-up" : nil }
+                // 循环播放按钮
+                Button(action: onToggleRepeat) {
+                    Image(systemName: repeatIcon)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(repeatMode != .off ? .orange : (hoveredButton == "repeat" ? .primary : .secondary))
+                        .frame(width: 32, height: 32)
                 }
-                .opacity(0.5)
+                .buttonStyle(.plain)
+                .onHover { hoveredButton = $0 ? "repeat" : nil }
                 
                 Spacer()
                 
+                // 音量控制
+                HStack(spacing: 8) {
+                    Button(action: { onVolumeChange(max(0, volume - 0.1)) }) {
+                        Image(systemName: "minus")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(hoveredButton == "volume-down" ? .primary : .secondary)
+                            .frame(width: 32, height: 32)
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { hoveredButton = $0 ? "volume-down" : nil }
+                    
+                    CompactVolumeSlider(value: Binding(
+                        get: { volume },
+                        set: { onVolumeChange($0) },
+                    ))
+                    .frame(width: 80)
+                    
+                    Button(action: { onVolumeChange(min(1, volume + 0.1)) }) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(hoveredButton == "volume-up" ? .primary : .secondary)
+                            .frame(width: 32, height: 32)
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { hoveredButton = $0 ? "volume-up" : nil }
+                }
+                
+                Spacer()
+                
+                // 时间显示（固定宽度避免挤压）
                 Button(action: { showRemainingTime.toggle() }) {
                     Text(timeText)
                         .font(.system(size: 11, design: .monospaced))
                         .foregroundStyle(.secondary)
+                        .frame(width: 40, alignment: .trailing)
                 }
                 .buttonStyle(.plain)
             }
@@ -212,6 +222,14 @@ struct PlayerControlsView: View {
     
     // MARK: - Helpers
     
+    private var repeatIcon: String {
+        switch repeatMode {
+        case .off: return "repeat"
+        case .all: return "repeat"
+        case .one: return "repeat.1"
+        }
+    }
+    
     private var progress: CGFloat {
         let time = isSeekingManually ? manualSeekValue : currentTime
         let total = max(duration, 0.1)
@@ -253,5 +271,43 @@ struct IconButton: View {
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
+    }
+}
+
+// MARK: - Compact Volume Slider
+
+struct CompactVolumeSlider: View {
+    @Binding var value: Double
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                // 背景
+                Capsule()
+                    .fill(Color.white.opacity(0.1))
+                    .frame(height: 3)
+                
+                // 进度
+                Capsule()
+                    .fill(Color.secondary.opacity(0.6))
+                    .frame(width: geometry.size.width * value, height: 3)
+                
+                // Thumb (更小的圆点)
+                Circle()
+                    .fill(Color.secondary)
+                    .frame(width: 8, height: 8)
+                    .offset(x: geometry.size.width * value - 4)
+            }
+            .frame(height: 20)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { gesture in
+                        let newValue = min(max(0, gesture.location.x / geometry.size.width), 1)
+                        value = newValue
+                    },
+            )
+        }
+        .frame(height: 20)
     }
 }

@@ -2,7 +2,7 @@
 //  AudioPlayerManager.swift
 //  Me2Tune
 //
-//  音频播放器管理 - 优化版：缓存元数据，避免重复解析
+//  音频播放器管理 - 添加循环播放和音量控制
 //
 
 import AppKit
@@ -24,6 +24,8 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     @Published private(set) var currentTime: TimeInterval = 0
     @Published private(set) var duration: TimeInterval = 0
     @Published private(set) var currentArtwork: NSImage?
+    @Published var repeatMode: RepeatMode = .off
+    @Published var volume: Double = 0.7
     
     private var player: AudioPlayer?
     private let artworkService = ArtworkService()
@@ -33,6 +35,12 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     enum PlayingSource: Equatable {
         case playlist
         case album(UUID)
+    }
+    
+    enum RepeatMode {
+        case off
+        case all
+        case one
     }
     
     var currentTrack: AudioTrack? {
@@ -51,6 +59,20 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         }
     }
     
+    // MARK: - Playback Settings
+    
+    func toggleRepeatMode() {
+        switch repeatMode {
+        case .off:
+            repeatMode = .all
+        case .all:
+            repeatMode = .one
+        case .one:
+            repeatMode = .off
+        }
+        logger.debug("Repeat mode: \(String(describing: self.repeatMode))")
+    }
+    
     // MARK: - Playlist Management
     
     func addTracks(urls: [URL]) {
@@ -63,7 +85,6 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         logger.info("Adding \(validURLs.count) tracks to playlist")
         
         Task {
-            // 并发解析元数据
             let newTracks = await withTaskGroup(of: AudioTrack.self) { group in
                 for url in validURLs {
                     group.addTask {
@@ -152,16 +173,12 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         let movedTrack = playlist.remove(at: source)
         playlist.insert(movedTrack, at: destination)
         
-        // 更新当前播放索引
         if playingSource == .playlist, let currentIndex = currentTrackIndex {
             if source == currentIndex {
-                // 移动的是当前播放的曲目
                 currentTrackIndex = destination
             } else if source < currentIndex, destination >= currentIndex {
-                // 从前面移到后面，索引-1
                 currentTrackIndex = currentIndex - 1
             } else if source > currentIndex, destination <= currentIndex {
-                // 从后面移到前面，索引+1
                 currentTrackIndex = currentIndex + 1
             }
         }
@@ -383,7 +400,6 @@ final class AudioPlayerManager: NSObject, ObservableObject {
             return
         }
         
-        // 直接使用缓存数据，不再重新解析元数据
         await MainActor.run {
             playlist = state.tracks
             
@@ -409,7 +425,26 @@ extension AudioPlayerManager: AudioPlayer.Delegate {
     
     nonisolated func audioPlayerEndOfAudio(_ audioPlayer: AudioPlayer) {
         Task { @MainActor in
-            next()
+            switch repeatMode {
+            case .one:
+                if let index = currentTrackIndex {
+                    loadAndPlay(at: index)
+                }
+            case .all:
+                if let currentIndex = currentTrackIndex {
+                    if currentIndex < currentTracks.count - 1 {
+                        next()
+                    } else {
+                        loadAndPlay(at: 0)
+                    }
+                }
+            case .off:
+                if let currentIndex = currentTrackIndex,
+                   currentIndex < currentTracks.count - 1
+                {
+                    next()
+                }
+            }
         }
     }
     
