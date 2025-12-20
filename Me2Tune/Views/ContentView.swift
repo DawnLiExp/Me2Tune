@@ -24,6 +24,7 @@ struct ContentView: View {
     @State private var lastSavedX: CGFloat = 0
     @State private var lastSavedY: CGFloat = 0
     @State private var heightBeforeHidingPlaylist: CGFloat?
+    @State private var saveTask: Task<Void, Never>?
     @FocusState private var isFocused: Bool
     
     private let persistenceService = PersistenceService()
@@ -130,12 +131,16 @@ struct ContentView: View {
         .onChange(of: isPlaylistVisible) { _, _ in
             updateWindowSizeForPlaylistToggle()
             if !isLoadingUIState {
+                // 状态切换立即保存，不需要防抖动
+                saveTask?.cancel()
                 Task { await saveUIState() }
             }
         }
         .onChange(of: isArtworkExpanded) { _, _ in
             updateWindowSizeForArtworkToggle()
             if !isLoadingUIState {
+                // 状态切换立即保存，不需要防抖动
+                saveTask?.cancel()
                 Task { await saveUIState() }
             }
         }
@@ -152,35 +157,49 @@ struct ContentView: View {
         .onDrop(of: [.fileURL], isTargeted: $isDragging) { providers in
             handleDrop(providers: providers)
         }
-        .onReceive(Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()) { _ in
-            checkAndSaveWindowHeight()
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResizeNotification)) { _ in
+            handleWindowChange()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didMoveNotification)) { _ in
+            handleWindowChange()
         }
         .task {
             try? await Task.sleep(for: .seconds(2))
             await collectionManager.ensureLoaded()
         }
+        .onDisappear {
+            saveTask?.cancel()
+        }
     }
     
     // MARK: - UI State Management
     
-    private func checkAndSaveWindowHeight() {
+    private func handleWindowChange() {
+        guard !isLoadingUIState else { return }
         guard let window = NSApp.windows.first else { return }
+        
         let currentHeight = window.frame.height
         let currentX = window.frame.origin.x
         let currentY = window.frame.origin.y
         
-        // 高度变化超过5像素或位置变化超过5像素才保存
+        // 检查是否有实质性变化（大于5像素）
         let heightChanged = abs(currentHeight - lastSavedHeight) > 5
         let positionChanged = abs(currentX - lastSavedX) > 5 || abs(currentY - lastSavedY) > 5
         
-        if heightChanged || positionChanged {
-            lastSavedHeight = currentHeight
-            lastSavedX = currentX
-            lastSavedY = currentY
-            
-            if !isLoadingUIState {
-                Task { await saveUIState() }
-            }
+        guard heightChanged || positionChanged else { return }
+        
+        lastSavedHeight = currentHeight
+        lastSavedX = currentX
+        lastSavedY = currentY
+        
+        // 取消之前的保存任务，实现防抖动
+        saveTask?.cancel()
+        
+        // 延迟0.5秒保存，避免拖动时频繁写入
+        saveTask = Task {
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            await saveUIState()
         }
     }
     
