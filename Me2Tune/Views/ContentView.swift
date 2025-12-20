@@ -17,8 +17,8 @@ struct ContentView: View {
     @State private var isPlaylistVisible = true
     @FocusState private var isFocused: Bool
     
-    // 计算内容高度
-    private var contentHeight: CGFloat {
+    // 计算最小内容高度
+    private var minContentHeight: CGFloat {
         var height: CGFloat = 0
         
         // 唱片区域
@@ -27,13 +27,13 @@ struct ContentView: View {
         // Divider
         height += 1
         
-        // 播放控件（进度条16 + 音量行42 + 播放键行54）
+        // 播放控件
         height += 112
         
         // Playlist
         if isPlaylistVisible {
             height += 1 // Divider
-            height += 500 // Playlist固定高度
+            height += 300 // Playlist最小高度
         }
         
         return height
@@ -73,7 +73,7 @@ struct ContentView: View {
                     }
                 },
                 onToggleRepeat: { playerManager.toggleRepeatMode() },
-                onVolumeChange: { playerManager.volume = $0 },
+                onVolumeChange: { playerManager.volume = $0 }
             )
             .background(Color(white: 0.15))
             
@@ -103,24 +103,16 @@ struct ContentView: View {
                     onCollectionCleared: { collectionManager.clearAllAlbums() },
                 )
                 .background(Color(white: 0.12))
-                .frame(height: 500)
+                .frame(minHeight: 300, maxHeight: .infinity)
             }
         }
         .background(Color(white: 0.1))
-        .frame(width: 350, height: contentHeight)
-        .onChange(of: contentHeight) { _, newHeight in
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                if let window = NSApp.windows.first {
-                    let currentFrame = window.frame
-                    let newFrame = NSRect(
-                        x: currentFrame.origin.x,
-                        y: currentFrame.origin.y + currentFrame.height - newHeight,
-                        width: 350,
-                        height: newHeight,
-                    )
-                    window.setFrame(newFrame, display: true, animate: true)
-                }
-            }
+        .frame(width: 350)
+        .onChange(of: isPlaylistVisible) { _, _ in
+            updateWindowSize()
+        }
+        .onChange(of: isArtworkExpanded) { _, _ in
+            updateWindowSize()
         }
         .preferredColorScheme(.dark)
         .focusable()
@@ -142,6 +134,22 @@ struct ContentView: View {
     }
     
     // MARK: - Helpers
+    
+    private func updateWindowSize() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            if let window = NSApp.windows.first {
+                let currentFrame = window.frame
+                let targetHeight = minContentHeight
+                let newFrame = NSRect(
+                    x: currentFrame.origin.x,
+                    y: currentFrame.origin.y + currentFrame.height - targetHeight,
+                    width: 350,
+                    height: targetHeight
+                )
+                window.setFrame(newFrame, display: true, animate: true)
+            }
+        }
+    }
     
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
         var urls: [URL] = []

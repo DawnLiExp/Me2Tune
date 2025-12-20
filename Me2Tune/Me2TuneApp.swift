@@ -49,12 +49,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         windowDelegate = WindowInterceptor()
         window.delegate = windowDelegate
 
-        // 动态高度
+        // 锁定宽度，允许高度调整
         window.minSize = NSSize(width: 350, height: 150)
-        window.maxSize = NSSize(width: 350, height: CGFloat.greatestFiniteMagnitude)
+        window.maxSize = NSSize(width: 350, height: 2000)
 
-        // 初始大小由ContentView的contentHeight决定
-        window.setContentSize(NSSize(width: 350, height: 600))
+        // 初始大小
+        window.setContentSize(NSSize(width: 350, height: 763))
         window.center()
     }
 }

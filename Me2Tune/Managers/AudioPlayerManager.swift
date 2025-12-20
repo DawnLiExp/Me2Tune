@@ -440,8 +440,7 @@ extension AudioPlayerManager: AudioPlayer.Delegate {
                 }
             case .off:
                 if let currentIndex = currentTrackIndex,
-                   currentIndex < currentTracks.count - 1
-                {
+                   currentIndex < currentTracks.count - 1 {
                     next()
                 }
             }
