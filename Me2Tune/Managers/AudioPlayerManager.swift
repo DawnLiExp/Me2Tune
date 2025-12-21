@@ -19,6 +19,7 @@ final class AudioPlayerManager: NSObject, ObservableObject {
     @Published private(set) var currentTracks: [AudioTrack] = []
     @Published private(set) var currentTrackIndex: Int?
     @Published private(set) var playingSource: PlayingSource = .playlist
+    @Published private(set) var isPlaylistLoaded = false
     
     @Published private(set) var isPlaying = false
     @Published private(set) var currentTime: TimeInterval = 0
@@ -101,6 +102,10 @@ final class AudioPlayerManager: NSObject, ObservableObject {
             await MainActor.run {
                 playlist.append(contentsOf: newTracks)
                 
+                if !isPlaylistLoaded {
+                    isPlaylistLoaded = true
+                }
+                    
                 if playingSource == .playlist {
                     currentTracks = playlist
                 }
@@ -488,6 +493,7 @@ final class AudioPlayerManager: NSObject, ObservableObject {
             
             logger.info("Loaded playlist with \(state.tracks.count) tracks")
         }
+        isPlaylistLoaded = true
     }
 }
 

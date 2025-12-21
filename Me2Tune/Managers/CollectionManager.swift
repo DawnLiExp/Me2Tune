@@ -34,23 +34,23 @@ final class CollectionManager: ObservableObject {
         
     func addAlbumFromPlaylist(name: String, tracks: [AudioTrack]) async -> UUID? {
         await ensureLoaded()
-        
+            
         guard !tracks.isEmpty else {
             logger.warning("Cannot create album from empty playlist")
             return nil
         }
-        
+            
         let album = Album(name: name, folderURL: URL(fileURLWithPath: "/"), tracks: tracks)
-        
+            
         await MainActor.run {
             self.albums.append(album)
             self.objectWillChange.send()
-            
+                
             logger.info("Album created from playlist: \(name) with \(tracks.count) tracks")
-            
+                
             Task { await saveCollections() }
         }
-        
+            
         return album.id
     }
         

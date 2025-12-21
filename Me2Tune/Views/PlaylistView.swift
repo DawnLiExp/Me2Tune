@@ -18,6 +18,7 @@ struct PlaylistView: View {
     let currentIndex: Int?
     let playingSource: AudioPlayerManager.PlayingSource
     let albums: [Album]
+    let isPlaylistLoaded: Bool
     @Binding var selectedTab: PlaylistTab
     let onTrackSelected: (Int) -> Void
     let onAlbumSelected: (Album, Int) -> Void
@@ -178,12 +179,17 @@ struct PlaylistView: View {
     private var playlistView: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                if tracks.isEmpty {
-                    Text(LocalizedStringKey("drop_files"))
-                        .font(.system(size: 12))
-                        .foregroundStyle(.tertiary)
-                        .padding(20)
+                if !isPlaylistLoaded {
+                    ProgressView()
+                        .padding(40)
                         .frame(maxWidth: .infinity, alignment: .center)
+                } else if tracks.isEmpty {
+                    EmptyStateView(
+                        icon: "music.note.list",
+                        title: "drop_files",
+                        subtitle: "supported_formats",
+                    )
+                    .padding(.vertical, 40)
                 } else {
                     ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
                         DraggableTrackRow(
@@ -223,11 +229,12 @@ struct PlaylistView: View {
             LazyVStack(spacing: 0) {
                 if albums.isEmpty {
                     if collectionManager.isLoaded {
-                        Text(LocalizedStringKey("collection_placeholder"))
-                            .font(.system(size: 12))
-                            .foregroundStyle(.tertiary)
-                            .padding(20)
-                            .frame(maxWidth: .infinity, alignment: .center)
+                        EmptyStateView(
+                            icon: "folder.badge.plus",
+                            title: "collection_placeholder",
+                            subtitle: nil,
+                        )
+                        .padding(.vertical, 40)
                     } else {
                         ProgressView()
                             .padding(20)
@@ -388,5 +395,34 @@ struct PlaylistView: View {
                 artworkCache[album.id] = artwork
             }
         }
+    }
+}
+
+// MARK: - Empty State View
+
+struct EmptyStateView: View {
+    let icon: String
+    let title: String
+    let subtitle: String?
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 48))
+                .foregroundStyle(.tertiary)
+            
+            Text(LocalizedStringKey(title))
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            
+            if let subtitle {
+                Text(LocalizedStringKey(subtitle))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 }

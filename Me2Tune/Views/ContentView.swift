@@ -94,6 +94,7 @@ struct ContentView: View {
                     currentIndex: playerManager.currentTrackIndex,
                     playingSource: playerManager.playingSource,
                     albums: collectionManager.albums,
+                    isPlaylistLoaded: playerManager.isPlaylistLoaded,
                     selectedTab: $selectedTab,
                     onTrackSelected: { playerManager.playTrack(at: $0) },
                     onAlbumSelected: { album, index in
