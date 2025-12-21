@@ -46,8 +46,8 @@ struct TabButton: View {
                 
                 Rectangle()
                     .fill(Color.orange)
-                    .frame(height: 2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(height: 1.7)
+                    .frame(maxWidth: 48, alignment: .leading)
                     .opacity(isSelected ? 1 : 0)
             }
         }

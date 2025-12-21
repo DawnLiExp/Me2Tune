@@ -17,7 +17,7 @@ struct AlbumArtworkView: View {
     @State private var isHoveringToggle = false
     @State private var rotationTimer: Timer?
     
-    private let artworkSize: CGFloat = 220
+    private let artworkSize: CGFloat = 260
     private let miniArtworkSize: CGFloat = 48
     
     var body: some View {
@@ -54,7 +54,7 @@ struct AlbumArtworkView: View {
                 
                 vinylView
             }
-            .frame(height: 350)
+            .frame(height: 300)
             
             // 折叠按钮 (右下角)
             Button(action: {

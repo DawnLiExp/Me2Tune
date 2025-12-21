@@ -90,7 +90,7 @@ struct PlayerControlsView: View {
                 .buttonStyle(.plain)
             }
             .padding(.horizontal, 20)
-            .padding(.top, 10)
+            // .padding(.top, 10)
             
             // MARK: - Controls Row 2: 播放控制
             
@@ -139,7 +139,7 @@ struct PlayerControlsView: View {
                     .onHover { hoveredButton = $0 ? "search" : nil }
             }
             .padding(.horizontal, 20)
-            .padding(.top, 10)
+            //   .padding(.top, 10)
             .padding(.bottom, 12)
         }
     }
@@ -268,6 +268,7 @@ struct IconButton: View {
                 .font(.system(size: size, weight: .medium))
                 .foregroundStyle(isEnabled ? (isHovered ? .primary : .secondary) : .tertiary)
                 .frame(width: 32, height: 32)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
