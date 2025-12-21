@@ -1,4 +1,6 @@
-//  English Localization
+// ============================================
+// English (Localizable.strings - en)
+// ============================================
 
 "playlist" = "Playlist";
 "unknown_artist" = "Unknown Artist";
@@ -22,3 +24,9 @@
 // Rename dialog
 "album_name" = "Album Name";
 "enter_new_album_name" = "Enter a new name for this album";
+
+// Export feature
+"export_to_collection" = "Export to collection";
+"export_playlist_title" = "Export Playlist to Collection";
+"export_playlist_message" = "Create a new album from current playlist";
+"export" = "Export";

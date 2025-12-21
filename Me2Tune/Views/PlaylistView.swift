@@ -2,7 +2,7 @@
 //  PlaylistView.swift
 //  Me2Tune
 //
-//  播放列表视图 - 优化版：延迟加载Collections + 列表行支持文件拖入
+//  播放列表视图 - 优化版：延迟加载Collections + 列表行支持文件拖入 + 导出功能
 //
 
 import SwiftUI
@@ -37,6 +37,8 @@ struct PlaylistView: View {
     @State private var showClearCollectionAlert = false
     @State private var renamingAlbumId: UUID?
     @State private var renameText = ""
+    @State private var showExportDialog = false
+    @State private var exportAlbumName = ""
     
     private let artworkService = ArtworkService()
     
@@ -74,7 +76,13 @@ struct PlaylistView: View {
                 
                 HStack(spacing: 10) {
                     if selectedTab == .playlist {
-                        ToolbarButton(icon: "arrow.right.circle", tooltip: "Export playlist", action: {})
+                        ToolbarButton(
+                            icon: "arrow.right.circle",
+                            tooltip: String(localized: "export_to_collection"),
+                        ) {
+                            exportAlbumName = generateDefaultAlbumName()
+                            showExportDialog = true
+                        }
                         ToolbarButton(icon: "plus.circle", tooltip: "Add tracks", action: {})
                         ToolbarButton(icon: "xmark.circle", tooltip: "Clear playlist") {
                             showClearPlaylistAlert = true
@@ -144,6 +152,24 @@ struct PlaylistView: View {
             }
         } message: {
             Text(LocalizedStringKey("enter_new_album_name"))
+        }
+        .alert(
+            Text(LocalizedStringKey("export_playlist_title")),
+            isPresented: $showExportDialog,
+        ) {
+            TextField(LocalizedStringKey("album_name"), text: $exportAlbumName)
+            Button(LocalizedStringKey("cancel"), role: .cancel) {
+                showExportDialog = false
+            }
+            Button(LocalizedStringKey("export")) {
+                Task {
+                    await exportPlaylistToCollection()
+                }
+                showExportDialog = false
+            }
+            .disabled(exportAlbumName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        } message: {
+            Text(LocalizedStringKey("export_playlist_message"))
         }
     }
     
@@ -328,6 +354,27 @@ struct PlaylistView: View {
     }
     
     // MARK: - Helpers
+    
+    private func generateDefaultAlbumName() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        let prefix = String(localized: "playlist")
+        return "\(prefix) \(formatter.string(from: Date()))"
+    }
+    
+    private func exportPlaylistToCollection() async {
+        guard !tracks.isEmpty else { return }
+        
+        let name = exportAlbumName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+        
+        if let newAlbumId = await collectionManager.addAlbumFromPlaylist(name: name, tracks: tracks) {
+            await MainActor.run {
+                selectedTab = .collections
+                selectedAlbumId = newAlbumId
+            }
+        }
+    }
     
     private func loadArtwork(for album: Album) async {
         guard artworkCache[album.id] == nil,

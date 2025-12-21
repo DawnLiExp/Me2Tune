@@ -1,4 +1,6 @@
-// 简体中文本地化
+// ============================================
+// 简体中文 (Localizable.strings - zh-Hans)
+// ============================================
 
 "playlist" = "播放列表";
 "unknown_artist" = "未知艺人";
@@ -22,3 +24,9 @@
 // 重命名对话框
 "album_name" = "专辑名称";
 "enter_new_album_name" = "请输入新的专辑名称";
+
+// 导出功能
+"export_to_collection" = "导出到专辑";
+"export_playlist_title" = "导出播放列表到专辑";
+"export_playlist_message" = "从当前播放列表创建新专辑";
+"export" = "导出";
