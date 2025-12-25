@@ -2,31 +2,13 @@
 // English (Localizable.strings - en)
 // ============================================
 
-"playlist" = "Playlist";
-"unknown_artist" = "Unknown Artist";
-"collections" = "Albums";
-"collection_placeholder" = "Drag folders here to organize by album";
-"drop_files" = "Drop Audio Files Here";
-"supported_formats" = "Supports MP3, AAC, WAV, AIFF, FLAC, APE, and more";
-
 // Context menu
-"show_in_finder" = "Show in Finder";
-"rename" = "Rename";
-"remove" = "Remove";
-"delete_album" = "Delete";
-
-// Alerts
-"clear" = "Clear";
-"cancel" = "Cancel";
-"clear_playlist_confirm" = "Are you sure you want to clear the entire playlist?";
-"clear_collections_confirm" = "Are you sure you want to delete all collections?";
-
-// Rename dialog
+"rename_album" = "Rename Album";
+"remove_album" = "Remove Album";
+"remove_album_confirm" = "Are you sure you want to remove \"%@\" from your collection?";
 "album_name" = "Album Name";
 "enter_new_album_name" = "Enter a new name for this album";
+"rename" = "Rename";
+"remove" = "Remove";
+"cancel" = "Cancel";
 
-// Export feature
-"export_to_collection" = "Export to collection";
-"export_playlist_title" = "Export Playlist to Collection";
-"export_playlist_message" = "Create a new album from current playlist";
-"export" = "Export";

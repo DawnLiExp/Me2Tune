@@ -229,6 +229,12 @@ struct ContentView: View {
                                 onAlbumPlayAt: { album, index in
                                     playerManager.playAlbum(album, startAt: index)
                                 },
+                                onAlbumRemoved: { albumId in
+                                    collectionManager.removeAlbum(id: albumId)
+                                },
+                                onAlbumRenamed: { albumId, newName in
+                                    collectionManager.renameAlbum(id: albumId, newName: newName)
+                                },
                                 onEnsureLoaded: {
                                     await collectionManager.ensureLoaded()
                                 }

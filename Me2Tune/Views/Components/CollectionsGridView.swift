@@ -15,10 +15,15 @@ struct CollectionsGridView: View {
     let currentIndex: Int?
     let playingSource: AudioPlayerManager.PlayingSource
     let onAlbumPlayAt: (Album, Int) -> Void
+    let onAlbumRemoved: (UUID) -> Void
+    let onAlbumRenamed: (UUID, String) -> Void
     let onEnsureLoaded: () async -> Void
     
     @State private var selectedAlbum: Album?
     @State private var artworkCache: [UUID: NSImage] = [:]
+    @State private var renamingAlbumId: UUID?
+    @State private var renameText = ""
+    @State private var albumToDelete: Album?
     
     private let artworkService = ArtworkService()
     
@@ -34,6 +39,41 @@ struct CollectionsGridView: View {
         }
         .task {
             await onEnsureLoaded()
+        }
+        .alert(NSLocalizedString("rename_album", comment: ""), isPresented: Binding(
+            get: { renamingAlbumId != nil },
+            set: { if !$0 { renamingAlbumId = nil } }
+        )) {
+            TextField(NSLocalizedString("album_name", comment: ""), text: $renameText)
+            Button(NSLocalizedString("cancel", comment: ""), role: .cancel) {
+                renamingAlbumId = nil
+            }
+            Button(NSLocalizedString("rename", comment: "")) {
+                if let albumId = renamingAlbumId, !renameText.isEmpty {
+                    onAlbumRenamed(albumId, renameText)
+                }
+                renamingAlbumId = nil
+            }
+        } message: {
+            Text(NSLocalizedString("enter_new_album_name", comment: ""))
+        }
+        .alert(NSLocalizedString("remove_album", comment: ""), isPresented: Binding(
+            get: { albumToDelete != nil },
+            set: { if !$0 { albumToDelete = nil } }
+        )) {
+            Button(NSLocalizedString("cancel", comment: ""), role: .cancel) {
+                albumToDelete = nil
+            }
+            Button(NSLocalizedString("remove", comment: ""), role: .destructive) {
+                if let album = albumToDelete {
+                    onAlbumRemoved(album.id)
+                }
+                albumToDelete = nil
+            }
+        } message: {
+            if let album = albumToDelete {
+                Text(String(format: NSLocalizedString("remove_album_confirm", comment: ""), album.name))
+            }
         }
     }
     
@@ -249,6 +289,18 @@ struct CollectionsGridView: View {
                 selectedAlbum = album
             }
         }
+        .contextMenu {
+            Button(NSLocalizedString("rename", comment: "")) {
+                renamingAlbumId = album.id
+                renameText = album.name
+            }
+            
+            Divider()
+            
+            Button(NSLocalizedString("remove", comment: ""), role: .destructive) {
+                albumToDelete = album
+            }
+        }
     }
     
     // MARK: - Artwork Loading
@@ -283,6 +335,8 @@ struct CollectionsGridView: View {
         currentIndex: nil,
         playingSource: .playlist,
         onAlbumPlayAt: { _, _ in },
+        onAlbumRemoved: { _ in },
+        onAlbumRenamed: { _, _ in },
         onEnsureLoaded: {}
     )
     .padding()
