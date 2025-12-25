@@ -9,6 +9,10 @@
 /* Begin PBXBuildFile section */
 		FC0A17402EF262620090B22C /* Album.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC0A173F2EF262600090B22C /* Album.swift */; };
 		FC0A17442EF262910090B22C /* CollectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC0A17432EF2628E0090B22C /* CollectionManager.swift */; };
+		FC13779B2EFCF9AD00A9CE99 /* CollectionsGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC13779A2EFCF9AB00A9CE99 /* CollectionsGridView.swift */; };
+		FC13779D2EFCF9CC00A9CE99 /* PlaylistTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC13779C2EFCF9CB00A9CE99 /* PlaylistTabView.swift */; };
+		FC13779F2EFCF9DD00A9CE99 /* PlaybackControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC13779E2EFCF9DC00A9CE99 /* PlaybackControlView.swift */; };
+		FC1377A12EFCFA0D00A9CE99 /* VinylCoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1377A02EFCFA0A00A9CE99 /* VinylCoverView.swift */; };
 		FC354B382EEFECDD005657EB /* SFBAudioEngine in Frameworks */ = {isa = PBXBuildFile; productRef = FC354B372EEFECDD005657EB /* SFBAudioEngine */; };
 		FC480EA72EF107E8000D8393 /* AlbumArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480E9C2EF107E8000D8393 /* AlbumArtworkView.swift */; };
 		FC480EA82EF107E8000D8393 /* ArtworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480E9D2EF107E8000D8393 /* ArtworkService.swift */; };
@@ -16,20 +20,20 @@
 		FC480EAA2EF107E8000D8393 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480EA02EF107E8000D8393 /* ContentView.swift */; };
 		FC480EAB2EF107E8000D8393 /* Me2TuneApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480EA22EF107E8000D8393 /* Me2TuneApp.swift */; };
 		FC480EAC2EF107E8000D8393 /* PersistenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480EA32EF107E8000D8393 /* PersistenceService.swift */; };
-		FC480EAD2EF107E8000D8393 /* PlayerControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480EA42EF107E8000D8393 /* PlayerControlsView.swift */; };
-		FC480EAE2EF107E8000D8393 /* PlaylistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480EA52EF107E8000D8393 /* PlaylistView.swift */; };
 		FC480EAF2EF107E8000D8393 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FC480E9E2EF107E8000D8393 /* Assets.xcassets */; };
 		FC480EB02EF107E8000D8393 /* info.plist in Resources */ = {isa = PBXBuildFile; fileRef = FC480EA12EF107E8000D8393 /* info.plist */; };
 		FC480EB72EF13722000D8393 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = FC480EB62EF13722000D8393 /* Localizable.strings */; };
 		FC480EBE2EF137BB000D8393 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = FC480EBC2EF137AE000D8393 /* Localizable.strings */; };
 		FC480EC42EF152BC000D8393 /* AudioTrack.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480EC32EF152A2000D8393 /* AudioTrack.swift */; };
-		FC8194F12EF4EF4300401C4F /* PlaylistComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8194F02EF4EF4200401C4F /* PlaylistComponents.swift */; };
-		FC8194F32EF4EF4F00401C4F /* PlaylistRowViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8194F22EF4EF4C00401C4F /* PlaylistRowViews.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		FC0A173F2EF262600090B22C /* Album.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Album.swift; sourceTree = "<group>"; };
 		FC0A17432EF2628E0090B22C /* CollectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionManager.swift; sourceTree = "<group>"; };
+		FC13779A2EFCF9AB00A9CE99 /* CollectionsGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionsGridView.swift; sourceTree = "<group>"; };
+		FC13779C2EFCF9CB00A9CE99 /* PlaylistTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistTabView.swift; sourceTree = "<group>"; };
+		FC13779E2EFCF9DC00A9CE99 /* PlaybackControlView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackControlView.swift; sourceTree = "<group>"; };
+		FC1377A02EFCFA0A00A9CE99 /* VinylCoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VinylCoverView.swift; sourceTree = "<group>"; };
 		FC16622A2EEFAE2C00F01BCE /* Me2Tune.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Me2Tune.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FC480E9C2EF107E8000D8393 /* AlbumArtworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumArtworkView.swift; sourceTree = "<group>"; };
 		FC480E9D2EF107E8000D8393 /* ArtworkService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkService.swift; sourceTree = "<group>"; };
@@ -39,13 +43,9 @@
 		FC480EA12EF107E8000D8393 /* info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = info.plist; sourceTree = "<group>"; };
 		FC480EA22EF107E8000D8393 /* Me2TuneApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Me2TuneApp.swift; sourceTree = "<group>"; };
 		FC480EA32EF107E8000D8393 /* PersistenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceService.swift; sourceTree = "<group>"; };
-		FC480EA42EF107E8000D8393 /* PlayerControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerControlsView.swift; sourceTree = "<group>"; };
-		FC480EA52EF107E8000D8393 /* PlaylistView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistView.swift; sourceTree = "<group>"; };
 		FC480EB52EF13722000D8393 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = Localizable.strings; sourceTree = "<group>"; };
 		FC480EBD2EF137AE000D8393 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = Localizable.strings; sourceTree = "<group>"; };
 		FC480EC32EF152A2000D8393 /* AudioTrack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioTrack.swift; sourceTree = "<group>"; };
-		FC8194F02EF4EF4200401C4F /* PlaylistComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistComponents.swift; sourceTree = "<group>"; };
-		FC8194F22EF4EF4C00401C4F /* PlaylistRowViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistRowViews.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -128,8 +128,6 @@
 				FC8194EF2EF4EF2000401C4F /* Components */,
 				FC480E9C2EF107E8000D8393 /* AlbumArtworkView.swift */,
 				FC480EA02EF107E8000D8393 /* ContentView.swift */,
-				FC480EA42EF107E8000D8393 /* PlayerControlsView.swift */,
-				FC480EA52EF107E8000D8393 /* PlaylistView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -164,8 +162,10 @@
 		FC8194EF2EF4EF2000401C4F /* Components */ = {
 			isa = PBXGroup;
 			children = (
-				FC8194F22EF4EF4C00401C4F /* PlaylistRowViews.swift */,
-				FC8194F02EF4EF4200401C4F /* PlaylistComponents.swift */,
+				FC13779A2EFCF9AB00A9CE99 /* CollectionsGridView.swift */,
+				FC13779E2EFCF9DC00A9CE99 /* PlaybackControlView.swift */,
+				FC13779C2EFCF9CB00A9CE99 /* PlaylistTabView.swift */,
+				FC1377A02EFCFA0A00A9CE99 /* VinylCoverView.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -246,17 +246,17 @@
 			isa = PBXSourcesBuildPhase;
 			files = (
 				FC480EA72EF107E8000D8393 /* AlbumArtworkView.swift in Sources */,
-				FC8194F32EF4EF4F00401C4F /* PlaylistRowViews.swift in Sources */,
+				FC1377A12EFCFA0D00A9CE99 /* VinylCoverView.swift in Sources */,
 				FC480EA82EF107E8000D8393 /* ArtworkService.swift in Sources */,
 				FC480EA92EF107E8000D8393 /* AudioPlayerManager.swift in Sources */,
 				FC480EC42EF152BC000D8393 /* AudioTrack.swift in Sources */,
 				FC0A17442EF262910090B22C /* CollectionManager.swift in Sources */,
+				FC13779D2EFCF9CC00A9CE99 /* PlaylistTabView.swift in Sources */,
+				FC13779F2EFCF9DD00A9CE99 /* PlaybackControlView.swift in Sources */,
 				FC480EAA2EF107E8000D8393 /* ContentView.swift in Sources */,
 				FC480EAB2EF107E8000D8393 /* Me2TuneApp.swift in Sources */,
-				FC8194F12EF4EF4300401C4F /* PlaylistComponents.swift in Sources */,
+				FC13779B2EFCF9AD00A9CE99 /* CollectionsGridView.swift in Sources */,
 				FC480EAC2EF107E8000D8393 /* PersistenceService.swift in Sources */,
-				FC480EAD2EF107E8000D8393 /* PlayerControlsView.swift in Sources */,
-				FC480EAE2EF107E8000D8393 /* PlaylistView.swift in Sources */,
 				FC0A17402EF262620090B22C /* Album.swift in Sources */,
 			);
 		};
