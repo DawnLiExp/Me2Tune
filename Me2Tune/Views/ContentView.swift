@@ -278,8 +278,8 @@ struct ContentView: View {
     
     private var tabSwitcher: some View {
         HStack(spacing: 0) {
-            tabButton(title: "Playlist", tab: .playlist)
-            tabButton(title: "Collections", tab: .collections)
+            tabButton(title: String(localized: "playlist"), tab: .playlist)
+            tabButton(title: String(localized: "collections"), tab: .collections)
             Spacer()
         }
     }

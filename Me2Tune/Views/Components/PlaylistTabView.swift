@@ -23,13 +23,13 @@ struct PlaylistTabView: View {
                 ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
                     songRow(track: track, index: index)
                         .contextMenu {
-                            Button(NSLocalizedString("show_in_finder", comment: "")) {
+                            Button("show_in_finder") {
                                 NSWorkspace.shared.activateFileViewerSelecting([track.url])
                             }
                             
                             Divider()
                             
-                            Button(NSLocalizedString("remove", comment: "")) {
+                            Button("remove") {
                                 onTrackRemoved(index)
                             }
                         }
@@ -52,11 +52,11 @@ struct PlaylistTabView: View {
                 .font(.system(size: 60))
                 .foregroundColor(.gray.opacity(0.5))
             
-            Text("Drop Audio Files Here")
+            Text("drop_files")
                 .font(.system(size: 16, weight: .medium))
                 .foregroundColor(.gray)
             
-            Text("Supports MP3, AAC, WAV, AIFF, FLAC, APE, and more")
+            Text("supported_formats")
                 .font(.system(size: 12))
                 .foregroundColor(.gray.opacity(0.7))
                 .multilineTextAlignment(.center)
@@ -91,7 +91,7 @@ struct PlaylistTabView: View {
             
             Spacer()
             
-            Text(track.artist ?? "Unknown Artist")
+            Text(track.artist ?? String(localized: "unknown_artist"))
                 .font(.system(size: 13))
                 .foregroundColor(.gray)
                 .lineLimit(1)

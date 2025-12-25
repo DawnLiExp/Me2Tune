@@ -1,14 +1,38 @@
 // ============================================
-// 简体中文 (Localizable.strings - zh-Hans)
+// Me2Tune - Localizable.strings
+// 简体中文 (zh-Hans)
 // ============================================
 
-"rename_album" = "重命名专辑";
-"remove_album" = "移除专辑";
-"remove_album_confirm" = "确定要从收藏中移除「%@」吗？";
-"album_name" = "专辑名称";
-"enter_new_album_name" = "为此专辑输入新名称";
+// MARK: - 通用操作
+"cancel" = "取消";
 "rename" = "重命名";
 "remove" = "移除";
-"cancel" = "取消";
+"clear" = "清空";
+"export" = "导出";
+
+// MARK: - 右键菜单 - 播放列表
 "show_in_finder" = "在访达中显示";
+
+// MARK: - 右键菜单 - 专辑
+"rename_album" = "重命名专辑";
+"remove_album" = "移除专辑";
 "add_to_playlist" = "添加到播放列表";
+
+// MARK: - 提示框 - 专辑
+"album_name" = "专辑名称";
+"enter_new_album_name" = "为此专辑输入新名称";
+"remove_album_confirm" = "确定要从收藏中移除「%@」吗？";
+
+// MARK: - 提示框 - 播放列表
+"clear_playlist_confirm" = "确定要清空整个播放列表吗？";
+
+// MARK: - 空状态
+"drop_files" = "拖放音频文件到此处";
+"supported_formats" = "支持 MP3、AAC、WAV、AIFF、FLAC、APE 等格式";
+"no_collections_yet" = "暂无收藏";
+"drag_folders_here" = "拖放文件夹到此处以按专辑整理";
+
+// MARK: - 界面标签
+"playlist" = "播放列表";
+"collections" = "专辑收藏";
+"unknown_artist" = "未知艺术家";

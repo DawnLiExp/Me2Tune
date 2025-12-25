@@ -2,7 +2,7 @@
 //  CollectionsGridView.swift
 //  Me2Tune
 //
-//  专辑网格视图：专辑卡片展示+详情视图
+//  专辑收藏网格视图：专辑收藏卡片展示+详情视图
 //
 
 import AppKit
@@ -41,31 +41,31 @@ struct CollectionsGridView: View {
         .task {
             await onEnsureLoaded()
         }
-        .alert(NSLocalizedString("rename_album", comment: ""), isPresented: Binding(
+        .alert("rename_album", isPresented: Binding(
             get: { renamingAlbumId != nil },
             set: { if !$0 { renamingAlbumId = nil } }
         )) {
-            TextField(NSLocalizedString("album_name", comment: ""), text: $renameText)
-            Button(NSLocalizedString("cancel", comment: ""), role: .cancel) {
+            TextField("album_name", text: $renameText)
+            Button("cancel", role: .cancel) {
                 renamingAlbumId = nil
             }
-            Button(NSLocalizedString("rename", comment: "")) {
+            Button("rename") {
                 if let albumId = renamingAlbumId, !renameText.isEmpty {
                     onAlbumRenamed(albumId, renameText)
                 }
                 renamingAlbumId = nil
             }
         } message: {
-            Text(NSLocalizedString("enter_new_album_name", comment: ""))
+            Text("enter_new_album_name")
         }
-        .alert(NSLocalizedString("remove_album", comment: ""), isPresented: Binding(
+        .alert("remove_album", isPresented: Binding(
             get: { albumToDelete != nil },
             set: { if !$0 { albumToDelete = nil } }
         )) {
-            Button(NSLocalizedString("cancel", comment: ""), role: .cancel) {
+            Button("cancel", role: .cancel) {
                 albumToDelete = nil
             }
-            Button(NSLocalizedString("remove", comment: ""), role: .destructive) {
+            Button("remove", role: .destructive) {
                 if let album = albumToDelete {
                     onAlbumRemoved(album.id)
                 }
@@ -73,7 +73,8 @@ struct CollectionsGridView: View {
             }
         } message: {
             if let album = albumToDelete {
-                Text(String(format: NSLocalizedString("remove_album_confirm", comment: ""), album.name))
+                let format = String(localized: "remove_album_confirm")
+                Text(String(format: format, album.name))
             }
         }
     }
@@ -208,7 +209,7 @@ struct CollectionsGridView: View {
             
             Spacer()
             
-            Text(track.artist ?? "Unknown Artist")
+            Text(track.artist ?? String(localized: "unknown_artist"))
                 .font(.system(size: 13))
                 .foregroundColor(.gray)
                 .lineLimit(1)
@@ -230,11 +231,11 @@ struct CollectionsGridView: View {
             onAlbumPlayAt(album, index)
         }
         .contextMenu {
-            Button(NSLocalizedString("show_in_finder", comment: "")) {
+            Button("show_in_finder") {
                 NSWorkspace.shared.activateFileViewerSelecting([track.url])
             }
             
-            Button(NSLocalizedString("add_to_playlist", comment: "")) {
+            Button("add_to_playlist") {
                 onTrackAddedToPlaylist(track)
             }
         }
@@ -248,11 +249,11 @@ struct CollectionsGridView: View {
                 .font(.system(size: 60))
                 .foregroundColor(.gray.opacity(0.5))
             
-            Text("No Collections Yet")
+            Text("no_collections_yet")
                 .font(.system(size: 16, weight: .medium))
                 .foregroundColor(.gray)
             
-            Text("Drag folders here to organize by album")
+            Text("drag_folders_here")
                 .font(.system(size: 12))
                 .foregroundColor(.gray.opacity(0.7))
                 .multilineTextAlignment(.center)
@@ -300,14 +301,14 @@ struct CollectionsGridView: View {
             }
         }
         .contextMenu {
-            Button(NSLocalizedString("rename", comment: "")) {
+            Button("rename") {
                 renamingAlbumId = album.id
                 renameText = album.name
             }
             
             Divider()
             
-            Button(NSLocalizedString("remove", comment: ""), role: .destructive) {
+            Button("remove", role: .destructive) {
                 albumToDelete = album
             }
         }

@@ -1,14 +1,38 @@
 // ============================================
-// English (Localizable.strings - en)
+// Me2Tune - Localizable.strings
+// English (en)
 // ============================================
 
-"rename_album" = "Rename Album";
-"remove_album" = "Remove Album";
-"remove_album_confirm" = "Are you sure you want to remove \"%@\" from your collection?";
-"album_name" = "Album Name";
-"enter_new_album_name" = "Enter a new name for this album";
+// MARK: - Common Actions
+"cancel" = "Cancel";
 "rename" = "Rename";
 "remove" = "Remove";
-"cancel" = "Cancel";
+"clear" = "Clear";
+"export" = "Export";
+
+// MARK: - Context Menu - Playlist
 "show_in_finder" = "Show in Finder";
+
+// MARK: - Context Menu - Album
+"rename_album" = "Rename Album";
+"remove_album" = "Remove Album";
 "add_to_playlist" = "Add to Playlist";
+
+// MARK: - Alerts - Album
+"album_name" = "Album Name";
+"enter_new_album_name" = "Enter a new name for this album";
+"remove_album_confirm" = "Are you sure you want to remove \"%@\" from your collection?";
+
+// MARK: - Alerts - Playlist
+"clear_playlist_confirm" = "Are you sure you want to clear the entire playlist?";
+
+// MARK: - Empty States
+"drop_files" = "Drop Audio Files Here";
+"supported_formats" = "Supports MP3, AAC, WAV, AIFF, FLAC, APE, and more";
+"no_collections_yet" = "No Collections Yet";
+"drag_folders_here" = "Drag folders here to organize by album";
+
+// MARK: - UI Labels
+"playlist" = "Playlist";
+"collections" = "Collections";
+"unknown_artist" = "Unknown Artist";
