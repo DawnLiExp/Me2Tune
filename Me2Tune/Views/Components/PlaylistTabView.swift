@@ -23,13 +23,13 @@ struct PlaylistTabView: View {
                 ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
                     songRow(track: track, index: index)
                         .contextMenu {
-                            Button("Show in Finder") {
+                            Button(NSLocalizedString("show_in_finder", comment: "")) {
                                 NSWorkspace.shared.activateFileViewerSelecting([track.url])
                             }
                             
                             Divider()
                             
-                            Button("Remove") {
+                            Button(NSLocalizedString("remove", comment: "")) {
                                 onTrackRemoved(index)
                             }
                         }

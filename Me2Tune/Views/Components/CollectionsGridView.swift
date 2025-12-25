@@ -17,6 +17,7 @@ struct CollectionsGridView: View {
     let onAlbumPlayAt: (Album, Int) -> Void
     let onAlbumRemoved: (UUID) -> Void
     let onAlbumRenamed: (UUID, String) -> Void
+    let onTrackAddedToPlaylist: (AudioTrack) -> Void
     let onEnsureLoaded: () async -> Void
     
     @State private var selectedAlbum: Album?
@@ -228,6 +229,15 @@ struct CollectionsGridView: View {
         .onTapGesture(count: 2) {
             onAlbumPlayAt(album, index)
         }
+        .contextMenu {
+            Button(NSLocalizedString("show_in_finder", comment: "")) {
+                NSWorkspace.shared.activateFileViewerSelecting([track.url])
+            }
+            
+            Button(NSLocalizedString("add_to_playlist", comment: "")) {
+                onTrackAddedToPlaylist(track)
+            }
+        }
     }
     
     // MARK: - Empty State
@@ -337,6 +347,7 @@ struct CollectionsGridView: View {
         onAlbumPlayAt: { _, _ in },
         onAlbumRemoved: { _ in },
         onAlbumRenamed: { _, _ in },
+        onTrackAddedToPlaylist: { _ in },
         onEnsureLoaded: {}
     )
     .padding()

@@ -235,6 +235,9 @@ struct ContentView: View {
                                 onAlbumRenamed: { albumId, newName in
                                     collectionManager.renameAlbum(id: albumId, newName: newName)
                                 },
+                                onTrackAddedToPlaylist: { track in
+                                    playerManager.addTracks(urls: [track.url])
+                                },
                                 onEnsureLoaded: {
                                     await collectionManager.ensureLoaded()
                                 }

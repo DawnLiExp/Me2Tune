@@ -2,7 +2,6 @@
 // English (Localizable.strings - en)
 // ============================================
 
-// Context menu
 "rename_album" = "Rename Album";
 "remove_album" = "Remove Album";
 "remove_album_confirm" = "Are you sure you want to remove \"%@\" from your collection?";
@@ -11,4 +10,5 @@
 "rename" = "Rename";
 "remove" = "Remove";
 "cancel" = "Cancel";
-
+"show_in_finder" = "Show in Finder";
+"add_to_playlist" = "Add to Playlist";
