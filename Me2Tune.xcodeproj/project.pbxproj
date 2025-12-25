@@ -13,6 +13,7 @@
 		FC13779D2EFCF9CC00A9CE99 /* PlaylistTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC13779C2EFCF9CB00A9CE99 /* PlaylistTabView.swift */; };
 		FC13779F2EFCF9DD00A9CE99 /* PlaybackControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC13779E2EFCF9DC00A9CE99 /* PlaybackControlView.swift */; };
 		FC1377A12EFCFA0D00A9CE99 /* VinylCoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1377A02EFCFA0A00A9CE99 /* VinylCoverView.swift */; };
+		FC1377A42EFD0FF700A9CE99 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1377A32EFD0FE800A9CE99 /* Extensions.swift */; };
 		FC354B382EEFECDD005657EB /* SFBAudioEngine in Frameworks */ = {isa = PBXBuildFile; productRef = FC354B372EEFECDD005657EB /* SFBAudioEngine */; };
 		FC480EA72EF107E8000D8393 /* AlbumArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480E9C2EF107E8000D8393 /* AlbumArtworkView.swift */; };
 		FC480EA82EF107E8000D8393 /* ArtworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480E9D2EF107E8000D8393 /* ArtworkService.swift */; };
@@ -34,6 +35,7 @@
 		FC13779C2EFCF9CB00A9CE99 /* PlaylistTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistTabView.swift; sourceTree = "<group>"; };
 		FC13779E2EFCF9DC00A9CE99 /* PlaybackControlView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackControlView.swift; sourceTree = "<group>"; };
 		FC1377A02EFCFA0A00A9CE99 /* VinylCoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VinylCoverView.swift; sourceTree = "<group>"; };
+		FC1377A32EFD0FE800A9CE99 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 		FC16622A2EEFAE2C00F01BCE /* Me2Tune.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Me2Tune.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FC480E9C2EF107E8000D8393 /* AlbumArtworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumArtworkView.swift; sourceTree = "<group>"; };
 		FC480E9D2EF107E8000D8393 /* ArtworkService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkService.swift; sourceTree = "<group>"; };
@@ -58,6 +60,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		FC1377A22EFD0FE300A9CE99 /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				FC1377A32EFD0FE800A9CE99 /* Extensions.swift */,
+			);
+			path = Extensions;
+			sourceTree = "<group>";
+		};
 		FC1662212EEFAE2C00F01BCE = {
 			isa = PBXGroup;
 			children = (
@@ -79,6 +89,7 @@
 			children = (
 				FC480EB22EF136E7000D8393 /* Resources */,
 				FC480EA12EF107E8000D8393 /* info.plist */,
+				FC1377A22EFD0FE300A9CE99 /* Extensions */,
 				FC480EC02EF13937000D8393 /* Managers */,
 				FC480EC22EF15296000D8393 /* Models */,
 				FC480EC12EF13946000D8393 /* Services */,
@@ -247,6 +258,7 @@
 			files = (
 				FC480EA72EF107E8000D8393 /* AlbumArtworkView.swift in Sources */,
 				FC1377A12EFCFA0D00A9CE99 /* VinylCoverView.swift in Sources */,
+				FC1377A42EFD0FF700A9CE99 /* Extensions.swift in Sources */,
 				FC480EA82EF107E8000D8393 /* ArtworkService.swift in Sources */,
 				FC480EA92EF107E8000D8393 /* AudioPlayerManager.swift in Sources */,
 				FC480EC42EF152BC000D8393 /* AudioTrack.swift in Sources */,

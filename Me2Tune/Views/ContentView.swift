@@ -122,6 +122,7 @@ struct ContentView: View {
             
             Spacer()
         }
+        .allowsHitTesting(false)
     }
     
     private var playlistGlowLayer: some View {
@@ -195,7 +196,7 @@ struct ContentView: View {
                 )
                 .shadow(color: playerManager.isPlaying ? Color(hex: "#00E5FF").opacity(0.6) : .clear, radius: 10)
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(.plain)
     }
     
     // MARK: - Content Section
@@ -223,8 +224,10 @@ struct ContentView: View {
                                 selectedTab: $selectedTab,
                                 albums: collectionManager.albums,
                                 isLoaded: collectionManager.isLoaded,
-                                onAlbumSelected: { album in
-                                    playerManager.playAlbum(album, startAt: 0)
+                                currentIndex: playerManager.currentTrackIndex,
+                                playingSource: playerManager.playingSource,
+                                onAlbumPlayAt: { album, index in
+                                    playerManager.playAlbum(album, startAt: index)
                                 },
                                 onEnsureLoaded: {
                                     await collectionManager.ensureLoaded()
@@ -259,6 +262,7 @@ struct ContentView: View {
             collapseButton
                 .offset(y: 8)
         }
+        .allowsHitTesting(true)
     }
     
     // MARK: - Tab Switcher
@@ -326,7 +330,7 @@ struct ContentView: View {
                     .offset(y: isPlaylistCollapsed ? -12 : 12)
             }
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(.plain)
     }
     
     // MARK: - Computed Properties
