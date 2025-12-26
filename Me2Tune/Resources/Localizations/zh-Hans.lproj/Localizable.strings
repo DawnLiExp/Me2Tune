@@ -18,13 +18,28 @@
 "remove_album" = "移除专辑";
 "add_to_playlist" = "添加到播放列表";
 
+// MARK: - 工具栏 - 播放列表
+"export_to_collection" = "导出到专辑";
+"add_files" = "添加文件";
+"clear_playlist" = "清空播放列表";
+
+// MARK: - 工具栏 - 专辑
+"add_album" = "添加专辑";
+"clear_collections" = "清空专辑列表";
+
 // MARK: - 提示框 - 专辑
 "album_name" = "专辑名称";
 "enter_new_album_name" = "为此专辑输入新名称";
 "remove_album_confirm" = "确定要从收藏中移除「%@」吗？";
+"clear_collections_confirm" = "确定要清空所有专辑吗？此操作不可撤销。";
 
 // MARK: - 提示框 - 播放列表
 "clear_playlist_confirm" = "确定要清空整个播放列表吗？";
+"export_playlist_title" = "导出播放列表到专辑";
+"export_playlist_message" = "从当前播放列表创建新专辑";
+
+// MARK: - 文件选择器
+"select_files_or_folders" = "选择音频文件或文件夹";
 
 // MARK: - 空状态
 "drop_files" = "拖放音频文件到此处";

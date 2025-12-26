@@ -18,13 +18,28 @@
 "remove_album" = "Remove Album";
 "add_to_playlist" = "Add to Playlist";
 
+// MARK: - Toolbar - Playlist
+"export_to_collection" = "Export to Collection";
+"add_files" = "Add Files";
+"clear_playlist" = "Clear Playlist";
+
+// MARK: - Toolbar - Collections
+"add_album" = "Add Album";
+"clear_collections" = "Clear All Collections";
+
 // MARK: - Alerts - Album
 "album_name" = "Album Name";
 "enter_new_album_name" = "Enter a new name for this album";
 "remove_album_confirm" = "Are you sure you want to remove \"%@\" from your collection?";
+"clear_collections_confirm" = "Are you sure you want to clear all albums? This cannot be undone.";
 
 // MARK: - Alerts - Playlist
 "clear_playlist_confirm" = "Are you sure you want to clear the entire playlist?";
+"export_playlist_title" = "Export Playlist to Collection";
+"export_playlist_message" = "Create a new album from current playlist";
+
+// MARK: - File Picker
+"select_files_or_folders" = "Select audio files or folders";
 
 // MARK: - Empty States
 "drop_files" = "Drop Audio Files Here";

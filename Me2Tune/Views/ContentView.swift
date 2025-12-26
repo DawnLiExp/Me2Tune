@@ -18,6 +18,16 @@ struct ContentView: View {
     @State private var selectedTab: PlaylistTab = .playlist
     @State private var isPlaylistCollapsed = false
     
+    private var canGoPrevious: Bool {
+        guard let index = playerManager.currentTrackIndex else { return false }
+        return index > 0
+    }
+    
+    private var canGoNext: Bool {
+        guard let index = playerManager.currentTrackIndex else { return false }
+        return index < playerManager.currentTracks.count - 1
+    }
+    
     var body: some View {
         ZStack {
             backgroundLayers
@@ -217,7 +227,18 @@ struct ContentView: View {
                                 currentIndex: playerManager.currentTrackIndex,
                                 playingSource: playerManager.playingSource,
                                 onTrackSelected: { playerManager.playTrack(at: $0) },
-                                onTrackRemoved: { playerManager.removeTrack(at: $0) }
+                                onTrackRemoved: { playerManager.removeTrack(at: $0) },
+                                onExportToAlbum: { albumName in
+                                    Task {
+                                        await exportPlaylistToAlbum(name: albumName)
+                                    }
+                                },
+                                onAddFiles: {
+                                    openFilePicker()
+                                },
+                                onClearPlaylist: {
+                                    playerManager.clearPlaylist()
+                                }
                             )
                         } else {
                             CollectionsGridView(
@@ -237,6 +258,12 @@ struct ContentView: View {
                                 },
                                 onTrackAddedToPlaylist: { track in
                                     playerManager.addTracks(urls: [track.url])
+                                },
+                                onAddAlbum: {
+                                    openFilePicker()
+                                },
+                                onClearCollections: {
+                                    collectionManager.clearAllAlbums()
                                 },
                                 onEnsureLoaded: {
                                     await collectionManager.ensureLoaded()
@@ -342,16 +369,45 @@ struct ContentView: View {
         .buttonStyle(.plain)
     }
     
-    // MARK: - Computed Properties
     
-    private var canGoPrevious: Bool {
-        guard let index = playerManager.currentTrackIndex else { return false }
-        return index > 0
+    // MARK: - Toolbar Actions
+    
+    private func exportPlaylistToAlbum(name: String) async {
+        guard !playerManager.playlist.isEmpty else { return }
+        
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return }
+        
+        if let newAlbumId = await collectionManager.addAlbumFromPlaylist(
+            name: trimmedName,
+            tracks: playerManager.playlist
+        ) {
+            await MainActor.run {
+                selectedTab = .collections
+            }
+        }
     }
     
-    private var canGoNext: Bool {
-        guard let index = playerManager.currentTrackIndex else { return false }
-        return index < playerManager.currentTracks.count - 1
+    private func openFilePicker() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = true
+        panel.allowedContentTypes = [.audio, .folder]
+        panel.message = String(localized: "select_files_or_folders")
+        
+        panel.begin { response in
+            guard response == .OK else { return }
+            let urls = panel.urls
+            
+            DispatchQueue.main.async {
+                if selectedTab == .playlist {
+                    handlePlaylistDrop(urls)
+                } else {
+                    handleCollectionsDrop(urls)
+                }
+            }
+        }
     }
     
     // MARK: - Drag & Drop

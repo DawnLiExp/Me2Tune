@@ -2,7 +2,7 @@
 //  CollectionsGridView.swift
 //  Me2Tune
 //
-//  专辑收藏网格视图：专辑收藏卡片展示+详情视图
+//  专辑网格视图：专辑卡片展示+详情视图
 //
 
 import AppKit
@@ -18,6 +18,8 @@ struct CollectionsGridView: View {
     let onAlbumRemoved: (UUID) -> Void
     let onAlbumRenamed: (UUID, String) -> Void
     let onTrackAddedToPlaylist: (AudioTrack) -> Void
+    let onAddAlbum: () -> Void
+    let onClearCollections: () -> Void
     let onEnsureLoaded: () async -> Void
     
     @State private var selectedAlbum: Album?
@@ -25,6 +27,7 @@ struct CollectionsGridView: View {
     @State private var renamingAlbumId: UUID?
     @State private var renameText = ""
     @State private var albumToDelete: Album?
+    @State private var showClearConfirm = false
     
     private let artworkService = ArtworkService()
     
@@ -77,32 +80,71 @@ struct CollectionsGridView: View {
                 Text(String(format: format, album.name))
             }
         }
+        .alert("clear_collections", isPresented: $showClearConfirm) {
+            Button("cancel", role: .cancel) {
+                showClearConfirm = false
+            }
+            Button("clear", role: .destructive) {
+                onClearCollections()
+                showClearConfirm = false
+            }
+        } message: {
+            Text("clear_collections_confirm")
+        }
     }
     
     // MARK: - Album Grid View
     
     private var albumGridView: some View {
-        Group {
-            if albums.isEmpty {
-                if isLoaded {
-                    emptyStateView
-                } else {
-                    ProgressView()
-                        .padding(40)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                }
-            } else {
-                LazyVGrid(columns: [
-                    GridItem(.adaptive(minimum: 140, maximum: 180), spacing: 16)
-                ], spacing: 16) {
-                    ForEach(albums) { album in
-                        albumCard(album: album)
-                            .task {
-                                await loadArtwork(for: album)
-                            }
+        VStack(spacing: 0) {
+            toolbarButtons
+                .padding(.bottom, 12)
+            
+            Group {
+                if albums.isEmpty {
+                    if isLoaded {
+                        emptyStateView
+                    } else {
+                        ProgressView()
+                            .padding(40)
+                            .frame(maxWidth: .infinity, alignment: .center)
                     }
+                } else {
+                    LazyVGrid(columns: [
+                        GridItem(.adaptive(minimum: 140, maximum: 180), spacing: 16)
+                    ], spacing: 16) {
+                        ForEach(albums) { album in
+                            albumCard(album: album)
+                                .task {
+                                    await loadArtwork(for: album)
+                                }
+                        }
+                    }
+                    .padding(.vertical, 8)
                 }
-                .padding(.vertical, 8)
+            }
+        }
+    }
+    
+    // MARK: - Toolbar Buttons
+    
+    private var toolbarButtons: some View {
+        HStack(spacing: 8) {
+            Spacer()
+            
+            ToolbarIconButton(
+                icon: "plus.circle",
+                tooltip: String(localized: "add_album")
+            ) {
+                onAddAlbum()
+            }
+            
+            ToolbarIconButton(
+                icon: "xmark.circle",
+                tooltip: String(localized: "clear_collections"),
+                isEnabled: !albums.isEmpty
+            ) {
+                showClearConfirm = true
             }
         }
     }
@@ -349,6 +391,8 @@ struct CollectionsGridView: View {
         onAlbumRemoved: { _ in },
         onAlbumRenamed: { _, _ in },
         onTrackAddedToPlaylist: { _ in },
+        onAddAlbum: {},
+        onClearCollections: {},
         onEnsureLoaded: {}
     )
     .padding()

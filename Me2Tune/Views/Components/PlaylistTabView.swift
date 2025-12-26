@@ -2,7 +2,7 @@
 //  PlaylistTabView.swift
 //  Me2Tune
 //
-//  播放列表视图：Tab切换器+歌曲列表
+//  播放列表视图：Tab切换器+歌曲列表+工具栏
 //
 
 import SwiftUI
@@ -14,9 +14,19 @@ struct PlaylistTabView: View {
     let playingSource: AudioPlayerManager.PlayingSource
     let onTrackSelected: (Int) -> Void
     let onTrackRemoved: (Int) -> Void
+    let onExportToAlbum: (String) -> Void
+    let onAddFiles: () -> Void
+    let onClearPlaylist: () -> Void
+    
+    @State private var showExportDialog = false
+    @State private var exportAlbumName = ""
+    @State private var showClearConfirm = false
     
     var body: some View {
         VStack(spacing: 0) {
+            toolbarButtons
+                .padding(.bottom, 12)
+            
             if tracks.isEmpty {
                 emptyStateView
             } else {
@@ -42,6 +52,64 @@ struct PlaylistTabView: View {
             }
         }
         .transition(.opacity.combined(with: .move(edge: .leading)))
+        .alert("export_playlist_title", isPresented: $showExportDialog) {
+            TextField("album_name", text: $exportAlbumName)
+            Button("cancel", role: .cancel) {
+                showExportDialog = false
+            }
+            Button("export") {
+                if !exportAlbumName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    onExportToAlbum(exportAlbumName)
+                }
+                showExportDialog = false
+            }
+            .disabled(exportAlbumName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        } message: {
+            Text("export_playlist_message")
+        }
+        .alert("clear_playlist", isPresented: $showClearConfirm) {
+            Button("cancel", role: .cancel) {
+                showClearConfirm = false
+            }
+            Button("clear", role: .destructive) {
+                onClearPlaylist()
+                showClearConfirm = false
+            }
+        } message: {
+            Text("clear_playlist_confirm")
+        }
+    }
+    
+    // MARK: - Toolbar Buttons
+    
+    private var toolbarButtons: some View {
+        HStack(spacing: 8) {
+            Spacer()
+            
+            ToolbarIconButton(
+                icon: "arrow.right.circle",
+                tooltip: String(localized: "export_to_collection"),
+                isEnabled: !tracks.isEmpty
+            ) {
+                exportAlbumName = generateDefaultAlbumName()
+                showExportDialog = true
+            }
+            
+            ToolbarIconButton(
+                icon: "plus.circle",
+                tooltip: String(localized: "add_files")
+            ) {
+                onAddFiles()
+            }
+            
+            ToolbarIconButton(
+                icon: "xmark.circle",
+                tooltip: String(localized: "clear_playlist"),
+                isEnabled: !tracks.isEmpty
+            ) {
+                showClearConfirm = true
+            }
+        }
     }
     
     // MARK: - Empty State
@@ -120,6 +188,38 @@ struct PlaylistTabView: View {
         let seconds = Int(time) % 60
         return String(format: "%d:%02d", minutes, seconds)
     }
+    
+    private func generateDefaultAlbumName() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        return "\(String(localized: "playlist")) \(formatter.string(from: Date()))"
+    }
+}
+
+// MARK: - Toolbar Button Component
+
+struct ToolbarIconButton: View {
+    let icon: String
+    let tooltip: String
+    var isEnabled: Bool = true
+    let action: () -> Void
+    
+    @State private var isHovered = false
+    
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(isEnabled ? (isHovered ? .primary : .secondary) : .tertiary)
+                .frame(width: 24, height: 24)
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .help(tooltip)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+    }
 }
 
 // MARK: - Tab Enum
@@ -136,7 +236,10 @@ enum PlaylistTab {
         currentIndex: nil,
         playingSource: .playlist,
         onTrackSelected: { _ in },
-        onTrackRemoved: { _ in }
+        onTrackRemoved: { _ in },
+        onExportToAlbum: { _ in },
+        onAddFiles: {},
+        onClearPlaylist: {}
     )
     .padding()
     .background(Color.black)
