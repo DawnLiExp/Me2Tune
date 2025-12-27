@@ -99,18 +99,18 @@ struct ContentView: View {
                     .fill(
                         RadialGradient(
                             colors: [
-                                albumGlowColor.opacity(0.6),
                                 albumGlowColor.opacity(0.35),
                                 albumGlowColor.opacity(0.15),
+                                albumGlowColor.opacity(0.1),
                                 Color.clear
                             ],
                             center: .center,
-                            startRadius: 60,
-                            endRadius: 280
+                            startRadius: 50,
+                            endRadius: 460
                         )
                     )
-                    .frame(width: 400, height: 400)
-                    .blur(radius: 40)
+                    .frame(width: 420, height: 400)
+                    .blur(radius: 60)
                 
                 Ellipse()
                     .fill(
@@ -124,11 +124,11 @@ struct ContentView: View {
                             endPoint: .bottom
                         )
                     )
-                    .frame(width: 460, height: 280)
+                    .frame(width: 460, height: 380)
                     .blur(radius: 35)
                     .offset(y: 80)
             }
-            .offset(y: 0)
+            .offset(y: -10)
             
             Spacer()
         }
@@ -369,7 +369,6 @@ struct ContentView: View {
         .buttonStyle(.plain)
     }
     
-    
     // MARK: - Toolbar Actions
     
     private func exportPlaylistToAlbum(name: String) async {
@@ -378,7 +377,7 @@ struct ContentView: View {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { return }
         
-        if let newAlbumId = await collectionManager.addAlbumFromPlaylist(
+        if let _ = await collectionManager.addAlbumFromPlaylist(
             name: trimmedName,
             tracks: playerManager.playlist
         ) {
