@@ -151,22 +151,27 @@ struct PlaybackControlView: View {
                     .frame(width: width * progress, height: height)
                     .shadow(color: Color(hex: "#00E5FF").opacity(0.5), radius: 4)
             }
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        if !isSeekingManually {
-                            isSeekingManually = true
-                        }
-                        let newProgress = min(max(0, value.location.x / width), 1)
-                        manualSeekValue = newProgress * max(duration, 0.1)
-                    }
-                    .onEnded { value in
-                        let newProgress = min(max(0, value.location.x / width), 1)
-                        let seekTime = newProgress * max(duration, 0.1)
-                        onSeek(seekTime)
-                        isSeekingManually = false
-                    }
+            .overlay(
+                // 透明扩展交互层
+                Color.clear
+                    .frame(height: 20)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                if !isSeekingManually {
+                                    isSeekingManually = true
+                                }
+                                let newProgress = min(max(0, value.location.x / width), 1)
+                                manualSeekValue = newProgress * max(duration, 0.1)
+                            }
+                            .onEnded { value in
+                                let newProgress = min(max(0, value.location.x / width), 1)
+                                let seekTime = newProgress * max(duration, 0.1)
+                                onSeek(seekTime)
+                                isSeekingManually = false
+                            }
+                    )
             )
         }
     }
