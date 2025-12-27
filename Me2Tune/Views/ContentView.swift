@@ -14,6 +14,7 @@ struct ContentView: View {
     @EnvironmentObject private var collectionManager: CollectionManager
     
     @State private var albumGlowColor = Color(hex: "#FF4466")
+    @State private var previousTrackID: UUID?
     @State private var isDragging = false
     @State private var selectedTab: PlaylistTab = .playlist
     @State private var isPlaylistCollapsed = false
@@ -23,6 +24,18 @@ struct ContentView: View {
     @State private var exportAlbumName = ""
     @State private var showClearPlaylistConfirm = false
     @State private var showClearCollectionsConfirm = false
+    
+    // 赛博朋克配色预设
+    private let glowColors: [Color] = [
+        Color(hex: "#FF006E"), // 霓虹粉
+        Color(hex: "#9D4EDD"), // 霓虹紫
+        Color(hex: "#C77DFF"), // 淡紫
+        Color(hex: "#3A86FF"), // 霓虹蓝
+        Color(hex: "#FF6D00"), // 霓虹橙
+        Color(hex: "#FFBA08"), // 霓虹黄
+        Color(hex: "#FF4466"), // 霓虹红
+        Color(hex: "#06FFA5"), // 霓虹绿
+    ]
     
     private var canGoPrevious: Bool {
         guard let index = playerManager.currentTrackIndex else { return false }
@@ -120,6 +133,14 @@ struct ContentView: View {
             }
         } message: {
             Text("clear_collections_confirm")
+        }
+        .onChange(of: playerManager.currentTrack?.id) { _, newID in
+            guard let newID, newID != previousTrackID else { return }
+            previousTrackID = newID
+            
+            withAnimation(.easeInOut(duration: 1.2)) {
+                albumGlowColor = glowColors.randomElement() ?? Color(hex: "#FF4466")
+            }
         }
     }
     
