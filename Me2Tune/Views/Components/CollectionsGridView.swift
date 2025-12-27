@@ -101,10 +101,25 @@ struct CollectionsGridView: View {
                         GridItem(.adaptive(minimum: 140, maximum: 180), spacing: 16)
                     ], spacing: 16) {
                         ForEach(albums) { album in
-                            albumCard(album: album)
-                                .task {
-                                    await loadArtwork(for: album)
+                            AlbumCardView(
+                                album: album,
+                                artwork: artworkCache[album.id],
+                                onTap: {
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                        selectedAlbum = album
+                                    }
+                                },
+                                onRename: {
+                                    renamingAlbumId = album.id
+                                    renameText = album.name
+                                },
+                                onRemove: {
+                                    albumToDelete = album
                                 }
+                            )
+                            .task {
+                                await loadArtwork(for: album)
+                            }
                         }
                     }
                     .padding(.vertical, 8)
@@ -125,8 +140,26 @@ struct CollectionsGridView: View {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
                     ForEach(Array(album.tracks.enumerated()), id: \.element.id) { index, track in
-                        albumTrackRow(track: track, index: index, album: album)
-                      }
+                        AlbumTrackRowView(
+                            track: track,
+                            index: index,
+                            isPlaying: {
+                                if case .album(let id) = playingSource {
+                                    return id == album.id && currentIndex == index
+                                }
+                                return false
+                            }(),
+                            onTap: {
+                                onAlbumPlayAt(album, index)
+                            },
+                            onShowInFinder: {
+                                NSWorkspace.shared.activateFileViewerSelecting([track.url])
+                            },
+                            onAddToPlaylist: {
+                                onTrackAddedToPlaylist(track)
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -181,15 +214,140 @@ struct CollectionsGridView: View {
         .background(Color.white.opacity(0.03))
     }
     
-    private func albumTrackRow(track: AudioTrack, index: Int, album: Album) -> some View {
-        let isPlaying: Bool = {
-            if case .album(let id) = playingSource {
-                return id == album.id && currentIndex == index
-            }
-            return false
-        }()
+    // MARK: - Empty State
+    
+    private var emptyStateView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "folder.badge.plus")
+                .font(.system(size: 60))
+                .foregroundColor(.gray.opacity(0.5))
+            
+            Text("no_collections_yet")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.gray)
+            
+            Text("drag_folders_here")
+                .font(.system(size: 12))
+                .foregroundColor(.gray.opacity(0.7))
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 80)
+    }
+    
+    // MARK: - Artwork Loading
+    
+    private func loadArtwork(for album: Album) async {
+        guard artworkCache[album.id] == nil,
+              let firstTrack = album.tracks.first
+        else {
+            return
+        }
         
-        return HStack(spacing: 12) {
+        if let artwork = await artworkService.artwork(for: firstTrack.url) {
+            await MainActor.run {
+                artworkCache[album.id] = artwork
+            }
+        }
+    }
+    
+    private func formatTime(_ time: TimeInterval) -> String {
+        guard time.isFinite, !time.isNaN else { return "0:00" }
+        let minutes = Int(time) / 60
+        let seconds = Int(time) % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+}
+
+// MARK: - Album Card View with Hover
+
+struct AlbumCardView: View {
+    let album: Album
+    let artwork: NSImage?
+    let onTap: () -> Void
+    let onRename: () -> Void
+    let onRemove: () -> Void
+    
+    @State private var isHovered = false
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Group {
+                if let artwork {
+                    Image(nsImage: artwork)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.white.opacity(0.1))
+                        .overlay(
+                            Image(systemName: "opticaldisc")
+                                .font(.system(size: 40))
+                                .foregroundColor(.gray.opacity(0.5))
+                        )
+                }
+            }
+            .frame(height: 140)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(
+                        Color(hex: "#00E5FF").opacity(isHovered ? 0.4 : 0),
+                        lineWidth: 2
+                    )
+            )
+            .shadow(
+                color: Color(hex: "#00E5FF").opacity(isHovered ? 0.3 : 0),
+                radius: isHovered ? 12 : 0
+            )
+            
+            VStack(spacing: 2) {
+                Text(album.name)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                
+                Text("\(album.tracks.count) tracks")
+                    .font(.system(size: 11))
+                    .foregroundColor(.gray)
+            }
+        }
+        .scaleEffect(isHovered ? 1.02 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
+        .onTapGesture {
+            onTap()
+        }
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .contextMenu {
+            Button("rename") {
+                onRename()
+            }
+            
+            Divider()
+            
+            Button("remove", role: .destructive) {
+                onRemove()
+            }
+        }
+    }
+}
+
+// MARK: - Album Track Row View with Hover
+
+struct AlbumTrackRowView: View {
+    let track: AudioTrack
+    let index: Int
+    let isPlaying: Bool
+    let onTap: () -> Void
+    let onShowInFinder: () -> Void
+    let onAddToPlaylist: () -> Void
+    
+    @State private var isHovered = false
+    
+    var body: some View {
+        HStack(spacing: 12) {
             Group {
                 if isPlaying {
                     Image(systemName: "waveform")
@@ -225,109 +383,33 @@ struct CollectionsGridView: View {
         .padding(.horizontal, 10)
         .background(
             RoundedRectangle(cornerRadius: 14)
-                .fill(isPlaying ? Color(hex: "#00E5FF").opacity(0.08) : Color.clear)
+                .fill(backgroundColor)
         )
         .contentShape(Rectangle())
         .onTapGesture(count: 2) {
-            onAlbumPlayAt(album, index)
+            onTap()
+        }
+        .onHover { hovering in
+            isHovered = hovering
         }
         .contextMenu {
             Button("show_in_finder") {
-                NSWorkspace.shared.activateFileViewerSelecting([track.url])
+                onShowInFinder()
             }
             
             Button("add_to_playlist") {
-                onTrackAddedToPlaylist(track)
+                onAddToPlaylist()
             }
         }
     }
     
-    // MARK: - Empty State
-    
-    private var emptyStateView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "folder.badge.plus")
-                .font(.system(size: 60))
-                .foregroundColor(.gray.opacity(0.5))
-            
-            Text("no_collections_yet")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.gray)
-            
-            Text("drag_folders_here")
-                .font(.system(size: 12))
-                .foregroundColor(.gray.opacity(0.7))
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 80)
-    }
-    
-    // MARK: - Album Card
-    
-    private func albumCard(album: Album) -> some View {
-        VStack(spacing: 8) {
-            Group {
-                if let artwork = artworkCache[album.id] {
-                    Image(nsImage: artwork)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.white.opacity(0.1))
-                        .overlay(
-                            Image(systemName: "opticaldisc")
-                                .font(.system(size: 40))
-                                .foregroundColor(.gray.opacity(0.5))
-                        )
-                }
-            }
-            .frame(height: 140)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            
-            VStack(spacing: 2) {
-                Text(album.name)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-                
-                Text("\(album.tracks.count) tracks")
-                    .font(.system(size: 11))
-                    .foregroundColor(.gray)
-            }
-        }
-        .onTapGesture {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                selectedAlbum = album
-            }
-        }
-        .contextMenu {
-            Button("rename") {
-                renamingAlbumId = album.id
-                renameText = album.name
-            }
-            
-            Divider()
-            
-            Button("remove", role: .destructive) {
-                albumToDelete = album
-            }
-        }
-    }
-    
-    // MARK: - Artwork Loading
-    
-    private func loadArtwork(for album: Album) async {
-        guard artworkCache[album.id] == nil,
-              let firstTrack = album.tracks.first
-        else {
-            return
-        }
-        
-        if let artwork = await artworkService.artwork(for: firstTrack.url) {
-            await MainActor.run {
-                artworkCache[album.id] = artwork
-            }
+    private var backgroundColor: Color {
+        if isPlaying {
+            return Color(hex: "#00E5FF").opacity(0.08)
+        } else if isHovered {
+            return Color.white.opacity(0.05)
+        } else {
+            return Color.clear
         }
     }
     

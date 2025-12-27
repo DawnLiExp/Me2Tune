@@ -63,9 +63,34 @@ struct PlaylistTabView: View {
     // MARK: - Song Row
     
     private func songRow(track: AudioTrack, index: Int) -> some View {
-        let isPlaying = playingSource == .playlist && currentIndex == index
-        
-        return HStack(spacing: 12) {
+        SongRowView(
+            track: track,
+            index: index,
+            isPlaying: playingSource == .playlist && currentIndex == index,
+            onTap: { onTrackSelected(index) }
+        )
+    }
+    
+    private func formatTime(_ time: TimeInterval) -> String {
+        guard time.isFinite, !time.isNaN else { return "0:00" }
+        let minutes = Int(time) / 60
+        let seconds = Int(time) % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+}
+
+// MARK: - Song Row View with Hover
+
+struct SongRowView: View {
+    let track: AudioTrack
+    let index: Int
+    let isPlaying: Bool
+    let onTap: () -> Void
+    
+    @State private var isHovered = false
+    
+    var body: some View {
+        HStack(spacing: 12) {
             Group {
                 if isPlaying {
                     Image(systemName: "waveform")
@@ -101,11 +126,24 @@ struct PlaylistTabView: View {
         .padding(.horizontal, 10)
         .background(
             RoundedRectangle(cornerRadius: 14)
-                .fill(isPlaying ? Color(hex: "#00E5FF").opacity(0.08) : Color.clear)
+                .fill(backgroundColor)
         )
         .contentShape(Rectangle())
         .onTapGesture(count: 2) {
-            onTrackSelected(index)
+            onTap()
+        }
+        .onHover { hovering in
+            isHovered = hovering
+        }
+    }
+    
+    private var backgroundColor: Color {
+        if isPlaying {
+            return Color(hex: "#00E5FF").opacity(0.08)
+        } else if isHovered {
+            return Color.white.opacity(0.05)
+        } else {
+            return Color.clear
         }
     }
     
