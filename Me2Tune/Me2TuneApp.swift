@@ -5,8 +5,8 @@
 //  应用入口 - 固定窗口宽度
 //
 
-import SwiftUI
 import OSLog
+import SwiftUI
 
 private let logger = Logger(subsystem: "me2.Me2Tune", category: "Me2TuneApp")
 
@@ -53,11 +53,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         windowDelegate = WindowInterceptor()
         window.delegate = windowDelegate
 
-        window.minSize = NSSize(width: 495, height: 775)
+        window.minSize = NSSize(width: 495, height: 800)
         window.maxSize = NSSize(width: 495, height: CGFloat.greatestFiniteMagnitude)
         window.isMovableByWindowBackground = false
-        
-        logger.debug("Window configured with fixed width: 495")
+
+        logger.debug("Window configured with fixed width: 495, minHeight: 800")
     }
 }
 

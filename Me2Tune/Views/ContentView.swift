@@ -90,7 +90,7 @@ struct ContentView: View {
             }
         }
         .frame(width: 495)
-        .frame(minHeight: 775, maxHeight: .infinity)
+        .frame(minHeight: 800, maxHeight: .infinity)
         .preferredColorScheme(.dark)
         .onDrop(of: [.fileURL], isTargeted: $isDragging) { providers in
             handleDrop(providers: providers)
@@ -292,6 +292,7 @@ struct ContentView: View {
                     collectionsContent
                 }
             }
+            .frame(minHeight: 405)
             .background(
                 RoundedRectangle(cornerRadius: 22)
                     .fill(Color.white.opacity(0.05))
@@ -364,6 +365,7 @@ struct ContentView: View {
                     await collectionManager.ensureLoaded()
                 }
             )
+            .frame(minHeight: 375)
             .padding(.horizontal, 12)
             .padding(.top, 16)
             .padding(.bottom, 48)

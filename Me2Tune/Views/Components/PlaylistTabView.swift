@@ -88,8 +88,9 @@ struct PlaylistTabView: View {
                             }
                         }
                     }
-                    .padding(.bottom, 48)
+                    .padding(.bottom, 80)
                 }
+                .frame(maxHeight: .infinity)
             }
         }
         .transition(.opacity.combined(with: .move(edge: .leading)))
@@ -122,7 +123,7 @@ struct PlaylistTabView: View {
                 .foregroundColor(.gray.opacity(0.7))
                 .multilineTextAlignment(.center)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.vertical, 80)
     }
     
