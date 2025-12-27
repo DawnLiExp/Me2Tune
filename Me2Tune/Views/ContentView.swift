@@ -2,7 +2,7 @@
 //  ContentView.swift
 //  Me2Tune
 //
-//  主界面视图
+//  主界面视图 - 支持播放列表拖拽排序
 //
 
 import AppKit
@@ -264,46 +264,10 @@ struct ContentView: View {
                     .padding(.top, 12)
                     .padding(.horizontal, 12)
                 
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 0) {
-                        if selectedTab == .playlist {
-                            PlaylistTabView(
-                                selectedTab: $selectedTab,
-                                tracks: playerManager.playlist,
-                                currentIndex: playerManager.currentTrackIndex,
-                                playingSource: playerManager.playingSource,
-                                onTrackSelected: { playerManager.playTrack(at: $0) },
-                                onTrackRemoved: { playerManager.removeTrack(at: $0) }
-                            )
-                        } else {
-                            CollectionsGridView(
-                                selectedTab: $selectedTab,
-                                isInAlbumDetail: $isInAlbumDetail,
-                                albums: collectionManager.albums,
-                                isLoaded: collectionManager.isLoaded,
-                                currentIndex: playerManager.currentTrackIndex,
-                                playingSource: playerManager.playingSource,
-                                onAlbumPlayAt: { album, index in
-                                    playerManager.playAlbum(album, startAt: index)
-                                },
-                                onAlbumRemoved: { albumId in
-                                    collectionManager.removeAlbum(id: albumId)
-                                },
-                                onAlbumRenamed: { albumId, newName in
-                                    collectionManager.renameAlbum(id: albumId, newName: newName)
-                                },
-                                onTrackAddedToPlaylist: { track in
-                                    playerManager.addTracks(urls: [track.url])
-                                },
-                                onEnsureLoaded: {
-                                    await collectionManager.ensureLoaded()
-                                }
-                            )
-                        }
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.top, 16)
-                    .padding(.bottom, 48)
+                if selectedTab == .playlist {
+                    playlistContent
+                } else {
+                    collectionsContent
                 }
             }
             .background(
@@ -329,6 +293,59 @@ struct ContentView: View {
                 .offset(y: 8)
         }
         .allowsHitTesting(true)
+    }
+    
+    // MARK: - Playlist Content
+    
+    private var playlistContent: some View {
+        PlaylistTabView(
+            selectedTab: $selectedTab,
+            tracks: playerManager.playlist,
+            currentIndex: playerManager.currentTrackIndex,
+            playingSource: playerManager.playingSource,
+            onTrackSelected: { playerManager.playTrack(at: $0) },
+            onTrackRemoved: { playerManager.removeTrack(at: $0) },
+            onTrackMoved: { from, to in
+                if let sourceIndex = from.first {
+                    playerManager.moveTrack(from: sourceIndex, to: to)
+                }
+            }
+        )
+        .padding(.horizontal, 12)
+        .padding(.top, 16)
+    }
+    
+    // MARK: - Collections Content
+    
+    private var collectionsContent: some View {
+        ScrollView(showsIndicators: false) {
+            CollectionsGridView(
+                selectedTab: $selectedTab,
+                isInAlbumDetail: $isInAlbumDetail,
+                albums: collectionManager.albums,
+                isLoaded: collectionManager.isLoaded,
+                currentIndex: playerManager.currentTrackIndex,
+                playingSource: playerManager.playingSource,
+                onAlbumPlayAt: { album, index in
+                    playerManager.playAlbum(album, startAt: index)
+                },
+                onAlbumRemoved: { albumId in
+                    collectionManager.removeAlbum(id: albumId)
+                },
+                onAlbumRenamed: { albumId, newName in
+                    collectionManager.renameAlbum(id: albumId, newName: newName)
+                },
+                onTrackAddedToPlaylist: { track in
+                    playerManager.addTracks(urls: [track.url])
+                },
+                onEnsureLoaded: {
+                    await collectionManager.ensureLoaded()
+                }
+            )
+            .padding(.horizontal, 12)
+            .padding(.top, 16)
+            .padding(.bottom, 48)
+        }
     }
     
     // MARK: - Tab Switcher

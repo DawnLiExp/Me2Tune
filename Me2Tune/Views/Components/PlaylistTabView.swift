@@ -2,10 +2,11 @@
 //  PlaylistTabView.swift
 //  Me2Tune
 //
-//  播放列表视图：歌曲列表
+//  播放列表视图：歌曲列表 + 拖拽排序（macOS onDrag/onDrop）
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct PlaylistTabView: View {
     @Binding var selectedTab: PlaylistTab
@@ -14,29 +15,94 @@ struct PlaylistTabView: View {
     let playingSource: AudioPlayerManager.PlayingSource
     let onTrackSelected: (Int) -> Void
     let onTrackRemoved: (Int) -> Void
+    let onTrackMoved: (IndexSet, Int) -> Void
+    
+    @State private var draggingIndex: Int?
+    @State private var dropTargetIndex: Int?
     
     var body: some View {
-        VStack(spacing: 0) {
+        Group {
             if tracks.isEmpty {
                 emptyStateView
             } else {
-                ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
-                    songRow(track: track, index: index)
-                        .contextMenu {
-                            Button("show_in_finder") {
-                                NSWorkspace.shared.activateFileViewerSelecting([track.url])
-                            }
-                            
-                            Divider()
-                            
-                            Button("remove") {
-                                onTrackRemoved(index)
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
+                            VStack(spacing: 0) {
+                                if dropTargetIndex == index {
+                                    dropIndicator
+                                }
+                                
+                                songRow(track: track, index: index)
+                                    .opacity(draggingIndex == index ? 0.5 : 1.0)
+                                    .onDrag {
+                                        draggingIndex = index
+                                        return NSItemProvider(object: "\(index)" as NSString)
+                                    }
+                                    .onDrop(of: [.text], delegate: TrackDropDelegate(
+                                        targetIndex: index,
+                                        draggingIndex: $draggingIndex,
+                                        dropTargetIndex: $dropTargetIndex,
+                                        onDrop: { from, to in
+                                            guard from != to else { return }
+                                            let fromSet = IndexSet(integer: from)
+                                            var destination = to
+                                            if from < to {
+                                                destination = to - 1
+                                            }
+                                            onTrackMoved(fromSet, destination)
+                                        }
+                                    ))
+                                    .contextMenu {
+                                        Button("show_in_finder") {
+                                            NSWorkspace.shared.activateFileViewerSelecting([track.url])
+                                        }
+                                        
+                                        Divider()
+                                        
+                                        Button("remove") {
+                                            onTrackRemoved(index)
+                                        }
+                                    }
                             }
                         }
-                  }
+                        
+                        // 最后一行的 drop 区域
+                        if !tracks.isEmpty {
+                            VStack(spacing: 0) {
+                                if dropTargetIndex == tracks.count {
+                                    dropIndicator
+                                }
+                                
+                                Color.clear
+                                    .frame(height: 20)
+                                    .onDrop(of: [.text], delegate: TrackDropDelegate(
+                                        targetIndex: tracks.count,
+                                        draggingIndex: $draggingIndex,
+                                        dropTargetIndex: $dropTargetIndex,
+                                        onDrop: { from, _ in
+                                            let fromSet = IndexSet(integer: from)
+                                            onTrackMoved(fromSet, tracks.count - 1)
+                                        }
+                                    ))
+                            }
+                        }
+                    }
+                    .padding(.bottom, 48)
+                }
             }
         }
         .transition(.opacity.combined(with: .move(edge: .leading)))
+    }
+    
+    // MARK: - Drop Indicator
+    
+    private var dropIndicator: some View {
+        Rectangle()
+            .fill(Color(hex: "#00E5FF"))
+            .frame(height: 2)
+            .padding(.horizontal, 10)
+            .shadow(color: Color(hex: "#00E5FF").opacity(0.8), radius: 4)
     }
     
     // MARK: - Empty State
@@ -70,16 +136,43 @@ struct PlaylistTabView: View {
             onTap: { onTrackSelected(index) }
         )
     }
+}
+
+// MARK: - Track Drop Delegate
+
+struct TrackDropDelegate: DropDelegate {
+    let targetIndex: Int
+    @Binding var draggingIndex: Int?
+    @Binding var dropTargetIndex: Int?
+    let onDrop: (Int, Int) -> Void
     
-    private func formatTime(_ time: TimeInterval) -> String {
-        guard time.isFinite, !time.isNaN else { return "0:00" }
-        let minutes = Int(time) / 60
-        let seconds = Int(time) % 60
-        return String(format: "%d:%02d", minutes, seconds)
+    func dropEntered(info: DropInfo) {
+        guard draggingIndex != targetIndex else { return }
+        dropTargetIndex = targetIndex
+    }
+    
+    func dropExited(info: DropInfo) {
+        dropTargetIndex = nil
+    }
+    
+    func performDrop(info: DropInfo) -> Bool {
+        guard let from = draggingIndex else { return false }
+        
+        dropTargetIndex = nil
+        draggingIndex = nil
+        
+        guard from != targetIndex else { return false }
+        
+        onDrop(from, targetIndex)
+        return true
+    }
+    
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        return DropProposal(operation: .move)
     }
 }
 
-// MARK: - Song Row View with Hover
+// MARK: - Song Row View
 
 struct SongRowView: View {
     let track: AudioTrack
@@ -155,7 +248,7 @@ struct SongRowView: View {
     }
 }
 
-// MARK: - Toolbar Button Component
+// MARK: - Toolbar Button
 
 struct ToolbarIconButton: View {
     let icon: String
@@ -195,7 +288,8 @@ enum PlaylistTab {
         currentIndex: nil,
         playingSource: .playlist,
         onTrackSelected: { _ in },
-        onTrackRemoved: { _ in }
+        onTrackRemoved: { _ in },
+        onTrackMoved: { _, _ in }
     )
     .padding()
     .background(Color.black)

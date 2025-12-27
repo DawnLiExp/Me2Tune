@@ -53,7 +53,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.delegate = windowDelegate
 
         window.minSize = NSSize(width: 495, height: 775)
-        window.isMovableByWindowBackground = true
+        window.isMovableByWindowBackground = false
         
         logger.debug("Window configured")
     }
