@@ -2,7 +2,7 @@
 //  CollectionsGridView.swift
 //  Me2Tune
 //
-//  专辑网格视图：专辑卡片展示+详情视图
+//  专辑收藏视图：专辑卡片展示+详情视图
 //
 
 import AppKit
@@ -10,6 +10,7 @@ import SwiftUI
 
 struct CollectionsGridView: View {
     @Binding var selectedTab: PlaylistTab
+    @Binding var isInAlbumDetail: Bool
     let albums: [Album]
     let isLoaded: Bool
     let currentIndex: Int?
@@ -18,8 +19,6 @@ struct CollectionsGridView: View {
     let onAlbumRemoved: (UUID) -> Void
     let onAlbumRenamed: (UUID, String) -> Void
     let onTrackAddedToPlaylist: (AudioTrack) -> Void
-    let onAddAlbum: () -> Void
-    let onClearCollections: () -> Void
     let onEnsureLoaded: () async -> Void
     
     @State private var selectedAlbum: Album?
@@ -27,7 +26,6 @@ struct CollectionsGridView: View {
     @State private var renamingAlbumId: UUID?
     @State private var renameText = ""
     @State private var albumToDelete: Album?
-    @State private var showClearConfirm = false
     
     private let artworkService = ArtworkService()
     
@@ -43,6 +41,9 @@ struct CollectionsGridView: View {
         }
         .task {
             await onEnsureLoaded()
+        }
+        .onChange(of: selectedAlbum) { _, newValue in
+            isInAlbumDetail = (newValue != nil)
         }
         .alert("rename_album", isPresented: Binding(
             get: { renamingAlbumId != nil },
@@ -80,26 +81,12 @@ struct CollectionsGridView: View {
                 Text(String(format: format, album.name))
             }
         }
-        .alert("clear_collections", isPresented: $showClearConfirm) {
-            Button("cancel", role: .cancel) {
-                showClearConfirm = false
-            }
-            Button("clear", role: .destructive) {
-                onClearCollections()
-                showClearConfirm = false
-            }
-        } message: {
-            Text("clear_collections_confirm")
-        }
     }
     
     // MARK: - Album Grid View
     
     private var albumGridView: some View {
         VStack(spacing: 0) {
-            toolbarButtons
-                .padding(.bottom, 12)
-            
             Group {
                 if albums.isEmpty {
                     if isLoaded {
@@ -122,29 +109,6 @@ struct CollectionsGridView: View {
                     }
                     .padding(.vertical, 8)
                 }
-            }
-        }
-    }
-    
-    // MARK: - Toolbar Buttons
-    
-    private var toolbarButtons: some View {
-        HStack(spacing: 8) {
-            Spacer()
-            
-            ToolbarIconButton(
-                icon: "plus.circle",
-                tooltip: String(localized: "add_album")
-            ) {
-                onAddAlbum()
-            }
-            
-            ToolbarIconButton(
-                icon: "xmark.circle",
-                tooltip: String(localized: "clear_collections"),
-                isEnabled: !albums.isEmpty
-            ) {
-                showClearConfirm = true
             }
         }
     }
@@ -383,6 +347,7 @@ struct CollectionsGridView: View {
 #Preview {
     CollectionsGridView(
         selectedTab: .constant(.collections),
+        isInAlbumDetail: .constant(false),
         albums: [],
         isLoaded: true,
         currentIndex: nil,
@@ -391,8 +356,6 @@ struct CollectionsGridView: View {
         onAlbumRemoved: { _ in },
         onAlbumRenamed: { _, _ in },
         onTrackAddedToPlaylist: { _ in },
-        onAddAlbum: {},
-        onClearCollections: {},
         onEnsureLoaded: {}
     )
     .padding()

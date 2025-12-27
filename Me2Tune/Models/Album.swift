@@ -7,12 +7,12 @@
 
 import Foundation
 
-struct Album: Identifiable, Codable, Sendable {
+struct Album: Identifiable, Equatable, Codable, Sendable {
     let id: UUID
     var name: String
     let folderURL: URL
     var tracks: [AudioTrack]
-    
+
     init(name: String, folderURL: URL, tracks: [AudioTrack]) {
         self.id = UUID()
         self.name = name

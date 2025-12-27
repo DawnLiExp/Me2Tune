@@ -18,6 +18,11 @@ struct ContentView: View {
     @State private var selectedTab: PlaylistTab = .playlist
     @State private var isPlaylistCollapsed = false
     @State private var isRotationEnabled = true
+    @State private var isInAlbumDetail = false
+    @State private var showExportDialog = false
+    @State private var exportAlbumName = ""
+    @State private var showClearPlaylistConfirm = false
+    @State private var showClearCollectionsConfirm = false
     
     private var canGoPrevious: Bool {
         guard let index = playerManager.currentTrackIndex else { return false }
@@ -75,6 +80,45 @@ struct ContentView: View {
         .preferredColorScheme(.dark)
         .onDrop(of: [.fileURL], isTargeted: $isDragging) { providers in
             handleDrop(providers: providers)
+        }
+        .alert("export_playlist_title", isPresented: $showExportDialog) {
+            TextField("album_name", text: $exportAlbumName)
+            Button("cancel", role: .cancel) {
+                showExportDialog = false
+            }
+            Button("export") {
+                if !exportAlbumName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Task {
+                        await exportPlaylistToAlbum(name: exportAlbumName)
+                    }
+                }
+                showExportDialog = false
+            }
+            .disabled(exportAlbumName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        } message: {
+            Text("export_playlist_message")
+        }
+        .alert("clear_playlist", isPresented: $showClearPlaylistConfirm) {
+            Button("cancel", role: .cancel) {
+                showClearPlaylistConfirm = false
+            }
+            Button("clear", role: .destructive) {
+                playerManager.clearPlaylist()
+                showClearPlaylistConfirm = false
+            }
+        } message: {
+            Text("clear_playlist_confirm")
+        }
+        .alert("clear_collections", isPresented: $showClearCollectionsConfirm) {
+            Button("cancel", role: .cancel) {
+                showClearCollectionsConfirm = false
+            }
+            Button("clear", role: .destructive) {
+                collectionManager.clearAllAlbums()
+                showClearCollectionsConfirm = false
+            }
+        } message: {
+            Text("clear_collections_confirm")
         }
     }
     
@@ -229,22 +273,12 @@ struct ContentView: View {
                                 currentIndex: playerManager.currentTrackIndex,
                                 playingSource: playerManager.playingSource,
                                 onTrackSelected: { playerManager.playTrack(at: $0) },
-                                onTrackRemoved: { playerManager.removeTrack(at: $0) },
-                                onExportToAlbum: { albumName in
-                                    Task {
-                                        await exportPlaylistToAlbum(name: albumName)
-                                    }
-                                },
-                                onAddFiles: {
-                                    openFilePicker()
-                                },
-                                onClearPlaylist: {
-                                    playerManager.clearPlaylist()
-                                }
+                                onTrackRemoved: { playerManager.removeTrack(at: $0) }
                             )
                         } else {
                             CollectionsGridView(
                                 selectedTab: $selectedTab,
+                                isInAlbumDetail: $isInAlbumDetail,
                                 albums: collectionManager.albums,
                                 isLoaded: collectionManager.isLoaded,
                                 currentIndex: playerManager.currentTrackIndex,
@@ -260,12 +294,6 @@ struct ContentView: View {
                                 },
                                 onTrackAddedToPlaylist: { track in
                                     playerManager.addTracks(urls: [track.url])
-                                },
-                                onAddAlbum: {
-                                    openFilePicker()
-                                },
-                                onClearCollections: {
-                                    collectionManager.clearAllAlbums()
                                 },
                                 onEnsureLoaded: {
                                     await collectionManager.ensureLoaded()
@@ -309,8 +337,77 @@ struct ContentView: View {
         HStack(spacing: 0) {
             tabButton(title: String(localized: "playlist"), tab: .playlist)
             tabButton(title: String(localized: "collections"), tab: .collections)
+            
             Spacer()
+            
+            if selectedTab == .playlist {
+                playlistToolbarButtons
+            } else {
+                collectionsToolbarButtons
+            }
         }
+    }
+    
+    // MARK: - Toolbar Buttons
+    
+    private var playlistToolbarButtons: some View {
+        HStack(spacing: 8) {
+            ToolbarIconButton(
+                icon: "arrow.right.circle",
+                tooltip: String(localized: "export_to_collection"),
+                isEnabled: !playerManager.playlist.isEmpty
+            ) {
+                exportPlaylistDialog()
+            }
+            
+            ToolbarIconButton(
+                icon: "plus.circle",
+                tooltip: String(localized: "add_files")
+            ) {
+                openFilePicker()
+            }
+            
+            ToolbarIconButton(
+                icon: "xmark.circle",
+                tooltip: String(localized: "clear_playlist"),
+                isEnabled: !playerManager.playlist.isEmpty
+            ) {
+                showClearPlaylistConfirm = true
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var collectionsToolbarButtons: some View {
+        if !isInAlbumDetail {
+            HStack(spacing: 8) {
+                ToolbarIconButton(
+                    icon: "plus.circle",
+                    tooltip: String(localized: "add_album")
+                ) {
+                    openFilePicker()
+                }
+                
+                ToolbarIconButton(
+                    icon: "xmark.circle",
+                    tooltip: String(localized: "clear_collections"),
+                    isEnabled: !collectionManager.albums.isEmpty
+                ) {
+                    showClearCollectionsConfirm = true
+                }
+            }
+        }
+    }
+    
+    private func exportPlaylistDialog() {
+        exportAlbumName = generateDefaultAlbumName()
+        showExportDialog = true
+    }
+    
+    private func generateDefaultAlbumName() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        return "\(String(localized: "playlist")) \(formatter.string(from: Date()))"
     }
     
     private func tabButton(title: String, tab: PlaylistTab) -> some View {
