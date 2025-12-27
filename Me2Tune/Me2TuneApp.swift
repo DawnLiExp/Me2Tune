@@ -2,7 +2,7 @@
 //  Me2TuneApp.swift
 //  Me2Tune
 //
-//  应用入口
+//  应用入口 - 固定窗口宽度
 //
 
 import SwiftUI
@@ -26,6 +26,7 @@ struct Me2TuneApp: App {
                 }
         }
         .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentSize)
         .commands {
             CommandGroup(replacing: .newItem) {}
         }
@@ -53,9 +54,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.delegate = windowDelegate
 
         window.minSize = NSSize(width: 495, height: 775)
+        window.maxSize = NSSize(width: 495, height: CGFloat.greatestFiniteMagnitude)
         window.isMovableByWindowBackground = false
         
-        logger.debug("Window configured")
+        logger.debug("Window configured with fixed width: 495")
     }
 }
 

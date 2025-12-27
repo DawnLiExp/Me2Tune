@@ -76,7 +76,8 @@ struct ContentView: View {
                     .padding(.bottom, 20)
             }
         }
-        .frame(minWidth: 495, maxWidth: .infinity, minHeight: 775, maxHeight: .infinity)
+        .frame(width: 495)
+        .frame(minHeight: 775, maxHeight: .infinity)
         .preferredColorScheme(.dark)
         .onDrop(of: [.fileURL], isTargeted: $isDragging) { providers in
             handleDrop(providers: providers)
