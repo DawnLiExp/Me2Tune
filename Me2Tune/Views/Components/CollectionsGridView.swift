@@ -126,12 +126,7 @@ struct CollectionsGridView: View {
                 VStack(spacing: 0) {
                     ForEach(Array(album.tracks.enumerated()), id: \.element.id) { index, track in
                         albumTrackRow(track: track, index: index, album: album)
-                        
-                        if index < album.tracks.count - 1 {
-                            Divider()
-                                .padding(.leading, 48)
-                        }
-                    }
+                      }
                 }
             }
         }

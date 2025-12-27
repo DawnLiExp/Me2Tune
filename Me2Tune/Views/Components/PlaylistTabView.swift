@@ -33,12 +33,7 @@ struct PlaylistTabView: View {
                                 onTrackRemoved(index)
                             }
                         }
-                    
-                    if index < tracks.count - 1 {
-                        Divider()
-                            .padding(.leading, 48)
-                    }
-                }
+                  }
             }
         }
         .transition(.opacity.combined(with: .move(edge: .leading)))
