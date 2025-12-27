@@ -17,6 +17,7 @@ struct ContentView: View {
     @State private var isDragging = false
     @State private var selectedTab: PlaylistTab = .playlist
     @State private var isPlaylistCollapsed = false
+    @State private var isRotationEnabled = true
     
     private var canGoPrevious: Bool {
         guard let index = playerManager.currentTrackIndex else { return false }
@@ -43,6 +44,7 @@ struct ContentView: View {
                 VinylCoverView(
                     artwork: playerManager.currentArtwork,
                     isPlaying: playerManager.isPlaying,
+                    isRotationEnabled: isRotationEnabled,
                     currentTime: playerManager.currentTime,
                     duration: playerManager.duration
                 )
@@ -99,18 +101,18 @@ struct ContentView: View {
                     .fill(
                         RadialGradient(
                             colors: [
+                                albumGlowColor.opacity(0.6),
                                 albumGlowColor.opacity(0.35),
                                 albumGlowColor.opacity(0.15),
-                                albumGlowColor.opacity(0.1),
                                 Color.clear
                             ],
                             center: .center,
-                            startRadius: 50,
-                            endRadius: 460
+                            startRadius: 60,
+                            endRadius: 280
                         )
                     )
-                    .frame(width: 420, height: 400)
-                    .blur(radius: 60)
+                    .frame(width: 400, height: 400)
+                    .blur(radius: 40)
                 
                 Ellipse()
                     .fill(
@@ -124,11 +126,11 @@ struct ContentView: View {
                             endPoint: .bottom
                         )
                     )
-                    .frame(width: 460, height: 380)
+                    .frame(width: 460, height: 280)
                     .blur(radius: 35)
                     .offset(y: 80)
             }
-            .offset(y: -10)
+            .offset(y: 0)
             
             Spacer()
         }
@@ -185,26 +187,26 @@ struct ContentView: View {
             
             Spacer()
             
-            rotationButton
+            rotationToggleButton
                 .offset(y: -18)
                 .padding(.trailing, 12)
         }
         .frame(height: 50)
     }
     
-    private var rotationButton: some View {
+    private var rotationToggleButton: some View {
         Button(action: {
-            playerManager.togglePlayPause()
+            isRotationEnabled.toggle()
         }) {
             Circle()
-                .fill(playerManager.isPlaying ? Color(hex: "#00E5FF").opacity(0.9) : Color.white.opacity(0.15))
+                .fill(isRotationEnabled ? Color(hex: "#00E5FF").opacity(0.9) : Color.white.opacity(0.15))
                 .frame(width: 26, height: 26)
                 .overlay(
                     Image(systemName: "record.circle")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(playerManager.isPlaying ? .black : .gray)
+                        .foregroundColor(isRotationEnabled ? .black : .gray)
                 )
-                .shadow(color: playerManager.isPlaying ? Color(hex: "#00E5FF").opacity(0.6) : .clear, radius: 10)
+                .shadow(color: isRotationEnabled ? Color(hex: "#00E5FF").opacity(0.6) : .clear, radius: 10)
         }
         .buttonStyle(.plain)
     }

@@ -26,7 +26,6 @@ struct TopHalfCircleShape: Shape {
             clockwise: false
         )
 
-        // 不闭合下半圆（直接结束）
         return path
     }
 }
@@ -36,10 +35,12 @@ struct TopHalfCircleShape: Shape {
 struct VinylCoverView: View {
     let artwork: NSImage?
     let isPlaying: Bool
+    let isRotationEnabled: Bool
     let currentTime: TimeInterval
     let duration: TimeInterval
 
     @State private var rotationAngle: Double = 0
+    @State private var rotationTimer: Timer?
 
     private let vinylSize: CGFloat = 280
 
@@ -52,18 +53,23 @@ struct VinylCoverView: View {
         .frame(height: vinylSize / 2)
         .padding(.top, 165)
         .onAppear {
-            startRotation()
+            updateRotationTimer()
         }
         .onChange(of: isPlaying) { _, _ in
-            updateRotation()
+            updateRotationTimer()
+        }
+        .onChange(of: isRotationEnabled) { _, _ in
+            updateRotationTimer()
+        }
+        .onDisappear {
+            stopRotation()
         }
     }
 
-    // MARK: - Vinyl Disc (真正的上半圆)
+    // MARK: - Vinyl Disc
 
     private var vinylDisc: some View {
         ZStack {
-            // 主唱片
             Circle()
                 .fill(
                     LinearGradient(
@@ -83,7 +89,6 @@ struct VinylCoverView: View {
                 )
                 .shadow(color: .black.opacity(0.6), radius: 20, y: 12)
 
-            // 中心底盘
             Circle()
                 .fill(Color(white: 0.12))
                 .frame(width: 100, height: 100)
@@ -98,7 +103,6 @@ struct VinylCoverView: View {
                         .frame(width: vinylSize, height: vinylSize)
                 )
 
-            // 封面
             artworkView
                 .rotationEffect(.degrees(rotationAngle))
                 .mask(
@@ -150,23 +154,35 @@ struct VinylCoverView: View {
             .frame(width: 60)
     }
 
-    // MARK: - Rotation
+    // MARK: - Rotation Logic
 
-    private func startRotation() {
-        Timer.scheduledTimer(withTimeInterval: 0.016, repeats: true) { _ in
-            if isPlaying {
-                rotationAngle += 0.15
-                if rotationAngle >= 360 {
-                    rotationAngle -= 360
-                }
+    private func updateRotationTimer() {
+        let shouldRotate = isPlaying && isRotationEnabled
+
+        if shouldRotate {
+            startRotation()
+        } else {
+            stopRotation()
+            if !isRotationEnabled {
+                rotationAngle = 0
             }
         }
     }
 
-    private func updateRotation() {
-        if !isPlaying {
-            rotationAngle = 0
+    private func startRotation() {
+        guard rotationTimer == nil else { return }
+
+        rotationTimer = Timer.scheduledTimer(withTimeInterval: 0.016, repeats: true) { [self] _ in
+            rotationAngle += 0.15
+            if rotationAngle >= 360 {
+                rotationAngle -= 360
+            }
         }
+    }
+
+    private func stopRotation() {
+        rotationTimer?.invalidate()
+        rotationTimer = nil
     }
 
     // MARK: - Utils
@@ -185,6 +201,7 @@ struct VinylCoverView: View {
     VinylCoverView(
         artwork: nil,
         isPlaying: true,
+        isRotationEnabled: true,
         currentTime: 128,
         duration: 240
     )
