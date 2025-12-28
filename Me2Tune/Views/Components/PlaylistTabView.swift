@@ -2,7 +2,7 @@
 //  PlaylistTabView.swift
 //  Me2Tune
 //
-//  播放列表视图：歌曲列表 + 拖拽排序（macOS onDrag/onDrop）
+//  播放列表视图：歌曲列表 + 拖拽排序 + 文件拖拽添加
 //
 
 import SwiftUI
@@ -16,6 +16,7 @@ struct PlaylistTabView: View {
     let onTrackSelected: (Int) -> Void
     let onTrackRemoved: (Int) -> Void
     let onTrackMoved: (IndexSet, Int) -> Void
+    let onFilesDrop: ([URL]) -> Void
     
     @State private var draggingIndex: Int?
     @State private var dropTargetIndex: Int?
@@ -34,36 +35,6 @@ struct PlaylistTabView: View {
                                 }
                                 
                                 songRow(track: track, index: index)
-                                    .opacity(draggingIndex == index ? 0.5 : 1.0)
-                                    .onDrag {
-                                        draggingIndex = index
-                                        return NSItemProvider(object: "\(index)" as NSString)
-                                    }
-                                    .onDrop(of: [.text], delegate: TrackDropDelegate(
-                                        targetIndex: index,
-                                        draggingIndex: $draggingIndex,
-                                        dropTargetIndex: $dropTargetIndex,
-                                        onDrop: { from, to in
-                                            guard from != to else { return }
-                                            let fromSet = IndexSet(integer: from)
-                                            var destination = to
-                                            if from < to {
-                                                destination = to - 1
-                                            }
-                                            onTrackMoved(fromSet, destination)
-                                        }
-                                    ))
-                                    .contextMenu {
-                                        Button("show_in_finder") {
-                                            NSWorkspace.shared.activateFileViewerSelecting([track.url])
-                                        }
-                                        
-                                        Divider()
-                                        
-                                        Button("remove") {
-                                            onTrackRemoved(index)
-                                        }
-                                    }
                             }
                         }
                         
@@ -76,19 +47,19 @@ struct PlaylistTabView: View {
                                 
                                 Color.clear
                                     .frame(height: 20)
-                                    .onDrop(of: [.text], delegate: TrackDropDelegate(
+                                    .onDrop(of: [.text, .fileURL], delegate: TrackDropDelegate(
                                         targetIndex: tracks.count,
                                         draggingIndex: $draggingIndex,
                                         dropTargetIndex: $dropTargetIndex,
                                         onDrop: { from, _ in
                                             let fromSet = IndexSet(integer: from)
                                             onTrackMoved(fromSet, tracks.count - 1)
-                                        }
+                                        },
+                                        onFilesDrop: onFilesDrop
                                     ))
                             }
                         }
                     }
-                    .padding(.bottom, 80)
                 }
                 .frame(maxHeight: .infinity)
             }
@@ -136,6 +107,37 @@ struct PlaylistTabView: View {
             isPlaying: playingSource == .playlist && currentIndex == index,
             onTap: { onTrackSelected(index) }
         )
+        .opacity(draggingIndex == index ? 0.5 : 1.0)
+        .onDrag {
+            draggingIndex = index
+            return NSItemProvider(object: "\(index)" as NSString)
+        }
+        .onDrop(of: [.text, .fileURL], delegate: TrackDropDelegate(
+            targetIndex: index,
+            draggingIndex: $draggingIndex,
+            dropTargetIndex: $dropTargetIndex,
+            onDrop: { from, to in
+                guard from != to else { return }
+                let fromSet = IndexSet(integer: from)
+                var destination = to
+                if from < to {
+                    destination = to - 1
+                }
+                onTrackMoved(fromSet, destination)
+            },
+            onFilesDrop: onFilesDrop
+        ))
+        .contextMenu {
+            Button("show_in_finder") {
+                NSWorkspace.shared.activateFileViewerSelecting([track.url])
+            }
+            
+            Divider()
+            
+            Button("remove") {
+                onTrackRemoved(index)
+            }
+        }
     }
 }
 
@@ -146,9 +148,11 @@ struct TrackDropDelegate: DropDelegate {
     @Binding var draggingIndex: Int?
     @Binding var dropTargetIndex: Int?
     let onDrop: (Int, Int) -> Void
+    let onFilesDrop: ([URL]) -> Void
     
     func dropEntered(info: DropInfo) {
-        guard draggingIndex != targetIndex else { return }
+        // 只有内部排序才显示指示器
+        guard draggingIndex != nil, draggingIndex != targetIndex else { return }
         dropTargetIndex = targetIndex
     }
     
@@ -157,19 +161,48 @@ struct TrackDropDelegate: DropDelegate {
     }
     
     func performDrop(info: DropInfo) -> Bool {
-        guard let from = draggingIndex else { return false }
-        
         dropTargetIndex = nil
-        draggingIndex = nil
         
-        guard from != targetIndex else { return false }
+        // 判断是文件拖拽还是内部排序
+        if info.hasItemsConforming(to: [.fileURL]) {
+            return handleFilesDrop(info: info)
+        } else if let from = draggingIndex {
+            draggingIndex = nil
+            guard from != targetIndex else { return false }
+            onDrop(from, targetIndex)
+            return true
+        }
         
-        onDrop(from, targetIndex)
-        return true
+        return false
     }
     
     func dropUpdated(info: DropInfo) -> DropProposal? {
-        return DropProposal(operation: .move)
+        if info.hasItemsConforming(to: [.fileURL]) {
+            return DropProposal(operation: .copy)
+        } else {
+            return DropProposal(operation: .move)
+        }
+    }
+    
+    private func handleFilesDrop(info: DropInfo) -> Bool {
+        var urls: [URL] = []
+        let group = DispatchGroup()
+        
+        for provider in info.itemProviders(for: [.fileURL]) {
+            group.enter()
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                defer { group.leave() }
+                if let url {
+                    urls.append(url)
+                }
+            }
+        }
+        
+        group.notify(queue: .main) {
+            onFilesDrop(urls)
+        }
+        
+        return true
     }
 }
 
@@ -290,7 +323,8 @@ enum PlaylistTab {
         playingSource: .playlist,
         onTrackSelected: { _ in },
         onTrackRemoved: { _ in },
-        onTrackMoved: { _, _ in }
+        onTrackMoved: { _, _ in },
+        onFilesDrop: { _ in }
     )
     .padding()
     .background(Color.black)

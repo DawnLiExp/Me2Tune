@@ -332,6 +332,9 @@ struct ContentView: View {
                 if let sourceIndex = from.first {
                     playerManager.moveTrack(from: sourceIndex, to: to)
                 }
+            },
+            onFilesDrop: { urls in
+                handlePlaylistDrop(urls)
             }
         )
         .padding(.horizontal, 12)
