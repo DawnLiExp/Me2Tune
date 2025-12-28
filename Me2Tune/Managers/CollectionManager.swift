@@ -48,7 +48,7 @@ final class CollectionManager: ObservableObject {
                 
             logger.info("Album created from playlist: \(name) with \(tracks.count) tracks")
                 
-            Task { await saveCollections() }
+            saveCollections()
         }
             
         return album.id
@@ -94,14 +94,14 @@ final class CollectionManager: ObservableObject {
             logger.info("Album created: \(albumName) with \(tracks.count) tracks")
             logger.debug("Total albums: \(self.albums.count)")
             
-            Task { await saveCollections() }
+            saveCollections()
         }
     }
     
     func removeAlbum(id: UUID) {
         albums.removeAll { $0.id == id }
         logger.info("Album removed: \(id)")
-        Task { await saveCollections() }
+        saveCollections()
     }
     
     func renameAlbum(id: UUID, newName: String) {
@@ -111,21 +111,21 @@ final class CollectionManager: ObservableObject {
         albums[index].name = newName
         
         logger.info("Album renamed: '\(oldName)' -> '\(newName)'")
-        Task { await saveCollections() }
+        saveCollections()
     }
     
     func clearAllAlbums() {
         let count = albums.count
         albums.removeAll()
         logger.info("Cleared all \(count) albums")
-        Task { await saveCollections() }
+        saveCollections()
     }
     
     // MARK: - Private Methods
     
     private func loadCollections() async {
         do {
-            let state = try await persistenceService.loadCollections()
+            let state = try persistenceService.loadCollections()
             
             // 检测并迁移旧数据：重新提取元数据
             var migratedAlbums: [Album] = []
@@ -171,17 +171,17 @@ final class CollectionManager: ObservableObject {
             // 如果进行了迁移，保存新数据
             if needsMigration {
                 logger.info("Saving migrated metadata")
-                await saveCollections()
+                saveCollections()
             }
         } catch {
             logger.notice("No existing collections to load")
         }
     }
     
-    private func saveCollections() async {
+    private func saveCollections() {
         do {
             let state = CollectionState(albums: self.albums)
-            try await persistenceService.save(state)
+            try persistenceService.save(state)
             logger.debug("Saved \(self.albums.count) albums")
         } catch {
             logger.error("Failed to save collections: \(error.localizedDescription)")
@@ -197,7 +197,7 @@ final class CollectionManager: ObservableObject {
         guard let enumerator = fileManager.enumerator(
             at: folderURL,
             includingPropertiesForKeys: [.isRegularFileKey],
-            options: [.skipsHiddenFiles],
+            options: [.skipsHiddenFiles]
         ) else {
             logger.error("Cannot access folder: \(folderURL.path)")
             return []

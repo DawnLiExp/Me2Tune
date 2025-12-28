@@ -70,9 +70,7 @@ final class PlayerViewModel: ObservableObject {
         self.playerCore = AudioPlayerCore()
         self.playerCore.delegate = self
         
-        Task {
-            await loadPlaylist()
-        }
+        loadPlaylist()
         
         setupBindings()
         logger.debug("PlayerViewModel initialized")
@@ -208,7 +206,7 @@ final class PlayerViewModel: ObservableObject {
                 await loadTrack(at: 0)
             }
             
-            await savePlaylist()
+            savePlaylist()
             
             let elapsed = CFAbsoluteTimeGetCurrent() - startTime
             logger.logPerformance("Add \(newTracks.count) tracks", duration: elapsed)
@@ -234,9 +232,7 @@ final class PlayerViewModel: ObservableObject {
             currentTracks = playlist
         }
         
-        Task {
-            await savePlaylist()
-        }
+        savePlaylist()
     }
     
     func clearPlaylist() {
@@ -254,9 +250,7 @@ final class PlayerViewModel: ObservableObject {
         
         logger.info("🗑 Cleared \(count) tracks")
         
-        Task {
-            await savePlaylist()
-        }
+        savePlaylist()
     }
     
     func moveTrack(from source: Int, to destination: Int) {
@@ -286,9 +280,7 @@ final class PlayerViewModel: ObservableObject {
         
         logger.debug("Moved track from \(source) to \(destination)")
         
-        Task {
-            await savePlaylist()
-        }
+        savePlaylist()
     }
     
     func playTrack(at index: Int) {
@@ -329,13 +321,13 @@ final class PlayerViewModel: ObservableObject {
         Task {
             await loadTrack(at: index)
             playerCore.play()
-            await savePlaylist()
+            savePlaylist()
         }
     }
     
     // MARK: - Persistence
     
-    private func savePlaylist() async {
+    private func savePlaylist() {
         let sourceData: PlaylistState.PlayingSourceData? = {
             switch playingSource {
             case .playlist:
@@ -358,7 +350,7 @@ final class PlayerViewModel: ObservableObject {
         )
         
         do {
-            try await persistenceService.save(state)
+            try persistenceService.save(state)
             logger.debug("💾 Playlist saved (\(state.tracks.count) tracks)")
         } catch {
             let appError = AppError.persistenceFailed("save playlist")
@@ -366,8 +358,8 @@ final class PlayerViewModel: ObservableObject {
         }
     }
     
-    func restoreAlbumPlayback(albums: [Album]) async {
-        guard let state = try? await persistenceService.load() else { return }
+    func restoreAlbumPlayback(albums: [Album]) {
+        guard let state = try? persistenceService.load() else { return }
         
         if let source = state.playingSource,
            case .album(let albumId) = source,
@@ -379,7 +371,11 @@ final class PlayerViewModel: ObservableObject {
                 playingSource = .album(albumId)
                 currentTracks = album.tracks
                 currentTrackIndex = albumIndex
-                await loadTrack(at: albumIndex)
+                
+                Task {
+                    await loadTrack(at: albumIndex)
+                }
+                
                 logger.info("📀 Restored: \(album.name) - track \(albumIndex + 1)")
             } else {
                 logger.warning("Album or track not found, resetting to playlist")
@@ -387,8 +383,8 @@ final class PlayerViewModel: ObservableObject {
         }
     }
     
-    private func loadPlaylist() async {
-        guard let state = try? await persistenceService.load() else {
+    private func loadPlaylist() {
+        guard let state = try? persistenceService.load() else {
             logger.notice("No saved playlist found")
             return
         }
@@ -405,7 +401,11 @@ final class PlayerViewModel: ObservableObject {
                    playlist.indices.contains(savedIndex)
                 {
                     currentTrackIndex = savedIndex
-                    await loadTrack(at: savedIndex)
+                    
+                    Task {
+                        await loadTrack(at: savedIndex)
+                    }
+                    
                     logger.info("📋 Restored playlist: track \(savedIndex + 1)/\(self.playlist.count)")
                 }
                 

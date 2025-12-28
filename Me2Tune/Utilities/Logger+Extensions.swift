@@ -8,9 +8,9 @@
 import Foundation
 import OSLog
 
-extension Logger {
+nonisolated extension Logger {
     private static let subsystem = "me2.Me2Tune"
-
+    
     static let app = Logger(subsystem: subsystem, category: "App")
     static let player = Logger(subsystem: subsystem, category: "Player")
     static let viewModel = Logger(subsystem: subsystem, category: "ViewModel")
@@ -31,7 +31,7 @@ extension Logger {
             self.error("[\(context)] \(error.localizedDescription)")
         }
     }
-
+    
     func logPerformance(_ operation: String, duration: TimeInterval) {
         if duration > 0.1 {
             self.warning("⚠️ \(operation) took \(String(format: "%.2f", duration))s")

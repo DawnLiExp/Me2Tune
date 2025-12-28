@@ -40,7 +40,8 @@ struct UIState: Codable, Sendable {
     )
 }
 
-actor PersistenceService {
+@MainActor
+final class PersistenceService {
     private let fileURL: URL
     private let collectionFileURL: URL
     private let uiStateFileURL: URL
@@ -49,7 +50,7 @@ actor PersistenceService {
     init() {
         let appSupport = FileManager.default.urls(
             for: .applicationSupportDirectory,
-            in: .userDomainMask,
+            in: .userDomainMask
         ).first!
 
         let appDirectory = appSupport.appendingPathComponent("Me2Tune", isDirectory: true)
@@ -64,14 +65,14 @@ actor PersistenceService {
 
     // MARK: - Playlist
 
-    func save(_ state: PlaylistState) async throws {
+    func save(_ state: PlaylistState) throws {
         let encoder = JSONEncoder()
         let data = try encoder.encode(state)
         try data.write(to: fileURL, options: .atomic)
         logger.debug("Playlist state saved with \(state.tracks.count) tracks, source: \(String(describing: state.playingSource))")
     }
 
-    func load() async throws -> PlaylistState {
+    func load() throws -> PlaylistState {
         let data = try Data(contentsOf: fileURL)
         let decoder = JSONDecoder()
         return try decoder.decode(PlaylistState.self, from: data)
@@ -79,14 +80,14 @@ actor PersistenceService {
 
     // MARK: - Collections
 
-    func save(_ state: CollectionState) async throws {
+    func save(_ state: CollectionState) throws {
         let encoder = JSONEncoder()
         let data = try encoder.encode(state)
         try data.write(to: collectionFileURL, options: .atomic)
         logger.debug("Collection state saved with \(state.albums.count) albums")
     }
 
-    func loadCollections() async throws -> CollectionState {
+    func loadCollections() throws -> CollectionState {
         let data = try Data(contentsOf: collectionFileURL)
         let decoder = JSONDecoder()
         return try decoder.decode(CollectionState.self, from: data)
@@ -94,14 +95,14 @@ actor PersistenceService {
 
     // MARK: - UI State
 
-    func save(_ state: UIState) async throws {
+    func save(_ state: UIState) throws {
         let encoder = JSONEncoder()
         let data = try encoder.encode(state)
         try data.write(to: uiStateFileURL, options: .atomic)
         logger.debug("UI state saved: artwork=\(state.isArtworkExpanded), playlist=\(state.isPlaylistVisible), height=\(state.windowHeight), pos=(\(state.windowX ?? 0), \(state.windowY ?? 0))")
     }
 
-    func loadUIState() async throws -> UIState {
+    func loadUIState() throws -> UIState {
         let data = try Data(contentsOf: uiStateFileURL)
         let decoder = JSONDecoder()
         return try decoder.decode(UIState.self, from: data)
