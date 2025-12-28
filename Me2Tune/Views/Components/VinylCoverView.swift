@@ -89,26 +89,58 @@ struct VinylCoverView: View {
                 )
                 .shadow(color: .black.opacity(0.6), radius: 20, y: 12)
 
-            Circle()
-                .fill(Color(white: 0.12))
-                .frame(width: 100, height: 100)
-                .overlay(
-                    Circle()
-                        .fill(Color(white: 0.22))
-                        .frame(width: 30, height: 30)
-                )
-                .rotationEffect(.degrees(rotationAngle))
-                .mask(
-                    TopHalfCircleShape()
-                        .frame(width: vinylSize, height: vinylSize)
-                )
-
             artworkView
                 .rotationEffect(.degrees(rotationAngle))
                 .mask(
                     TopHalfCircleShape()
                         .frame(width: vinylSize, height: vinylSize)
                 )
+
+            centerHole
+                .rotationEffect(.degrees(rotationAngle))
+                .mask(
+                    TopHalfCircleShape()
+                        .frame(width: vinylSize, height: vinylSize)
+                )
+        }
+    }
+
+    // MARK: - Center Hole
+
+    private var centerHole: some View {
+        ZStack {
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            Color(white: 0.18),
+                            Color(white: 0.12)
+                        ],
+                        center: .center,
+                        startRadius: 20,
+                        endRadius: 50
+                    )
+                )
+                .frame(width: 100, height: 100)
+
+            Circle()
+                .fill(Color.black.opacity(0.9))
+                .frame(width: 30, height: 30)
+                .shadow(color: .black.opacity(0.8), radius: 8, y: 2)
+
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            Color.white.opacity(0.15),
+                            Color.clear
+                        ],
+                        center: UnitPoint(x: 0.35, y: 0.35),
+                        startRadius: 0,
+                        endRadius: 15
+                    )
+                )
+                .frame(width: 30, height: 30)
         }
     }
 
@@ -121,11 +153,11 @@ struct VinylCoverView: View {
                     .resizable()
                     .scaledToFill()
             } else {
-                Image(systemName: "music.note")
+                Image(systemName: "guitars.fill")
                     .resizable()
                     .scaledToFit()
                     .foregroundColor(.gray)
-                    .padding(80)
+                    .padding(38)
             }
         }
         .frame(width: 255, height: 255)
