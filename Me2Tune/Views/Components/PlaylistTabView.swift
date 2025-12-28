@@ -12,7 +12,7 @@ struct PlaylistTabView: View {
     @Binding var selectedTab: PlaylistTab
     let tracks: [AudioTrack]
     let currentIndex: Int?
-    let playingSource: AudioPlayerManager.PlayingSource
+    let playingSource: PlayerViewModel.PlayingSource
     let onTrackSelected: (Int) -> Void
     let onTrackRemoved: (Int) -> Void
     let onTrackMoved: (IndexSet, Int) -> Void

@@ -14,7 +14,7 @@ struct CollectionsGridView: View {
     let albums: [Album]
     let isLoaded: Bool
     let currentIndex: Int?
-    let playingSource: AudioPlayerManager.PlayingSource
+    let playingSource: PlayerViewModel.PlayingSource
     let onAlbumPlayAt: (Album, Int) -> Void
     let onAlbumRemoved: (UUID) -> Void
     let onAlbumRenamed: (UUID, String) -> Void
