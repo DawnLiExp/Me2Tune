@@ -2,7 +2,7 @@
 //  Me2TuneApp.swift
 //  Me2Tune
 //
-//  应用入口 - 固定窗口宽度
+//  应用入口 - 使用 ViewModel 架构
 //
 
 import OSLog
@@ -12,14 +12,14 @@ private let logger = Logger(subsystem: "me2.Me2Tune", category: "Me2TuneApp")
 
 @main
 struct Me2TuneApp: App {
-    @StateObject private var playerManager = AudioPlayerManager()
+    @StateObject private var playerViewModel = PlayerViewModel()
     @StateObject private var collectionManager = CollectionManager()
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(playerManager)
+                .environmentObject(playerViewModel)
                 .environmentObject(collectionManager)
                 .onAppear {
                     appDelegate.window = NSApp.windows.first

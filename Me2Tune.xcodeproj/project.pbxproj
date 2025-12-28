@@ -14,8 +14,8 @@
 		FC13779F2EFCF9DD00A9CE99 /* PlaybackControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC13779E2EFCF9DC00A9CE99 /* PlaybackControlView.swift */; };
 		FC1377A12EFCFA0D00A9CE99 /* VinylCoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1377A02EFCFA0A00A9CE99 /* VinylCoverView.swift */; };
 		FC1377A42EFD0FF700A9CE99 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1377A32EFD0FE800A9CE99 /* Extensions.swift */; };
+		FC32865D2F010F3D000D8F2A /* PlayerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC32865C2F010F3B000D8F2A /* PlayerViewModel.swift */; };
 		FC354B382EEFECDD005657EB /* SFBAudioEngine in Frameworks */ = {isa = PBXBuildFile; productRef = FC354B372EEFECDD005657EB /* SFBAudioEngine */; };
-		FC480EA72EF107E8000D8393 /* AlbumArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480E9C2EF107E8000D8393 /* AlbumArtworkView.swift */; };
 		FC480EA82EF107E8000D8393 /* ArtworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480E9D2EF107E8000D8393 /* ArtworkService.swift */; };
 		FC480EA92EF107E8000D8393 /* AudioPlayerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480E9F2EF107E8000D8393 /* AudioPlayerManager.swift */; };
 		FC480EAA2EF107E8000D8393 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480EA02EF107E8000D8393 /* ContentView.swift */; };
@@ -37,7 +37,7 @@
 		FC1377A02EFCFA0A00A9CE99 /* VinylCoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VinylCoverView.swift; sourceTree = "<group>"; };
 		FC1377A32EFD0FE800A9CE99 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 		FC16622A2EEFAE2C00F01BCE /* Me2Tune.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Me2Tune.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		FC480E9C2EF107E8000D8393 /* AlbumArtworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumArtworkView.swift; sourceTree = "<group>"; };
+		FC32865C2F010F3B000D8F2A /* PlayerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerViewModel.swift; sourceTree = "<group>"; };
 		FC480E9D2EF107E8000D8393 /* ArtworkService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkService.swift; sourceTree = "<group>"; };
 		FC480E9E2EF107E8000D8393 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		FC480E9F2EF107E8000D8393 /* AudioPlayerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerManager.swift; sourceTree = "<group>"; };
@@ -84,9 +84,18 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		FC32865B2F010F0F000D8F2A /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				FC32865C2F010F3B000D8F2A /* PlayerViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
 		FC480EA62EF107E8000D8393 /* Me2Tune */ = {
 			isa = PBXGroup;
 			children = (
+				FC32865B2F010F0F000D8F2A /* ViewModels */,
 				FC480EB22EF136E7000D8393 /* Resources */,
 				FC480EA12EF107E8000D8393 /* info.plist */,
 				FC1377A22EFD0FE300A9CE99 /* Extensions */,
@@ -137,7 +146,6 @@
 			isa = PBXGroup;
 			children = (
 				FC8194EF2EF4EF2000401C4F /* Components */,
-				FC480E9C2EF107E8000D8393 /* AlbumArtworkView.swift */,
 				FC480EA02EF107E8000D8393 /* ContentView.swift */,
 			);
 			path = Views;
@@ -256,12 +264,12 @@
 		FC1662262EEFAE2C00F01BCE /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
-				FC480EA72EF107E8000D8393 /* AlbumArtworkView.swift in Sources */,
 				FC1377A12EFCFA0D00A9CE99 /* VinylCoverView.swift in Sources */,
 				FC1377A42EFD0FF700A9CE99 /* Extensions.swift in Sources */,
 				FC480EA82EF107E8000D8393 /* ArtworkService.swift in Sources */,
 				FC480EA92EF107E8000D8393 /* AudioPlayerManager.swift in Sources */,
 				FC480EC42EF152BC000D8393 /* AudioTrack.swift in Sources */,
+				FC32865D2F010F3D000D8F2A /* PlayerViewModel.swift in Sources */,
 				FC0A17442EF262910090B22C /* CollectionManager.swift in Sources */,
 				FC13779D2EFCF9CC00A9CE99 /* PlaylistTabView.swift in Sources */,
 				FC13779F2EFCF9DD00A9CE99 /* PlaybackControlView.swift in Sources */,

@@ -2,7 +2,7 @@
 //  ContentView.swift
 //  Me2Tune
 //
-//  主界面视图 - 支持播放列表拖拽排序
+//  主界面视图 - 使用 ViewModel 管理状态
 //
 
 import AppKit
@@ -10,7 +10,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct ContentView: View {
-    @EnvironmentObject private var playerManager: AudioPlayerManager
+    @EnvironmentObject private var playerViewModel: PlayerViewModel
     @EnvironmentObject private var collectionManager: CollectionManager
     
     @State private var albumGlowColor = Color(hex: "#FF4466")
@@ -25,27 +25,16 @@ struct ContentView: View {
     @State private var showClearPlaylistConfirm = false
     @State private var showClearCollectionsConfirm = false
     
-    // 赛博朋克配色预设
     private let glowColors: [Color] = [
-        Color(hex: "#FF006E"), // 霓虹粉
-        Color(hex: "#9D4EDD"), // 霓虹紫
-        Color(hex: "#C77DFF"), // 淡紫
-        Color(hex: "#3A86FF"), // 霓虹蓝
-        Color(hex: "#FF6D00"), // 霓虹橙
-        Color(hex: "#FFBA08"), // 霓虹黄
-        Color(hex: "#FF4466"), // 霓虹红
-        Color(hex: "#06FFA5"), // 霓虹绿
+        Color(hex: "#FF006E"),
+        Color(hex: "#9D4EDD"),
+        Color(hex: "#C77DFF"),
+        Color(hex: "#3A86FF"),
+        Color(hex: "#FF6D00"),
+        Color(hex: "#FFBA08"),
+        Color(hex: "#FF4466"),
+        Color(hex: "#06FFA5"),
     ]
-    
-    private var canGoPrevious: Bool {
-        guard let index = playerManager.currentTrackIndex else { return false }
-        return index > 0
-    }
-    
-    private var canGoNext: Bool {
-        guard let index = playerManager.currentTrackIndex else { return false }
-        return index < playerManager.currentTracks.count - 1
-    }
     
     var body: some View {
         ZStack {
@@ -60,26 +49,26 @@ struct ContentView: View {
                     .frame(height: 18)
                 
                 VinylCoverView(
-                    artwork: playerManager.currentArtwork,
-                    isPlaying: playerManager.isPlaying,
+                    artwork: playerViewModel.currentArtwork,
+                    isPlaying: playerViewModel.isPlaying,
                     isRotationEnabled: isRotationEnabled,
-                    currentTime: playerManager.currentTime,
-                    duration: playerManager.duration
+                    currentTime: playerViewModel.currentTime,
+                    duration: playerViewModel.duration
                 )
                 .frame(height: 160)
                 .padding(.horizontal, 12)
                 
                 PlaybackControlView(
-                    currentTrack: playerManager.currentTrack,
-                    currentTime: playerManager.currentTime,
-                    duration: playerManager.duration,
-                    isPlaying: playerManager.isPlaying,
-                    canGoPrevious: canGoPrevious,
-                    canGoNext: canGoNext,
-                    onPlayPause: { playerManager.togglePlayPause() },
-                    onPrevious: { playerManager.previous() },
-                    onNext: { playerManager.next() },
-                    onSeek: { playerManager.seek(to: $0) }
+                    currentTrack: playerViewModel.currentTrack,
+                    currentTime: playerViewModel.currentTime,
+                    duration: playerViewModel.duration,
+                    isPlaying: playerViewModel.isPlaying,
+                    canGoPrevious: playerViewModel.canGoPrevious,
+                    canGoNext: playerViewModel.canGoNext,
+                    onPlayPause: { playerViewModel.togglePlayPause() },
+                    onPrevious: { playerViewModel.previous() },
+                    onNext: { playerViewModel.next() },
+                    onSeek: { playerViewModel.seek(to: $0) }
                 )
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -117,7 +106,7 @@ struct ContentView: View {
                 showClearPlaylistConfirm = false
             }
             Button("clear", role: .destructive) {
-                playerManager.clearPlaylist()
+                playerViewModel.clearPlaylist()
                 showClearPlaylistConfirm = false
             }
         } message: {
@@ -134,7 +123,7 @@ struct ContentView: View {
         } message: {
             Text("clear_collections_confirm")
         }
-        .onChange(of: playerManager.currentTrack?.id) { _, newID in
+        .onChange(of: playerViewModel.currentTrack?.id) { _, newID in
             guard let newID, newID != previousTrackID else { return }
             previousTrackID = newID
             
@@ -323,14 +312,14 @@ struct ContentView: View {
     private var playlistContent: some View {
         PlaylistTabView(
             selectedTab: $selectedTab,
-            tracks: playerManager.playlist,
-            currentIndex: playerManager.currentTrackIndex,
-            playingSource: playerManager.playingSource,
-            onTrackSelected: { playerManager.playTrack(at: $0) },
-            onTrackRemoved: { playerManager.removeTrack(at: $0) },
+            tracks: playerViewModel.playlist,
+            currentIndex: playerViewModel.currentTrackIndex,
+            playingSource: playerViewModel.playingSource,
+            onTrackSelected: { playerViewModel.playTrack(at: $0) },
+            onTrackRemoved: { playerViewModel.removeTrack(at: $0) },
             onTrackMoved: { from, to in
                 if let sourceIndex = from.first {
-                    playerManager.moveTrack(from: sourceIndex, to: to)
+                    playerViewModel.moveTrack(from: sourceIndex, to: to)
                 }
             },
             onFilesDrop: { urls in
@@ -350,10 +339,10 @@ struct ContentView: View {
                 isInAlbumDetail: $isInAlbumDetail,
                 albums: collectionManager.albums,
                 isLoaded: collectionManager.isLoaded,
-                currentIndex: playerManager.currentTrackIndex,
-                playingSource: playerManager.playingSource,
+                currentIndex: playerViewModel.currentTrackIndex,
+                playingSource: playerViewModel.playingSource,
                 onAlbumPlayAt: { album, index in
-                    playerManager.playAlbum(album, startAt: index)
+                    playerViewModel.playAlbum(album, startAt: index)
                 },
                 onAlbumRemoved: { albumId in
                     collectionManager.removeAlbum(id: albumId)
@@ -362,7 +351,7 @@ struct ContentView: View {
                     collectionManager.renameAlbum(id: albumId, newName: newName)
                 },
                 onTrackAddedToPlaylist: { track in
-                    playerManager.addTracks(urls: [track.url])
+                    playerViewModel.addTracks(urls: [track.url])
                 },
                 onEnsureLoaded: {
                     await collectionManager.ensureLoaded()
@@ -399,7 +388,7 @@ struct ContentView: View {
             ToolbarIconButton(
                 icon: "arrow.right.circle",
                 tooltip: String(localized: "export_to_collection"),
-                isEnabled: !playerManager.playlist.isEmpty
+                isEnabled: !playerViewModel.playlist.isEmpty
             ) {
                 exportPlaylistDialog()
             }
@@ -414,7 +403,7 @@ struct ContentView: View {
             ToolbarIconButton(
                 icon: "xmark.circle",
                 tooltip: String(localized: "clear_playlist"),
-                isEnabled: !playerManager.playlist.isEmpty
+                isEnabled: !playerViewModel.playlist.isEmpty
             ) {
                 showClearPlaylistConfirm = true
             }
@@ -515,14 +504,14 @@ struct ContentView: View {
     // MARK: - Toolbar Actions
     
     private func exportPlaylistToAlbum(name: String) async {
-        guard !playerManager.playlist.isEmpty else { return }
+        guard !playerViewModel.playlist.isEmpty else { return }
         
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { return }
         
         if let _ = await collectionManager.addAlbumFromPlaylist(
             name: trimmedName,
-            tracks: playerManager.playlist
+            tracks: playerViewModel.playlist
         ) {
             await MainActor.run {
                 selectedTab = .collections
@@ -585,7 +574,7 @@ struct ContentView: View {
     
     private func handlePlaylistDrop(_ urls: [URL]) {
         let allURLs = expandFolders(urls)
-        playerManager.addTracks(urls: allURLs)
+        playerViewModel.addTracks(urls: allURLs)
     }
     
     private func handleCollectionsDrop(_ urls: [URL]) {
@@ -641,6 +630,6 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .environmentObject(AudioPlayerManager())
+        .environmentObject(PlayerViewModel())
         .environmentObject(CollectionManager())
 }
