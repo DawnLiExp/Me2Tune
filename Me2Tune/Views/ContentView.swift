@@ -26,14 +26,15 @@ struct ContentView: View {
     @State private var showClearCollectionsConfirm = false
     
     private let glowColors: [Color] = [
-        Color(hex: "#FF006E"),
+        Color(hex: "#E20764"),
         Color(hex: "#9D4EDD"),
-        Color(hex: "#C77DFF"),
-        Color(hex: "#3A86FF"),
-        Color(hex: "#FF6D00"),
-        Color(hex: "#FFBA08"),
         Color(hex: "#FF4466"),
-        Color(hex: "#06FFA5"),
+        Color(hex: "#D55C10"),
+        Color(hex: "#CF9810"),
+        Color(hex: "#FF3BA7"),
+        Color(hex: "#33CCFF"),
+        Color(hex: "#0063DC"),
+        Color(hex: "#00FFA3"),
     ]
     
     var body: some View {

@@ -17,7 +17,7 @@ struct TopBarView: View {
             Spacer()
             
             rotationToggle
-                .offset(y: -18)
+                .offset(y: -14)
                 .padding(.trailing, 12)
         }
         .frame(height: 50)
@@ -26,12 +26,12 @@ struct TopBarView: View {
     // MARK: - Info Section
     
     private var infoSection: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "waveform.circle.fill")
+        HStack(spacing: 10) {
+            Image(systemName: "headphones")
                 .foregroundColor(.gray)
                 .font(.title3)
             
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text("Me2Tune")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.white)
@@ -55,11 +55,11 @@ struct TopBarView: View {
             isRotationEnabled.toggle()
         }) {
             Circle()
-                .fill(isRotationEnabled ? Color(hex: "#00E5FF").opacity(0.9) : Color.white.opacity(0.15))
-                .frame(width: 26, height: 26)
+                .fill(isRotationEnabled ? Color(hex: "#00E5FF").opacity(0.8) : Color.white.opacity(0.15))
+                .frame(width: 22, height: 22)
                 .overlay(
                     Image(systemName: "record.circle")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundColor(isRotationEnabled ? .black : .gray)
                 )
                 .shadow(color: isRotationEnabled ? Color(hex: "#00E5FF").opacity(0.6) : .clear, radius: 10)
@@ -70,7 +70,7 @@ struct TopBarView: View {
 
 #Preview {
     TopBarView(isRotationEnabled: .constant(true))
-        .frame(height: 70)
+        .frame(height: 170)
         .padding(.horizontal, 12)
         .background(Color.black)
 }

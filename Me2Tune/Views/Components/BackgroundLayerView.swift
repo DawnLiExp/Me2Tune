@@ -33,17 +33,17 @@ struct BackgroundLayerView: View {
                     .fill(
                         RadialGradient(
                             colors: [
-                                albumGlowColor.opacity(0.6),
+                                albumGlowColor.opacity(0.51),
                                 albumGlowColor.opacity(0.35),
                                 albumGlowColor.opacity(0.15),
                                 Color.clear
                             ],
                             center: .center,
                             startRadius: 60,
-                            endRadius: 280
+                            endRadius: 200
                         )
                     )
-                    .frame(width: 400, height: 400)
+                    .frame(width: 450, height: 400)
                     .blur(radius: 40)
                 
                 Ellipse()
@@ -58,7 +58,7 @@ struct BackgroundLayerView: View {
                             endPoint: .bottom
                         )
                     )
-                    .frame(width: 460, height: 280)
+                    .frame(width: 460, height: 380)
                     .blur(radius: 35)
                     .offset(y: 80)
             }
