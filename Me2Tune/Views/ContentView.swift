@@ -2,7 +2,7 @@
 //  ContentView.swift
 //  Me2Tune
 //
-//  主界面视图 - 使用 ViewModel 管理状态
+//  主界面视图 - 组件组合器
 //
 
 import AppKit
@@ -38,10 +38,10 @@ struct ContentView: View {
     
     var body: some View {
         ZStack {
-            backgroundLayers
+            BackgroundLayerView(albumGlowColor: albumGlowColor)
             
             VStack(spacing: 0) {
-                topBar
+                TopBarView(isRotationEnabled: $isRotationEnabled)
                     .frame(height: 70)
                     .padding(.horizontal, 12)
                 
@@ -72,10 +72,21 @@ struct ContentView: View {
                 )
                 .fixedSize(horizontal: false, vertical: true)
 
-                contentSection
-                    .padding(.horizontal, 12)
-                    .padding(.top, 16)
-                    .padding(.bottom, 20)
+                ContentSectionView(
+                    selectedTab: $selectedTab,
+                    isInAlbumDetail: $isInAlbumDetail,
+                    isPlaylistCollapsed: $isPlaylistCollapsed,
+                    playerViewModel: playerViewModel,
+                    collectionManager: collectionManager,
+                    onExportPlaylist: { exportPlaylistDialog() },
+                    onClearPlaylist: { showClearPlaylistConfirm = true },
+                    onClearCollections: { showClearCollectionsConfirm = true },
+                    onOpenFilePicker: { openFilePicker() },
+                    onPlaylistDrop: { handlePlaylistDrop($0) }
+                )
+                .padding(.horizontal, 12)
+                .padding(.top, 16)
+                .padding(.bottom, 20)
             }
         }
         .frame(width: 495)
@@ -133,304 +144,7 @@ struct ContentView: View {
         }
     }
     
-    // MARK: - Background Layers
-    
-    private var backgroundLayers: some View {
-        ZStack {
-            LinearGradient(
-                colors: [Color(white: 0.02), Color.black],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-            
-            vinylGlowLayer
-            playlistGlowLayer
-        }
-    }
-    
-    private var vinylGlowLayer: some View {
-        VStack {
-            ZStack {
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [
-                                albumGlowColor.opacity(0.6),
-                                albumGlowColor.opacity(0.35),
-                                albumGlowColor.opacity(0.15),
-                                Color.clear
-                            ],
-                            center: .center,
-                            startRadius: 60,
-                            endRadius: 280
-                        )
-                    )
-                    .frame(width: 400, height: 400)
-                    .blur(radius: 40)
-                
-                Ellipse()
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                albumGlowColor.opacity(0.25),
-                                albumGlowColor.opacity(0.1),
-                                Color.clear
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .frame(width: 460, height: 280)
-                    .blur(radius: 35)
-                    .offset(y: 80)
-            }
-            .offset(y: 0)
-            
-            Spacer()
-        }
-        .allowsHitTesting(false)
-    }
-    
-    private var playlistGlowLayer: some View {
-        VStack {
-            Spacer()
-            
-            Ellipse()
-                .fill(
-                    RadialGradient(
-                        colors: [
-                            Color(hex: "#00E5FF").opacity(0.25),
-                            Color(hex: "#00E5FF").opacity(0.12),
-                            Color.clear
-                        ],
-                        center: .center,
-                        startRadius: 80,
-                        endRadius: 320
-                    )
-                )
-                .frame(width: 460, height: 180)
-                .blur(radius: 35)
-                .padding(.bottom, 40)
-        }
-    }
-    
-    // MARK: - Top Bar
-    
-    private var topBar: some View {
-        HStack {
-            HStack(spacing: 12) {
-                Image(systemName: "waveform.circle.fill")
-                    .foregroundColor(.gray)
-                    .font(.title3)
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Me2Tune")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.white)
-                    Text("AAC | 264 kbps | 16 bit | 44.1 kHz | Stereo")
-                        .font(.system(size: 11))
-                        .foregroundColor(.gray)
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(
-                RoundedRectangle(cornerRadius: 18)
-                    .fill(Color.white.opacity(0.08))
-            )
-            
-            Spacer()
-            
-            rotationToggleButton
-                .offset(y: -18)
-                .padding(.trailing, 12)
-        }
-        .frame(height: 50)
-    }
-    
-    private var rotationToggleButton: some View {
-        Button(action: {
-            isRotationEnabled.toggle()
-        }) {
-            Circle()
-                .fill(isRotationEnabled ? Color(hex: "#00E5FF").opacity(0.9) : Color.white.opacity(0.15))
-                .frame(width: 26, height: 26)
-                .overlay(
-                    Image(systemName: "record.circle")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(isRotationEnabled ? .black : .gray)
-                )
-                .shadow(color: isRotationEnabled ? Color(hex: "#00E5FF").opacity(0.6) : .clear, radius: 10)
-        }
-        .buttonStyle(.plain)
-    }
-    
-    // MARK: - Content Section
-    
-    private var contentSection: some View {
-        ZStack(alignment: .bottom) {
-            VStack(spacing: 0) {
-                tabSwitcher
-                    .padding(.top, 12)
-                    .padding(.horizontal, 12)
-                
-                if selectedTab == .playlist {
-                    playlistContent
-                } else {
-                    collectionsContent
-                }
-            }
-            .frame(minHeight: 405)
-            .background(
-                RoundedRectangle(cornerRadius: 22)
-                    .fill(Color.white.opacity(0.05))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 22)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        Color(hex: "#00E5FF").opacity(0.3),
-                                        Color(hex: "#00E5FF").opacity(0.0)
-                                    ],
-                                    startPoint: .bottom,
-                                    endPoint: .top
-                                ),
-                                lineWidth: 1.5
-                            )
-                    )
-            )
-            
-            collapseButton
-                .offset(y: 8)
-        }
-        .allowsHitTesting(true)
-    }
-    
-    // MARK: - Playlist Content
-    
-    private var playlistContent: some View {
-        PlaylistTabView(
-            selectedTab: $selectedTab,
-            tracks: playerViewModel.playlist,
-            currentIndex: playerViewModel.currentTrackIndex,
-            playingSource: playerViewModel.playingSource,
-            onTrackSelected: { playerViewModel.playTrack(at: $0) },
-            onTrackRemoved: { playerViewModel.removeTrack(at: $0) },
-            onTrackMoved: { from, to in
-                if let sourceIndex = from.first {
-                    playerViewModel.moveTrack(from: sourceIndex, to: to)
-                }
-            },
-            onFilesDrop: { urls in
-                handlePlaylistDrop(urls)
-            }
-        )
-        .padding(.horizontal, 12)
-        .padding(.top, 16)
-    }
-    
-    // MARK: - Collections Content
-    
-    private var collectionsContent: some View {
-        ScrollView(showsIndicators: false) {
-            CollectionsGridView(
-                selectedTab: $selectedTab,
-                isInAlbumDetail: $isInAlbumDetail,
-                albums: collectionManager.albums,
-                isLoaded: collectionManager.isLoaded,
-                currentIndex: playerViewModel.currentTrackIndex,
-                playingSource: playerViewModel.playingSource,
-                onAlbumPlayAt: { album, index in
-                    playerViewModel.playAlbum(album, startAt: index)
-                },
-                onAlbumRemoved: { albumId in
-                    collectionManager.removeAlbum(id: albumId)
-                },
-                onAlbumRenamed: { albumId, newName in
-                    collectionManager.renameAlbum(id: albumId, newName: newName)
-                },
-                onTrackAddedToPlaylist: { track in
-                    playerViewModel.addTracks(urls: [track.url])
-                },
-                onEnsureLoaded: {
-                    await collectionManager.ensureLoaded()
-                }
-            )
-            .frame(minHeight: 375)
-            .padding(.horizontal, 12)
-            .padding(.top, 16)
-            .padding(.bottom, 48)
-        }
-    }
-    
-    // MARK: - Tab Switcher
-    
-    private var tabSwitcher: some View {
-        HStack(spacing: 0) {
-            tabButton(title: String(localized: "playlist"), tab: .playlist)
-            tabButton(title: String(localized: "collections"), tab: .collections)
-            
-            Spacer()
-            
-            if selectedTab == .playlist {
-                playlistToolbarButtons
-            } else {
-                collectionsToolbarButtons
-            }
-        }
-    }
-    
-    // MARK: - Toolbar Buttons
-    
-    private var playlistToolbarButtons: some View {
-        HStack(spacing: 8) {
-            ToolbarIconButton(
-                icon: "arrow.right.circle",
-                tooltip: String(localized: "export_to_collection"),
-                isEnabled: !playerViewModel.playlist.isEmpty
-            ) {
-                exportPlaylistDialog()
-            }
-            
-            ToolbarIconButton(
-                icon: "plus.circle",
-                tooltip: String(localized: "add_files")
-            ) {
-                openFilePicker()
-            }
-            
-            ToolbarIconButton(
-                icon: "xmark.circle",
-                tooltip: String(localized: "clear_playlist"),
-                isEnabled: !playerViewModel.playlist.isEmpty
-            ) {
-                showClearPlaylistConfirm = true
-            }
-        }
-    }
-    
-    @ViewBuilder
-    private var collectionsToolbarButtons: some View {
-        if !isInAlbumDetail {
-            HStack(spacing: 8) {
-                ToolbarIconButton(
-                    icon: "plus.circle",
-                    tooltip: String(localized: "add_album")
-                ) {
-                    openFilePicker()
-                }
-                
-                ToolbarIconButton(
-                    icon: "xmark.circle",
-                    tooltip: String(localized: "clear_collections"),
-                    isEnabled: !collectionManager.albums.isEmpty
-                ) {
-                    showClearCollectionsConfirm = true
-                }
-            }
-        }
-    }
+    // MARK: - Actions
     
     private func exportPlaylistDialog() {
         exportAlbumName = generateDefaultAlbumName()
@@ -443,66 +157,6 @@ struct ContentView: View {
         return "\(String(localized: "playlist")) \(formatter.string(from: Date()))"
     }
     
-    private func tabButton(title: String, tab: PlaylistTab) -> some View {
-        Button(action: {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                selectedTab = tab
-            }
-        }) {
-            VStack(spacing: 6) {
-                Text(title)
-                    .font(.system(size: 13, weight: selectedTab == tab ? .semibold : .regular))
-                    .foregroundColor(selectedTab == tab ? .white : .white.opacity(0.5))
-                
-                if selectedTab == tab {
-                    RoundedRectangle(cornerRadius: 1)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color(hex: "#00E5FF"),
-                                    Color(hex: "#00E5FF").opacity(0.7)
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(height: 2)
-                        .shadow(color: Color(hex: "#00E5FF").opacity(0.5), radius: 4)
-                        .transition(.scale.combined(with: .opacity))
-                } else {
-                    Rectangle()
-                        .fill(Color.clear)
-                        .frame(height: 2)
-                }
-            }
-            .frame(width: 90)
-        }
-        .buttonStyle(.plain)
-    }
-    
-    private var collapseButton: some View {
-        Button(action: {
-            withAnimation(.spring(response: 0.4)) {
-                isPlaylistCollapsed.toggle()
-            }
-        }) {
-            ZStack {
-                Capsule()
-                    .fill(Color(hex: "#00E5FF").opacity(0.2))
-                    .frame(width: 64, height: 6)
-                    .shadow(color: Color(hex: "#00E5FF").opacity(0.4), radius: 6)
-                
-                Image(systemName: isPlaylistCollapsed ? "chevron.compact.up" : "chevron.compact.down")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(Color(hex: "#00E5FF"))
-                    .offset(y: isPlaylistCollapsed ? -12 : 12)
-            }
-        }
-        .buttonStyle(.plain)
-    }
-    
-    // MARK: - Toolbar Actions
-    
     private func exportPlaylistToAlbum(name: String) async {
         guard !playerViewModel.playlist.isEmpty else { return }
         
@@ -513,9 +167,7 @@ struct ContentView: View {
             name: trimmedName,
             tracks: playerViewModel.playlist
         ) {
-            await MainActor.run {
-                selectedTab = .collections
-            }
+            selectedTab = .collections
         }
     }
     
