@@ -10,7 +10,7 @@ import Combine
 import Foundation
 import OSLog
 
-private let logger = Logger(subsystem: "me2.Me2Tune", category: "PlayerViewModel")
+private let logger = Logger.viewModel
 
 @MainActor
 final class PlayerViewModel: ObservableObject {
@@ -169,9 +169,16 @@ final class PlayerViewModel: ObservableObject {
             supportedExtensions.contains(url.pathExtension.lowercased())
         }
         
-        logger.info("Adding \(validURLs.count) tracks to playlist")
+        guard !validURLs.isEmpty else {
+            logger.warning("No valid audio files in \(urls.count) URLs")
+            return
+        }
+        
+        logger.info("Adding \(validURLs.count) tracks")
         
         Task {
+            let startTime = CFAbsoluteTimeGetCurrent()
+            
             let newTracks = await withTaskGroup(of: AudioTrack.self) { group in
                 for url in validURLs {
                     group.addTask {
@@ -202,6 +209,9 @@ final class PlayerViewModel: ObservableObject {
             }
             
             await savePlaylist()
+            
+            let elapsed = CFAbsoluteTimeGetCurrent() - startTime
+            logger.logPerformance("Add \(newTracks.count) tracks", duration: elapsed)
         }
     }
     
@@ -242,7 +252,7 @@ final class PlayerViewModel: ObservableObject {
             currentTracks = []
         }
         
-        logger.info("Cleared playlist with \(count) tracks")
+        logger.info("🗑 Cleared \(count) tracks")
         
         Task {
             await savePlaylist()
@@ -291,12 +301,15 @@ final class PlayerViewModel: ObservableObject {
     }
     
     func playAlbum(_ album: Album, startAt index: Int = 0) {
-        guard !album.tracks.isEmpty else { return }
+        guard !album.tracks.isEmpty else {
+            logger.warning("Cannot play empty album: \(album.name)")
+            return
+        }
         
         playingSource = .album(album.id)
         currentTracks = album.tracks
         
-        logger.info("Playing album: \(album.name)")
+        logger.info("📀 Playing album: \(album.name) (\(album.tracks.count) tracks)")
         
         loadAndPlay(at: index)
     }
@@ -346,9 +359,10 @@ final class PlayerViewModel: ObservableObject {
         
         do {
             try await persistenceService.save(state)
-            logger.debug("Playlist saved with playing source: \(String(describing: sourceData))")
+            logger.debug("💾 Playlist saved (\(state.tracks.count) tracks)")
         } catch {
-            logger.error("Failed to save playlist: \(error.localizedDescription)")
+            let appError = AppError.persistenceFailed("save playlist")
+            logger.logError(appError, context: "savePlaylist")
         }
     }
     
@@ -366,7 +380,7 @@ final class PlayerViewModel: ObservableObject {
                 currentTracks = album.tracks
                 currentTrackIndex = albumIndex
                 await loadTrack(at: albumIndex)
-                logger.info("Restored album playback: \(album.name), track \(albumIndex)")
+                logger.info("📀 Restored: \(album.name) - track \(albumIndex + 1)")
             } else {
                 logger.warning("Album or track not found, resetting to playlist")
             }
@@ -375,7 +389,7 @@ final class PlayerViewModel: ObservableObject {
     
     private func loadPlaylist() async {
         guard let state = try? await persistenceService.load() else {
-            logger.notice("No existing playlist to load")
+            logger.notice("No saved playlist found")
             return
         }
         
@@ -392,14 +406,14 @@ final class PlayerViewModel: ObservableObject {
                 {
                     currentTrackIndex = savedIndex
                     await loadTrack(at: savedIndex)
-                    logger.info("Restored playlist at track \(savedIndex)")
+                    logger.info("📋 Restored playlist: track \(savedIndex + 1)/\(self.playlist.count)")
                 }
                 
             case .album:
                 playingSource = .playlist
                 currentTracks = playlist
                 currentTrackIndex = nil
-                logger.info("Waiting for albums to restore album playback")
+                logger.info("📋 Waiting for albums to restore playback")
             }
         } else {
             playingSource = .playlist
@@ -407,7 +421,7 @@ final class PlayerViewModel: ObservableObject {
             currentTrackIndex = nil
         }
         
-        logger.info("Loaded playlist with \(state.tracks.count) tracks")
+        logger.info("📋 Loaded \(state.tracks.count) tracks")
         isPlaylistLoaded = true
     }
 }
@@ -436,7 +450,7 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
     
     nonisolated func playerCore(_ core: AudioPlayerCore, didEncounterError error: Error) {
         Task { @MainActor in
-            logger.error("Player core error: \(error.localizedDescription)")
+            logger.logError(error, context: "PlayerCore")
         }
     }
     

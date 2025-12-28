@@ -6,10 +6,10 @@
 //
 
 import Foundation
-import SFBAudioEngine
 import OSLog
+import SFBAudioEngine
 
-private let logger = Logger(subsystem: "me2.Me2Tune", category: "AudioTrack")
+private let logger = Logger.audio
 
 struct AudioTrack: Identifiable, Equatable, Codable, Sendable {
     let id: UUID
@@ -76,7 +76,7 @@ struct AudioTrack: Identifiable, Equatable, Codable, Sendable {
     }
     
     func resolveURL() -> URL? {
-        guard let bookmark = bookmark else { return url }
+        guard let bookmark else { return url }
         
         var isStale = false
         guard let resolved = try? URL(

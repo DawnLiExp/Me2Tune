@@ -9,7 +9,7 @@ import Combine
 import Foundation
 import OSLog
 
-private let logger = Logger(subsystem: "me2.Me2Tune", category: "CollectionManager")
+private let logger = Logger.collection
 
 @MainActor
 final class CollectionManager: ObservableObject {

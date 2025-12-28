@@ -10,7 +10,7 @@ import Foundation
 import OSLog
 import SFBAudioEngine
 
-private let logger = Logger(subsystem: "me2.Me2Tune", category: "AudioPlayerCore")
+private let logger = Logger.player
 
 // MARK: - Delegate Protocol
 
@@ -57,6 +57,7 @@ final class AudioPlayerCore: NSObject {
     // MARK: - Playback Control
     
     func loadTrack(_ track: AudioTrack) async {
+        let startTime = CFAbsoluteTimeGetCurrent()
         ensurePlayerInitialized()
         guard let player else { return }
         
@@ -68,7 +69,7 @@ final class AudioPlayerCore: NSObject {
             stopTimer()
         }
         
-        logger.info("Loading track: \(track.title)")
+        logger.info("Loading: \(track.title)")
         
         do {
             try player.play(track.url)
@@ -86,10 +87,14 @@ final class AudioPlayerCore: NSObject {
                 delegate?.playerCore(self, didLoadTrack: track, artwork: artwork)
                 updateDockIcon(artwork)
             }
+            
+            let elapsed = CFAbsoluteTimeGetCurrent() - startTime
+            logger.logPerformance("Track load", duration: elapsed)
         } catch {
-            logger.error("Failed to load track: \(error.localizedDescription)")
+            let appError = AppError.audioLoadFailed(track.url)
+            logger.logError(appError, context: "loadTrack")
             await MainActor.run {
-                delegate?.playerCore(self, didEncounterError: error)
+                delegate?.playerCore(self, didEncounterError: appError)
             }
         }
     }
@@ -103,10 +108,11 @@ final class AudioPlayerCore: NSObject {
             isPlaying = true
             startTimer()
             delegate?.playerCore(self, didUpdatePlaybackState: true)
-            logger.debug("Playback started")
+            logger.debug("▶️ Playback started")
         } catch {
-            logger.error("Play failed: \(error.localizedDescription)")
-            delegate?.playerCore(self, didEncounterError: error)
+            let appError = AppError.audioPlayFailed(error.localizedDescription)
+            logger.logError(appError, context: "play")
+            delegate?.playerCore(self, didEncounterError: appError)
         }
     }
     
@@ -117,11 +123,14 @@ final class AudioPlayerCore: NSObject {
         isPlaying = false
         stopTimer()
         delegate?.playerCore(self, didUpdatePlaybackState: false)
-        logger.debug("Playback paused")
+        logger.debug("⏸ Playback paused")
     }
     
     func seek(to time: TimeInterval) {
-        guard let player, player.supportsSeeking else { return }
+        guard let player, player.supportsSeeking else {
+            logger.warning("Seek not supported for current track")
+            return
+        }
         
         let wasPlaying = isPlaying
         if wasPlaying {
@@ -131,16 +140,20 @@ final class AudioPlayerCore: NSObject {
         if player.seek(time: time) {
             currentTime = time
             delegate?.playerCore(self, didUpdateTime: currentTime, duration: duration)
-            logger.debug("Seeked to \(time)s")
+            logger.debug("⏩ Seeked to \(String(format: "%.1f", time))s")
+        } else {
+            logger.warning("Seek to \(time)s failed")
         }
         
         if wasPlaying {
             do {
                 try player.play()
             } catch {
-                logger.error("Resume after seek failed: \(error.localizedDescription)")
+                let appError = AppError.audioPlayFailed("Resume after seek failed")
+                logger.logError(appError, context: "seek")
                 isPlaying = false
                 delegate?.playerCore(self, didUpdatePlaybackState: false)
+                delegate?.playerCore(self, didEncounterError: appError)
             }
         }
     }

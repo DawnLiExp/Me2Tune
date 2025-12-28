@@ -29,6 +29,8 @@
 		FC8528082F01486100B53540 /* ContentSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8528072F01485D00B53540 /* ContentSectionView.swift */; };
 		FC85280A2F01487700B53540 /* TopBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8528092F01487500B53540 /* TopBarView.swift */; };
 		FC85280C2F01488F00B53540 /* BackgroundLayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC85280B2F01488D00B53540 /* BackgroundLayerView.swift */; };
+		FC8528102F014F7C00B53540 /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC85280F2F014F7A00B53540 /* AppError.swift */; };
+		FC8528122F014FAA00B53540 /* Logger+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8528112F014FA900B53540 /* Logger+Extensions.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -54,6 +56,8 @@
 		FC8528072F01485D00B53540 /* ContentSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentSectionView.swift; sourceTree = "<group>"; };
 		FC8528092F01487500B53540 /* TopBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopBarView.swift; sourceTree = "<group>"; };
 		FC85280B2F01488D00B53540 /* BackgroundLayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundLayerView.swift; sourceTree = "<group>"; };
+		FC85280F2F014F7A00B53540 /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
+		FC8528112F014FA900B53540 /* Logger+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Logger+Extensions.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -107,6 +111,7 @@
 				FC480EC02EF13937000D8393 /* Managers */,
 				FC480EC22EF15296000D8393 /* Models */,
 				FC480EC12EF13946000D8393 /* Services */,
+				FC85280E2F014F6900B53540 /* Utilities */,
 				FC32865B2F010F0F000D8F2A /* ViewModels */,
 				FC480EBF2EF13912000D8393 /* Views */,
 				FC480EA22EF107E8000D8393 /* Me2TuneApp.swift */,
@@ -198,6 +203,15 @@
 			path = Components;
 			sourceTree = "<group>";
 		};
+		FC85280E2F014F6900B53540 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				FC85280F2F014F7A00B53540 /* AppError.swift */,
+				FC8528112F014FA900B53540 /* Logger+Extensions.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -275,6 +289,8 @@
 			files = (
 				FC1377A12EFCFA0D00A9CE99 /* VinylCoverView.swift in Sources */,
 				FC1377A42EFD0FF700A9CE99 /* Extensions.swift in Sources */,
+				FC8528102F014F7C00B53540 /* AppError.swift in Sources */,
+				FC8528122F014FAA00B53540 /* Logger+Extensions.swift in Sources */,
 				FC32865F2F011243000D8F2A /* AudioPlayerCore.swift in Sources */,
 				FC480EA82EF107E8000D8393 /* ArtworkService.swift in Sources */,
 				FC85280C2F01488F00B53540 /* BackgroundLayerView.swift in Sources */,

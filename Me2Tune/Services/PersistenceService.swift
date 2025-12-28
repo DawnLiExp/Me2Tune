@@ -36,7 +36,7 @@ struct UIState: Codable, Sendable {
         isPlaylistVisible: true,
         windowHeight: 900,
         windowX: nil,
-        windowY: nil,
+        windowY: nil
     )
 }
 
@@ -44,7 +44,7 @@ actor PersistenceService {
     private let fileURL: URL
     private let collectionFileURL: URL
     private let uiStateFileURL: URL
-    private let logger = Logger(subsystem: "me2.Me2Tune", category: "PersistenceService")
+    private let logger = Logger.persistence
 
     init() {
         let appSupport = FileManager.default.urls(

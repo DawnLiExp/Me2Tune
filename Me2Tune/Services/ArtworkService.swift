@@ -6,12 +6,12 @@
 //
 
 import AppKit
-import SFBAudioEngine
 import OSLog
+import SFBAudioEngine
 
 actor ArtworkService {
     private var cache: [URL: NSImage] = [:]
-    private let logger = Logger(subsystem: "me2.Me2Tune", category: "ArtworkService")
+    private let logger = Logger.artwork
     
     // MARK: - Public Methods
     

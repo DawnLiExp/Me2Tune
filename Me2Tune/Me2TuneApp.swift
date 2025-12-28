@@ -8,7 +8,7 @@
 import OSLog
 import SwiftUI
 
-private let logger = Logger(subsystem: "me2.Me2Tune", category: "Me2TuneApp")
+private let logger = Logger.app
 
 @main
 struct Me2TuneApp: App {
@@ -57,7 +57,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.maxSize = NSSize(width: 495, height: CGFloat.greatestFiniteMagnitude)
         window.isMovableByWindowBackground = false
 
-        logger.debug("Window configured with fixed width: 495, minHeight: 800")
+        logger.info("🚀 App launched")
     }
 }
 
