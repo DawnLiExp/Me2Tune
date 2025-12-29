@@ -361,32 +361,7 @@ final class PlayerViewModel: ObservableObject {
             logger.logError(appError, context: "savePlaylist")
         }
     }
-    
-    func restoreAlbumPlayback(albums: [Album]) {
-        guard let state = try? persistenceService.load() else { return }
-        
-        if let source = state.playingSource,
-           case .album(let albumId) = source,
-           let albumIndex = state.albumCurrentIndex
-        {
-            if let album = albums.first(where: { $0.id == albumId }),
-               album.tracks.indices.contains(albumIndex)
-            {
-                playingSource = .album(albumId)
-                currentTracks = album.tracks
-                currentTrackIndex = albumIndex
-                
-                Task {
-                    await loadTrack(at: albumIndex)
-                }
-                
-                logger.info("📀 Restored: \(album.name) - track \(albumIndex + 1)")
-            } else {
-                logger.warning("Album or track not found, resetting to playlist")
-            }
-        }
-    }
-    
+ 
     private func loadPlaylist() {
         guard let state = try? persistenceService.load() else {
             logger.notice("No saved playlist found")
@@ -400,6 +375,7 @@ final class PlayerViewModel: ObservableObject {
             case .playlist:
                 playingSource = .playlist
                 currentTracks = playlist
+                currentTrackIndex = nil
                 
                 if let savedIndex = state.playlistCurrentIndex,
                    playlist.indices.contains(savedIndex)
@@ -413,11 +389,29 @@ final class PlayerViewModel: ObservableObject {
                     logger.info("📋 Restored playlist: track \(savedIndex + 1)/\(self.playlist.count)")
                 }
                 
-            case .album:
-                playingSource = .playlist
-                currentTracks = playlist
-                currentTrackIndex = nil
-                logger.info("📋 Waiting for albums to restore playback")
+            case .album(let albumId):
+                // 直接从持久化读取专辑数据（无需加载所有专辑）
+                if let albumIndex = state.albumCurrentIndex,
+                   let collectionState = try? persistenceService.loadCollections(),
+                   let album = collectionState.albums.first(where: { $0.id == albumId }),
+                   album.tracks.indices.contains(albumIndex)
+                {
+                    playingSource = .album(albumId)
+                    currentTracks = album.tracks
+                    currentTrackIndex = albumIndex
+                    
+                    Task {
+                        await loadTrack(at: albumIndex)
+                    }
+                    
+                    logger.info("📀 Restored album: \(album.name) - track \(albumIndex + 1)")
+                } else {
+                    // 专辑不存在或曲目索引无效，回退到 playlist
+                    playingSource = .playlist
+                    currentTracks = playlist
+                    currentTrackIndex = nil
+                    logger.warning("Album or track not found, fallback to playlist")
+                }
             }
         } else {
             playingSource = .playlist
