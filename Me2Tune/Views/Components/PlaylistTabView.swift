@@ -240,7 +240,7 @@ struct SongRowView: View {
             
             Text(track.title)
                 .font(.system(size: 14, weight: isPlaying ? .semibold : .regular))
-                .foregroundColor(isPlaying ? .white : .white.opacity(0.8))
+                .foregroundColor(isPlaying ? .primaryText : .primaryText.opacity(0.8))
                 .lineLimit(1)
             
             Spacer()

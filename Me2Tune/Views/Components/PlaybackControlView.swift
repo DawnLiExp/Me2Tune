@@ -104,7 +104,7 @@ struct PlaybackControlView: View {
         Button(action: onPlayPause) {
             ZStack {
                 RoundedRectangle(cornerRadius: 14)
-                    .fill(Color.white)
+                    .fill(Color.playButtonBackground)
                     .frame(width: 48, height: 48)
                     .shadow(color: .black.opacity(0.3), radius: 6)
                 

@@ -50,7 +50,7 @@ struct TopBarView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text("Me2Tune")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundColor(.primaryText)
                 Text(audioFormat.formattedString)
                     .font(.system(size: 11))
                     .foregroundColor(.secondaryText)

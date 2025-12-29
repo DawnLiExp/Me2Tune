@@ -88,19 +88,22 @@ extension Color {
     /// 选中背景色（浅色）
     static let selectedBackground = Color.white.opacity(0.03)
     
-    // MARK: Text Colors
-    
-    /// 主文本（白色）
-    static let primaryText = Color.white
-    
+    // MARK: - Text Colors
+
+    /// 主文本（柔和白色）
+    static let primaryText = Color(hex: "#e0e0e0")
+
     /// 次要文本（灰色）
     static let secondaryText = Color.gray
-    
+
     /// 三级文本（更浅灰）
     static let tertiaryText = Color.gray.opacity(0.7)
-    
+
     /// 禁用文本
     static let disabledText = Color.gray.opacity(0.3)
+
+    /// 播放按钮背景色
+    static let playButtonBackground = Color(hex: "#ebebeb")
     
     // MARK: Icon Colors
     

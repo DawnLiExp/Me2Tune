@@ -199,7 +199,7 @@ struct CollectionsGridView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(album.name)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundColor(.primaryText)
                     .lineLimit(2)
                 
                 Text("\(album.tracks.count) tracks")
@@ -304,7 +304,7 @@ struct AlbumCardView: View {
             VStack(spacing: 2) {
                 Text(album.name)
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundColor(.primaryText)
                     .lineLimit(1)
                 
                 Text("\(album.tracks.count) tracks")
@@ -363,7 +363,7 @@ struct AlbumTrackRowView: View {
             
             Text(track.title)
                 .font(.system(size: 14, weight: isPlaying ? .semibold : .regular))
-                .foregroundColor(isPlaying ? .white : .white.opacity(0.8))
+                .foregroundColor(isPlaying ? .primaryText : .primaryText.opacity(0.8))
                 .lineLimit(1)
             
             Spacer()

@@ -163,7 +163,7 @@ struct TabSwitcherView: View {
             VStack(spacing: 6) {
                 Text(title)
                     .font(.system(size: 13, weight: selectedTab == tab ? .semibold : .regular))
-                    .foregroundColor(selectedTab == tab ? .white : .white.opacity(0.5))
+                    .foregroundColor(selectedTab == tab ? .primaryText : .primaryText.opacity(0.5))
                 
                 if selectedTab == tab {
                     RoundedRectangle(cornerRadius: 1)
