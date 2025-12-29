@@ -47,6 +47,10 @@ final class PlayerViewModel: ObservableObject {
     
     // MARK: - Computed Properties
     
+    var currentFormat: AudioFormat {
+        currentTrack?.format ?? .unknown
+    }
+    
     var currentTrack: AudioTrack? {
         guard let index = currentTrackIndex, currentTracks.indices.contains(index) else {
             return nil

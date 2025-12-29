@@ -9,12 +9,30 @@ import SwiftUI
 
 struct TopBarView: View {
     @Binding var isRotationEnabled: Bool
+    let audioFormat: AudioFormat
     
+    // 在 TopBarView 的 body 中添加调试视图
     var body: some View {
         HStack {
             infoSection
             
             Spacer()
+            
+            // 添加调试信息按钮（仅调试时使用）
+            #if DEBUG
+            Button(action: {
+                print("Current format: \(audioFormat.formattedString)")
+                print("Codec: \(audioFormat.codec ?? "nil")")
+                print("Bitrate: \(audioFormat.bitrate?.description ?? "nil")")
+                print("SampleRate: \(audioFormat.sampleRate?.description ?? "nil")")
+                print("BitDepth: \(audioFormat.bitDepth?.description ?? "nil")")
+                print("Channels: \(audioFormat.channels?.description ?? "nil")")
+            }) {
+                Image(systemName: "ladybug")
+                    .foregroundColor(.red)
+            }
+            .buttonStyle(.plain)
+            #endif
             
             rotationToggle
                 .offset(y: -14)
@@ -35,9 +53,10 @@ struct TopBarView: View {
                 Text("Me2Tune")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.white)
-                Text("AAC | 264 kbps | 16 bit | 44.1 kHz | Stereo")
+                Text(audioFormat.formattedString)
                     .font(.system(size: 11))
                     .foregroundColor(.gray)
+                    .lineLimit(1)
             }
         }
         .padding(.horizontal, 12)
@@ -69,8 +88,17 @@ struct TopBarView: View {
 }
 
 #Preview {
-    TopBarView(isRotationEnabled: .constant(true))
-        .frame(height: 170)
-        .padding(.horizontal, 12)
-        .background(Color.black)
+    TopBarView(
+        isRotationEnabled: .constant(true),
+        audioFormat: AudioFormat(
+            codec: "AAC",
+            bitrate: 256,
+            sampleRate: 44100,
+            bitDepth: 16,
+            channels: 2
+        )
+    )
+    .frame(height: 170)
+    .padding(.horizontal, 12)
+    .background(Color.black)
 }

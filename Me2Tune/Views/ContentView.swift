@@ -42,7 +42,7 @@ struct ContentView: View {
             BackgroundLayerView(albumGlowColor: albumGlowColor)
             
             VStack(spacing: 0) {
-                TopBarView(isRotationEnabled: $isRotationEnabled)
+                TopBarView(isRotationEnabled: $isRotationEnabled, audioFormat: playerViewModel.currentFormat)
                     .frame(height: 70)
                     .padding(.horizontal, 12)
                 
