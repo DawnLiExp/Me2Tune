@@ -16,7 +16,6 @@
 		FC1377A42EFD0FF700A9CE99 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1377A32EFD0FE800A9CE99 /* Extensions.swift */; };
 		FC32865D2F010F3D000D8F2A /* PlayerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC32865C2F010F3B000D8F2A /* PlayerViewModel.swift */; };
 		FC32865F2F011243000D8F2A /* AudioPlayerCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC32865E2F011242000D8F2A /* AudioPlayerCore.swift */; };
-		FC354B382EEFECDD005657EB /* SFBAudioEngine in Frameworks */ = {isa = PBXBuildFile; productRef = FC354B372EEFECDD005657EB /* SFBAudioEngine */; };
 		FC480EA82EF107E8000D8393 /* ArtworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480E9D2EF107E8000D8393 /* ArtworkService.swift */; };
 		FC480EAA2EF107E8000D8393 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480EA02EF107E8000D8393 /* ContentView.swift */; };
 		FC480EAB2EF107E8000D8393 /* Me2TuneApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480EA22EF107E8000D8393 /* Me2TuneApp.swift */; };
@@ -26,6 +25,8 @@
 		FC480EB72EF13722000D8393 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = FC480EB62EF13722000D8393 /* Localizable.strings */; };
 		FC480EBE2EF137BB000D8393 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = FC480EBC2EF137AE000D8393 /* Localizable.strings */; };
 		FC480EC42EF152BC000D8393 /* AudioTrack.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480EC32EF152A2000D8393 /* AudioTrack.swift */; };
+		FC48D2312F0263E50080EFB1 /* CXXCoreAudio in Frameworks */ = {isa = PBXBuildFile; productRef = FC48D2302F0263E50080EFB1 /* CXXCoreAudio */; };
+		FC48D2342F02640F0080EFB1 /* SFBAudioEngine in Frameworks */ = {isa = PBXBuildFile; productRef = FC48D2332F02640F0080EFB1 /* SFBAudioEngine */; };
 		FC8528082F01486100B53540 /* ContentSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8528072F01485D00B53540 /* ContentSectionView.swift */; };
 		FC85280A2F01487700B53540 /* TopBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8528092F01487500B53540 /* TopBarView.swift */; };
 		FC85280C2F01488F00B53540 /* BackgroundLayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC85280B2F01488D00B53540 /* BackgroundLayerView.swift */; };
@@ -64,7 +65,8 @@
 		FC1662272EEFAE2C00F01BCE /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
-				FC354B382EEFECDD005657EB /* SFBAudioEngine in Frameworks */,
+				FC48D2312F0263E50080EFB1 /* CXXCoreAudio in Frameworks */,
+				FC48D2342F02640F0080EFB1 /* SFBAudioEngine in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -227,7 +229,8 @@
 			);
 			name = Me2Tune;
 			packageProductDependencies = (
-				FC354B372EEFECDD005657EB /* SFBAudioEngine */,
+				FC48D2302F0263E50080EFB1 /* CXXCoreAudio */,
+				FC48D2332F02640F0080EFB1 /* SFBAudioEngine */,
 			);
 			productName = Me2Tune;
 			productReference = FC16622A2EEFAE2C00F01BCE /* Me2Tune.app */;
@@ -259,7 +262,8 @@
 			mainGroup = FC1662212EEFAE2C00F01BCE;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				FC354B362EEFECDD005657EB /* XCRemoteSwiftPackageReference "SFBAudioEngine" */,
+				FC48D22F2F0263E50080EFB1 /* XCRemoteSwiftPackageReference "CXXCoreAudio" */,
+				FC48D2322F02640F0080EFB1 /* XCRemoteSwiftPackageReference "SFBAudioEngine" */,
 			);
 			preferredProjectObjectVersion = 90;
 			productRefGroup = FC16622B2EEFAE2C00F01BCE /* Products */;
@@ -550,20 +554,33 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		FC354B362EEFECDD005657EB /* XCRemoteSwiftPackageReference "SFBAudioEngine" */ = {
+		FC48D22F2F0263E50080EFB1 /* XCRemoteSwiftPackageReference "CXXCoreAudio" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sbooth/CXXCoreAudio";
+			requirement = {
+				kind = exactVersion;
+				version = 0.3.2;
+			};
+		};
+		FC48D2322F02640F0080EFB1 /* XCRemoteSwiftPackageReference "SFBAudioEngine" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sbooth/SFBAudioEngine";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.9.0;
+				kind = exactVersion;
+				version = 0.9.1;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		FC354B372EEFECDD005657EB /* SFBAudioEngine */ = {
+		FC48D2302F0263E50080EFB1 /* CXXCoreAudio */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FC354B362EEFECDD005657EB /* XCRemoteSwiftPackageReference "SFBAudioEngine" */;
+			package = FC48D22F2F0263E50080EFB1 /* XCRemoteSwiftPackageReference "CXXCoreAudio" */;
+			productName = CXXCoreAudio;
+		};
+		FC48D2332F02640F0080EFB1 /* SFBAudioEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FC48D2322F02640F0080EFB1 /* XCRemoteSwiftPackageReference "SFBAudioEngine" */;
 			productName = SFBAudioEngine;
 		};
 /* End XCSwiftPackageProductDependency section */
