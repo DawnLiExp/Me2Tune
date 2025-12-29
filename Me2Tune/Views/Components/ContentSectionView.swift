@@ -106,14 +106,14 @@ struct ContentSectionView: View {
     
     private var containerBackground: some View {
         RoundedRectangle(cornerRadius: 22)
-            .fill(Color.white.opacity(0.05))
+            .fill(Color.containerBackground)
             .overlay(
                 RoundedRectangle(cornerRadius: 22)
                     .stroke(
                         LinearGradient(
                             colors: [
-                                Color(hex: "#00E5FF").opacity(0.3),
-                                Color(hex: "#00E5FF").opacity(0.0)
+                                .borderGradientStart,
+                                .borderGradientEnd
                             ],
                             startPoint: .bottom,
                             endPoint: .top
@@ -170,15 +170,15 @@ struct TabSwitcherView: View {
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    Color(hex: "#00E5FF"),
-                                    Color(hex: "#00E5FF").opacity(0.7)
+                                    .accent,
+                                    .accent.opacity(0.7)
                                 ],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
                         )
                         .frame(height: 2)
-                        .shadow(color: Color(hex: "#00E5FF").opacity(0.5), radius: 4)
+                        .shadow(color: .accentGlow, radius: 4)
                         .transition(.scale.combined(with: .opacity))
                 } else {
                     Rectangle()
@@ -248,13 +248,13 @@ struct CollapseButtonView: View {
         }) {
             ZStack {
                 Capsule()
-                    .fill(Color(hex: "#00E5FF").opacity(0.2))
+                    .fill(Color.accent.opacity(0.2))
                     .frame(width: 64, height: 6)
-                    .shadow(color: Color(hex: "#00E5FF").opacity(0.4), radius: 6)
+                    .shadow(color: Color.accent.opacity(0.4), radius: 6)
                 
                 Image(systemName: isCollapsed ? "chevron.compact.up" : "chevron.compact.down")
                     .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(Color(hex: "#00E5FF"))
+                    .foregroundColor(.accent)
                     .offset(y: isCollapsed ? -12 : 12)
             }
         }

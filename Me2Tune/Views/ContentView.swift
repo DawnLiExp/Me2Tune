@@ -13,7 +13,7 @@ struct ContentView: View {
     @EnvironmentObject private var playerViewModel: PlayerViewModel
     @EnvironmentObject private var collectionManager: CollectionManager
     
-    @State private var albumGlowColor = Color(hex: "#FF4466")
+    @State private var albumGlowColor = Color.defaultAlbumGlow
     @State private var previousTrackID: UUID?
     @State private var isDragging = false
     @State private var selectedTab: PlaylistTab = .playlist
@@ -24,18 +24,6 @@ struct ContentView: View {
     @State private var exportAlbumName = ""
     @State private var showClearPlaylistConfirm = false
     @State private var showClearCollectionsConfirm = false
-    
-    private let glowColors: [Color] = [
-        Color(hex: "#E20764"),
-        Color(hex: "#9D4EDD"),
-        Color(hex: "#FF4466"),
-        Color(hex: "#D55C10"),
-        Color(hex: "#CF9810"),
-        Color(hex: "#FF3BA7"),
-        Color(hex: "#33CCFF"),
-        Color(hex: "#0063DC"),
-        Color(hex: "#00FFA3"),
-    ]
     
     var body: some View {
         ZStack {
@@ -140,7 +128,7 @@ struct ContentView: View {
             previousTrackID = newID
             
             withAnimation(.easeInOut(duration: 1.2)) {
-                albumGlowColor = glowColors.randomElement() ?? Color(hex: "#FF4466")
+                albumGlowColor = Color.albumGlowColors.randomElement() ?? .defaultAlbumGlow
             }
         }
     }

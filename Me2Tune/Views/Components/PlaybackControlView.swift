@@ -40,7 +40,7 @@ struct PlaybackControlView: View {
             .padding(.vertical, 18)
             .background(
                 RoundedRectangle(cornerRadius: 24)
-                    .fill(Color(white: 0.12).opacity(0.85))
+                    .fill(Color.controlBackground)
                     .shadow(color: .black.opacity(0.4), radius: 16, y: 8)
             )
             .padding(.horizontal, 12)
@@ -53,12 +53,12 @@ struct PlaybackControlView: View {
         VStack(alignment: .leading, spacing: 5) {
             Text(currentTrack?.title ?? "No Track")
                 .font(.system(size: 20, weight: .semibold))
-                .foregroundColor(Color(hex: "#00E5FF"))
+                .foregroundColor(.accent)
                 .lineLimit(1)
             
             Text(trackSubtitle)
                 .font(.system(size: 10, weight: .regular))
-                .foregroundColor(.white.opacity(0.6))
+                .foregroundColor(.tertiaryText)
                 .lineLimit(1)
         }
     }
@@ -143,13 +143,13 @@ struct PlaybackControlView: View {
                 Rectangle()
                     .fill(
                         LinearGradient(
-                            colors: [Color(hex: "#00E5FF"), Color(hex: "#00E5FF").opacity(0.7)],
+                            colors: [.accent, .accent.opacity(0.7)],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
                     .frame(width: width * progress, height: height)
-                    .shadow(color: Color(hex: "#00E5FF").opacity(0.5), radius: 4)
+                    .shadow(color: .accentGlow, radius: 4)
             }
             .overlay(
                 // 透明扩展交互层

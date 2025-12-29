@@ -13,7 +13,7 @@ struct BackgroundLayerView: View {
     var body: some View {
         ZStack {
             LinearGradient(
-                colors: [Color(white: 0.02), Color.black],
+                colors: [.gradientTop, .mainBackground],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -79,8 +79,8 @@ struct BackgroundLayerView: View {
                 .fill(
                     RadialGradient(
                         colors: [
-                            Color(hex: "#00E5FF").opacity(0.25),
-                            Color(hex: "#00E5FF").opacity(0.12),
+                            Color.accent.opacity(0.25),
+                            Color.accent.opacity(0.12),
                             Color.clear
                         ],
                         center: .center,
@@ -96,5 +96,5 @@ struct BackgroundLayerView: View {
 }
 
 #Preview {
-    BackgroundLayerView(albumGlowColor: Color(hex: "#FF4466"))
+    BackgroundLayerView(albumGlowColor: .defaultAlbumGlow)
 }

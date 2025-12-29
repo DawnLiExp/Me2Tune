@@ -71,10 +71,10 @@ struct PlaylistTabView: View {
     
     private var dropIndicator: some View {
         Rectangle()
-            .fill(Color(hex: "#00E5FF"))
+            .fill(Color.accent)
             .frame(height: 2)
             .padding(.horizontal, 10)
-            .shadow(color: Color(hex: "#00E5FF").opacity(0.8), radius: 4)
+            .shadow(color: Color.accent.opacity(0.8), radius: 4)
     }
     
     // MARK: - Empty State
@@ -83,15 +83,15 @@ struct PlaylistTabView: View {
         VStack(spacing: 16) {
             Image(systemName: "music.note.list")
                 .font(.system(size: 60))
-                .foregroundColor(.gray.opacity(0.5))
+                .foregroundColor(.emptyStateIcon)
             
             Text("drop_files")
                 .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.gray)
+                .foregroundColor(.secondaryText)
             
             Text("supported_formats")
                 .font(.system(size: 12))
-                .foregroundColor(.gray.opacity(0.7))
+                .foregroundColor(.tertiaryText)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -221,12 +221,12 @@ struct SongRowView: View {
             Group {
                 if isPlaying {
                     Image(systemName: "waveform")
-                        .foregroundColor(Color(hex: "#00E5FF"))
+                        .foregroundColor(.accent)
                         .font(.system(size: 13, weight: .semibold))
                 } else {
                     Text("\(index + 1)")
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.gray)
+                        .foregroundColor(.secondaryText)
                 }
             }
             .frame(width: 24)
@@ -240,13 +240,13 @@ struct SongRowView: View {
             
             Text(track.artist ?? String(localized: "unknown_artist"))
                 .font(.system(size: 13))
-                .foregroundColor(.gray)
+                .foregroundColor(.secondaryText)
                 .lineLimit(1)
                 .frame(maxWidth: 120, alignment: .trailing)
             
             Text(formatTime(track.duration))
                 .font(.system(size: 13, design: .monospaced))
-                .foregroundColor(.gray)
+                .foregroundColor(.secondaryText)
                 .frame(width: 48, alignment: .trailing)
         }
         .padding(.vertical, 10)
@@ -266,9 +266,9 @@ struct SongRowView: View {
     
     private var backgroundColor: Color {
         if isPlaying {
-            return Color(hex: "#00E5FF").opacity(0.08)
+            return .accentLight
         } else if isHovered {
-            return Color.white.opacity(0.05)
+            return .hoverBackground
         } else {
             return Color.clear
         }

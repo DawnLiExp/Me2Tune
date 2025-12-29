@@ -11,14 +11,12 @@ struct TopBarView: View {
     @Binding var isRotationEnabled: Bool
     let audioFormat: AudioFormat
     
-    // 在 TopBarView 的 body 中添加调试视图
     var body: some View {
         HStack {
             infoSection
             
             Spacer()
             
-            // 添加调试信息按钮（仅调试时使用）
             #if DEBUG
             Button(action: {
                 print("Current format: \(audioFormat.formattedString)")
@@ -46,7 +44,7 @@ struct TopBarView: View {
     private var infoSection: some View {
         HStack(spacing: 10) {
             Image(systemName: "headphones")
-                .foregroundColor(.gray)
+                .foregroundColor(.secondaryText)
                 .font(.title3)
             
             VStack(alignment: .leading, spacing: 3) {
@@ -55,7 +53,7 @@ struct TopBarView: View {
                     .foregroundColor(.white)
                 Text(audioFormat.formattedString)
                     .font(.system(size: 11))
-                    .foregroundColor(.gray)
+                    .foregroundColor(.secondaryText)
                     .lineLimit(1)
             }
         }
@@ -63,7 +61,7 @@ struct TopBarView: View {
         .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: 18)
-                .fill(Color.white.opacity(0.08))
+                .fill(Color.infoBackground)
         )
     }
     
@@ -74,14 +72,14 @@ struct TopBarView: View {
             isRotationEnabled.toggle()
         }) {
             Circle()
-                .fill(isRotationEnabled ? Color(hex: "#00E5FF").opacity(0.8) : Color.white.opacity(0.15))
+                .fill(isRotationEnabled ? Color.accent.opacity(0.8) : Color.white.opacity(0.15))
                 .frame(width: 22, height: 22)
                 .overlay(
                     Image(systemName: "record.circle")
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(isRotationEnabled ? .black : .gray)
+                        .foregroundColor(isRotationEnabled ? .black : .secondaryText)
                 )
-                .shadow(color: isRotationEnabled ? Color(hex: "#00E5FF").opacity(0.6) : .clear, radius: 10)
+                .shadow(color: isRotationEnabled ? .accentGlow : .clear, radius: 10)
         }
         .buttonStyle(.plain)
     }

@@ -174,7 +174,7 @@ struct CollectionsGridView: View {
             }) {
                 Image(systemName: "chevron.left.circle.fill")
                     .font(.system(size: 24))
-                    .foregroundColor(Color(hex: "#00E5FF"))
+                    .foregroundColor(.accent)
             }
             .buttonStyle(.plain)
             
@@ -189,7 +189,7 @@ struct CollectionsGridView: View {
                         .overlay(
                             Image(systemName: "opticaldisc")
                                 .font(.system(size: 24))
-                                .foregroundColor(.gray.opacity(0.5))
+                                .foregroundColor(.emptyStateIcon)
                         )
                 }
             }
@@ -204,14 +204,14 @@ struct CollectionsGridView: View {
                 
                 Text("\(album.tracks.count) tracks")
                     .font(.system(size: 12))
-                    .foregroundColor(.gray)
+                    .foregroundColor(.secondaryText)
             }
             
             Spacer()
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 16)
-        .background(Color.white.opacity(0.03))
+        .background(Color.selectedBackground)
     }
     
     // MARK: - Empty State
@@ -220,15 +220,15 @@ struct CollectionsGridView: View {
         VStack(spacing: 16) {
             Image(systemName: "folder.badge.plus")
                 .font(.system(size: 60))
-                .foregroundColor(.gray.opacity(0.5))
+                .foregroundColor(.emptyStateIcon)
             
             Text("no_collections_yet")
                 .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.gray)
+                .foregroundColor(.secondaryText)
             
             Text("drag_folders_here")
                 .font(.system(size: 12))
-                .foregroundColor(.gray.opacity(0.7))
+                .foregroundColor(.tertiaryText)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
@@ -283,7 +283,7 @@ struct AlbumCardView: View {
                         .overlay(
                             Image(systemName: "opticaldisc")
                                 .font(.system(size: 40))
-                                .foregroundColor(.gray.opacity(0.5))
+                                .foregroundColor(.emptyStateIcon)
                         )
                 }
             }
@@ -292,12 +292,12 @@ struct AlbumCardView: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(
-                        Color(hex: "#00E5FF").opacity(isHovered ? 0.4 : 0),
+                        Color.accent.opacity(isHovered ? 0.4 : 0),
                         lineWidth: 2
                     )
             )
             .shadow(
-                color: Color(hex: "#00E5FF").opacity(isHovered ? 0.3 : 0),
+                color: Color.accent.opacity(isHovered ? 0.3 : 0),
                 radius: isHovered ? 12 : 0
             )
             
@@ -309,7 +309,7 @@ struct AlbumCardView: View {
                 
                 Text("\(album.tracks.count) tracks")
                     .font(.system(size: 11))
-                    .foregroundColor(.gray)
+                    .foregroundColor(.secondaryText)
             }
         }
         .scaleEffect(isHovered ? 1.02 : 1.0)
@@ -351,12 +351,12 @@ struct AlbumTrackRowView: View {
             Group {
                 if isPlaying {
                     Image(systemName: "waveform")
-                        .foregroundColor(Color(hex: "#00E5FF"))
+                        .foregroundColor(.accent)
                         .font(.system(size: 13, weight: .semibold))
                 } else {
                     Text("\(index + 1)")
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.gray)
+                        .foregroundColor(.secondaryText)
                 }
             }
             .frame(width: 24)
@@ -370,13 +370,13 @@ struct AlbumTrackRowView: View {
             
             Text(track.artist ?? String(localized: "unknown_artist"))
                 .font(.system(size: 13))
-                .foregroundColor(.gray)
+                .foregroundColor(.secondaryText)
                 .lineLimit(1)
                 .frame(maxWidth: 120, alignment: .trailing)
             
             Text(formatTime(track.duration))
                 .font(.system(size: 13, design: .monospaced))
-                .foregroundColor(.gray)
+                .foregroundColor(.secondaryText)
                 .frame(width: 48, alignment: .trailing)
         }
         .padding(.vertical, 10)
@@ -405,9 +405,9 @@ struct AlbumTrackRowView: View {
     
     private var backgroundColor: Color {
         if isPlaying {
-            return Color(hex: "#00E5FF").opacity(0.08)
+            return .accentLight
         } else if isHovered {
-            return Color.white.opacity(0.05)
+            return .hoverBackground
         } else {
             return Color.clear
         }
