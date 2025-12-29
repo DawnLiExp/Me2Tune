@@ -27,7 +27,7 @@ struct PlaylistTabView: View {
                 emptyStateView
             } else {
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 0) {
+                    LazyVStack(spacing: 0) {
                         ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
                             VStack(spacing: 0) {
                                 if dropTargetIndex == index {
@@ -38,7 +38,6 @@ struct PlaylistTabView: View {
                             }
                         }
                         
-                        // 最后一行的 drop 区域
                         if !tracks.isEmpty {
                             VStack(spacing: 0) {
                                 if dropTargetIndex == tracks.count {
@@ -151,7 +150,6 @@ struct TrackDropDelegate: DropDelegate {
     let onFilesDrop: ([URL]) -> Void
     
     func dropEntered(info: DropInfo) {
-        // 只有内部排序才显示指示器
         guard draggingIndex != nil, draggingIndex != targetIndex else { return }
         dropTargetIndex = targetIndex
     }
@@ -163,7 +161,6 @@ struct TrackDropDelegate: DropDelegate {
     func performDrop(info: DropInfo) -> Bool {
         dropTargetIndex = nil
         
-        // 判断是文件拖拽还是内部排序
         if info.hasItemsConforming(to: [.fileURL]) {
             return handleFilesDrop(info: info)
         } else if let from = draggingIndex {
@@ -216,6 +213,16 @@ struct SongRowView: View {
     
     @State private var isHovered = false
     
+    private var backgroundColor: Color {
+        if isPlaying {
+            return .accentLight
+        } else if isHovered {
+            return .hoverBackground
+        } else {
+            return Color.clear
+        }
+    }
+    
     var body: some View {
         HStack(spacing: 12) {
             Group {
@@ -261,16 +268,6 @@ struct SongRowView: View {
         }
         .onHover { hovering in
             isHovered = hovering
-        }
-    }
-    
-    private var backgroundColor: Color {
-        if isPlaying {
-            return .accentLight
-        } else if isHovered {
-            return .hoverBackground
-        } else {
-            return Color.clear
         }
     }
     
