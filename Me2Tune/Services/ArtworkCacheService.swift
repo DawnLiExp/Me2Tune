@@ -10,8 +10,6 @@ import Foundation
 import OSLog
 import SFBAudioEngine
 
-private nonisolated(unsafe) let logger = Logger.artwork
-
 actor ArtworkCacheService {
     // MARK: - Singleton
     
@@ -22,6 +20,7 @@ actor ArtworkCacheService {
     private let memoryCache = NSCache<NSURL, NSImage>()
     private let diskCacheURL: URL
     private let thumbnailSize: CGSize = CGSize(width: 300, height: 300)
+    private nonisolated let logger = Logger.artwork
     
     // MARK: - Concurrent Loading Control
     

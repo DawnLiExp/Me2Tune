@@ -182,20 +182,35 @@ struct TrackDropDelegate: DropDelegate {
     }
     
     private func handleFilesDrop(info: DropInfo) -> Bool {
-        var urls: [URL] = []
-        let group = DispatchGroup()
+        let providers = info.itemProviders(for: [.fileURL])
         
-        for provider in info.itemProviders(for: [.fileURL]) {
-            group.enter()
-            _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                defer { group.leave() }
-                if let url {
-                    urls.append(url)
+        Task { @MainActor in
+            var urls: [URL] = []
+            
+            for provider in providers {
+                guard provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) else {
+                    continue
+                }
+                
+                do {
+                    let item = try await provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil)
+     
+                    if let data = item as? Data,
+                       let string = String(data: data, encoding: .utf8),
+                       let url = URL(string: string)
+                    {
+                        urls.append(url)
+                    } else if let string = item as? String,
+                              let url = URL(string: string)
+                    {
+                        urls.append(url)
+                    }
+                } catch {
+                    print("Failed to load item: \(error)")
+                    continue
                 }
             }
-        }
-        
-        group.notify(queue: .main) {
+            
             onFilesDrop(urls)
         }
         

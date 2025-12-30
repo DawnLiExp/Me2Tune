@@ -86,14 +86,20 @@ final class PlayerViewModel: ObservableObject {
     
     private func setupBindings() {
         $repeatMode
-            .sink { [weak playerCore] newValue in
-                playerCore?.repeatMode = AudioPlayerCore.RepeatMode(from: newValue)
+            .sink { [weak self] newValue in
+                guard let self else { return }
+                Task { @MainActor in
+                    self.playerCore.repeatMode = AudioPlayerCore.RepeatMode(from: newValue)
+                }
             }
             .store(in: &cancellables)
         
         $volume
-            .sink { [weak playerCore] newValue in
-                playerCore?.volume = newValue
+            .sink { [weak self] newValue in
+                guard let self else { return }
+                Task { @MainActor in
+                    self.playerCore.volume = newValue
+                }
             }
             .store(in: &cancellables)
     }
@@ -436,52 +442,42 @@ final class PlayerViewModel: ObservableObject {
 // MARK: - AudioPlayerCore Delegate
 
 extension PlayerViewModel: AudioPlayerCoreDelegate {
-    nonisolated func playerCore(_ core: AudioPlayerCore, didUpdatePlaybackState isPlaying: Bool) {
-        Task { @MainActor in
-            self.isPlaying = isPlaying
-        }
+    func playerCore(_ core: AudioPlayerCore, didUpdatePlaybackState isPlaying: Bool) {
+        self.isPlaying = isPlaying
     }
     
-    nonisolated func playerCore(_ core: AudioPlayerCore, didUpdateTime currentTime: TimeInterval, duration: TimeInterval) {
-        Task { @MainActor in
-            self.currentTime = currentTime
-            self.duration = duration
-        }
+    func playerCore(_ core: AudioPlayerCore, didUpdateTime currentTime: TimeInterval, duration: TimeInterval) {
+        self.currentTime = currentTime
+        self.duration = duration
     }
     
-    nonisolated func playerCore(_ core: AudioPlayerCore, didLoadTrack track: AudioTrack, artwork: NSImage?) {
-        Task { @MainActor in
-            self.currentArtwork = artwork
-        }
+    func playerCore(_ core: AudioPlayerCore, didLoadTrack track: AudioTrack, artwork: NSImage?) {
+        self.currentArtwork = artwork
     }
     
-    nonisolated func playerCore(_ core: AudioPlayerCore, didEncounterError error: Error) {
-        Task { @MainActor in
-            logger.logError(error, context: "PlayerCore")
-        }
+    func playerCore(_ core: AudioPlayerCore, didEncounterError error: Error) {
+        logger.logError(error, context: "PlayerCore")
     }
     
-    nonisolated func playerCoreDidReachEnd(_ core: AudioPlayerCore) {
-        Task { @MainActor in
-            switch repeatMode {
-            case .one:
-                if let index = currentTrackIndex {
-                    loadAndPlay(at: index)
-                }
-            case .all:
-                if let currentIndex = currentTrackIndex {
-                    if currentIndex < currentTracks.count - 1 {
-                        next()
-                    } else {
-                        loadAndPlay(at: 0)
-                    }
-                }
-            case .off:
-                if let currentIndex = currentTrackIndex,
-                   currentIndex < currentTracks.count - 1
-                {
+    func playerCoreDidReachEnd(_ core: AudioPlayerCore) {
+        switch repeatMode {
+        case .one:
+            if let index = currentTrackIndex {
+                loadAndPlay(at: index)
+            }
+        case .all:
+            if let currentIndex = currentTrackIndex {
+                if currentIndex < currentTracks.count - 1 {
                     next()
+                } else {
+                    loadAndPlay(at: 0)
                 }
+            }
+        case .off:
+            if let currentIndex = currentTrackIndex,
+               currentIndex < currentTracks.count - 1
+            {
+                next()
             }
         }
     }

@@ -175,24 +175,33 @@ struct ContentView: View {
     // MARK: - Drag & Drop
     
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
-        var urls: [URL] = []
-        let group = DispatchGroup()
-        
-        for provider in providers {
-            guard provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) else {
-                continue
-            }
+        Task { @MainActor in
+            var urls: [URL] = []
             
-            group.enter()
-            _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                defer { group.leave() }
-                if let url {
-                    urls.append(url)
+            for provider in providers {
+                guard provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) else {
+                    continue
+                }
+                
+                do {
+                    let item = try await provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil)
+        
+                    if let data = item as? Data,
+                       let string = String(data: data, encoding: .utf8),
+                       let url = URL(string: string)
+                    {
+                        urls.append(url)
+                    } else if let string = item as? String,
+                              let url = URL(string: string)
+                    {
+                        urls.append(url)
+                    }
+                } catch {
+                    print("Failed to load item: \(error)")
+                    continue
                 }
             }
-        }
-        
-        group.notify(queue: .main) {
+            
             if selectedTab == .playlist {
                 handlePlaylistDrop(urls)
             } else {
@@ -202,7 +211,7 @@ struct ContentView: View {
         
         return true
     }
-    
+
     private func handlePlaylistDrop(_ urls: [URL]) {
         let allURLs = expandFolders(urls)
         playerViewModel.addTracks(urls: allURLs)

@@ -30,9 +30,9 @@ struct Me2TuneApp: App {
                 .onAppear {
                     appDelegate.window = NSApp.windows.first
                     
-                    // 延迟 2.5 秒后台加载专辑列表
+                    // 延迟后台加载专辑列表
                     Task {
-                        collectionManager.scheduleDelayedLoad(delay: 2.5)
+                        collectionManager.scheduleDelayedLoad(delay: 1.5)
                     }
                 }
         }

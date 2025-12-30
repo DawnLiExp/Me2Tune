@@ -205,9 +205,11 @@ struct VinylCoverView: View {
         guard rotationTimer == nil else { return }
 
         rotationTimer = Timer.scheduledTimer(withTimeInterval: 0.016, repeats: true) { [self] _ in
-            rotationAngle += 0.15
-            if rotationAngle >= 360 {
-                rotationAngle -= 360
+            DispatchQueue.main.async { [self] in
+                rotationAngle += 0.15
+                if rotationAngle >= 360 {
+                    rotationAngle -= 360
+                }
             }
         }
     }

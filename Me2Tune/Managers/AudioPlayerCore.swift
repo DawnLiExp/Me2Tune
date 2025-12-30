@@ -14,6 +14,7 @@ private let logger = Logger.player
 
 // MARK: - Delegate Protocol
 
+@MainActor
 protocol AudioPlayerCoreDelegate: AnyObject {
     func playerCore(_ core: AudioPlayerCore, didUpdatePlaybackState isPlaying: Bool)
     func playerCore(_ core: AudioPlayerCore, didUpdateTime currentTime: TimeInterval, duration: TimeInterval)
@@ -24,11 +25,12 @@ protocol AudioPlayerCoreDelegate: AnyObject {
 
 // MARK: - Audio Player Core
 
+@MainActor
 final class AudioPlayerCore: NSObject {
     weak var delegate: AudioPlayerCoreDelegate?
     
     private var player: AudioPlayer?
-    private var timer: Timer?
+    private nonisolated(unsafe) var timer: Timer?
     
     private(set) var isPlaying = false
     private(set) var currentTime: TimeInterval = 0
@@ -48,9 +50,9 @@ final class AudioPlayerCore: NSObject {
         logger.debug("AudioPlayerCore initialized")
     }
     
-    deinit {
-        stopTimer()
-        logger.debug("AudioPlayerCore deinitialized")
+    nonisolated deinit {
+        timer?.invalidate()
+        timer = nil
     }
     
     // MARK: - Playback Control
@@ -60,13 +62,11 @@ final class AudioPlayerCore: NSObject {
         ensurePlayerInitialized()
         guard let player else { return }
         
-        await MainActor.run {
-            if isPlaying {
-                player.pause()
-                isPlaying = false
-            }
-            stopTimer()
+        if isPlaying {
+            player.pause()
+            isPlaying = false
         }
+        stopTimer()
         
         logger.info("Loading: \(track.title)")
         
@@ -74,27 +74,21 @@ final class AudioPlayerCore: NSObject {
             try player.play(track.url)
             player.pause()
             
-            await MainActor.run {
-                duration = track.duration
-                currentTime = 0
-                isPlaying = false
-            }
+            duration = track.duration
+            currentTime = 0
+            isPlaying = false
             
             let artwork = await ArtworkCacheService.shared.artwork(for: track.url)
             
-            await MainActor.run {
-                delegate?.playerCore(self, didLoadTrack: track, artwork: artwork)
-                updateDockIcon(artwork)
-            }
+            delegate?.playerCore(self, didLoadTrack: track, artwork: artwork)
+            updateDockIcon(artwork)
             
             let elapsed = CFAbsoluteTimeGetCurrent() - startTime
             logger.logPerformance("Track load", duration: elapsed)
         } catch {
             let appError = AppError.audioLoadFailed(track.url)
             logger.logError(appError, context: "loadTrack")
-            await MainActor.run {
-                delegate?.playerCore(self, didEncounterError: appError)
-            }
+            delegate?.playerCore(self, didEncounterError: appError)
         }
     }
     
@@ -170,10 +164,11 @@ final class AudioPlayerCore: NSObject {
     private func startTimer() {
         stopTimer()
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            guard let self, let player = self.player else { return }
+            guard let self else { return }
             
             Task { @MainActor [weak self] in
-                guard let self else { return }
+                guard let self, let player = self.player else { return }
+                
                 self.currentTime = player.currentTime ?? 0
                 self.duration = player.totalTime ?? 0
                 self.delegate?.playerCore(self, didUpdateTime: self.currentTime, duration: self.duration)
@@ -206,23 +201,20 @@ final class AudioPlayerCore: NSObject {
 
 extension AudioPlayerCore: AudioPlayer.Delegate {
     nonisolated func audioPlayer(_ audioPlayer: AudioPlayer, playbackStateChanged playbackState: AudioPlayer.PlaybackState) {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
+        Task { @MainActor in
             self.isPlaying = (playbackState == .playing)
             self.delegate?.playerCore(self, didUpdatePlaybackState: self.isPlaying)
         }
     }
     
     nonisolated func audioPlayerEndOfAudio(_ audioPlayer: AudioPlayer) {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
+        Task { @MainActor in
             self.delegate?.playerCoreDidReachEnd(self)
         }
     }
     
     @objc nonisolated func audioPlayer(_ audioPlayer: AudioPlayer, encounteredError error: Error) {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
+        Task { @MainActor in
             logger.error("Player error: \(error.localizedDescription)")
             self.delegate?.playerCore(self, didEncounterError: error)
         }
