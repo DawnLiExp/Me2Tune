@@ -21,6 +21,8 @@ protocol AudioPlayerCoreDelegate: AnyObject {
     func playerCore(_ core: AudioPlayerCore, didLoadTrack track: AudioTrack, artwork: NSImage?)
     func playerCore(_ core: AudioPlayerCore, didEncounterError error: Error)
     func playerCoreDidReachEnd(_ core: AudioPlayerCore)
+    func playerCore(_ core: AudioPlayerCore, decodingCompleteFor track: AudioTrack)
+    func playerCore(_ core: AudioPlayerCore, nowPlayingChangedTo url: URL?)
 }
 
 // MARK: - Audio Player Core
@@ -35,6 +37,7 @@ final class AudioPlayerCore: NSObject {
     private(set) var isPlaying = false
     private(set) var currentTime: TimeInterval = 0
     private(set) var duration: TimeInterval = 0
+    private(set) var currentTrack: AudioTrack?
     
     enum RepeatMode {
         case off
@@ -77,6 +80,7 @@ final class AudioPlayerCore: NSObject {
             duration = track.duration
             currentTime = 0
             isPlaying = false
+            currentTrack = track
             
             let artwork = await ArtworkCacheService.shared.artwork(for: track.url)
             
@@ -88,6 +92,23 @@ final class AudioPlayerCore: NSObject {
         } catch {
             let appError = AppError.audioLoadFailed(track.url)
             logger.logError(appError, context: "loadTrack")
+            delegate?.playerCore(self, didEncounterError: appError)
+        }
+    }
+    
+    func enqueueTrack(_ track: AudioTrack) async {
+        ensurePlayerInitialized()
+        guard let player else { return }
+        
+        logger.info("Enqueuing: \(track.title)")
+        
+        do {
+            let decoder = try AudioDecoder(url: track.url)
+            try player.enqueue(decoder)
+            logger.debug("✓ Enqueued next track")
+        } catch {
+            let appError = AppError.audioLoadFailed(track.url)
+            logger.logError(appError, context: "enqueueTrack")
             delegate?.playerCore(self, didEncounterError: appError)
         }
     }
@@ -204,6 +225,22 @@ extension AudioPlayerCore: AudioPlayer.Delegate {
         Task { @MainActor in
             self.isPlaying = (playbackState == .playing)
             self.delegate?.playerCore(self, didUpdatePlaybackState: self.isPlaying)
+        }
+    }
+    
+    nonisolated func audioPlayer(_ audioPlayer: AudioPlayer, nowPlayingChanged nowPlaying: PCMDecoding?, previouslyPlaying: PCMDecoding?) {
+        let url = nowPlaying?.inputSource.url
+        Task { @MainActor in
+            logger.debug("🔄 Now playing changed to: \(url?.lastPathComponent ?? "nil")")
+            self.delegate?.playerCore(self, nowPlayingChangedTo: url)
+        }
+    }
+    
+    nonisolated func audioPlayer(_ audioPlayer: AudioPlayer, decodingComplete decoder: PCMDecoding) {
+        Task { @MainActor in
+            guard let track = self.currentTrack else { return }
+            logger.debug("✓ Decoding complete for: \(track.title)")
+            self.delegate?.playerCore(self, decodingCompleteFor: track)
         }
     }
     

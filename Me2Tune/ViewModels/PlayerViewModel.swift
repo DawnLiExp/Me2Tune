@@ -178,7 +178,6 @@ final class PlayerViewModel: ObservableObject {
         Task {
             let startTime = CFAbsoluteTimeGetCurrent()
             
-            // 展开文件夹并收集所有音频文件
             var allAudioURLs: [URL] = []
             let fileManager = FileManager.default
             
@@ -204,7 +203,6 @@ final class PlayerViewModel: ObservableObject {
                 return
             }
             
-            // 排序策略：按父目录路径排序，同目录下按文件名排序
             let sortedURLs = allAudioURLs.sorted { lhs, rhs in
                 let lhsDir = lhs.deletingLastPathComponent().path
                 let rhsDir = rhs.deletingLastPathComponent().path
@@ -228,7 +226,6 @@ final class PlayerViewModel: ObservableObject {
                 for await result in group {
                     tracksWithIndex.append(result)
                 }
-                // 恢复原始排序顺序
                 return tracksWithIndex.sorted { $0.0 < $1.0 }.map(\.1)
             }
             
@@ -342,7 +339,7 @@ final class PlayerViewModel: ObservableObject {
         playingSource = .album(album.id)
         currentTracks = album.tracks
         
-        logger.info("📀 Playing album: \(album.name) (\(album.tracks.count) tracks)")
+        logger.info("💿 Playing album: \(album.name) (\(album.tracks.count) tracks)")
         
         loadAndPlay(at: index)
     }
@@ -363,6 +360,41 @@ final class PlayerViewModel: ObservableObject {
             await loadTrack(at: index)
             playerCore.play()
             savePlaylist()
+        }
+    }
+    
+    private func enqueueNextTrack() {
+        guard let currentIndex = currentTrackIndex else { return }
+        
+        let nextIndex: Int?
+        
+        switch repeatMode {
+        case .one:
+            // 单曲循环不预加载
+            return
+        case .all:
+            if currentIndex < currentTracks.count - 1 {
+                nextIndex = currentIndex + 1
+            } else {
+                nextIndex = 0
+            }
+        case .off:
+            if currentIndex < currentTracks.count - 1 {
+                nextIndex = currentIndex + 1
+            } else {
+                nextIndex = nil
+            }
+        }
+        
+        guard let nextIndex, currentTracks.indices.contains(nextIndex) else {
+            logger.debug("No next track to enqueue")
+            return
+        }
+        
+        let nextTrack = currentTracks[nextIndex]
+        
+        Task {
+            await playerCore.enqueueTrack(nextTrack)
         }
     }
     
@@ -427,7 +459,6 @@ final class PlayerViewModel: ObservableObject {
                 }
                 
             case .album(let albumId):
-                // 只加载需要的单个专辑，不触发整个 collections 加载
                 if let albumIndex = state.albumCurrentIndex {
                     Task {
                         if let album = await collectionManager?.loadSingleAlbum(id: albumId),
@@ -441,7 +472,7 @@ final class PlayerViewModel: ObservableObject {
                             
                             await loadTrack(at: albumIndex)
                             
-                            logger.info("📀 Restored album: \(album.name) - track \(albumIndex + 1)")
+                            logger.info("💿 Restored album: \(album.name) - track \(albumIndex + 1)")
                         } else {
                             await MainActor.run {
                                 self.playingSource = .playlist
@@ -488,27 +519,45 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
         logger.logError(error, context: "PlayerCore")
     }
     
+    func playerCore(_ core: AudioPlayerCore, nowPlayingChangedTo url: URL?) {
+        guard let url else {
+            logger.debug("Now playing changed to nil")
+            return
+        }
+        
+        // 找到对应的 track index
+        if let index = currentTracks.firstIndex(where: { $0.url == url }) {
+            logger.info("🔄 Auto switched to track \(index + 1): \(self.currentTracks[index].title)")
+            currentTrackIndex = index
+            
+            // 更新 artwork 和 UI
+            Task {
+                let track = currentTracks[index]
+                let artwork = await ArtworkCacheService.shared.artwork(for: track.url)
+                await MainActor.run {
+                    self.currentArtwork = artwork
+                    self.duration = track.duration
+                    self.savePlaylist()
+                }
+            }
+        } else {
+            logger.warning("Track not found in current tracks: \(url.lastPathComponent)")
+        }
+    }
+    
+    func playerCore(_ core: AudioPlayerCore, decodingCompleteFor track: AudioTrack) {
+        logger.debug("🔄 Decoding complete, enqueuing next track")
+        enqueueNextTrack()
+    }
+    
     func playerCoreDidReachEnd(_ core: AudioPlayerCore) {
-        switch repeatMode {
-        case .one:
+        // 只在单曲循环时才在这里处理
+        if repeatMode == .one {
             if let index = currentTrackIndex {
                 loadAndPlay(at: index)
             }
-        case .all:
-            if let currentIndex = currentTrackIndex {
-                if currentIndex < currentTracks.count - 1 {
-                    next()
-                } else {
-                    loadAndPlay(at: 0)
-                }
-            }
-        case .off:
-            if let currentIndex = currentTrackIndex,
-               currentIndex < currentTracks.count - 1
-            {
-                next()
-            }
         }
+        // 其他模式已经通过 enqueue + nowPlayingChanged 自动切换了
     }
 }
 
