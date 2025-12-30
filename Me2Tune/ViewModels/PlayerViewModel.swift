@@ -43,6 +43,7 @@ final class PlayerViewModel: ObservableObject {
     
     private let playerCore: AudioPlayerCore
     private let persistenceService = PersistenceService()
+    private weak var collectionManager: CollectionManager?
     private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Computed Properties
@@ -70,9 +71,10 @@ final class PlayerViewModel: ObservableObject {
     
     // MARK: - Initialization
     
-    init() {
+    init(collectionManager: CollectionManager? = nil) {
         self.playerCore = AudioPlayerCore()
         self.playerCore.delegate = self
+        self.collectionManager = collectionManager
         
         loadPlaylist()
         
@@ -390,27 +392,34 @@ final class PlayerViewModel: ObservableObject {
                 }
                 
             case .album(let albumId):
-                // 直接从持久化读取专辑数据（无需加载所有专辑）
-                if let albumIndex = state.albumCurrentIndex,
-                   let collectionState = try? persistenceService.loadCollections(),
-                   let album = collectionState.albums.first(where: { $0.id == albumId }),
-                   album.tracks.indices.contains(albumIndex)
-                {
-                    playingSource = .album(albumId)
-                    currentTracks = album.tracks
-                    currentTrackIndex = albumIndex
-                    
+                // 只加载需要的单个专辑，不触发整个 collections 加载
+                if let albumIndex = state.albumCurrentIndex {
                     Task {
-                        await loadTrack(at: albumIndex)
+                        if let album = await collectionManager?.loadSingleAlbum(id: albumId),
+                           album.tracks.indices.contains(albumIndex)
+                        {
+                            await MainActor.run {
+                                self.playingSource = .album(albumId)
+                                self.currentTracks = album.tracks
+                                self.currentTrackIndex = albumIndex
+                            }
+                            
+                            await loadTrack(at: albumIndex)
+                            
+                            logger.info("📀 Restored album: \(album.name) - track \(albumIndex + 1)")
+                        } else {
+                            await MainActor.run {
+                                self.playingSource = .playlist
+                                self.currentTracks = self.playlist
+                                self.currentTrackIndex = nil
+                            }
+                            logger.warning("Album or track not found, fallback to playlist")
+                        }
                     }
-                    
-                    logger.info("📀 Restored album: \(album.name) - track \(albumIndex + 1)")
                 } else {
-                    // 专辑不存在或曲目索引无效，回退到 playlist
                     playingSource = .playlist
                     currentTracks = playlist
                     currentTrackIndex = nil
-                    logger.warning("Album or track not found, fallback to playlist")
                 }
             }
         } else {

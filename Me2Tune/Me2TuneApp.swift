@@ -12,9 +12,15 @@ private let logger = Logger.app
 
 @main
 struct Me2TuneApp: App {
-    @StateObject private var playerViewModel = PlayerViewModel()
     @StateObject private var collectionManager = CollectionManager()
+    @StateObject private var playerViewModel: PlayerViewModel
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
+    init() {
+        let manager = CollectionManager()
+        _collectionManager = StateObject(wrappedValue: manager)
+        _playerViewModel = StateObject(wrappedValue: PlayerViewModel(collectionManager: manager))
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -23,6 +29,11 @@ struct Me2TuneApp: App {
                 .environmentObject(collectionManager)
                 .onAppear {
                     appDelegate.window = NSApp.windows.first
+                    
+                    // 延迟 2.5 秒后台加载专辑列表
+                    Task {
+                        collectionManager.scheduleDelayedLoad(delay: 2.5)
+                    }
                 }
         }
         .windowStyle(.hiddenTitleBar)

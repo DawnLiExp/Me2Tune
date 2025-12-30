@@ -26,8 +26,7 @@ struct CollectionsGridView: View {
     @State private var renamingAlbumId: UUID?
     @State private var renameText = ""
     @State private var albumToDelete: Album?
-    
-    private let artworkService = ArtworkService()
+    @State private var preloadedAlbumIds = Set<UUID>()  // 记录已预加载的专辑
     
     var body: some View {
         Group {
@@ -92,37 +91,40 @@ struct CollectionsGridView: View {
                     if isLoaded {
                         emptyStateView
                     } else {
-                        ProgressView()
-                            .padding(40)
-                            .frame(maxWidth: .infinity, alignment: .center)
+                        loadingView
                     }
                 } else {
-                    LazyVGrid(columns: [
-                        GridItem(.adaptive(minimum: 140, maximum: 180), spacing: 16)
-                    ], spacing: 16) {
-                        ForEach(albums) { album in
-                            AlbumCardView(
-                                album: album,
-                                artwork: artworkCache[album.id],
-                                onTap: {
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                        selectedAlbum = album
+                    ScrollView(showsIndicators: false) {
+                        LazyVGrid(columns: [
+                            GridItem(.adaptive(minimum: 140, maximum: 180), spacing: 16)
+                        ], spacing: 16) {
+                            ForEach(albums) { album in
+                                AlbumCardView(
+                                    album: album,
+                                    artwork: artworkCache[album.id],
+                                    onTap: {
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                            selectedAlbum = album
+                                        }
+                                    },
+                                    onRename: {
+                                        renamingAlbumId = album.id
+                                        renameText = album.name
+                                    },
+                                    onRemove: {
+                                        albumToDelete = album
                                     }
-                                },
-                                onRename: {
-                                    renamingAlbumId = album.id
-                                    renameText = album.name
-                                },
-                                onRemove: {
-                                    albumToDelete = album
+                                )
+                                .task {
+                                    await loadArtwork(for: album)
                                 }
-                            )
-                            .task {
-                                await loadArtwork(for: album)
+                                .onAppear {
+                                    preloadNearbyArtworks(for: album)
+                                }
                             }
                         }
+                        .padding(.vertical, 8)
                     }
-                    .padding(.vertical, 8)
                 }
             }
         }
@@ -235,6 +237,21 @@ struct CollectionsGridView: View {
         .padding(.vertical, 80)
     }
     
+    // MARK: - Loading View
+    
+    private var loadingView: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .scaleEffect(1.2)
+            
+            Text("Loading Collections...")
+                .font(.system(size: 14))
+                .foregroundColor(.secondaryText)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 80)
+    }
+    
     // MARK: - Artwork Loading
     
     private func loadArtwork(for album: Album) async {
@@ -244,18 +261,32 @@ struct CollectionsGridView: View {
             return
         }
         
-        if let artwork = await artworkService.artwork(for: firstTrack.url) {
+        if let artwork = await ArtworkCacheService.shared.artwork(for: firstTrack.url) {
             await MainActor.run {
                 artworkCache[album.id] = artwork
             }
         }
     }
     
-    private func formatTime(_ time: TimeInterval) -> String {
-        guard time.isFinite, !time.isNaN else { return "0:00" }
-        let minutes = Int(time) / 60
-        let seconds = Int(time) % 60
-        return String(format: "%d:%02d", minutes, seconds)
+    private func preloadNearbyArtworks(for album: Album) {
+        // 防止重复预加载
+        guard !preloadedAlbumIds.contains(album.id) else {
+            return
+        }
+        preloadedAlbumIds.insert(album.id)
+        
+        guard let index = albums.firstIndex(where: { $0.id == album.id }) else {
+            return
+        }
+        
+        // 预加载可见区域前后的封面
+        let range = max(0, index - 2)...min(albums.count - 1, index + 5)
+        let nearbyAlbums = range.compactMap { albums[safe: $0] }
+        let urls = nearbyAlbums.compactMap { $0.tracks.first?.url }
+        
+        Task.detached(priority: .utility) {
+            await ArtworkCacheService.shared.preloadArtworks(for: urls, priority: .utility)
+        }
     }
 }
 

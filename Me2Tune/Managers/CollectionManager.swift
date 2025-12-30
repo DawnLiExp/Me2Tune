@@ -2,7 +2,7 @@
 //  CollectionManager.swift
 //  Me2Tune
 //
-//  专辑收藏管理 - 优化版：延迟加载
+//  专辑收藏管理 - 延迟加载优化版
 //
 
 import Combine
@@ -15,19 +15,89 @@ private let logger = Logger.collection
 final class CollectionManager: ObservableObject {
     @Published private(set) var albums: [Album] = []
     @Published private(set) var isLoaded = false
+    @Published private(set) var isLoading = false
     
     private let persistenceService = PersistenceService()
-    
-    init() {
-        // 不在init时加载，等待首次访问
-    }
+    private var delayedLoadTask: Task<Void, Never>?
     
     // MARK: - Lazy Loading
     
+    func scheduleDelayedLoad(delay: TimeInterval = 2.5) {
+        guard !isLoaded, delayedLoadTask == nil else { return }
+        
+        delayedLoadTask = Task {
+            do {
+                try await Task.sleep(for: .seconds(delay))
+            } catch {
+                return
+            }
+            
+            guard !Task.isCancelled else {
+                logger.debug("Delayed load cancelled")
+                return
+            }
+            
+            logger.info("⏰ Starting delayed collection load")
+            await loadCollections()
+            await MainActor.run {
+                self.isLoaded = true
+                self.delayedLoadTask = nil
+            }
+        }
+    }
+    
     func ensureLoaded() async {
         guard !isLoaded else { return }
+        
+        // 如果有延迟任务，取消它并立即加载
+        if let task = delayedLoadTask {
+            task.cancel()
+            delayedLoadTask = nil
+            logger.info("👆 User triggered, loading immediately")
+        }
+        
+        isLoading = true
         await loadCollections()
         isLoaded = true
+        isLoading = false
+    }
+    
+    // MARK: - Single Album Loading
+    
+    func loadSingleAlbum(id: UUID) async -> Album? {
+        guard let state = try? persistenceService.loadCollections(),
+              let album = state.albums.first(where: { $0.id == id })
+        else {
+            return nil
+        }
+        
+        let hasOldData = album.tracks.contains { track in
+            track.artist == nil && track.title.contains(".")
+        }
+        
+        if hasOldData {
+            logger.info("Migrating single album metadata: \(album.name)")
+            let audioURLs = scanFolder(album.folderURL)
+            let newTracks = await withTaskGroup(of: AudioTrack.self) { group in
+                for url in audioURLs {
+                    group.addTask {
+                        await AudioTrack(url: url)
+                    }
+                }
+                
+                var result: [AudioTrack] = []
+                for await track in group {
+                    result.append(track)
+                }
+                return result
+            }
+            
+            var migratedAlbum = album
+            migratedAlbum.tracks = newTracks
+            return migratedAlbum
+        }
+        
+        return album
     }
     
     // MARK: - Album Management
@@ -70,7 +140,6 @@ final class CollectionManager: ObservableObject {
             return
         }
         
-        // 并发解析元数据
         let tracks = await withTaskGroup(of: AudioTrack.self) { group in
             for url in audioURLs {
                 group.addTask {
@@ -127,12 +196,10 @@ final class CollectionManager: ObservableObject {
         do {
             let state = try persistenceService.loadCollections()
             
-            // 检测并迁移旧数据：重新提取元数据
             var migratedAlbums: [Album] = []
             var needsMigration = false
             
             for album in state.albums {
-                // 检查是否有缺失元数据的track（title是文件名格式）
                 let hasOldData = album.tracks.contains { track in
                     track.artist == nil && track.title.contains(".")
                 }
@@ -141,7 +208,6 @@ final class CollectionManager: ObservableObject {
                     logger.info("Migrating album metadata: \(album.name)")
                     needsMigration = true
                     
-                    // 重新扫描并创建tracks
                     let audioURLs = scanFolder(album.folderURL)
                     let newTracks = await withTaskGroup(of: AudioTrack.self) { group in
                         for url in audioURLs {
@@ -168,7 +234,6 @@ final class CollectionManager: ObservableObject {
             self.albums = migratedAlbums
             logger.info("Loaded \(self.albums.count) albums")
             
-            // 如果进行了迁移，保存新数据
             if needsMigration {
                 logger.info("Saving migrated metadata")
                 saveCollections()

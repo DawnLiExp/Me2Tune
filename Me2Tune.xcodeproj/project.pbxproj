@@ -27,6 +27,8 @@
 		FC480EC42EF152BC000D8393 /* AudioTrack.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480EC32EF152A2000D8393 /* AudioTrack.swift */; };
 		FC48D2312F0263E50080EFB1 /* CXXCoreAudio in Frameworks */ = {isa = PBXBuildFile; productRef = FC48D2302F0263E50080EFB1 /* CXXCoreAudio */; };
 		FC48D2342F02640F0080EFB1 /* SFBAudioEngine in Frameworks */ = {isa = PBXBuildFile; productRef = FC48D2332F02640F0080EFB1 /* SFBAudioEngine */; };
+		FC62DA392F0372C000DD1509 /* ArtworkCacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC62DA382F0372BA00DD1509 /* ArtworkCacheService.swift */; };
+		FC62DA3B2F0373C800DD1509 /* Array+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC62DA3A2F0373C600DD1509 /* Array+Extensions.swift */; };
 		FC8528082F01486100B53540 /* ContentSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8528072F01485D00B53540 /* ContentSectionView.swift */; };
 		FC85280A2F01487700B53540 /* TopBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8528092F01487500B53540 /* TopBarView.swift */; };
 		FC85280C2F01488F00B53540 /* BackgroundLayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC85280B2F01488D00B53540 /* BackgroundLayerView.swift */; };
@@ -54,6 +56,8 @@
 		FC480EB52EF13722000D8393 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = Localizable.strings; sourceTree = "<group>"; };
 		FC480EBD2EF137AE000D8393 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = Localizable.strings; sourceTree = "<group>"; };
 		FC480EC32EF152A2000D8393 /* AudioTrack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioTrack.swift; sourceTree = "<group>"; };
+		FC62DA382F0372BA00DD1509 /* ArtworkCacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkCacheService.swift; sourceTree = "<group>"; };
+		FC62DA3A2F0373C600DD1509 /* Array+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Array+Extensions.swift"; sourceTree = "<group>"; };
 		FC8528072F01485D00B53540 /* ContentSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentSectionView.swift; sourceTree = "<group>"; };
 		FC8528092F01487500B53540 /* TopBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopBarView.swift; sourceTree = "<group>"; };
 		FC85280B2F01488D00B53540 /* BackgroundLayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundLayerView.swift; sourceTree = "<group>"; };
@@ -75,6 +79,7 @@
 		FC1377A22EFD0FE300A9CE99 /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
+				FC62DA3A2F0373C600DD1509 /* Array+Extensions.swift */,
 				FC1377A32EFD0FE800A9CE99 /* ColorExtensions.swift */,
 			);
 			path = Extensions;
@@ -176,6 +181,7 @@
 		FC480EC12EF13946000D8393 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				FC62DA382F0372BA00DD1509 /* ArtworkCacheService.swift */,
 				FC480E9D2EF107E8000D8393 /* ArtworkService.swift */,
 				FC480EA32EF107E8000D8393 /* PersistenceService.swift */,
 			);
@@ -301,11 +307,13 @@
 				FC480EC42EF152BC000D8393 /* AudioTrack.swift in Sources */,
 				FC32865D2F010F3D000D8F2A /* PlayerViewModel.swift in Sources */,
 				FC0A17442EF262910090B22C /* CollectionManager.swift in Sources */,
+				FC62DA3B2F0373C800DD1509 /* Array+Extensions.swift in Sources */,
 				FC13779D2EFCF9CC00A9CE99 /* PlaylistTabView.swift in Sources */,
 				FC13779F2EFCF9DD00A9CE99 /* PlaybackControlView.swift in Sources */,
 				FC480EAA2EF107E8000D8393 /* ContentView.swift in Sources */,
 				FC480EAB2EF107E8000D8393 /* Me2TuneApp.swift in Sources */,
 				FC13779B2EFCF9AD00A9CE99 /* CollectionsGridView.swift in Sources */,
+				FC62DA392F0372C000DD1509 /* ArtworkCacheService.swift in Sources */,
 				FC8528082F01486100B53540 /* ContentSectionView.swift in Sources */,
 				FC480EAC2EF107E8000D8393 /* PersistenceService.swift in Sources */,
 				FC85280A2F01487700B53540 /* TopBarView.swift in Sources */,

@@ -29,7 +29,6 @@ final class AudioPlayerCore: NSObject {
     
     private var player: AudioPlayer?
     private var timer: Timer?
-    private let artworkService = ArtworkService()
     
     private(set) var isPlaying = false
     private(set) var currentTime: TimeInterval = 0
@@ -81,7 +80,7 @@ final class AudioPlayerCore: NSObject {
                 isPlaying = false
             }
             
-            let artwork = await artworkService.artwork(for: track.url)
+            let artwork = await ArtworkCacheService.shared.artwork(for: track.url)
             
             await MainActor.run {
                 delegate?.playerCore(self, didLoadTrack: track, artwork: artwork)
