@@ -126,43 +126,46 @@ final class CollectionManager: ObservableObject {
         
     func addAlbum(from folderURL: URL) async {
         await ensureLoaded()
+        await scanAndAddAlbums(at: folderURL)
+    }
+    
+    private func scanAndAddAlbums(at url: URL) async {
+        let fileManager = FileManager.default
+        var isDirectory: ObjCBool = false
+        guard fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue else { return }
         
-        let albumName = folderURL.lastPathComponent
-        
-        logger.info("Scanning album: \(albumName)")
-        
-        let audioURLs = scanFolder(folderURL)
-        
-        logger.info("Found \(audioURLs.count) tracks")
-        
-        guard !audioURLs.isEmpty else {
-            logger.warning("No audio files in folder: \(albumName)")
-            return
+        let audioFiles = scanFolderOnly(url)
+        if !audioFiles.isEmpty {
+            await createAlbum(from: url, audioURLs: audioFiles)
         }
         
+        let contents = (try? fileManager.contentsOfDirectory(at: url, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])) ?? []
+        for item in contents {
+            var isSubDir: ObjCBool = false
+            if fileManager.fileExists(atPath: item.path, isDirectory: &isSubDir), isSubDir.boolValue {
+                await scanAndAddAlbums(at: item)
+            }
+        }
+    }
+    
+    private func createAlbum(from url: URL, audioURLs: [URL]) async {
+        let albumName = url.lastPathComponent
         let tracks = await withTaskGroup(of: AudioTrack.self) { group in
             for url in audioURLs {
-                group.addTask {
-                    await AudioTrack(url: url)
-                }
+                group.addTask { await AudioTrack(url: url) }
             }
-            
             var result: [AudioTrack] = []
             for await track in group {
                 result.append(track)
             }
-            return result
+            return result.sorted { $0.url.lastPathComponent < $1.url.lastPathComponent }
         }
         
-        let album = Album(name: albumName, folderURL: folderURL, tracks: tracks)
-        
         await MainActor.run {
+            let album = Album(name: albumName, folderURL: url, tracks: tracks)
             self.albums.append(album)
             self.objectWillChange.send()
-            
             logger.info("Album created: \(albumName) with \(tracks.count) tracks")
-            logger.debug("Total albums: \(self.albums.count)")
-            
             saveCollections()
         }
     }
@@ -254,28 +257,26 @@ final class CollectionManager: ObservableObject {
     }
     
     private func scanFolder(_ folderURL: URL) -> [URL] {
-        let fileManager = FileManager.default
         let supportedExtensions = ["mp3", "m4a", "aac", "wav", "aiff", "aif", "flac", "ape", "wv", "tta", "mpc"]
+        let fileManager = FileManager.default
+        guard let enumerator = fileManager.enumerator(at: folderURL, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]) else { return [] }
         
-        var audioURLs: [URL] = []
-        
-        guard let enumerator = fileManager.enumerator(
-            at: folderURL,
-            includingPropertiesForKeys: [.isRegularFileKey],
-            options: [.skipsHiddenFiles]
-        ) else {
-            logger.error("Cannot access folder: \(folderURL.path)")
-            return []
-        }
-        
-        while let fileURL = enumerator.nextObject() as? URL {
-            if supportedExtensions.contains(fileURL.pathExtension.lowercased()) {
-                audioURLs.append(fileURL)
+        var urls: [URL] = []
+        while let url = enumerator.nextObject() as? URL {
+            if supportedExtensions.contains(url.pathExtension.lowercased()) {
+                urls.append(url)
             }
         }
+        return urls.sorted { $0.lastPathComponent < $1.lastPathComponent }
+    }
+    
+    private func scanFolderOnly(_ folderURL: URL) -> [URL] {
+        let supportedExtensions = ["mp3", "m4a", "aac", "wav", "aiff", "aif", "flac", "ape", "wv", "tta", "mpc"]
+        let fileManager = FileManager.default
+        let contents = (try? fileManager.contentsOfDirectory(at: folderURL, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles])) ?? []
         
-        audioURLs.sort { $0.lastPathComponent < $1.lastPathComponent }
-        
-        return audioURLs
+        return contents.filter { url in
+            supportedExtensions.contains(url.pathExtension.lowercased())
+        }.sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
 }
