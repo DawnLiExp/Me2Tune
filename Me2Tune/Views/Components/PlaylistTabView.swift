@@ -193,20 +193,28 @@ struct TrackDropDelegate: DropDelegate {
                 }
                 
                 do {
-                    let item = try await provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil)
-     
-                    if let data = item as? Data,
-                       let string = String(data: data, encoding: .utf8),
-                       let url = URL(string: string)
-                    {
+                    let item = try await provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier)
+                    
+                    if let url = item as? URL {
                         urls.append(url)
-                    } else if let string = item as? String,
-                              let url = URL(string: string)
+                    } else if let data = item as? Data,
+                              let string = String(data: data, encoding: .utf8)
                     {
-                        urls.append(url)
+                        if let url = URL(string: string) {
+                            urls.append(url)
+                        } else {
+                            let url = URL(fileURLWithPath: string)
+                            urls.append(url)
+                        }
+                    } else if let string = item as? String {
+                        if let url = URL(string: string) {
+                            urls.append(url)
+                        } else {
+                            let url = URL(fileURLWithPath: string)
+                            urls.append(url)
+                        }
                     }
                 } catch {
-                    print("Failed to load item: \(error)")
                     continue
                 }
             }
