@@ -226,18 +226,9 @@ struct ContentView: View {
     }
     
     private func handleCollectionsDrop(_ urls: [URL]) {
-        let fileManager = FileManager.default
-        
         Task {
             for url in urls {
-                var isDirectory: ObjCBool = false
-                guard fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
-                    continue
-                }
-                
-                if isDirectory.boolValue {
-                    await collectionManager.addAlbum(from: url)
-                }
+                await collectionManager.addAlbum(from: url)
             }
         }
     }
@@ -259,7 +250,7 @@ struct ContentView: View {
                     includingPropertiesForKeys: [.isRegularFileKey],
                     options: [.skipsHiddenFiles]
                 ) {
-                    for case let fileURL as URL in enumerator {
+                    while let fileURL = enumerator.nextObject() as? URL {
                         if supportedExtensions.contains(fileURL.pathExtension.lowercased()) {
                             result.append(fileURL)
                         }

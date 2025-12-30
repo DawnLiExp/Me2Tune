@@ -49,7 +49,6 @@ final class CollectionManager: ObservableObject {
     func ensureLoaded() async {
         guard !isLoaded else { return }
         
-        // 如果有延迟任务，取消它并立即加载
         if let task = delayedLoadTask {
             task.cancel()
             delayedLoadTask = nil
@@ -124,15 +123,26 @@ final class CollectionManager: ObservableObject {
         return album.id
     }
         
-    func addAlbum(from folderURL: URL) async {
+    func addAlbum(from url: URL) async {
         await ensureLoaded()
-        await scanAndAddAlbums(at: folderURL)
+        
+        let fileManager = FileManager.default
+        var isDirectory: ObjCBool = false
+        guard fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory) else { return }
+        
+        if isDirectory.boolValue {
+            await scanAndAddAlbums(at: url)
+        } else {
+            let parentURL = url.deletingLastPathComponent()
+            let audioFiles = scanFolderOnly(parentURL)
+            if !audioFiles.isEmpty {
+                await createAlbum(from: parentURL, audioURLs: audioFiles)
+            }
+        }
     }
     
     private func scanAndAddAlbums(at url: URL) async {
         let fileManager = FileManager.default
-        var isDirectory: ObjCBool = false
-        guard fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue else { return }
         
         let audioFiles = scanFolderOnly(url)
         if !audioFiles.isEmpty {
@@ -149,16 +159,27 @@ final class CollectionManager: ObservableObject {
     }
     
     private func createAlbum(from url: URL, audioURLs: [URL]) async {
+        if albums.contains(where: { $0.folderURL.path == url.path }) {
+            logger.debug("Album already exists for path: \(url.path)")
+            return
+        }
+
         let albumName = url.lastPathComponent
-        let tracks = await withTaskGroup(of: AudioTrack.self) { group in
-            for url in audioURLs {
-                group.addTask { await AudioTrack(url: url) }
+        let tracks = await withTaskGroup(of: (Int, AudioTrack).self) { group in
+            let sortedURLs = audioURLs.sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+            
+            for (index, url) in sortedURLs.enumerated() {
+                group.addTask {
+                    let track = await AudioTrack(url: url)
+                    return (index, track)
+                }
             }
-            var result: [AudioTrack] = []
-            for await track in group {
-                result.append(track)
+            
+            var tracksWithIndex: [(Int, AudioTrack)] = []
+            for await result in group {
+                tracksWithIndex.append(result)
             }
-            return result.sorted { $0.url.lastPathComponent < $1.url.lastPathComponent }
+            return tracksWithIndex.sorted { $0.0 < $1.0 }.map(\.1)
         }
         
         await MainActor.run {

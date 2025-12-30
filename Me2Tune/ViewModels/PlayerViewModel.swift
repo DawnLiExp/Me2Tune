@@ -175,32 +175,61 @@ final class PlayerViewModel: ObservableObject {
     func addTracks(urls: [URL]) {
         let supportedExtensions = ["mp3", "m4a", "aac", "wav", "aiff", "aif", "flac", "ape", "wv", "tta", "mpc"]
         
-        let validURLs = urls.filter { url in
-            supportedExtensions.contains(url.pathExtension.lowercased())
-        }
-        
-        guard !validURLs.isEmpty else {
-            logger.warning("No valid audio files in \(urls.count) URLs")
-            return
-        }
-        
-        logger.info("Adding \(validURLs.count) tracks")
-        
         Task {
             let startTime = CFAbsoluteTimeGetCurrent()
             
-            let newTracks = await withTaskGroup(of: AudioTrack.self) { group in
-                for url in validURLs {
+            // 展开文件夹并收集所有音频文件
+            var allAudioURLs: [URL] = []
+            let fileManager = FileManager.default
+            
+            for url in urls {
+                var isDirectory: ObjCBool = false
+                if fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory) {
+                    if isDirectory.boolValue {
+                        if let enumerator = fileManager.enumerator(at: url, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]) {
+                            while let fileURL = enumerator.nextObject() as? URL {
+                                if supportedExtensions.contains(fileURL.pathExtension.lowercased()) {
+                                    allAudioURLs.append(fileURL)
+                                }
+                            }
+                        }
+                    } else if supportedExtensions.contains(url.pathExtension.lowercased()) {
+                        allAudioURLs.append(url)
+                    }
+                }
+            }
+            
+            guard !allAudioURLs.isEmpty else {
+                logger.warning("No valid audio files found")
+                return
+            }
+            
+            // 排序策略：按父目录路径排序，同目录下按文件名排序
+            let sortedURLs = allAudioURLs.sorted { lhs, rhs in
+                let lhsDir = lhs.deletingLastPathComponent().path
+                let rhsDir = rhs.deletingLastPathComponent().path
+                if lhsDir != rhsDir {
+                    return lhsDir < rhsDir
+                }
+                return lhs.lastPathComponent.localizedStandardCompare(rhs.lastPathComponent) == .orderedAscending
+            }
+            
+            logger.info("Adding \(sortedURLs.count) tracks")
+            
+            let newTracks = await withTaskGroup(of: (Int, AudioTrack).self) { group in
+                for (index, url) in sortedURLs.enumerated() {
                     group.addTask {
-                        await AudioTrack(url: url)
+                        let track = await AudioTrack(url: url)
+                        return (index, track)
                     }
                 }
                 
-                var tracks: [AudioTrack] = []
-                for await track in group {
-                    tracks.append(track)
+                var tracksWithIndex: [(Int, AudioTrack)] = []
+                for await result in group {
+                    tracksWithIndex.append(result)
                 }
-                return tracks
+                // 恢复原始排序顺序
+                return tracksWithIndex.sorted { $0.0 < $1.0 }.map(\.1)
             }
             
             playlist.append(contentsOf: newTracks)
