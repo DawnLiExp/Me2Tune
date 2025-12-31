@@ -1,5 +1,5 @@
 {
-  "originHash" : "57a6fde3a79ca043e9b04feefbc887aa0988df16dac09d3b5a8cd63080949671",
+  "originHash" : "aaf1591a739186db110215851ff16f2eb34a68e39d28a39a785560537a39d049",
   "pins" : [
     {
       "identity" : "avfaudioextensions",
@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/sbooth/CXXCoreAudio",
       "state" : {
-        "revision" : "799adaf5990144567a5f693718c24dd157e8303f",
-        "version" : "0.3.2"
+        "revision" : "ed04af4ce9abc0225bae8d7ce676d0f084a687d8",
+        "version" : "0.4.1"
       }
     },
     {
@@ -60,17 +60,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/sbooth/CXXRingBuffer",
       "state" : {
-        "revision" : "837269c0036143d43819e154880ca6e69ca4e6a3",
-        "version" : "0.4.0"
-      }
-    },
-    {
-      "identity" : "cxxsharedmutex",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/sbooth/CXXSharedMutex",
-      "state" : {
-        "revision" : "9de324ca10422d6532f888a1aea28c9f51dd2327",
-        "version" : "0.1.0"
+        "revision" : "8311eba7af26bb11d230121f4616f196fc099d1e",
+        "version" : "0.4.1"
       }
     },
     {
@@ -150,8 +141,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/sbooth/SFBAudioEngine",
       "state" : {
-        "revision" : "720933f7de8eba3f17bb656d39293f005e616f71",
-        "version" : "0.9.1"
+        "revision" : "196ffccb9098eb92840bcb7181195b7507a79361",
+        "version" : "0.10.0"
       }
     },
     {

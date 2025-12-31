@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		FC0981D52F04DE9B00DD4CA3 /* SFBAudioEngine in Frameworks */ = {isa = PBXBuildFile; productRef = FC0981D42F04DE9B00DD4CA3 /* SFBAudioEngine */; };
 		FC0A17402EF262620090B22C /* Album.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC0A173F2EF262600090B22C /* Album.swift */; };
 		FC0A17442EF262910090B22C /* CollectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC0A17432EF2628E0090B22C /* CollectionManager.swift */; };
 		FC13779B2EFCF9AD00A9CE99 /* CollectionsGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC13779A2EFCF9AB00A9CE99 /* CollectionsGridView.swift */; };
@@ -24,8 +25,6 @@
 		FC480EB72EF13722000D8393 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = FC480EB62EF13722000D8393 /* Localizable.strings */; };
 		FC480EBE2EF137BB000D8393 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = FC480EBC2EF137AE000D8393 /* Localizable.strings */; };
 		FC480EC42EF152BC000D8393 /* AudioTrack.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480EC32EF152A2000D8393 /* AudioTrack.swift */; };
-		FC48D2312F0263E50080EFB1 /* CXXCoreAudio in Frameworks */ = {isa = PBXBuildFile; productRef = FC48D2302F0263E50080EFB1 /* CXXCoreAudio */; };
-		FC48D2342F02640F0080EFB1 /* SFBAudioEngine in Frameworks */ = {isa = PBXBuildFile; productRef = FC48D2332F02640F0080EFB1 /* SFBAudioEngine */; };
 		FC62DA392F0372C000DD1509 /* ArtworkCacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC62DA382F0372BA00DD1509 /* ArtworkCacheService.swift */; };
 		FC62DA3B2F0373C800DD1509 /* Array+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC62DA3A2F0373C600DD1509 /* Array+Extensions.swift */; };
 		FC8528082F01486100B53540 /* ContentSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8528072F01485D00B53540 /* ContentSectionView.swift */; };
@@ -67,8 +66,7 @@
 		FC1662272EEFAE2C00F01BCE /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
-				FC48D2312F0263E50080EFB1 /* CXXCoreAudio in Frameworks */,
-				FC48D2342F02640F0080EFB1 /* SFBAudioEngine in Frameworks */,
+				FC0981D52F04DE9B00DD4CA3 /* SFBAudioEngine in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -232,8 +230,7 @@
 			);
 			name = Me2Tune;
 			packageProductDependencies = (
-				FC48D2302F0263E50080EFB1 /* CXXCoreAudio */,
-				FC48D2332F02640F0080EFB1 /* SFBAudioEngine */,
+				FC0981D42F04DE9B00DD4CA3 /* SFBAudioEngine */,
 			);
 			productName = Me2Tune;
 			productReference = FC16622A2EEFAE2C00F01BCE /* Me2Tune.app */;
@@ -265,8 +262,7 @@
 			mainGroup = FC1662212EEFAE2C00F01BCE;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				FC48D22F2F0263E50080EFB1 /* XCRemoteSwiftPackageReference "CXXCoreAudio" */,
-				FC48D2322F02640F0080EFB1 /* XCRemoteSwiftPackageReference "SFBAudioEngine" */,
+				FC0981D32F04DE9B00DD4CA3 /* XCRemoteSwiftPackageReference "SFBAudioEngine" */,
 			);
 			preferredProjectObjectVersion = 90;
 			productRefGroup = FC16622B2EEFAE2C00F01BCE /* Products */;
@@ -560,33 +556,20 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		FC48D22F2F0263E50080EFB1 /* XCRemoteSwiftPackageReference "CXXCoreAudio" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/sbooth/CXXCoreAudio";
-			requirement = {
-				kind = exactVersion;
-				version = 0.3.2;
-			};
-		};
-		FC48D2322F02640F0080EFB1 /* XCRemoteSwiftPackageReference "SFBAudioEngine" */ = {
+		FC0981D32F04DE9B00DD4CA3 /* XCRemoteSwiftPackageReference "SFBAudioEngine" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sbooth/SFBAudioEngine";
 			requirement = {
 				kind = exactVersion;
-				version = 0.9.1;
+				version = 0.10.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		FC48D2302F0263E50080EFB1 /* CXXCoreAudio */ = {
+		FC0981D42F04DE9B00DD4CA3 /* SFBAudioEngine */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FC48D22F2F0263E50080EFB1 /* XCRemoteSwiftPackageReference "CXXCoreAudio" */;
-			productName = CXXCoreAudio;
-		};
-		FC48D2332F02640F0080EFB1 /* SFBAudioEngine */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = FC48D2322F02640F0080EFB1 /* XCRemoteSwiftPackageReference "SFBAudioEngine" */;
+			package = FC0981D32F04DE9B00DD4CA3 /* XCRemoteSwiftPackageReference "SFBAudioEngine" */;
 			productName = SFBAudioEngine;
 		};
 /* End XCSwiftPackageProductDependency section */
