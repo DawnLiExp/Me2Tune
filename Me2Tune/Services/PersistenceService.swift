@@ -2,14 +2,15 @@
 //  PersistenceService.swift
 //  Me2Tune
 //
-//  播放列表持久化服务 - 优化版：缓存元数据 + UI状态记忆
+//  持久化服务 - 分离播放状态和列表内容
 //
 
 import Foundation
 import OSLog
 
-struct PlaylistState: Codable, Sendable {
-    var tracks: [AudioTrack]
+// MARK: - Playback State
+
+struct PlaybackState: Codable, Sendable {
     var playlistCurrentIndex: Int?
     var albumCurrentIndex: Int?
     var playingSource: PlayingSourceData?
@@ -18,6 +19,12 @@ struct PlaylistState: Codable, Sendable {
         case playlist
         case album(UUID)
     }
+}
+
+// MARK: - Playlist Content
+
+struct PlaylistContent: Codable, Sendable {
+    var tracks: [AudioTrack]
 }
 
 struct CollectionState: Codable, Sendable {
@@ -42,7 +49,8 @@ struct UIState: Codable, Sendable {
 
 @MainActor
 final class PersistenceService {
-    private let fileURL: URL
+    private let playbackStateFileURL: URL
+    private let playlistContentFileURL: URL
     private let collectionFileURL: URL
     private let uiStateFileURL: URL
     private let logger = Logger.persistence
@@ -56,26 +64,42 @@ final class PersistenceService {
         let appDirectory = appSupport.appendingPathComponent("Me2Tune", isDirectory: true)
         try? FileManager.default.createDirectory(at: appDirectory, withIntermediateDirectories: true)
 
-        fileURL = appDirectory.appendingPathComponent("playlist.json")
+        playbackStateFileURL = appDirectory.appendingPathComponent("playbackState.json")
+        playlistContentFileURL = appDirectory.appendingPathComponent("playlistContent.json")
         collectionFileURL = appDirectory.appendingPathComponent("collections.json")
         uiStateFileURL = appDirectory.appendingPathComponent("uiState.json")
 
         logger.debug("Persistence paths initialized")
     }
 
-    // MARK: - Playlist
+    // MARK: - Playback State (轻量级，高频保存)
 
-    func save(_ state: PlaylistState) throws {
+    func savePlaybackState(_ state: PlaybackState) throws {
         let encoder = JSONEncoder()
         let data = try encoder.encode(state)
-        try data.write(to: fileURL, options: .atomic)
-        logger.debug("Playlist state saved with \(state.tracks.count) tracks, source: \(String(describing: state.playingSource))")
+        try data.write(to: playbackStateFileURL, options: .atomic)
+        logger.debug("💾 Playback state saved (source: \(String(describing: state.playingSource)))")
     }
 
-    func load() throws -> PlaylistState {
-        let data = try Data(contentsOf: fileURL)
+    func loadPlaybackState() throws -> PlaybackState {
+        let data = try Data(contentsOf: playbackStateFileURL)
         let decoder = JSONDecoder()
-        return try decoder.decode(PlaylistState.self, from: data)
+        return try decoder.decode(PlaybackState.self, from: data)
+    }
+
+    // MARK: - Playlist Content (重量级，仅内容变化时保存)
+
+    func savePlaylistContent(_ content: PlaylistContent) throws {
+        let encoder = JSONEncoder()
+        let data = try encoder.encode(content)
+        try data.write(to: playlistContentFileURL, options: .atomic)
+        logger.debug("💾 Playlist content saved (\(content.tracks.count) tracks)")
+    }
+
+    func loadPlaylistContent() throws -> PlaylistContent {
+        let data = try Data(contentsOf: playlistContentFileURL)
+        let decoder = JSONDecoder()
+        return try decoder.decode(PlaylistContent.self, from: data)
     }
 
     // MARK: - Collections

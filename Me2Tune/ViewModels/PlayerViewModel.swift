@@ -244,24 +244,30 @@ final class PlayerViewModel: ObservableObject {
                 await loadTrack(at: 0)
             }
             
-            savePlaylist()
+            savePlaylistContent() // 内容变化，保存完整列表
             
             let elapsed = CFAbsoluteTimeGetCurrent() - startTime
             logger.logPerformance("Add \(newTracks.count) tracks", duration: elapsed)
         }
     }
     
+    // MARK: - Playlist Management (修改 removeTrack)
+
     func removeTrack(at index: Int) {
         guard playlist.indices.contains(index) else { return }
+        
+        var indexChanged = false
         
         if playingSource == .playlist, let currentIndex = currentTrackIndex {
             if index == currentIndex {
                 pause()
                 currentTrackIndex = nil
-                logger.info("Removed currently playing track")
+                indexChanged = true
             } else if index < currentIndex {
                 currentTrackIndex = currentIndex - 1
+                indexChanged = true
             }
+            // index > currentIndex 时索引不变，无需保存状态
         }
         
         playlist.remove(at: index)
@@ -270,7 +276,11 @@ final class PlayerViewModel: ObservableObject {
             currentTracks = playlist
         }
         
-        savePlaylist()
+        savePlaylistContent()
+        
+        if indexChanged {
+            savePlaybackState() // 仅在索引实际变化时保存
+        }
     }
     
     func clearPlaylist() {
@@ -288,7 +298,8 @@ final class PlayerViewModel: ObservableObject {
         
         logger.info("🗑 Cleared \(count) tracks")
         
-        savePlaylist()
+        savePlaylistContent() // 内容变化
+        savePlaybackState() // 状态变化
     }
     
     func moveTrack(from source: Int, to destination: Int) {
@@ -318,7 +329,8 @@ final class PlayerViewModel: ObservableObject {
         
         logger.debug("Moved track from \(source) to \(destination)")
         
-        savePlaylist()
+        savePlaylistContent() // 顺序变化，保存内容
+        savePlaybackState() // 索引可能变化
     }
     
     func playTrack(at index: Int) {
@@ -359,7 +371,7 @@ final class PlayerViewModel: ObservableObject {
         Task {
             await loadTrack(at: index)
             playerCore.play()
-            savePlaylist()
+            savePlaybackState() // 仅保存播放状态，不保存列表内容
         }
     }
     
@@ -370,7 +382,6 @@ final class PlayerViewModel: ObservableObject {
         
         switch repeatMode {
         case .one:
-            // 单曲循环不预加载
             return
         case .all:
             if currentIndex < currentTracks.count - 1 {
@@ -400,8 +411,8 @@ final class PlayerViewModel: ObservableObject {
     
     // MARK: - Persistence
     
-    private func savePlaylist() {
-        let sourceData: PlaylistState.PlayingSourceData? = {
+    private func savePlaybackState() {
+        let sourceData: PlaybackState.PlayingSourceData? = {
             switch playingSource {
             case .playlist:
                 return .playlist
@@ -410,8 +421,7 @@ final class PlayerViewModel: ObservableObject {
             }
         }()
         
-        let state = PlaylistState(
-            tracks: playlist,
+        let state = PlaybackState(
             playlistCurrentIndex: playingSource == .playlist ? currentTrackIndex : nil,
             albumCurrentIndex: {
                 if case .album = playingSource {
@@ -423,21 +433,39 @@ final class PlayerViewModel: ObservableObject {
         )
         
         do {
-            try persistenceService.save(state)
-            logger.debug("💾 Playlist saved (\(state.tracks.count) tracks)")
+            try persistenceService.savePlaybackState(state)
         } catch {
-            let appError = AppError.persistenceFailed("save playlist")
-            logger.logError(appError, context: "savePlaylist")
+            let appError = AppError.persistenceFailed("save playback state")
+            logger.logError(appError, context: "savePlaybackState")
+        }
+    }
+    
+    private func savePlaylistContent() {
+        let content = PlaylistContent(tracks: playlist)
+        
+        do {
+            try persistenceService.savePlaylistContent(content)
+        } catch {
+            let appError = AppError.persistenceFailed("save playlist content")
+            logger.logError(appError, context: "savePlaylistContent")
         }
     }
  
     private func loadPlaylist() {
-        guard let state = try? persistenceService.load() else {
-            logger.notice("No saved playlist found")
-            return
+        // 1. 加载播放列表内容
+        if let content = try? persistenceService.loadPlaylistContent() {
+            playlist = content.tracks
+            logger.info("📋 Loaded \(content.tracks.count) tracks")
+        } else {
+            logger.notice("No saved playlist content found")
         }
         
-        playlist = state.tracks
+        // 2. 加载播放状态
+        guard let state = try? persistenceService.loadPlaybackState() else {
+            logger.notice("No saved playback state found")
+            isPlaylistLoaded = true
+            return
+        }
         
         if let source = state.playingSource {
             switch source {
@@ -494,7 +522,6 @@ final class PlayerViewModel: ObservableObject {
             currentTrackIndex = nil
         }
         
-        logger.info("📋 Loaded \(state.tracks.count) tracks")
         isPlaylistLoaded = true
     }
 }
@@ -525,19 +552,25 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
             return
         }
         
-        // 找到对应的 track index
         if let index = currentTracks.firstIndex(where: { $0.url == url }) {
-            logger.info("🔄 Auto switched to track \(index + 1): \(self.currentTracks[index].title)")
-            currentTrackIndex = index
+            // 检查索引是否真的变了
+            let indexChanged = (currentTrackIndex != index)
             
-            // 更新 artwork 和 UI
+            if indexChanged {
+                logger.info("🔄 Auto switched to track \(index + 1): \(self.currentTracks[index].title)")
+                currentTrackIndex = index
+            }
+            
             Task {
                 let track = currentTracks[index]
                 let artwork = await ArtworkCacheService.shared.artwork(for: track.url)
                 await MainActor.run {
                     self.currentArtwork = artwork
                     self.duration = track.duration
-                    self.savePlaylist()
+                    
+                    if indexChanged {
+                        self.savePlaybackState()
+                    }
                 }
             }
         } else {
@@ -551,13 +584,11 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
     }
     
     func playerCoreDidReachEnd(_ core: AudioPlayerCore) {
-        // 只在单曲循环时才在这里处理
         if repeatMode == .one {
             if let index = currentTrackIndex {
                 loadAndPlay(at: index)
             }
         }
-        // 其他模式已经通过 enqueue + nowPlayingChanged 自动切换了
     }
 }
 
