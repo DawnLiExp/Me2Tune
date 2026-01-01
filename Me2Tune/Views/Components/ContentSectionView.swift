@@ -38,6 +38,7 @@ struct ContentSectionView: View {
                 .padding(.horizontal, 12)
                 
                 contentView
+                    .frame(maxHeight: .infinity)
             }
             .frame(minHeight: 405)
             .background(containerBackground)
@@ -70,35 +71,31 @@ struct ContentSectionView: View {
             .padding(.horizontal, 12)
             .padding(.top, 16)
         } else {
-            ScrollView(showsIndicators: false) {
-                CollectionsGridView(
-                    selectedTab: $selectedTab,
-                    isInAlbumDetail: $isInAlbumDetail,
-                    albums: collectionManager.albums,
-                    isLoaded: collectionManager.isLoaded,
-                    currentIndex: playerViewModel.currentTrackIndex,
-                    playingSource: playerViewModel.playingSource,
-                    onAlbumPlayAt: { album, index in
-                        playerViewModel.playAlbum(album, startAt: index)
-                    },
-                    onAlbumRemoved: { albumId in
-                        collectionManager.removeAlbum(id: albumId)
-                    },
-                    onAlbumRenamed: { albumId, newName in
-                        collectionManager.renameAlbum(id: albumId, newName: newName)
-                    },
-                    onTrackAddedToPlaylist: { track in
-                        playerViewModel.addTracks(urls: [track.url])
-                    },
-                    onEnsureLoaded: {
-                        await collectionManager.ensureLoaded()
-                    }
-                )
-                .frame(minHeight: 375)
-                .padding(.horizontal, 12)
-                .padding(.top, 16)
-                .padding(.bottom, 48)
-            }
+            CollectionsGridView(
+                selectedTab: $selectedTab,
+                isInAlbumDetail: $isInAlbumDetail,
+                albums: collectionManager.albums,
+                isLoaded: collectionManager.isLoaded,
+                currentIndex: playerViewModel.currentTrackIndex,
+                playingSource: playerViewModel.playingSource,
+                onAlbumPlayAt: { album, index in
+                    playerViewModel.playAlbum(album, startAt: index)
+                },
+                onAlbumRemoved: { albumId in
+                    collectionManager.removeAlbum(id: albumId)
+                },
+                onAlbumRenamed: { albumId, newName in
+                    collectionManager.renameAlbum(id: albumId, newName: newName)
+                },
+                onTrackAddedToPlaylist: { track in
+                    playerViewModel.addTracks(urls: [track.url])
+                },
+                onEnsureLoaded: {
+                    await collectionManager.ensureLoaded()
+                }
+            )
+            .padding(.horizontal, 12)
+            .padding(.top, 16)
         }
     }
     
