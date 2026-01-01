@@ -2,7 +2,7 @@
 //  VinylCoverView.swift
 //  Me2Tune
 //
-//  唱片封面视图：半圆唱片+旋转动画
+//  唱片封面视图：半圆唱片+旋转动画（窗口不可见时暂停）
 //
 
 import AppKit
@@ -38,6 +38,7 @@ struct VinylCoverView: View {
     let isRotationEnabled: Bool
     let currentTime: TimeInterval
     let duration: TimeInterval
+    let isWindowVisible: Bool
 
     @State private var rotationAngle: Double = 0
     @State private var rotationTimer: Timer?
@@ -59,6 +60,9 @@ struct VinylCoverView: View {
             updateRotationTimer()
         }
         .onChange(of: isRotationEnabled) { _, _ in
+            updateRotationTimer()
+        }
+        .onChange(of: isWindowVisible) { _, _ in
             updateRotationTimer()
         }
         .onDisappear {
@@ -189,7 +193,8 @@ struct VinylCoverView: View {
     // MARK: - Rotation Logic
 
     private func updateRotationTimer() {
-        let shouldRotate = isPlaying && isRotationEnabled
+        // 只有在窗口可见、正在播放、且旋转开启时才旋转
+        let shouldRotate = isWindowVisible && isPlaying && isRotationEnabled
 
         if shouldRotate {
             startRotation()
@@ -237,7 +242,8 @@ struct VinylCoverView: View {
         isPlaying: true,
         isRotationEnabled: true,
         currentTime: 128,
-        duration: 240
+        duration: 240,
+        isWindowVisible: true
     )
     .frame(height: 160)
     .padding()

@@ -12,6 +12,7 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @EnvironmentObject private var playerViewModel: PlayerViewModel
     @EnvironmentObject private var collectionManager: CollectionManager
+    @EnvironmentObject private var windowStateMonitor: WindowStateMonitor
     
     @State private var albumGlowColor = Color.defaultAlbumGlow
     @State private var previousTrackID: UUID?
@@ -33,6 +34,10 @@ struct ContentView: View {
             .preferredColorScheme(.dark)
             .onDrop(of: [.fileURL], isTargeted: $isDragging) { providers in
                 handleDrop(providers: providers)
+            }
+            // 添加窗口状态监听
+            .onChange(of: windowStateMonitor.isWindowVisible) { _, isVisible in
+                playerViewModel.updateWindowVisibility(isVisible)
             }
             .modifier(AlertsModifier(
                 showExportDialog: $showExportDialog,
@@ -75,7 +80,8 @@ struct ContentView: View {
                 isPlaying: playerViewModel.isPlaying,
                 isRotationEnabled: isRotationEnabled,
                 currentTime: playerViewModel.currentTime,
-                duration: playerViewModel.duration
+                duration: playerViewModel.duration,
+                isWindowVisible: windowStateMonitor.isWindowVisible
             )
             .frame(height: 160)
             .padding(.horizontal, 12)

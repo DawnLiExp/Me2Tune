@@ -32,6 +32,7 @@
 		FC85280C2F01488F00B53540 /* BackgroundLayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC85280B2F01488D00B53540 /* BackgroundLayerView.swift */; };
 		FC8528102F014F7C00B53540 /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC85280F2F014F7A00B53540 /* AppError.swift */; };
 		FC8528122F014FAA00B53540 /* Logger+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8528112F014FA900B53540 /* Logger+Extensions.swift */; };
+		FC8C88722F06263500ABC82E /* WindowStateMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8C88712F06263100ABC82E /* WindowStateMonitor.swift */; };
 		FCE6E86F2F053E7C004D5E21 /* NowPlayingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCE6E86E2F053E6F004D5E21 /* NowPlayingService.swift */; };
 		FCE6E8712F053E8E004D5E21 /* RemoteCommandController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCE6E8702F053E8D004D5E21 /* RemoteCommandController.swift */; };
 /* End PBXBuildFile section */
@@ -62,6 +63,7 @@
 		FC85280B2F01488D00B53540 /* BackgroundLayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundLayerView.swift; sourceTree = "<group>"; };
 		FC85280F2F014F7A00B53540 /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
 		FC8528112F014FA900B53540 /* Logger+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Logger+Extensions.swift"; sourceTree = "<group>"; };
+		FC8C88712F06263100ABC82E /* WindowStateMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowStateMonitor.swift; sourceTree = "<group>"; };
 		FCE6E86E2F053E6F004D5E21 /* NowPlayingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingService.swift; sourceTree = "<group>"; };
 		FCE6E8702F053E8D004D5E21 /* RemoteCommandController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteCommandController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -215,6 +217,7 @@
 		FC85280E2F014F6900B53540 /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
+				FC8C88712F06263100ABC82E /* WindowStateMonitor.swift */,
 				FC85280F2F014F7A00B53540 /* AppError.swift */,
 				FC8528112F014FA900B53540 /* Logger+Extensions.swift */,
 			);
@@ -312,6 +315,7 @@
 				FC13779F2EFCF9DD00A9CE99 /* PlaybackControlView.swift in Sources */,
 				FC480EAA2EF107E8000D8393 /* ContentView.swift in Sources */,
 				FC480EAB2EF107E8000D8393 /* Me2TuneApp.swift in Sources */,
+				FC8C88722F06263500ABC82E /* WindowStateMonitor.swift in Sources */,
 				FC13779B2EFCF9AD00A9CE99 /* CollectionsGridView.swift in Sources */,
 				FC62DA392F0372C000DD1509 /* ArtworkCacheService.swift in Sources */,
 				FC8528082F01486100B53540 /* ContentSectionView.swift in Sources */,

@@ -2,7 +2,7 @@
 //  Me2TuneApp.swift
 //  Me2Tune
 //
-//  应用入口 - 使用 ViewModel 架构
+//  应用入口 - 使用 ViewModel 架构 + 窗口状态监控
 //
 
 import OSLog
@@ -14,6 +14,7 @@ private let logger = Logger.app
 struct Me2TuneApp: App {
     @StateObject private var collectionManager = CollectionManager()
     @StateObject private var playerViewModel: PlayerViewModel
+    @StateObject private var windowStateMonitor = WindowStateMonitor()
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     init() {
@@ -27,8 +28,12 @@ struct Me2TuneApp: App {
             ContentView()
                 .environmentObject(playerViewModel)
                 .environmentObject(collectionManager)
+                .environmentObject(windowStateMonitor)
                 .onAppear {
-                    appDelegate.window = NSApp.windows.first
+                    if let window = NSApp.windows.first {
+                        appDelegate.window = window
+                        windowStateMonitor.startMonitoring(window: window)
+                    }
                     
                     // 延迟后台加载专辑列表
                     Task {

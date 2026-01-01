@@ -28,6 +28,10 @@ final class PlayerViewModel: ObservableObject {
     @Published var repeatMode: RepeatMode = .off
     @Published var volume: Double = 0.7
     
+    // MARK: - 窗口可见性状态
+
+    private var isWindowVisible = true
+    
     enum PlayingSource: Equatable {
         case playlist
         case album(UUID)
@@ -181,6 +185,29 @@ final class PlayerViewModel: ObservableObject {
             repeatMode = .off
         }
         logger.debug("Repeat mode: \(String(describing: self.repeatMode))")
+    }
+    
+    // MARK: - 窗口可见性管理
+    
+    func updateWindowVisibility(_ isVisible: Bool) {
+        guard isWindowVisible != isVisible else { return }
+        
+        isWindowVisible = isVisible
+        
+        // 传递给播放核心
+        playerCore.updateWindowVisibility(isVisible)
+        
+        // 调整 Now Playing 更新频率
+        if isPlaying {
+            if isVisible {
+                startNowPlayingUpdateTimer()
+            } else {
+                // 窗口不可见时,停止频繁更新,只保留基本信息
+                stopNowPlayingUpdateTimer()
+            }
+        }
+        
+        logger.debug("ViewModel window visibility: \(isVisible ? "visible" : "hidden")")
     }
     
     // MARK: - Playlist Management
@@ -443,6 +470,9 @@ final class PlayerViewModel: ObservableObject {
     
     private func startNowPlayingUpdateTimer() {
         stopNowPlayingUpdateTimer()
+        
+        // 窗口不可见时不启动定时更新
+        guard isWindowVisible else { return }
         
         // 每 5 秒更新一次进度
         nowPlayingUpdateTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
