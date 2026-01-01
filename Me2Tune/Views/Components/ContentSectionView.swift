@@ -192,20 +192,20 @@ struct TabSwitcherView: View {
     
     private var playlistToolbar: some View {
         HStack(spacing: 8) {
-            ToolbarIconButton(
+            ToolbarButtonView(
                 icon: "arrow.right.circle",
                 tooltip: String(localized: "export_to_collection"),
                 isEnabled: !playlistEmpty,
                 action: onExportPlaylist
             )
             
-            ToolbarIconButton(
+            ToolbarButtonView(
                 icon: "plus.circle",
                 tooltip: String(localized: "add_files"),
                 action: onOpenFilePicker
             )
             
-            ToolbarIconButton(
+            ToolbarButtonView(
                 icon: "xmark.circle",
                 tooltip: String(localized: "clear_playlist"),
                 isEnabled: !playlistEmpty,
@@ -216,46 +216,19 @@ struct TabSwitcherView: View {
     
     private var collectionsToolbar: some View {
         HStack(spacing: 8) {
-            ToolbarIconButton(
+            ToolbarButtonView(
                 icon: "plus.circle",
                 tooltip: String(localized: "add_album"),
                 action: onOpenFilePicker
             )
             
-            ToolbarIconButton(
+            ToolbarButtonView(
                 icon: "xmark.circle",
                 tooltip: String(localized: "clear_collections"),
                 isEnabled: !collectionsEmpty,
                 action: onClearCollections
             )
         }
-    }
-}
-
-// MARK: - Collapse Button View
-
-struct CollapseButtonView: View {
-    @Binding var isCollapsed: Bool
-    
-    var body: some View {
-        Button(action: {
-            withAnimation(.spring(response: 0.4)) {
-                isCollapsed.toggle()
-            }
-        }) {
-            ZStack {
-                Capsule()
-                    .fill(Color.accent.opacity(0.2))
-                    .frame(width: 64, height: 6)
-                    .shadow(color: Color.accent.opacity(0.4), radius: 6)
-                
-                Image(systemName: isCollapsed ? "chevron.compact.up" : "chevron.compact.down")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(.accent)
-                    .offset(y: isCollapsed ? -12 : 12)
-            }
-        }
-        .buttonStyle(.plain)
     }
 }
 

@@ -2,7 +2,7 @@
 //  PlaylistTabView.swift
 //  Me2Tune
 //
-//  播放列表视图：歌曲列表 + 拖拽排序 + 文件拖拽添加（优化悬浮性能）
+//  播放列表视图 - 歌曲列表 + 拖拽排序 + 文件拖拽添加（优化悬浮性能）
 //
 
 import SwiftUI
@@ -20,7 +20,7 @@ struct PlaylistTabView: View {
     
     @State private var draggingIndex: Int?
     @State private var dropTargetIndex: Int?
-    @State private var hoveredIndex: Int? // 共享的 hover 状态
+    @State private var hoveredIndex: Int?
     
     var body: some View {
         Group {
@@ -228,108 +228,6 @@ struct TrackDropDelegate: DropDelegate {
         }
         
         return true
-    }
-}
-
-// MARK: - Song Row View (优化版)
-
-struct SongRowView: View {
-    let track: AudioTrack
-    let index: Int
-    let isPlaying: Bool
-    let isHovered: Bool
-    let onTap: () -> Void
-    let onHoverChange: (Bool) -> Void
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            Group {
-                if isPlaying {
-                    Image(systemName: "waveform")
-                        .foregroundColor(.accent)
-                        .font(.system(size: 13, weight: .semibold))
-                } else {
-                    Text("\(index + 1)")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.secondaryText)
-                }
-            }
-            .frame(width: 24)
-            
-            Text(track.title)
-                .font(.system(size: 14, weight: isPlaying ? .semibold : .regular))
-                .foregroundColor(isPlaying ? .primaryText : .primaryText.opacity(0.8))
-                .lineLimit(1)
-            
-            Spacer()
-            
-            Text(track.artist ?? String(localized: "unknown_artist"))
-                .font(.system(size: 13))
-                .foregroundColor(.secondaryText)
-                .lineLimit(1)
-                .frame(maxWidth: 120, alignment: .trailing)
-            
-            Text(formatTime(track.duration))
-                .font(.system(size: 13, design: .monospaced))
-                .foregroundColor(.secondaryText)
-                .frame(width: 48, alignment: .trailing)
-        }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(backgroundColor)
-        )
-        .contentShape(Rectangle())
-        .onTapGesture(count: 2) {
-            onTap()
-        }
-        .onHover { hovering in
-            onHoverChange(hovering)
-        }
-    }
-    
-    private var backgroundColor: Color {
-        if isPlaying {
-            return .accentLight
-        } else if isHovered {
-            return .hoverBackground
-        } else {
-            return Color.clear
-        }
-    }
-    
-    private func formatTime(_ time: TimeInterval) -> String {
-        guard time.isFinite, !time.isNaN else { return "0:00" }
-        let minutes = Int(time) / 60
-        let seconds = Int(time) % 60
-        return String(format: "%d:%02d", minutes, seconds)
-    }
-}
-
-// MARK: - Toolbar Button
-
-struct ToolbarIconButton: View {
-    let icon: String
-    let tooltip: String
-    var isEnabled: Bool = true
-    let action: () -> Void
-    
-    @State private var isHovered = false
-    
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(isEnabled ? (isHovered ? .primary : .secondary) : .tertiary)
-                .frame(width: 24, height: 24)
-        }
-        .buttonStyle(.plain)
-        .disabled(!isEnabled)
-        .help(tooltip)
-        .onHover { hovering in
-            isHovered = hovering
-        }
     }
 }
 

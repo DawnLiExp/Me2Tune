@@ -23,24 +23,24 @@ struct AudioFormat: Codable, Sendable {
     var formattedString: String {
         var components: [String] = []
         
-        if let codec = codec {
+        if let codec {
             components.append(codec.uppercased())
         }
         
-        if let bitrate = bitrate, bitrate > 0 {
+        if let bitrate, bitrate > 0 {
             components.append("\(bitrate) kbps")
         }
         
-        if let bitDepth = bitDepth, bitDepth > 0 {
+        if let bitDepth, bitDepth > 0 {
             components.append("\(bitDepth) bit")
         }
         
-        if let sampleRate = sampleRate, sampleRate > 0 {
+        if let sampleRate, sampleRate > 0 {
             let khz = sampleRate / 1000.0
             components.append(String(format: "%.1f kHz", khz))
         }
         
-        if let channels = channels, channels > 0 {
+        if let channels, channels > 0 {
             let channelName = channels == 1 ? "Mono" : (channels == 2 ? "Stereo" : "\(channels)ch")
             components.append(channelName)
         }
@@ -141,6 +141,28 @@ struct AudioTrack: Identifiable, Equatable, Codable, Sendable {
         bookmark = try container.decodeIfPresent(Data.self, forKey: .bookmark)
     }
     
+    // MARK: - Internal Initializer (for testing/preview)
+
+    init(
+        id: UUID,
+        url: URL,
+        title: String,
+        artist: String?,
+        albumTitle: String?,
+        duration: TimeInterval,
+        format: AudioFormat,
+        bookmark: Data?
+    ) {
+        self.id = id
+        self.url = url
+        self.title = title
+        self.artist = artist
+        self.albumTitle = albumTitle
+        self.duration = duration
+        self.format = format
+        self.bookmark = bookmark
+    }
+
     func resolveURL() -> URL? {
         guard let bookmark else { return url }
         

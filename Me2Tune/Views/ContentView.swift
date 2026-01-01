@@ -35,7 +35,6 @@ struct ContentView: View {
             .onDrop(of: [.fileURL], isTargeted: $isDragging) { providers in
                 handleDrop(providers: providers)
             }
-            // 添加窗口状态监听
             .onChange(of: windowStateMonitor.isWindowVisible) { _, isVisible in
                 playerViewModel.updateWindowVisibility(isVisible)
             }
@@ -65,7 +64,7 @@ struct ContentView: View {
     
     private var mainContentStack: some View {
         VStack(spacing: 0) {
-            TopBarView(
+            TopBarSectionView(
                 isRotationEnabled: $isRotationEnabled,
                 audioFormat: playerViewModel.currentFormat
             )
@@ -75,7 +74,7 @@ struct ContentView: View {
             Spacer()
                 .frame(height: 18)
             
-            VinylCoverView(
+            VinylSectionView(
                 artwork: playerViewModel.currentArtwork,
                 isPlaying: playerViewModel.isPlaying,
                 isRotationEnabled: isRotationEnabled,
@@ -86,7 +85,7 @@ struct ContentView: View {
             .frame(height: 160)
             .padding(.horizontal, 12)
             
-            PlaybackControlView(
+            ControlSectionView(
                 currentTrack: playerViewModel.currentTrack,
                 currentTime: playerViewModel.currentTime,
                 duration: playerViewModel.duration,

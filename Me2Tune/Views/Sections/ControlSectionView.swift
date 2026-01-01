@@ -1,13 +1,13 @@
 //
-//  PlaybackControlView.swift
+//  ControlSectionView.swift
 //  Me2Tune
 //
-//  播放控制面板：进度条+控制按钮+歌曲信息
+//  播放控制区域 - 进度条+控制按钮+歌曲信息
 //
 
 import SwiftUI
 
-struct PlaybackControlView: View {
+struct ControlSectionView: View {
     let currentTrack: AudioTrack?
     let currentTime: TimeInterval
     let duration: TimeInterval
@@ -152,7 +152,6 @@ struct PlaybackControlView: View {
                     .shadow(color: .accentGlow, radius: 4)
             }
             .overlay(
-                // 透明扩展交互层
                 Color.clear
                     .frame(height: 20)
                     .contentShape(Rectangle())
@@ -184,7 +183,7 @@ struct PlaybackControlView: View {
 }
 
 #Preview {
-    PlaybackControlView(
+    ControlSectionView(
         currentTrack: nil,
         currentTime: 130,
         duration: 240,

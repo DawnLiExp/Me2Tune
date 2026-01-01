@@ -1,8 +1,8 @@
 //
-//  VinylCoverView.swift
+//  VinylSectionView.swift
 //  Me2Tune
 //
-//  唱片封面视图：半圆唱片+旋转动画（优化刷新率）
+//  唱片封面区域 - 半圆唱片+旋转动画（优化刷新率）
 //
 
 import AppKit
@@ -29,9 +29,9 @@ struct TopHalfCircleShape: Shape {
     }
 }
 
-// MARK: - VinylCoverView
+// MARK: - VinylSectionView
 
-struct VinylCoverView: View {
+struct VinylSectionView: View {
     let artwork: NSImage?
     let isPlaying: Bool
     let isRotationEnabled: Bool
@@ -233,7 +233,7 @@ struct VinylCoverView: View {
 }
 
 #Preview {
-    VinylCoverView(
+    VinylSectionView(
         artwork: nil,
         isPlaying: true,
         isRotationEnabled: true,

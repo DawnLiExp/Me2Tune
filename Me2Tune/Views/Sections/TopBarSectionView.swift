@@ -1,13 +1,13 @@
 //
-//  TopBarView.swift
+//  TopBarSectionView.swift
 //  Me2Tune
 //
-//  顶部信息栏 - 应用信息和旋转开关
+//  顶部信息栏区域 - 应用信息和旋转开关
 //
 
 import SwiftUI
 
-struct TopBarView: View {
+struct TopBarSectionView: View {
     @Binding var isRotationEnabled: Bool
     let audioFormat: AudioFormat
     
@@ -86,7 +86,7 @@ struct TopBarView: View {
 }
 
 #Preview {
-    TopBarView(
+    TopBarSectionView(
         isRotationEnabled: .constant(true),
         audioFormat: AudioFormat(
             codec: "AAC",
