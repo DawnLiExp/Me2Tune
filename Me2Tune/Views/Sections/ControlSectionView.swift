@@ -2,7 +2,7 @@
 //  ControlSectionView.swift
 //  Me2Tune
 //
-//  播放控制区域 - 进度条+控制按钮+歌曲信息
+//  播放控制区域 - 进度条+控制按钮+歌曲信息+循环模式
 //
 
 import SwiftUI
@@ -14,14 +14,17 @@ struct ControlSectionView: View {
     let isPlaying: Bool
     let canGoPrevious: Bool
     let canGoNext: Bool
+    let repeatMode: PlayerViewModel.RepeatMode
     
     let onPlayPause: () -> Void
     let onPrevious: () -> Void
     let onNext: () -> Void
     let onSeek: (TimeInterval) -> Void
+    let onToggleRepeat: () -> Void
     
     @State private var isSeekingManually = false
     @State private var manualSeekValue: TimeInterval = 0
+    @State private var isHoveringTrackInfo = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -30,7 +33,7 @@ struct ControlSectionView: View {
                 .padding(.horizontal, 28)
             
             HStack(spacing: 20) {
-                trackInfo
+                trackInfoSection
                 
                 Spacer()
                 
@@ -47,19 +50,36 @@ struct ControlSectionView: View {
         }
     }
     
-    // MARK: - Track Info
+    // MARK: - Track Info Section
     
-    private var trackInfo: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(currentTrack?.title ?? "No Track")
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundColor(.accent)
-                .lineLimit(1)
+    private var trackInfoSection: some View {
+        HStack(spacing: 0) {
+            if isHoveringTrackInfo, currentTrack != nil {
+                repeatButton
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .leading).combined(with: .opacity),
+                        removal: .move(edge: .leading).combined(with: .opacity)
+                    ))
+            }
             
-            Text(trackSubtitle)
-                .font(.system(size: 10, weight: .regular))
-                .foregroundColor(.tertiaryText)
-                .lineLimit(1)
+            VStack(alignment: .leading, spacing: 5) {
+                Text(currentTrack?.title ?? "No Track")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(.accent)
+                    .lineLimit(1)
+                
+                Text(trackSubtitle)
+                    .font(.system(size: 10, weight: .regular))
+                    .foregroundColor(.tertiaryText)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                isHoveringTrackInfo = hovering
+            }
         }
     }
     
@@ -78,10 +98,56 @@ struct ControlSectionView: View {
         }
     }
     
+    // MARK: - Repeat Button
+    
+    private var repeatButton: some View {
+        Button(action: {
+            onToggleRepeat()
+        }) {
+            Image(systemName: repeatIcon)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(repeatMode == .off ? .secondaryText : .accent)
+                .frame(width: 28, height: 28)
+        }
+        .buttonStyle(.plain)
+        .help(repeatTooltip)
+        .rotationEffect(.degrees(rotationAngle))
+        .scaleEffect(scaleEffect)
+        .animation(.spring(response: 0.4, dampingFraction: 0.6), value: repeatMode)
+    }
+    
+    private var repeatIcon: String {
+        switch repeatMode {
+        case .off, .all:
+            return "repeat"
+        case .one:
+            return "repeat.1"
+        }
+    }
+    
+    private var repeatTooltip: String {
+        switch repeatMode {
+        case .off:
+            return "Repeat: Off"
+        case .all:
+            return "Repeat: All"
+        case .one:
+            return "Repeat: One"
+        }
+    }
+    
+    private var rotationAngle: Double {
+        repeatMode == .off ? 0 : 180
+    }
+    
+    private var scaleEffect: Double {
+        repeatMode == .off ? 1.0 : 1.0
+    }
+    
     // MARK: - Control Buttons
     
     private var controlButtons: some View {
-        HStack(spacing: 26) {
+        HStack(spacing: 20) {
             controlButton(
                 icon: "backward.fill",
                 size: 18,
@@ -190,10 +256,12 @@ struct ControlSectionView: View {
         isPlaying: true,
         canGoPrevious: true,
         canGoNext: true,
+        repeatMode: .off,
         onPlayPause: {},
         onPrevious: {},
         onNext: {},
-        onSeek: { _ in }
+        onSeek: { _ in },
+        onToggleRepeat: {}
     )
     .padding()
     .background(Color.black)

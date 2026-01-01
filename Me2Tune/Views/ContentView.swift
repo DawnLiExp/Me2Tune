@@ -92,10 +92,12 @@ struct ContentView: View {
                 isPlaying: playerViewModel.isPlaying,
                 canGoPrevious: playerViewModel.canGoPrevious,
                 canGoNext: playerViewModel.canGoNext,
+                repeatMode: playerViewModel.repeatMode,
                 onPlayPause: playerViewModel.togglePlayPause,
                 onPrevious: playerViewModel.previous,
                 onNext: playerViewModel.next,
-                onSeek: playerViewModel.seek
+                onSeek: playerViewModel.seek,
+                onToggleRepeat: playerViewModel.toggleRepeatMode
             )
             .fixedSize(horizontal: false, vertical: true)
 
