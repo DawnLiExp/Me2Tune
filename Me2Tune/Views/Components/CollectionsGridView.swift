@@ -2,7 +2,7 @@
 //  CollectionsGridView.swift
 //  Me2Tune
 //
-//  专辑收藏视图：专辑卡片展示+详情视图
+//  专辑收藏视图：专辑卡片展示+详情视图（优化悬浮性能）
 //
 
 import AppKit
@@ -26,7 +26,9 @@ struct CollectionsGridView: View {
     @State private var renamingAlbumId: UUID?
     @State private var renameText = ""
     @State private var albumToDelete: Album?
-    @State private var preloadedAlbumIds = Set<UUID>()  // 记录已预加载的专辑
+    @State private var preloadedAlbumIds = Set<UUID>()
+    @State private var hoveredAlbumId: UUID? // 共享的 hover 状态
+    @State private var hoveredTrackIndex: Int? // 共享的 track hover 状态
     
     var body: some View {
         Group {
@@ -102,10 +104,14 @@ struct CollectionsGridView: View {
                                 AlbumCardView(
                                     album: album,
                                     artwork: artworkCache[album.id],
+                                    isHovered: hoveredAlbumId == album.id,
                                     onTap: {
                                         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                             selectedAlbum = album
                                         }
+                                    },
+                                    onHoverChange: { isHovered in
+                                        hoveredAlbumId = isHovered ? album.id : nil
                                     },
                                     onRename: {
                                         renamingAlbumId = album.id
@@ -151,8 +157,12 @@ struct CollectionsGridView: View {
                                 }
                                 return false
                             }(),
+                            isHovered: hoveredTrackIndex == index,
                             onTap: {
                                 onAlbumPlayAt(album, index)
+                            },
+                            onHoverChange: { isHovered in
+                                hoveredTrackIndex = isHovered ? index : nil
                             },
                             onShowInFinder: {
                                 NSWorkspace.shared.activateFileViewerSelecting([track.url])
@@ -269,7 +279,6 @@ struct CollectionsGridView: View {
     }
     
     private func preloadNearbyArtworks(for album: Album) {
-        // 防止重复预加载
         guard !preloadedAlbumIds.contains(album.id) else {
             return
         }
@@ -279,7 +288,6 @@ struct CollectionsGridView: View {
             return
         }
         
-        // 预加载可见区域前后的封面
         let range = max(0, index - 2)...min(albums.count - 1, index + 5)
         let nearbyAlbums = range.compactMap { albums[safe: $0] }
         let urls = nearbyAlbums.compactMap { $0.tracks.first?.url }
@@ -290,16 +298,16 @@ struct CollectionsGridView: View {
     }
 }
 
-// MARK: - Album Card View with Hover
+// MARK: - Album Card View (优化版)
 
 struct AlbumCardView: View {
     let album: Album
     let artwork: NSImage?
+    let isHovered: Bool
     let onTap: () -> Void
+    let onHoverChange: (Bool) -> Void
     let onRename: () -> Void
     let onRemove: () -> Void
-    
-    @State private var isHovered = false
     
     var body: some View {
         VStack(spacing: 8) {
@@ -349,7 +357,7 @@ struct AlbumCardView: View {
             onTap()
         }
         .onHover { hovering in
-            isHovered = hovering
+            onHoverChange(hovering)
         }
         .contextMenu {
             Button("rename") {
@@ -365,17 +373,17 @@ struct AlbumCardView: View {
     }
 }
 
-// MARK: - Album Track Row View with Hover
+// MARK: - Album Track Row View (优化版)
 
 struct AlbumTrackRowView: View {
     let track: AudioTrack
     let index: Int
     let isPlaying: Bool
+    let isHovered: Bool
     let onTap: () -> Void
+    let onHoverChange: (Bool) -> Void
     let onShowInFinder: () -> Void
     let onAddToPlaylist: () -> Void
-    
-    @State private var isHovered = false
     
     var body: some View {
         HStack(spacing: 12) {
@@ -421,7 +429,7 @@ struct AlbumTrackRowView: View {
             onTap()
         }
         .onHover { hovering in
-            isHovered = hovering
+            onHoverChange(hovering)
         }
         .contextMenu {
             Button("show_in_finder") {

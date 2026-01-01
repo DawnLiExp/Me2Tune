@@ -2,13 +2,13 @@
 //  VinylCoverView.swift
 //  Me2Tune
 //
-//  唱片封面视图：半圆唱片+旋转动画（窗口不可见时暂停）
+//  唱片封面视图：半圆唱片+旋转动画（优化刷新率）
 //
 
 import AppKit
 import SwiftUI
 
-// MARK: - Top Half Circle Shape（尺寸 = 完整圆）
+// MARK: - Top Half Circle Shape
 
 struct TopHalfCircleShape: Shape {
     func path(in rect: CGRect) -> Path {
@@ -17,7 +17,6 @@ struct TopHalfCircleShape: Shape {
         let radius = rect.width / 2
         let center = CGPoint(x: rect.midX, y: rect.midY)
 
-        // 上半圆：180° → 0°
         path.addArc(
             center: center,
             radius: radius,
@@ -193,7 +192,6 @@ struct VinylCoverView: View {
     // MARK: - Rotation Logic
 
     private func updateRotationTimer() {
-        // 只有在窗口可见、正在播放、且旋转开启时才旋转
         let shouldRotate = isWindowVisible && isPlaying && isRotationEnabled
 
         if shouldRotate {
@@ -209,9 +207,9 @@ struct VinylCoverView: View {
     private func startRotation() {
         guard rotationTimer == nil else { return }
 
-        rotationTimer = Timer.scheduledTimer(withTimeInterval: 0.016, repeats: true) { [self] _ in
+        rotationTimer = Timer.scheduledTimer(withTimeInterval: 0.033, repeats: true) { [self] _ in
             DispatchQueue.main.async { [self] in
-                rotationAngle += 0.15
+                rotationAngle += 0.3
                 if rotationAngle >= 360 {
                     rotationAngle -= 360
                 }
@@ -233,8 +231,6 @@ struct VinylCoverView: View {
         return String(format: "%d:%02d", minutes, secs)
     }
 }
-
-// MARK: - Preview
 
 #Preview {
     VinylCoverView(

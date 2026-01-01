@@ -33,34 +33,18 @@ struct BackgroundLayerView: View {
                     .fill(
                         RadialGradient(
                             colors: [
-                                albumGlowColor.opacity(0.51),
-                                albumGlowColor.opacity(0.35),
+                                albumGlowColor.opacity(0.63),
+                                albumGlowColor.opacity(0.41),
                                 albumGlowColor.opacity(0.15),
                                 Color.clear
                             ],
                             center: .center,
                             startRadius: 60,
-                            endRadius: 200
+                            endRadius: 220
                         )
                     )
                     .frame(width: 450, height: 400)
                     .blur(radius: 40)
-                
-                Ellipse()
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                albumGlowColor.opacity(0.25),
-                                albumGlowColor.opacity(0.1),
-                                Color.clear
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .frame(width: 460, height: 380)
-                    .blur(radius: 35)
-                    .offset(y: 80)
             }
             .offset(y: 0)
             
@@ -79,8 +63,8 @@ struct BackgroundLayerView: View {
                 .fill(
                     RadialGradient(
                         colors: [
-                            Color.accent.opacity(0.25),
-                            Color.accent.opacity(0.12),
+                            Color.accent.opacity(0.21),
+                            Color.accent.opacity(0.11),
                             Color.clear
                         ],
                         center: .center,

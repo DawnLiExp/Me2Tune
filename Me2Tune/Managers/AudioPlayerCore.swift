@@ -203,8 +203,8 @@ final class AudioPlayerCore: NSObject {
     private func startTimer() {
         stopTimer()
         
-        // 窗口不可见时降低更新频率: 0.1s -> 1.0s
-        let interval: TimeInterval = isWindowVisible ? 0.1 : 1.0
+        // 窗口不可见时降低更新频率: 0.2s -> 1.0s
+        let interval: TimeInterval = isWindowVisible ? 0.2 : 1.0
         
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             guard let self else { return }

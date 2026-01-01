@@ -2,7 +2,7 @@
 //  PlaylistTabView.swift
 //  Me2Tune
 //
-//  播放列表视图：歌曲列表 + 拖拽排序 + 文件拖拽添加
+//  播放列表视图：歌曲列表 + 拖拽排序 + 文件拖拽添加（优化悬浮性能）
 //
 
 import SwiftUI
@@ -20,6 +20,7 @@ struct PlaylistTabView: View {
     
     @State private var draggingIndex: Int?
     @State private var dropTargetIndex: Int?
+    @State private var hoveredIndex: Int? // 共享的 hover 状态
     
     var body: some View {
         Group {
@@ -104,7 +105,11 @@ struct PlaylistTabView: View {
             track: track,
             index: index,
             isPlaying: playingSource == .playlist && currentIndex == index,
-            onTap: { onTrackSelected(index) }
+            isHovered: hoveredIndex == index,
+            onTap: { onTrackSelected(index) },
+            onHoverChange: { isHovered in
+                hoveredIndex = isHovered ? index : nil
+            }
         )
         .opacity(draggingIndex == index ? 0.5 : 1.0)
         .onDrag {
@@ -226,25 +231,15 @@ struct TrackDropDelegate: DropDelegate {
     }
 }
 
-// MARK: - Song Row View
+// MARK: - Song Row View (优化版)
 
 struct SongRowView: View {
     let track: AudioTrack
     let index: Int
     let isPlaying: Bool
+    let isHovered: Bool
     let onTap: () -> Void
-    
-    @State private var isHovered = false
-    
-    private var backgroundColor: Color {
-        if isPlaying {
-            return .accentLight
-        } else if isHovered {
-            return .hoverBackground
-        } else {
-            return Color.clear
-        }
-    }
+    let onHoverChange: (Bool) -> Void
     
     var body: some View {
         HStack(spacing: 12) {
@@ -290,7 +285,17 @@ struct SongRowView: View {
             onTap()
         }
         .onHover { hovering in
-            isHovered = hovering
+            onHoverChange(hovering)
+        }
+    }
+    
+    private var backgroundColor: Color {
+        if isPlaying {
+            return .accentLight
+        } else if isHovered {
+            return .hoverBackground
+        } else {
+            return Color.clear
         }
     }
     
