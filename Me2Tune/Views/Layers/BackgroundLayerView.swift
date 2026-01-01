@@ -33,20 +33,20 @@ struct BackgroundLayerView: View {
                     .fill(
                         RadialGradient(
                             colors: [
-                                albumGlowColor.opacity(0.63),
-                                albumGlowColor.opacity(0.41),
+                                albumGlowColor.opacity(0.56),
+                                albumGlowColor.opacity(0.31),
                                 albumGlowColor.opacity(0.15),
                                 Color.clear
                             ],
                             center: .center,
                             startRadius: 60,
-                            endRadius: 220
+                            endRadius: 380
                         )
                     )
-                    .frame(width: 450, height: 400)
+                    .frame(width: 450, height: 330)
                     .blur(radius: 40)
             }
-            .offset(y: 0)
+            .offset(y: 30)
             
             Spacer()
         }

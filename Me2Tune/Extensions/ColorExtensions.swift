@@ -56,7 +56,7 @@ extension Color {
         Color(hex: "#CF9810"),
         Color(hex: "#FF3BA7"),
         Color(hex: "#33CCFF"),
-        Color(hex: "#0063DC"),
+        Color(hex: "#0066E5"),
         Color(hex: "#00FFA3"),
     ]
     
@@ -91,7 +91,7 @@ extension Color {
     // MARK: - Text Colors
 
     /// 主文本（柔和白色）
-    static let primaryText = Color(hex: "#e0e0e0")
+    static let primaryText = Color(hex: "#E0E0E0")
 
     /// 次要文本（灰色）
     static let secondaryText = Color.gray
@@ -103,7 +103,7 @@ extension Color {
     static let disabledText = Color.gray.opacity(0.3)
 
     /// 播放按钮背景色
-    static let playButtonBackground = Color(hex: "#ebebeb")
+    static let playButtonBackground = Color(hex: "#EBEBEB")
     
     // MARK: Icon Colors
     
