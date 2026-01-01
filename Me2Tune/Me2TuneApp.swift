@@ -34,7 +34,7 @@ struct Me2TuneApp: App {
                         appDelegate.window = window
                         windowStateMonitor.startMonitoring(window: window)
                     }
-                    
+
                     // 延迟后台加载专辑列表
                     Task {
                         collectionManager.scheduleDelayedLoad(delay: 1.5)
@@ -72,6 +72,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.minSize = NSSize(width: 495, height: 800)
         window.maxSize = NSSize(width: 495, height: CGFloat.greatestFiniteMagnitude)
         window.isMovableByWindowBackground = false
+        window.tabbingMode = .disallowed
 
         logger.info("🚀 App launched")
     }
