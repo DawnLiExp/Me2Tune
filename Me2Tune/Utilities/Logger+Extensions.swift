@@ -10,7 +10,7 @@ import OSLog
 
 nonisolated extension Logger {
     private static let subsystem = "me2.Me2Tune"
-    
+
     static let app = Logger(subsystem: subsystem, category: "App")
     static let player = Logger(subsystem: subsystem, category: "Player")
     static let viewModel = Logger(subsystem: subsystem, category: "ViewModel")
@@ -18,6 +18,8 @@ nonisolated extension Logger {
     static let persistence = Logger(subsystem: subsystem, category: "Persistence")
     static let artwork = Logger(subsystem: subsystem, category: "Artwork")
     static let audio = Logger(subsystem: subsystem, category: "Audio")
+    static let nowPlaying = Logger(subsystem: subsystem, category: "NowPlaying")
+    static let remoteCommand = Logger(subsystem: subsystem, category: "RemoteCommand")
 }
 
 extension Logger {
@@ -31,7 +33,7 @@ extension Logger {
             self.error("[\(context)] \(error.localizedDescription)")
         }
     }
-    
+
     func logPerformance(_ operation: String, duration: TimeInterval) {
         if duration > 0.1 {
             self.warning("⚠️ \(operation) took \(String(format: "%.2f", duration))s")

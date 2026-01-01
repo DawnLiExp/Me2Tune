@@ -46,6 +46,9 @@ final class PlayerViewModel: ObservableObject {
     private weak var collectionManager: CollectionManager?
     private var cancellables = Set<AnyCancellable>()
     
+    // Now Playing 更新定时器
+    private var nowPlayingUpdateTimer: Timer?
+    
     // MARK: - Computed Properties
     
     var currentFormat: AudioFormat {
@@ -76,10 +79,20 @@ final class PlayerViewModel: ObservableObject {
         self.playerCore.delegate = self
         self.collectionManager = collectionManager
         
+        // 设置媒体键控制器
+        RemoteCommandController.shared.setup(viewModel: self)
+        
         loadPlaylist()
         
         setupBindings()
         logger.debug("PlayerViewModel initialized")
+    }
+    
+    deinit {
+        // Timer 会随对象销毁自动失效，不需要手动处理
+        Task { @MainActor in
+            RemoteCommandController.shared.disable()
+        }
     }
     
     // MARK: - Private Methods
@@ -244,15 +257,13 @@ final class PlayerViewModel: ObservableObject {
                 await loadTrack(at: 0)
             }
             
-            savePlaylistContent() // 内容变化，保存完整列表
+            savePlaylistContent()
             
             let elapsed = CFAbsoluteTimeGetCurrent() - startTime
             logger.logPerformance("Add \(newTracks.count) tracks", duration: elapsed)
         }
     }
     
-    // MARK: - Playlist Management (修改 removeTrack)
-
     func removeTrack(at index: Int) {
         guard playlist.indices.contains(index) else { return }
         
@@ -267,7 +278,6 @@ final class PlayerViewModel: ObservableObject {
                 currentTrackIndex = currentIndex - 1
                 indexChanged = true
             }
-            // index > currentIndex 时索引不变，无需保存状态
         }
         
         playlist.remove(at: index)
@@ -279,7 +289,12 @@ final class PlayerViewModel: ObservableObject {
         savePlaylistContent()
         
         if indexChanged {
-            savePlaybackState() // 仅在索引实际变化时保存
+            savePlaybackState()
+        }
+        
+        // 如果播放列表为空，禁用媒体键
+        if playlist.isEmpty, playingSource == .playlist {
+            RemoteCommandController.shared.disable()
         }
     }
     
@@ -294,12 +309,13 @@ final class PlayerViewModel: ObservableObject {
         
         if playingSource == .playlist {
             currentTracks = []
+            RemoteCommandController.shared.disable()
         }
         
         logger.info("🗑 Cleared \(count) tracks")
         
-        savePlaylistContent() // 内容变化
-        savePlaybackState() // 状态变化
+        savePlaylistContent()
+        savePlaybackState()
     }
     
     func moveTrack(from source: Int, to destination: Int) {
@@ -329,8 +345,8 @@ final class PlayerViewModel: ObservableObject {
         
         logger.debug("Moved track from \(source) to \(destination)")
         
-        savePlaylistContent() // 顺序变化，保存内容
-        savePlaybackState() // 索引可能变化
+        savePlaylistContent()
+        savePlaybackState()
     }
     
     func playTrack(at index: Int) {
@@ -371,7 +387,7 @@ final class PlayerViewModel: ObservableObject {
         Task {
             await loadTrack(at: index)
             playerCore.play()
-            savePlaybackState() // 仅保存播放状态，不保存列表内容
+            savePlaybackState()
         }
     }
     
@@ -407,6 +423,39 @@ final class PlayerViewModel: ObservableObject {
         Task {
             await playerCore.enqueueTrack(nextTrack)
         }
+    }
+    
+    // MARK: - Now Playing Update
+    
+    private func updateNowPlayingInfo() {
+        guard let track = currentTrack else {
+            return
+        }
+        
+        NowPlayingService.shared.updateNowPlayingInfo(
+            track: track,
+            artwork: currentArtwork,
+            currentTime: currentTime,
+            duration: duration,
+            isPlaying: isPlaying
+        )
+    }
+    
+    private func startNowPlayingUpdateTimer() {
+        stopNowPlayingUpdateTimer()
+        
+        // 每 5 秒更新一次进度
+        nowPlayingUpdateTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.isPlaying else { return }
+                NowPlayingService.shared.updatePlaybackTime(currentTime: self.currentTime)
+            }
+        }
+    }
+    
+    private func stopNowPlayingUpdateTimer() {
+        nowPlayingUpdateTimer?.invalidate()
+        nowPlayingUpdateTimer = nil
     }
     
     // MARK: - Persistence
@@ -452,7 +501,6 @@ final class PlayerViewModel: ObservableObject {
     }
  
     private func loadPlaylist() {
-        // 1. 加载播放列表内容
         if let content = try? persistenceService.loadPlaylistContent() {
             playlist = content.tracks
             logger.info("📋 Loaded \(content.tracks.count) tracks")
@@ -460,7 +508,6 @@ final class PlayerViewModel: ObservableObject {
             logger.notice("No saved playlist content found")
         }
         
-        // 2. 加载播放状态
         guard let state = try? persistenceService.loadPlaybackState() else {
             logger.notice("No saved playback state found")
             isPlaylistLoaded = true
@@ -531,6 +578,14 @@ final class PlayerViewModel: ObservableObject {
 extension PlayerViewModel: AudioPlayerCoreDelegate {
     func playerCore(_ core: AudioPlayerCore, didUpdatePlaybackState isPlaying: Bool) {
         self.isPlaying = isPlaying
+        
+        NowPlayingService.shared.updatePlaybackState(isPlaying: isPlaying)
+        
+        if isPlaying {
+            startNowPlayingUpdateTimer()
+        } else {
+            stopNowPlayingUpdateTimer()
+        }
     }
     
     func playerCore(_ core: AudioPlayerCore, didUpdateTime currentTime: TimeInterval, duration: TimeInterval) {
@@ -540,6 +595,10 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
     
     func playerCore(_ core: AudioPlayerCore, didLoadTrack track: AudioTrack, artwork: NSImage?) {
         self.currentArtwork = artwork
+        
+        // 加载音轨后，启用媒体键并更新 Now Playing
+        RemoteCommandController.shared.enable()
+        updateNowPlayingInfo()
     }
     
     func playerCore(_ core: AudioPlayerCore, didEncounterError error: Error) {
@@ -553,7 +612,6 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
         }
         
         if let index = currentTracks.firstIndex(where: { $0.url == url }) {
-            // 检查索引是否真的变了
             let indexChanged = (currentTrackIndex != index)
             
             if indexChanged {
@@ -567,6 +625,8 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
                 await MainActor.run {
                     self.currentArtwork = artwork
                     self.duration = track.duration
+                    
+                    self.updateNowPlayingInfo()
                     
                     if indexChanged {
                         self.savePlaybackState()
