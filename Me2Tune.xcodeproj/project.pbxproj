@@ -32,6 +32,8 @@
 		FC85280C2F01488F00B53540 /* BackgroundLayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC85280B2F01488D00B53540 /* BackgroundLayerView.swift */; };
 		FC8528102F014F7C00B53540 /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC85280F2F014F7A00B53540 /* AppError.swift */; };
 		FC8528122F014FAA00B53540 /* Logger+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8528112F014FA900B53540 /* Logger+Extensions.swift */; };
+		FCE6E86F2F053E7C004D5E21 /* NowPlayingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCE6E86E2F053E6F004D5E21 /* NowPlayingService.swift */; };
+		FCE6E8712F053E8E004D5E21 /* RemoteCommandController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCE6E8702F053E8D004D5E21 /* RemoteCommandController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -60,6 +62,8 @@
 		FC85280B2F01488D00B53540 /* BackgroundLayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundLayerView.swift; sourceTree = "<group>"; };
 		FC85280F2F014F7A00B53540 /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
 		FC8528112F014FA900B53540 /* Logger+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Logger+Extensions.swift"; sourceTree = "<group>"; };
+		FCE6E86E2F053E6F004D5E21 /* NowPlayingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingService.swift; sourceTree = "<group>"; };
+		FCE6E8702F053E8D004D5E21 /* RemoteCommandController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteCommandController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -178,7 +182,9 @@
 			isa = PBXGroup;
 			children = (
 				FC62DA382F0372BA00DD1509 /* ArtworkCacheService.swift */,
+				FCE6E86E2F053E6F004D5E21 /* NowPlayingService.swift */,
 				FC480EA32EF107E8000D8393 /* PersistenceService.swift */,
+				FCE6E8702F053E8D004D5E21 /* RemoteCommandController.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -290,10 +296,12 @@
 		FC1662262EEFAE2C00F01BCE /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
+				FCE6E86F2F053E7C004D5E21 /* NowPlayingService.swift in Sources */,
 				FC1377A12EFCFA0D00A9CE99 /* VinylCoverView.swift in Sources */,
 				FC1377A42EFD0FF700A9CE99 /* ColorExtensions.swift in Sources */,
 				FC8528102F014F7C00B53540 /* AppError.swift in Sources */,
 				FC8528122F014FAA00B53540 /* Logger+Extensions.swift in Sources */,
+				FCE6E8712F053E8E004D5E21 /* RemoteCommandController.swift in Sources */,
 				FC32865F2F011243000D8F2A /* AudioPlayerCore.swift in Sources */,
 				FC85280C2F01488F00B53540 /* BackgroundLayerView.swift in Sources */,
 				FC480EC42EF152BC000D8393 /* AudioTrack.swift in Sources */,
@@ -473,11 +481,13 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Me2Tune;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSAppDataUsageDescription = "本应用仅用于播放用户选择的本地音频文件，不会收集、存储或上传任何用户数据。";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				LLVM_LTO = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 0.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me2.Me2Tune;
@@ -513,11 +523,13 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Me2Tune;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSAppDataUsageDescription = "本应用仅用于播放用户选择的本地音频文件，不会收集、存储或上传任何用户数据。";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				LLVM_LTO = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 0.2.0;
 				ONLY_ACTIVE_ARCH = YES;
