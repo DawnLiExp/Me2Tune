@@ -59,6 +59,8 @@ struct ContentSectionView: View {
                 tracks: playerViewModel.playlist,
                 currentIndex: playerViewModel.currentTrackIndex,
                 playingSource: playerViewModel.playingSource,
+                isLoadingTracks: playerViewModel.isLoadingTracks,
+                loadingTracksCount: playerViewModel.loadingTracksCount,
                 onTrackSelected: { playerViewModel.playTrack(at: $0) },
                 onTrackRemoved: { playerViewModel.removeTrack(at: $0) },
                 onTrackMoved: { from, to in

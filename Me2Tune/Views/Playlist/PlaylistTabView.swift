@@ -13,6 +13,8 @@ struct PlaylistTabView: View {
     let tracks: [AudioTrack]
     let currentIndex: Int?
     let playingSource: PlayerViewModel.PlayingSource
+    let isLoadingTracks: Bool
+    let loadingTracksCount: Int
     let onTrackSelected: (Int) -> Void
     let onTrackRemoved: (Int) -> Void
     let onTrackMoved: (IndexSet, Int) -> Void
@@ -24,47 +26,85 @@ struct PlaylistTabView: View {
     
     var body: some View {
         Group {
-            if tracks.isEmpty {
+            if tracks.isEmpty, !isLoadingTracks {
                 emptyStateView
             } else {
-                ScrollView(showsIndicators: false) {
-                    LazyVStack(spacing: 0) {
-                        ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
-                            VStack(spacing: 0) {
-                                if dropTargetIndex == index {
-                                    dropIndicator
+                ZStack {
+                    ScrollView(showsIndicators: false) {
+                        LazyVStack(spacing: 0) {
+                            ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
+                                VStack(spacing: 0) {
+                                    if dropTargetIndex == index {
+                                        dropIndicator
+                                    }
+                                    
+                                    songRow(track: track, index: index)
                                 }
-                                
-                                songRow(track: track, index: index)
                             }
-                        }
-                        
-                        if !tracks.isEmpty {
-                            VStack(spacing: 0) {
-                                if dropTargetIndex == tracks.count {
-                                    dropIndicator
+                            
+                            if !tracks.isEmpty {
+                                VStack(spacing: 0) {
+                                    if dropTargetIndex == tracks.count {
+                                        dropIndicator
+                                    }
+                                    
+                                    Color.clear
+                                        .frame(height: 20)
+                                        .onDrop(of: [.text, .fileURL], delegate: TrackDropDelegate(
+                                            targetIndex: tracks.count,
+                                            draggingIndex: $draggingIndex,
+                                            dropTargetIndex: $dropTargetIndex,
+                                            onDrop: { from, _ in
+                                                let fromSet = IndexSet(integer: from)
+                                                onTrackMoved(fromSet, tracks.count - 1)
+                                            },
+                                            onFilesDrop: onFilesDrop
+                                        ))
                                 }
-                                
-                                Color.clear
-                                    .frame(height: 20)
-                                    .onDrop(of: [.text, .fileURL], delegate: TrackDropDelegate(
-                                        targetIndex: tracks.count,
-                                        draggingIndex: $draggingIndex,
-                                        dropTargetIndex: $dropTargetIndex,
-                                        onDrop: { from, _ in
-                                            let fromSet = IndexSet(integer: from)
-                                            onTrackMoved(fromSet, tracks.count - 1)
-                                        },
-                                        onFilesDrop: onFilesDrop
-                                    ))
                             }
                         }
                     }
+                    .frame(maxHeight: .infinity)
+                    
+                    if isLoadingTracks {
+                        loadingOverlay
+                    }
                 }
-                .frame(maxHeight: .infinity)
             }
         }
         .transition(.opacity.combined(with: .move(edge: .leading)))
+    }
+    
+    // MARK: - Loading Overlay
+    
+    private var loadingOverlay: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .scaleEffect(1.2)
+                .tint(.accent)
+            
+            VStack(spacing: 4) {
+                Text("Adding Tracks...")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.primaryText)
+                
+                if loadingTracksCount > 0 {
+                    Text("\(loadingTracksCount) files processing")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondaryText)
+                }
+            }
+        }
+        .padding(24)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.containerBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.accent.opacity(0.3), lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.5), radius: 20)
+        )
     }
     
     // MARK: - Drop Indicator
@@ -243,6 +283,8 @@ enum PlaylistTab {
         tracks: [],
         currentIndex: nil,
         playingSource: .playlist,
+        isLoadingTracks: false,
+        loadingTracksCount: 0,
         onTrackSelected: { _ in },
         onTrackRemoved: { _ in },
         onTrackMoved: { _, _ in },

@@ -27,6 +27,8 @@ final class PlayerViewModel: ObservableObject {
     @Published private(set) var isPlaylistLoaded = false
     @Published var repeatMode: RepeatMode = .off
     @Published var volume: Double = 0.7
+    @Published private(set) var isLoadingTracks = false
+    @Published private(set) var loadingTracksCount = 0
     
     // MARK: - 窗口可见性状态
 
@@ -218,6 +220,11 @@ final class PlayerViewModel: ObservableObject {
         Task {
             let startTime = CFAbsoluteTimeGetCurrent()
             
+            // 显示加载状态
+            await MainActor.run {
+                isLoadingTracks = true
+            }
+            
             var allAudioURLs: [URL] = []
             let fileManager = FileManager.default
             
@@ -240,6 +247,9 @@ final class PlayerViewModel: ObservableObject {
             
             guard !allAudioURLs.isEmpty else {
                 logger.warning("No valid audio files found")
+                await MainActor.run {
+                    isLoadingTracks = false
+                }
                 return
             }
             
@@ -250,6 +260,11 @@ final class PlayerViewModel: ObservableObject {
                     return lhsDir < rhsDir
                 }
                 return lhs.lastPathComponent.localizedStandardCompare(rhs.lastPathComponent) == .orderedAscending
+            }
+            
+            // 更新待处理文件数
+            await MainActor.run {
+                loadingTracksCount = sortedURLs.count
             }
             
             logger.info("Adding \(sortedURLs.count) tracks")
@@ -285,6 +300,12 @@ final class PlayerViewModel: ObservableObject {
             }
             
             savePlaylistContent()
+            
+            // 隐藏加载状态
+            await MainActor.run {
+                isLoadingTracks = false
+                loadingTracksCount = 0
+            }
             
             let elapsed = CFAbsoluteTimeGetCurrent() - startTime
             logger.logPerformance("Add \(newTracks.count) tracks", duration: elapsed)
