@@ -14,7 +14,8 @@ private let logger = Logger.viewModel
 
 @MainActor
 final class PlayerViewModel: ObservableObject {
-    // MARK: - Published States
+    
+    // MARK: - Published States (UI 绑定状态)
     
     @Published private(set) var isPlaying = false
     @Published private(set) var currentTime: TimeInterval = 0
@@ -30,9 +31,7 @@ final class PlayerViewModel: ObservableObject {
     @Published private(set) var isLoadingTracks = false
     @Published private(set) var loadingTracksCount = 0
     
-    // MARK: - 窗口可见性状态
-
-    private var isWindowVisible = true
+    // MARK: - Types
     
     enum PlayingSource: Equatable {
         case playlist
@@ -45,17 +44,16 @@ final class PlayerViewModel: ObservableObject {
         case one
     }
     
-    // MARK: - Private Properties
+    // MARK: - Private Properties (私有属性)
     
     private let playerCore: AudioPlayerCore
     private let persistenceService = PersistenceService()
     private weak var collectionManager: CollectionManager?
     private var cancellables = Set<AnyCancellable>()
-    
-    // Now Playing 更新定时器
     private var nowPlayingUpdateTimer: Timer?
+    private var isWindowVisible = true
     
-    // MARK: - Computed Properties
+    // MARK: - Computed Properties (计算属性)
     
     var currentFormat: AudioFormat {
         currentTrack?.format ?? .unknown
@@ -78,30 +76,26 @@ final class PlayerViewModel: ObservableObject {
         return index < currentTracks.count - 1
     }
     
-    // MARK: - Initialization
+    // MARK: - Initialization (初始化)
     
     init(collectionManager: CollectionManager? = nil) {
         self.playerCore = AudioPlayerCore()
         self.playerCore.delegate = self
         self.collectionManager = collectionManager
         
-        // 设置媒体键控制器
         RemoteCommandController.shared.setup(viewModel: self)
         
         loadPlaylist()
-        
         setupBindings()
+        
         logger.debug("PlayerViewModel initialized")
     }
     
     deinit {
-        // Timer 会随对象销毁自动失效，不需要手动处理
         Task { @MainActor in
             RemoteCommandController.shared.disable()
         }
     }
-    
-    // MARK: - Private Methods
     
     private func setupBindings() {
         $repeatMode
@@ -123,7 +117,7 @@ final class PlayerViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
-    // MARK: - Playback Control
+    // MARK: - Playback Control (播放控制)
     
     func play() {
         if currentTrack == nil, !playlist.isEmpty {
@@ -189,22 +183,18 @@ final class PlayerViewModel: ObservableObject {
         logger.debug("Repeat mode: \(String(describing: self.repeatMode))")
     }
     
-    // MARK: - 窗口可见性管理
+    // MARK: - Window Visibility (窗口可见性)
     
     func updateWindowVisibility(_ isVisible: Bool) {
         guard isWindowVisible != isVisible else { return }
         
         isWindowVisible = isVisible
-        
-        // 传递给播放核心
         playerCore.updateWindowVisibility(isVisible)
         
-        // 调整 Now Playing 更新频率
         if isPlaying {
             if isVisible {
                 startNowPlayingUpdateTimer()
             } else {
-                // 窗口不可见时,停止频繁更新,只保留基本信息
                 stopNowPlayingUpdateTimer()
             }
         }
@@ -212,38 +202,17 @@ final class PlayerViewModel: ObservableObject {
         logger.debug("ViewModel window visibility: \(isVisible ? "visible" : "hidden")")
     }
     
-    // MARK: - Playlist Management
+    // MARK: - Playlist Management (播放列表管理)
     
     func addTracks(urls: [URL]) {
-        let supportedExtensions = ["mp3", "m4a", "aac", "wav", "aiff", "aif", "flac", "ape", "wv", "tta", "mpc"]
-        
         Task {
             let startTime = CFAbsoluteTimeGetCurrent()
             
-            // 显示加载状态
             await MainActor.run {
                 isLoadingTracks = true
             }
             
-            var allAudioURLs: [URL] = []
-            let fileManager = FileManager.default
-            
-            for url in urls {
-                var isDirectory: ObjCBool = false
-                if fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory) {
-                    if isDirectory.boolValue {
-                        if let enumerator = fileManager.enumerator(at: url, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]) {
-                            while let fileURL = enumerator.nextObject() as? URL {
-                                if supportedExtensions.contains(fileURL.pathExtension.lowercased()) {
-                                    allAudioURLs.append(fileURL)
-                                }
-                            }
-                        }
-                    } else if supportedExtensions.contains(url.pathExtension.lowercased()) {
-                        allAudioURLs.append(url)
-                    }
-                }
-            }
+            let allAudioURLs = expandAndFilterAudioURLs(urls)
             
             guard !allAudioURLs.isEmpty else {
                 logger.warning("No valid audio files found")
@@ -253,36 +222,15 @@ final class PlayerViewModel: ObservableObject {
                 return
             }
             
-            let sortedURLs = allAudioURLs.sorted { lhs, rhs in
-                let lhsDir = lhs.deletingLastPathComponent().path
-                let rhsDir = rhs.deletingLastPathComponent().path
-                if lhsDir != rhsDir {
-                    return lhsDir < rhsDir
-                }
-                return lhs.lastPathComponent.localizedStandardCompare(rhs.lastPathComponent) == .orderedAscending
-            }
+            let sortedURLs = sortURLsByDirectory(allAudioURLs)
             
-            // 更新待处理文件数
             await MainActor.run {
                 loadingTracksCount = sortedURLs.count
             }
             
             logger.info("Adding \(sortedURLs.count) tracks")
             
-            let newTracks = await withTaskGroup(of: (Int, AudioTrack).self) { group in
-                for (index, url) in sortedURLs.enumerated() {
-                    group.addTask {
-                        let track = await AudioTrack(url: url)
-                        return (index, track)
-                    }
-                }
-                
-                var tracksWithIndex: [(Int, AudioTrack)] = []
-                for await result in group {
-                    tracksWithIndex.append(result)
-                }
-                return tracksWithIndex.sorted { $0.0 < $1.0 }.map(\.1)
-            }
+            let newTracks = await loadTracksFromURLs(sortedURLs)
             
             playlist.append(contentsOf: newTracks)
             
@@ -301,7 +249,6 @@ final class PlayerViewModel: ObservableObject {
             
             savePlaylistContent()
             
-            // 隐藏加载状态
             await MainActor.run {
                 isLoadingTracks = false
                 loadingTracksCount = 0
@@ -340,7 +287,6 @@ final class PlayerViewModel: ObservableObject {
             savePlaybackState()
         }
         
-        // 如果播放列表为空，禁用媒体键
         if playlist.isEmpty, playingSource == .playlist {
             RemoteCommandController.shared.disable()
         }
@@ -406,6 +352,8 @@ final class PlayerViewModel: ObservableObject {
         loadAndPlay(at: index)
     }
     
+    // MARK: - Album Playback (专辑播放)
+    
     func playAlbum(_ album: Album, startAt index: Int = 0) {
         guard !album.tracks.isEmpty else {
             logger.warning("Cannot play empty album: \(album.name)")
@@ -420,7 +368,7 @@ final class PlayerViewModel: ObservableObject {
         loadAndPlay(at: index)
     }
     
-    // MARK: - Track Loading
+    // MARK: - Track Loading (曲目加载)
     
     private func loadTrack(at index: Int) async {
         guard currentTracks.indices.contains(index) else { return }
@@ -473,7 +421,7 @@ final class PlayerViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Now Playing Update
+    // MARK: - Now Playing Updates (Now Playing 更新)
     
     private func updateNowPlayingInfo() {
         guard let track = currentTrack else {
@@ -492,10 +440,8 @@ final class PlayerViewModel: ObservableObject {
     private func startNowPlayingUpdateTimer() {
         stopNowPlayingUpdateTimer()
         
-        // 窗口不可见时不启动定时更新
         guard isWindowVisible else { return }
         
-        // 每 5 秒更新一次进度
         nowPlayingUpdateTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self, self.isPlaying else { return }
@@ -509,7 +455,7 @@ final class PlayerViewModel: ObservableObject {
         nowPlayingUpdateTimer = nil
     }
     
-    // MARK: - Persistence
+    // MARK: - Persistence (持久化)
     
     private func savePlaybackState() {
         let sourceData: PlaybackState.PlayingSourceData? = {
@@ -624,7 +570,7 @@ final class PlayerViewModel: ObservableObject {
     }
 }
 
-// MARK: - AudioPlayerCore Delegate
+// MARK: - AudioPlayerCore Delegate (播放核心代理)
 
 extension PlayerViewModel: AudioPlayerCoreDelegate {
     func playerCore(_ core: AudioPlayerCore, didUpdatePlaybackState isPlaying: Bool) {
@@ -647,7 +593,6 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
     func playerCore(_ core: AudioPlayerCore, didLoadTrack track: AudioTrack, artwork: NSImage?) {
         self.currentArtwork = artwork
         
-        // 加载音轨后，启用媒体键并更新 Now Playing
         RemoteCommandController.shared.enable()
         updateNowPlayingInfo()
     }
@@ -703,7 +648,65 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
     }
 }
 
-// MARK: - RepeatMode Conversion
+// MARK: - Helper Methods (辅助方法)
+
+private extension PlayerViewModel {
+    
+    func expandAndFilterAudioURLs(_ urls: [URL]) -> [URL] {
+        let supportedExtensions = ["mp3", "m4a", "aac", "wav", "aiff", "aif", "flac", "ape", "wv", "tta", "mpc"]
+        let fileManager = FileManager.default
+        var allAudioURLs: [URL] = []
+        
+        for url in urls {
+            var isDirectory: ObjCBool = false
+            if fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory) {
+                if isDirectory.boolValue {
+                    if let enumerator = fileManager.enumerator(at: url, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]) {
+                        while let fileURL = enumerator.nextObject() as? URL {
+                            if supportedExtensions.contains(fileURL.pathExtension.lowercased()) {
+                                allAudioURLs.append(fileURL)
+                            }
+                        }
+                    }
+                } else if supportedExtensions.contains(url.pathExtension.lowercased()) {
+                    allAudioURLs.append(url)
+                }
+            }
+        }
+        
+        return allAudioURLs
+    }
+    
+    func sortURLsByDirectory(_ urls: [URL]) -> [URL] {
+        urls.sorted { lhs, rhs in
+            let lhsDir = lhs.deletingLastPathComponent().path
+            let rhsDir = rhs.deletingLastPathComponent().path
+            if lhsDir != rhsDir {
+                return lhsDir < rhsDir
+            }
+            return lhs.lastPathComponent.localizedStandardCompare(rhs.lastPathComponent) == .orderedAscending
+        }
+    }
+    
+    func loadTracksFromURLs(_ urls: [URL]) async -> [AudioTrack] {
+        await withTaskGroup(of: (Int, AudioTrack).self) { group in
+            for (index, url) in urls.enumerated() {
+                group.addTask {
+                    let track = await AudioTrack(url: url)
+                    return (index, track)
+                }
+            }
+            
+            var tracksWithIndex: [(Int, AudioTrack)] = []
+            for await result in group {
+                tracksWithIndex.append(result)
+            }
+            return tracksWithIndex.sorted { $0.0 < $1.0 }.map(\.1)
+        }
+    }
+}
+
+// MARK: - RepeatMode Conversion (辅助类型转换)
 
 private extension AudioPlayerCore.RepeatMode {
     init(from viewModelMode: PlayerViewModel.RepeatMode) {
