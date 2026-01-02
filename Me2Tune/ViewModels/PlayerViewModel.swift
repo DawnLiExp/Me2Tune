@@ -2,7 +2,7 @@
 //  PlayerViewModel.swift
 //  Me2Tune
 //
-//  播放器视图模型 - 状态管理 + 业务逻辑
+//  播放器视图模型 - 播放控制 + 状态管理
 //
 
 import AppKit
@@ -14,22 +14,22 @@ private let logger = Logger.viewModel
 
 @MainActor
 final class PlayerViewModel: ObservableObject {
-    
     // MARK: - Published States (UI 绑定状态)
     
     @Published private(set) var isPlaying = false
     @Published private(set) var currentTime: TimeInterval = 0
     @Published private(set) var duration: TimeInterval = 0
     @Published private(set) var currentArtwork: NSImage?
-    @Published private(set) var playlist: [AudioTrack] = []
     @Published private(set) var currentTracks: [AudioTrack] = []
     @Published private(set) var currentTrackIndex: Int?
     @Published private(set) var playingSource: PlayingSource = .playlist
     @Published private(set) var isPlaylistLoaded = false
     @Published var repeatMode: RepeatMode = .off
     @Published var volume: Double = 0.7
-    @Published private(set) var isLoadingTracks = false
-    @Published private(set) var loadingTracksCount = 0
+    
+    // MARK: - Managers
+    
+    let playlistManager: PlaylistManager
     
     // MARK: - Types
     
@@ -44,7 +44,7 @@ final class PlayerViewModel: ObservableObject {
         case one
     }
     
-    // MARK: - Private Properties (私有属性)
+    // MARK: - Private Properties
     
     private let playerCore: AudioPlayerCore
     private let persistenceService = PersistenceService()
@@ -53,7 +53,7 @@ final class PlayerViewModel: ObservableObject {
     private var nowPlayingUpdateTimer: Timer?
     private var isWindowVisible = true
     
-    // MARK: - Computed Properties (计算属性)
+    // MARK: - Computed Properties
     
     var currentFormat: AudioFormat {
         currentTrack?.format ?? .unknown
@@ -76,16 +76,17 @@ final class PlayerViewModel: ObservableObject {
         return index < currentTracks.count - 1
     }
     
-    // MARK: - Initialization (初始化)
+    // MARK: - Initialization
     
     init(collectionManager: CollectionManager? = nil) {
+        self.playlistManager = PlaylistManager()
         self.playerCore = AudioPlayerCore()
         self.playerCore.delegate = self
         self.collectionManager = collectionManager
         
         RemoteCommandController.shared.setup(viewModel: self)
         
-        loadPlaylist()
+        restorePlaybackState()
         setupBindings()
         
         logger.debug("PlayerViewModel initialized")
@@ -117,12 +118,12 @@ final class PlayerViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
-    // MARK: - Playback Control (播放控制)
+    // MARK: - Playback Control
     
     func play() {
-        if currentTrack == nil, !playlist.isEmpty {
+        if currentTrack == nil, !playlistManager.isEmpty {
             playingSource = .playlist
-            currentTracks = playlist
+            currentTracks = playlistManager.tracks
             loadAndPlay(at: 0)
             return
         }
@@ -183,7 +184,7 @@ final class PlayerViewModel: ObservableObject {
         logger.debug("Repeat mode: \(String(describing: self.repeatMode))")
     }
     
-    // MARK: - Window Visibility (窗口可见性)
+    // MARK: - Window Visibility
     
     func updateWindowVisibility(_ isVisible: Bool) {
         guard isWindowVisible != isVisible else { return }
@@ -202,65 +203,35 @@ final class PlayerViewModel: ObservableObject {
         logger.debug("ViewModel window visibility: \(isVisible ? "visible" : "hidden")")
     }
     
-    // MARK: - Playlist Management (播放列表管理)
+    // MARK: - Playlist Playback
     
-    func addTracks(urls: [URL]) {
+    func addTracksToPlaylist(urls: [URL]) {
         Task {
-            let startTime = CFAbsoluteTimeGetCurrent()
+            let wasEmpty = playlistManager.isEmpty
+            let previousCount = playlistManager.count
             
-            await MainActor.run {
-                isLoadingTracks = true
-            }
-            
-            let allAudioURLs = expandAndFilterAudioURLs(urls)
-            
-            guard !allAudioURLs.isEmpty else {
-                logger.warning("No valid audio files found")
-                await MainActor.run {
-                    isLoadingTracks = false
-                }
-                return
-            }
-            
-            let sortedURLs = sortURLsByDirectory(allAudioURLs)
-            
-            await MainActor.run {
-                loadingTracksCount = sortedURLs.count
-            }
-            
-            logger.info("Adding \(sortedURLs.count) tracks")
-            
-            let newTracks = await loadTracksFromURLs(sortedURLs)
-            
-            playlist.append(contentsOf: newTracks)
+            await playlistManager.addTracks(urls: urls)
             
             if !isPlaylistLoaded {
                 isPlaylistLoaded = true
             }
-                
+            
             if playingSource == .playlist {
-                currentTracks = playlist
+                currentTracks = playlistManager.tracks
             }
             
-            if currentTrackIndex == nil, !currentTracks.isEmpty {
+            if wasEmpty, !playlistManager.isEmpty {
                 currentTrackIndex = 0
                 await loadTrack(at: 0)
+            } else if playingSource == .playlist, currentTrackIndex == nil {
+                currentTrackIndex = previousCount
+                await loadTrack(at: previousCount)
             }
-            
-            savePlaylistContent()
-            
-            await MainActor.run {
-                isLoadingTracks = false
-                loadingTracksCount = 0
-            }
-            
-            let elapsed = CFAbsoluteTimeGetCurrent() - startTime
-            logger.logPerformance("Add \(newTracks.count) tracks", duration: elapsed)
         }
     }
     
-    func removeTrack(at index: Int) {
-        guard playlist.indices.contains(index) else { return }
+    func removeTrackFromPlaylist(at index: Int) {
+        guard playlistManager.tracks.indices.contains(index) else { return }
         
         var indexChanged = false
         
@@ -275,19 +246,17 @@ final class PlayerViewModel: ObservableObject {
             }
         }
         
-        playlist.remove(at: index)
+        playlistManager.removeTrack(at: index)
         
         if playingSource == .playlist {
-            currentTracks = playlist
+            currentTracks = playlistManager.tracks
         }
-        
-        savePlaylistContent()
         
         if indexChanged {
             savePlaybackState()
         }
         
-        if playlist.isEmpty, playingSource == .playlist {
+        if playlistManager.isEmpty, playingSource == .playlist {
             RemoteCommandController.shared.disable()
         }
     }
@@ -298,30 +267,18 @@ final class PlayerViewModel: ObservableObject {
             currentTrackIndex = nil
         }
         
-        let count = playlist.count
-        playlist.removeAll()
+        playlistManager.clearAll()
         
         if playingSource == .playlist {
             currentTracks = []
             RemoteCommandController.shared.disable()
         }
         
-        logger.info("🗑 Cleared \(count) tracks")
-        
-        savePlaylistContent()
         savePlaybackState()
     }
     
-    func moveTrack(from source: Int, to destination: Int) {
-        guard playlist.indices.contains(source),
-              playlist.indices.contains(destination),
-              source != destination
-        else {
-            return
-        }
-        
-        let movedTrack = playlist.remove(at: source)
-        playlist.insert(movedTrack, at: destination)
+    func moveTrackInPlaylist(from source: Int, to destination: Int) {
+        playlistManager.moveTrack(from: source, to: destination)
         
         if playingSource == .playlist, let currentIndex = currentTrackIndex {
             if source == currentIndex {
@@ -334,25 +291,22 @@ final class PlayerViewModel: ObservableObject {
         }
         
         if playingSource == .playlist {
-            currentTracks = playlist
+            currentTracks = playlistManager.tracks
         }
         
-        logger.debug("Moved track from \(source) to \(destination)")
-        
-        savePlaylistContent()
         savePlaybackState()
     }
     
-    func playTrack(at index: Int) {
-        guard playlist.indices.contains(index) else { return }
+    func playPlaylistTrack(at index: Int) {
+        guard playlistManager.tracks.indices.contains(index) else { return }
         
         playingSource = .playlist
-        currentTracks = playlist
+        currentTracks = playlistManager.tracks
         
         loadAndPlay(at: index)
     }
     
-    // MARK: - Album Playback (专辑播放)
+    // MARK: - Album Playback
     
     func playAlbum(_ album: Album, startAt index: Int = 0) {
         guard !album.tracks.isEmpty else {
@@ -368,7 +322,7 @@ final class PlayerViewModel: ObservableObject {
         loadAndPlay(at: index)
     }
     
-    // MARK: - Track Loading (曲目加载)
+    // MARK: - Track Loading
     
     private func loadTrack(at index: Int) async {
         guard currentTracks.indices.contains(index) else { return }
@@ -421,7 +375,7 @@ final class PlayerViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Now Playing Updates (Now Playing 更新)
+    // MARK: - Now Playing Updates
     
     private func updateNowPlayingInfo() {
         guard let track = currentTrack else {
@@ -455,7 +409,7 @@ final class PlayerViewModel: ObservableObject {
         nowPlayingUpdateTimer = nil
     }
     
-    // MARK: - Persistence (持久化)
+    // MARK: - Persistence
     
     private func savePlaybackState() {
         let sourceData: PlaybackState.PlayingSourceData? = {
@@ -485,26 +439,8 @@ final class PlayerViewModel: ObservableObject {
             logger.logError(appError, context: "savePlaybackState")
         }
     }
-    
-    private func savePlaylistContent() {
-        let content = PlaylistContent(tracks: playlist)
-        
-        do {
-            try persistenceService.savePlaylistContent(content)
-        } catch {
-            let appError = AppError.persistenceFailed("save playlist content")
-            logger.logError(appError, context: "savePlaylistContent")
-        }
-    }
  
-    private func loadPlaylist() {
-        if let content = try? persistenceService.loadPlaylistContent() {
-            playlist = content.tracks
-            logger.info("📋 Loaded \(content.tracks.count) tracks")
-        } else {
-            logger.notice("No saved playlist content found")
-        }
-        
+    private func restorePlaybackState() {
         guard let state = try? persistenceService.loadPlaybackState() else {
             logger.notice("No saved playback state found")
             isPlaylistLoaded = true
@@ -515,11 +451,11 @@ final class PlayerViewModel: ObservableObject {
             switch source {
             case .playlist:
                 playingSource = .playlist
-                currentTracks = playlist
+                currentTracks = playlistManager.tracks
                 currentTrackIndex = nil
                 
                 if let savedIndex = state.playlistCurrentIndex,
-                   playlist.indices.contains(savedIndex)
+                   playlistManager.tracks.indices.contains(savedIndex)
                 {
                     currentTrackIndex = savedIndex
                     
@@ -527,7 +463,7 @@ final class PlayerViewModel: ObservableObject {
                         await loadTrack(at: savedIndex)
                     }
                     
-                    logger.info("📋 Restored playlist: track \(savedIndex + 1)/\(self.playlist.count)")
+                    logger.info("📋 Restored playlist: track \(savedIndex + 1)/\(self.playlistManager.count)")
                 }
                 
             case .album(let albumId):
@@ -548,7 +484,7 @@ final class PlayerViewModel: ObservableObject {
                         } else {
                             await MainActor.run {
                                 self.playingSource = .playlist
-                                self.currentTracks = self.playlist
+                                self.currentTracks = self.playlistManager.tracks
                                 self.currentTrackIndex = nil
                             }
                             logger.warning("Album or track not found, fallback to playlist")
@@ -556,13 +492,13 @@ final class PlayerViewModel: ObservableObject {
                     }
                 } else {
                     playingSource = .playlist
-                    currentTracks = playlist
+                    currentTracks = playlistManager.tracks
                     currentTrackIndex = nil
                 }
             }
         } else {
             playingSource = .playlist
-            currentTracks = playlist
+            currentTracks = playlistManager.tracks
             currentTrackIndex = nil
         }
         
@@ -570,7 +506,7 @@ final class PlayerViewModel: ObservableObject {
     }
 }
 
-// MARK: - AudioPlayerCore Delegate (播放核心代理)
+// MARK: - AudioPlayerCore Delegate
 
 extension PlayerViewModel: AudioPlayerCoreDelegate {
     func playerCore(_ core: AudioPlayerCore, didUpdatePlaybackState isPlaying: Bool) {
@@ -648,65 +584,7 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
     }
 }
 
-// MARK: - Helper Methods (辅助方法)
-
-private extension PlayerViewModel {
-    
-    func expandAndFilterAudioURLs(_ urls: [URL]) -> [URL] {
-        let supportedExtensions = ["mp3", "m4a", "aac", "wav", "aiff", "aif", "flac", "ape", "wv", "tta", "mpc"]
-        let fileManager = FileManager.default
-        var allAudioURLs: [URL] = []
-        
-        for url in urls {
-            var isDirectory: ObjCBool = false
-            if fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory) {
-                if isDirectory.boolValue {
-                    if let enumerator = fileManager.enumerator(at: url, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]) {
-                        while let fileURL = enumerator.nextObject() as? URL {
-                            if supportedExtensions.contains(fileURL.pathExtension.lowercased()) {
-                                allAudioURLs.append(fileURL)
-                            }
-                        }
-                    }
-                } else if supportedExtensions.contains(url.pathExtension.lowercased()) {
-                    allAudioURLs.append(url)
-                }
-            }
-        }
-        
-        return allAudioURLs
-    }
-    
-    func sortURLsByDirectory(_ urls: [URL]) -> [URL] {
-        urls.sorted { lhs, rhs in
-            let lhsDir = lhs.deletingLastPathComponent().path
-            let rhsDir = rhs.deletingLastPathComponent().path
-            if lhsDir != rhsDir {
-                return lhsDir < rhsDir
-            }
-            return lhs.lastPathComponent.localizedStandardCompare(rhs.lastPathComponent) == .orderedAscending
-        }
-    }
-    
-    func loadTracksFromURLs(_ urls: [URL]) async -> [AudioTrack] {
-        await withTaskGroup(of: (Int, AudioTrack).self) { group in
-            for (index, url) in urls.enumerated() {
-                group.addTask {
-                    let track = await AudioTrack(url: url)
-                    return (index, track)
-                }
-            }
-            
-            var tracksWithIndex: [(Int, AudioTrack)] = []
-            for await result in group {
-                tracksWithIndex.append(result)
-            }
-            return tracksWithIndex.sorted { $0.0 < $1.0 }.map(\.1)
-        }
-    }
-}
-
-// MARK: - RepeatMode Conversion (辅助类型转换)
+// MARK: - RepeatMode Conversion
 
 private extension AudioPlayerCore.RepeatMode {
     init(from viewModelMode: PlayerViewModel.RepeatMode) {

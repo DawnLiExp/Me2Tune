@@ -27,7 +27,7 @@ struct ContentSectionView: View {
                 TabSwitcherView(
                     selectedTab: $selectedTab,
                     isInAlbumDetail: isInAlbumDetail,
-                    playlistEmpty: playerViewModel.playlist.isEmpty,
+                    playlistEmpty: playerViewModel.playlistManager.isEmpty,
                     collectionsEmpty: collectionManager.albums.isEmpty,
                     onExportPlaylist: onExportPlaylist,
                     onClearPlaylist: onClearPlaylist,
@@ -56,16 +56,16 @@ struct ContentSectionView: View {
         if selectedTab == .playlist {
             PlaylistTabView(
                 selectedTab: $selectedTab,
-                tracks: playerViewModel.playlist,
+                tracks: playerViewModel.playlistManager.tracks,
                 currentIndex: playerViewModel.currentTrackIndex,
                 playingSource: playerViewModel.playingSource,
-                isLoadingTracks: playerViewModel.isLoadingTracks,
-                loadingTracksCount: playerViewModel.loadingTracksCount,
-                onTrackSelected: { playerViewModel.playTrack(at: $0) },
-                onTrackRemoved: { playerViewModel.removeTrack(at: $0) },
+                isLoadingTracks: playerViewModel.playlistManager.isLoading,
+                loadingTracksCount: playerViewModel.playlistManager.loadingCount,
+                onTrackSelected: { playerViewModel.playPlaylistTrack(at: $0) },
+                onTrackRemoved: { playerViewModel.removeTrackFromPlaylist(at: $0) },
                 onTrackMoved: { from, to in
                     if let sourceIndex = from.first {
-                        playerViewModel.moveTrack(from: sourceIndex, to: to)
+                        playerViewModel.moveTrackInPlaylist(from: sourceIndex, to: to)
                     }
                 },
                 onFilesDrop: onPlaylistDrop
@@ -90,7 +90,7 @@ struct ContentSectionView: View {
                     collectionManager.renameAlbum(id: albumId, newName: newName)
                 },
                 onTrackAddedToPlaylist: { track in
-                    playerViewModel.addTracks(urls: [track.url])
+                    playerViewModel.addTracksToPlaylist(urls: [track.url])
                 },
                 onEnsureLoaded: {
                     await collectionManager.ensureLoaded()

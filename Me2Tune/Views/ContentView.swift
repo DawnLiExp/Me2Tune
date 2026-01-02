@@ -133,7 +133,7 @@ struct ContentView: View {
     }
     
     private func exportPlaylistToAlbum(name: String) {
-        guard !playerViewModel.playlist.isEmpty else { return }
+        guard !playerViewModel.playlistManager.isEmpty else { return }
         
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { return }
@@ -141,7 +141,7 @@ struct ContentView: View {
         Task {
             if let _ = await collectionManager.addAlbumFromPlaylist(
                 name: trimmedName,
-                tracks: playerViewModel.playlist
+                tracks: playerViewModel.playlistManager.tracks
             ) {
                 selectedTab = .collections
             }
@@ -229,7 +229,7 @@ struct ContentView: View {
     
     private func handlePlaylistDrop(_ urls: [URL]) {
         let allURLs = expandFolders(urls)
-        playerViewModel.addTracks(urls: allURLs)
+        playerViewModel.addTracksToPlaylist(urls: allURLs)
     }
     
     private func handleCollectionsDrop(_ urls: [URL]) {
