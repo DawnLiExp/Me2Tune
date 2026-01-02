@@ -20,7 +20,7 @@ struct PlaylistTabView: View {
     
     @State private var draggingIndex: Int?
     @State private var dropTargetIndex: Int?
-    @State private var hoveredIndex: Int?
+    @State private var hoveredIndex: Int? // 共享 hover 状态，减少状态更新
     
     var body: some View {
         Group {
@@ -74,7 +74,6 @@ struct PlaylistTabView: View {
             .fill(Color.accent)
             .frame(height: 2)
             .padding(.horizontal, 10)
-            .shadow(color: Color.accent.opacity(0.8), radius: 4)
     }
     
     // MARK: - Empty State
@@ -105,7 +104,7 @@ struct PlaylistTabView: View {
             track: track,
             index: index,
             isPlaying: playingSource == .playlist && currentIndex == index,
-            isHovered: hoveredIndex == index,
+            isHovered: hoveredIndex == index, // 使用共享状态
             onTap: { onTrackSelected(index) },
             onHoverChange: { isHovered in
                 hoveredIndex = isHovered ? index : nil

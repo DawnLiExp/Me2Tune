@@ -2,7 +2,7 @@
 //  SongRowView.swift
 //  Me2Tune
 //
-//  播放列表歌曲行组件
+//  播放列表歌曲行组件（性能优化版）
 //
 
 import SwiftUI
@@ -17,18 +17,8 @@ struct SongRowView: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            Group {
-                if isPlaying {
-                    Image(systemName: "waveform")
-                        .foregroundColor(.accent)
-                        .font(.system(size: 13, weight: .semibold))
-                } else {
-                    Text("\(index + 1)")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.secondaryText)
-                }
-            }
-            .frame(width: 24)
+            indexOrWaveform
+                .frame(width: 24)
             
             Text(track.title)
                 .font(.system(size: 14, weight: isPlaying ? .semibold : .regular))
@@ -50,10 +40,7 @@ struct SongRowView: View {
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(backgroundColor)
-        )
+        .background(background) // 简化背景层级
         .contentShape(Rectangle())
         .onTapGesture(count: 2) {
             onTap()
@@ -63,15 +50,36 @@ struct SongRowView: View {
         }
     }
     
-    private var backgroundColor: Color {
+    // MARK: - Subviews
+    
+    @ViewBuilder
+    private var indexOrWaveform: some View {
         if isPlaying {
-            return .accentLight
-        } else if isHovered {
-            return .hoverBackground
+            Image(systemName: "waveform")
+                .foregroundColor(.accent)
+                .font(.system(size: 13, weight: .semibold))
         } else {
-            return Color.clear
+            Text("\(index + 1)")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(.secondaryText)
         }
     }
+    
+    // 优化：移除 RoundedRectangle，直接使用颜色
+    @ViewBuilder
+    private var background: some View {
+        if isPlaying {
+            Color.accentLight
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+        } else if isHovered {
+            Color.hoverBackground
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+        } else {
+            Color.clear
+        }
+    }
+    
+    // MARK: - Utils
     
     private func formatTime(_ time: TimeInterval) -> String {
         guard time.isFinite, !time.isNaN else { return "0:00" }

@@ -71,8 +71,87 @@ struct VinylSectionView: View {
 
     // MARK: - Vinyl Disc
 
+    // 优化：将旋转部分独立为 RotatingVinyl，避免整个视图重建
     private var vinylDisc: some View {
+        RotatingVinyl(
+            rotationAngle: rotationAngle,
+            vinylSize: vinylSize,
+            artwork: artwork
+        )
+    }
+
+    // MARK: - Time Overlay
+
+    private var timeOverlay: some View {
+        HStack {
+            timeLabel(timeString(from: currentTime))
+            Spacer()
+            timeLabel(timeString(from: duration))
+        }
+        .padding(.horizontal, 12)
+    }
+
+    private func timeLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 16, weight: .light, design: .rounded))
+            .foregroundColor(.white.opacity(0.8))
+            .frame(width: 60)
+    }
+
+    // MARK: - Rotation Logic
+
+    private func updateRotationTimer() {
+        let shouldRotate = isWindowVisible && isPlaying && isRotationEnabled
+
+        if shouldRotate {
+            startRotation()
+        } else {
+            stopRotation()
+            if !isRotationEnabled {
+                rotationAngle = 0
+            }
+        }
+    }
+
+    private func startRotation() {
+        guard rotationTimer == nil else { return }
+
+        // 优化：降低刷新率 0.033 -> 0.05 (从 30fps -> 20fps)
+        rotationTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [self] _ in
+            DispatchQueue.main.async { [self] in
+                rotationAngle += 0.5 // 调整旋转步长保持视觉流畅度
+                if rotationAngle >= 360 {
+                    rotationAngle -= 360
+                }
+            }
+        }
+    }
+
+    private func stopRotation() {
+        rotationTimer?.invalidate()
+        rotationTimer = nil
+    }
+
+    // MARK: - Utils
+
+    private func timeString(from seconds: TimeInterval) -> String {
+        guard seconds.isFinite, !seconds.isNaN else { return "0:00" }
+        let minutes = Int(seconds) / 60
+        let secs = Int(seconds) % 60
+        return String(format: "%d:%02d", minutes, secs)
+    }
+}
+
+// MARK: - Rotating Vinyl (独立旋转组件)
+
+struct RotatingVinyl: View {
+    let rotationAngle: Double
+    let vinylSize: CGFloat
+    let artwork: NSImage?
+
+    var body: some View {
         ZStack {
+            // 唱片底盘
             Circle()
                 .fill(
                     LinearGradient(
@@ -92,6 +171,7 @@ struct VinylSectionView: View {
                 )
                 .shadow(color: .black.opacity(0.6), radius: 20, y: 12)
 
+            // 封面
             artworkView
                 .rotationEffect(.degrees(rotationAngle))
                 .mask(
@@ -99,6 +179,7 @@ struct VinylSectionView: View {
                         .frame(width: vinylSize, height: vinylSize)
                 )
 
+            // 中心孔
             centerHole
                 .rotationEffect(.degrees(rotationAngle))
                 .mask(
@@ -169,66 +250,6 @@ struct VinylSectionView: View {
             Circle()
                 .stroke(Color.white.opacity(0.15), lineWidth: 2.5)
         )
-    }
-
-    // MARK: - Time Overlay
-
-    private var timeOverlay: some View {
-        HStack {
-            timeLabel(timeString(from: currentTime))
-            Spacer()
-            timeLabel(timeString(from: duration))
-        }
-        .padding(.horizontal, 12)
-    }
-
-    private func timeLabel(_ text: String) -> some View {
-        Text(text)
-            .font(.system(size: 16, weight: .light, design: .rounded))
-            .foregroundColor(.white.opacity(0.8))
-            .frame(width: 60)
-    }
-
-    // MARK: - Rotation Logic
-
-    private func updateRotationTimer() {
-        let shouldRotate = isWindowVisible && isPlaying && isRotationEnabled
-
-        if shouldRotate {
-            startRotation()
-        } else {
-            stopRotation()
-            if !isRotationEnabled {
-                rotationAngle = 0
-            }
-        }
-    }
-
-    private func startRotation() {
-        guard rotationTimer == nil else { return }
-
-        rotationTimer = Timer.scheduledTimer(withTimeInterval: 0.033, repeats: true) { [self] _ in
-            DispatchQueue.main.async { [self] in
-                rotationAngle += 0.3
-                if rotationAngle >= 360 {
-                    rotationAngle -= 360
-                }
-            }
-        }
-    }
-
-    private func stopRotation() {
-        rotationTimer?.invalidate()
-        rotationTimer = nil
-    }
-
-    // MARK: - Utils
-
-    private func timeString(from seconds: TimeInterval) -> String {
-        guard seconds.isFinite, !seconds.isNaN else { return "0:00" }
-        let minutes = Int(seconds) / 60
-        let secs = Int(seconds) % 60
-        return String(format: "%d:%02d", minutes, secs)
     }
 }
 

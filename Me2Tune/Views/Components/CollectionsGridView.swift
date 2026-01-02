@@ -2,7 +2,7 @@
 //  CollectionsGridView.swift
 //  Me2Tune
 //
-//  专辑收藏视图：专辑卡片展示+详情视图（优化悬浮性能）
+//  专辑收藏视图:专辑卡片展示+详情视图
 //
 
 import AppKit
@@ -288,7 +288,7 @@ struct CollectionsGridView: View {
             return
         }
         
-        let range = max(0, index - 2)...min(albums.count - 1, index + 5)
+        let range = max(0, index - 2) ... min(albums.count - 1, index + 5)
         let nearbyAlbums = range.compactMap { albums[safe: $0] }
         let urls = nearbyAlbums.compactMap { $0.tracks.first?.url }
         
@@ -311,35 +311,10 @@ struct AlbumCardView: View {
     
     var body: some View {
         VStack(spacing: 8) {
-            Group {
-                if let artwork {
-                    Image(nsImage: artwork)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.white.opacity(0.1))
-                        .overlay(
-                            Image(systemName: "opticaldisc")
-                                .font(.system(size: 40))
-                                .foregroundColor(.emptyStateIcon)
-                        )
-                }
-            }
-            .frame(height: 140)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(
-                        Color.accent.opacity(isHovered ? 0.4 : 0),
-                        lineWidth: 2
-                    )
-            )
-            .shadow(
-                color: Color.accent.opacity(isHovered ? 0.3 : 0),
-                radius: isHovered ? 12 : 0
-            )
+            // 封面
+            artworkView
             
+            // 信息
             VStack(spacing: 2) {
                 Text(album.name)
                     .font(.system(size: 13, weight: .medium))
@@ -351,8 +326,8 @@ struct AlbumCardView: View {
                     .foregroundColor(.secondaryText)
             }
         }
-        .scaleEffect(isHovered ? 1.02 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
+        // 优化：移除 scaleEffect 动画，降低 hover 开销
+        .contentShape(Rectangle())
         .onTapGesture {
             onTap()
         }
@@ -370,6 +345,38 @@ struct AlbumCardView: View {
                 onRemove()
             }
         }
+    }
+    
+    private var artworkView: some View {
+        Group {
+            if let artwork {
+                Image(nsImage: artwork)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.white.opacity(0.1))
+                    .overlay(
+                        Image(systemName: "opticaldisc")
+                            .font(.system(size: 40))
+                            .foregroundColor(.emptyStateIcon)
+                    )
+            }
+        }
+        .frame(height: 140)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(
+                    Color.accent.opacity(isHovered ? 0.4 : 0),
+                    lineWidth: 2
+                )
+        )
+        // 优化：简化阴影效果
+        .shadow(
+            color: isHovered ? Color.accent.opacity(0.2) : .clear,
+            radius: 8
+        )
     }
 }
 
@@ -420,10 +427,7 @@ struct AlbumTrackRowView: View {
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(backgroundColor)
-        )
+        .background(background)
         .contentShape(Rectangle())
         .onTapGesture(count: 2) {
             onTap()
@@ -442,13 +446,17 @@ struct AlbumTrackRowView: View {
         }
     }
     
-    private var backgroundColor: Color {
+    // 优化：简化背景
+    @ViewBuilder
+    private var background: some View {
         if isPlaying {
-            return .accentLight
+            Color.accentLight
+                .clipShape(RoundedRectangle(cornerRadius: 14))
         } else if isHovered {
-            return .hoverBackground
+            Color.hoverBackground
+                .clipShape(RoundedRectangle(cornerRadius: 14))
         } else {
-            return Color.clear
+            Color.clear
         }
     }
     
