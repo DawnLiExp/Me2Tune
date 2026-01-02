@@ -32,7 +32,7 @@ struct ControlSectionView: View {
                 .frame(height: 3)
                 .padding(.horizontal, 28)
             
-            HStack(spacing: 20) {
+            HStack(spacing: 10) {
                 trackInfoSection
                 
                 Spacer()
@@ -149,20 +149,20 @@ struct ControlSectionView: View {
     private var controlButtons: some View {
         HStack(spacing: 20) {
             controlButton(
-                icon: "backward.fill",
-                size: 18,
+                icon: "backward.end",
+                size: 20,
                 enabled: canGoPrevious,
                 action: onPrevious
             )
             
-            playPauseButton
-            
             controlButton(
-                icon: "forward.fill",
-                size: 18,
+                icon: "forward.end",
+                size: 20,
                 enabled: canGoNext,
                 action: onNext
             )
+            
+            playPauseButton
         }
     }
     
