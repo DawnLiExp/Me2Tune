@@ -230,12 +230,27 @@ final class AudioPlayerCore: NSObject {
             NSApp.dockTile.display()
             return
         }
-        
-        let imageView = NSImageView(frame: NSRect(x: 0, y: 0, width: 128, height: 128))
+            
+        // 容器视图（128x128）
+        let containerView = NSView(frame: NSRect(x: 0, y: 0, width: 128, height: 128))
+        containerView.wantsLayer = true
+        containerView.layer?.backgroundColor = NSColor.clear.cgColor
+            
+        // 图像视图（留出边距 6px）
+        let imageView = NSImageView(frame: NSRect(x: 6, y: 6, width: 116, height: 116))
         imageView.image = artwork
         imageView.imageScaling = .scaleProportionallyUpOrDown
-        
-        NSApp.dockTile.contentView = imageView
+        imageView.wantsLayer = true
+            
+        // 圆角和黑边
+        imageView.layer?.cornerRadius = 6
+        imageView.layer?.masksToBounds = true
+        imageView.layer?.borderWidth = 2
+        imageView.layer?.borderColor = NSColor.black.cgColor
+            
+        containerView.addSubview(imageView)
+            
+        NSApp.dockTile.contentView = containerView
         NSApp.dockTile.display()
     }
 }
