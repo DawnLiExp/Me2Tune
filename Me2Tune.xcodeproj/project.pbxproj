@@ -16,6 +16,7 @@
 		FC31BA492F08323A00786380 /* PlaylistManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC31BA482F08323800786380 /* PlaylistManager.swift */; };
 		FC32865D2F010F3D000D8F2A /* PlayerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC32865C2F010F3B000D8F2A /* PlayerViewModel.swift */; };
 		FC32865F2F011243000D8F2A /* AudioPlayerCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC32865E2F011242000D8F2A /* AudioPlayerCore.swift */; };
+		FC3E2B042F08BF1700F59E4B /* PlaybackStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC3E2B032F08BF1400F59E4B /* PlaybackStateManager.swift */; };
 		FC480EAA2EF107E8000D8393 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480EA02EF107E8000D8393 /* ContentView.swift */; };
 		FC480EAB2EF107E8000D8393 /* Me2TuneApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480EA22EF107E8000D8393 /* Me2TuneApp.swift */; };
 		FC480EAC2EF107E8000D8393 /* PersistenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480EA32EF107E8000D8393 /* PersistenceService.swift */; };
@@ -51,6 +52,7 @@
 		FC31BA482F08323800786380 /* PlaylistManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistManager.swift; sourceTree = "<group>"; };
 		FC32865C2F010F3B000D8F2A /* PlayerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerViewModel.swift; sourceTree = "<group>"; };
 		FC32865E2F011242000D8F2A /* AudioPlayerCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerCore.swift; sourceTree = "<group>"; };
+		FC3E2B032F08BF1400F59E4B /* PlaybackStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackStateManager.swift; sourceTree = "<group>"; };
 		FC480E9E2EF107E8000D8393 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		FC480EA02EF107E8000D8393 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		FC480EA12EF107E8000D8393 /* info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = info.plist; sourceTree = "<group>"; };
@@ -187,6 +189,7 @@
 			children = (
 				FC32865E2F011242000D8F2A /* AudioPlayerCore.swift */,
 				FC0A17432EF2628E0090B22C /* CollectionManager.swift */,
+				FC3E2B032F08BF1400F59E4B /* PlaybackStateManager.swift */,
 				FC31BA482F08323800786380 /* PlaylistManager.swift */,
 			);
 			path = Managers;
@@ -351,6 +354,7 @@
 				FC32865F2F011243000D8F2A /* AudioPlayerCore.swift in Sources */,
 				FC50C73E2F06587100597B19 /* CollapseButtonView.swift in Sources */,
 				FC50C7442F0658AE00597B19 /* TopBarSectionView.swift in Sources */,
+				FC3E2B042F08BF1700F59E4B /* PlaybackStateManager.swift in Sources */,
 				FC480EC42EF152BC000D8393 /* AudioTrack.swift in Sources */,
 				FC32865D2F010F3D000D8F2A /* PlayerViewModel.swift in Sources */,
 				FC0A17442EF262910090B22C /* CollectionManager.swift in Sources */,

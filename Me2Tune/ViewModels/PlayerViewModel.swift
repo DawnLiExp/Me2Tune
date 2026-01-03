@@ -2,7 +2,7 @@
 //  PlayerViewModel.swift
 //  Me2Tune
 //
-//  播放器视图模型 - 播放控制 + 状态管理
+//  播放器视图模型 - 播放控制 + 协调器
 //
 
 import AppKit
@@ -14,15 +14,13 @@ private let logger = Logger.viewModel
 
 @MainActor
 final class PlayerViewModel: ObservableObject {
+    
     // MARK: - Published States (UI 绑定状态)
     
     @Published private(set) var isPlaying = false
     @Published private(set) var currentTime: TimeInterval = 0
     @Published private(set) var duration: TimeInterval = 0
     @Published private(set) var currentArtwork: NSImage?
-    @Published private(set) var currentTracks: [AudioTrack] = []
-    @Published private(set) var currentTrackIndex: Int?
-    @Published private(set) var playingSource: PlayingSource = .playlist
     @Published private(set) var isPlaylistLoaded = false
     @Published var repeatMode: RepeatMode = .off
     @Published var volume: Double = 0.7
@@ -30,13 +28,11 @@ final class PlayerViewModel: ObservableObject {
     // MARK: - Managers
     
     let playlistManager: PlaylistManager
+    let playbackStateManager: PlaybackStateManager
     
     // MARK: - Types
     
-    enum PlayingSource: Equatable {
-        case playlist
-        case album(UUID)
-    }
+    typealias PlayingSource = PlaybackStateManager.PlayingSource
     
     enum RepeatMode {
         case off
@@ -47,46 +43,57 @@ final class PlayerViewModel: ObservableObject {
     // MARK: - Private Properties
     
     private let playerCore: AudioPlayerCore
-    private let persistenceService = PersistenceService()
-    private weak var collectionManager: CollectionManager?
     private var cancellables = Set<AnyCancellable>()
     private var nowPlayingUpdateTimer: Timer?
     private var isWindowVisible = true
     
-    // MARK: - Computed Properties
+    // MARK: - Computed Properties (代理到 PlaybackStateManager)
     
     var currentFormat: AudioFormat {
         currentTrack?.format ?? .unknown
     }
     
     var currentTrack: AudioTrack? {
-        guard let index = currentTrackIndex, currentTracks.indices.contains(index) else {
-            return nil
-        }
-        return currentTracks[index]
+        playbackStateManager.currentTrack
+    }
+    
+    var currentTrackIndex: Int? {
+        playbackStateManager.currentTrackIndex
+    }
+    
+    var currentTracks: [AudioTrack] {
+        playbackStateManager.currentTracks
+    }
+    
+    var playingSource: PlaybackStateManager.PlayingSource {
+        playbackStateManager.playingSource
     }
     
     var canGoPrevious: Bool {
-        guard let index = currentTrackIndex else { return false }
-        return index > 0
+        playbackStateManager.canGoPrevious
     }
     
     var canGoNext: Bool {
-        guard let index = currentTrackIndex else { return false }
-        return index < currentTracks.count - 1
+        playbackStateManager.canGoNext
     }
     
     // MARK: - Initialization
     
     init(collectionManager: CollectionManager? = nil) {
         self.playlistManager = PlaylistManager()
+        self.playbackStateManager = PlaybackStateManager(
+            playlistManager: playlistManager,
+            collectionManager: collectionManager
+        )
         self.playerCore = AudioPlayerCore()
         self.playerCore.delegate = self
-        self.collectionManager = collectionManager
         
         RemoteCommandController.shared.setup(viewModel: self)
         
-        restorePlaybackState()
+        Task {
+            await restorePlaybackState()
+        }
+        
         setupBindings()
         
         logger.debug("PlayerViewModel initialized")
@@ -122,8 +129,7 @@ final class PlayerViewModel: ObservableObject {
     
     func play() {
         if currentTrack == nil, !playlistManager.isEmpty {
-            playingSource = .playlist
-            currentTracks = playlistManager.tracks
+            playbackStateManager.switchToPlaylist()
             loadAndPlay(at: 0)
             return
         }
@@ -149,23 +155,19 @@ final class PlayerViewModel: ObservableObject {
     }
     
     func previous() {
-        guard let currentIndex = currentTrackIndex, currentIndex > 0 else {
+        guard let previousIndex = playbackStateManager.moveToPreviousIndex() else {
             return
         }
         
-        let newIndex = currentIndex - 1
-        loadAndPlay(at: newIndex)
+        loadAndPlay(at: previousIndex)
     }
     
     func next() {
-        guard let currentIndex = currentTrackIndex,
-              currentIndex < currentTracks.count - 1
-        else {
+        guard let nextIndex = playbackStateManager.moveToNextIndex() else {
             return
         }
         
-        let newIndex = currentIndex + 1
-        loadAndPlay(at: newIndex)
+        loadAndPlay(at: nextIndex)
     }
     
     func seek(to time: TimeInterval) {
@@ -207,25 +209,16 @@ final class PlayerViewModel: ObservableObject {
     
     func addTracksToPlaylist(urls: [URL]) {
         Task {
-            let wasEmpty = playlistManager.isEmpty
-            let previousCount = playlistManager.count
-            
             await playlistManager.addTracks(urls: urls)
             
             if !isPlaylistLoaded {
                 isPlaylistLoaded = true
             }
             
-            if playingSource == .playlist {
-                currentTracks = playlistManager.tracks
-            }
+            playbackStateManager.handlePlaylistTracksAdded()
             
-            if wasEmpty, !playlistManager.isEmpty {
-                currentTrackIndex = 0
-                await loadTrack(at: 0)
-            } else if playingSource == .playlist, currentTrackIndex == nil {
-                currentTrackIndex = previousCount
-                await loadTrack(at: previousCount)
+            if currentTrackIndex == nil, let track = currentTrack {
+                await loadTrack(track)
             }
         }
     }
@@ -233,28 +226,16 @@ final class PlayerViewModel: ObservableObject {
     func removeTrackFromPlaylist(at index: Int) {
         guard playlistManager.tracks.indices.contains(index) else { return }
         
-        var indexChanged = false
+        let wasPlaying = (playingSource == .playlist && currentTrackIndex == index)
         
-        if playingSource == .playlist, let currentIndex = currentTrackIndex {
-            if index == currentIndex {
-                pause()
-                currentTrackIndex = nil
-                indexChanged = true
-            } else if index < currentIndex {
-                currentTrackIndex = currentIndex - 1
-                indexChanged = true
-            }
+        if wasPlaying {
+            pause()
         }
         
+        playbackStateManager.handlePlaylistTrackRemoved(at: index, wasPlaying: wasPlaying)
         playlistManager.removeTrack(at: index)
         
-        if playingSource == .playlist {
-            currentTracks = playlistManager.tracks
-        }
-        
-        if indexChanged {
-            savePlaybackState()
-        }
+        playbackStateManager.saveState()
         
         if playlistManager.isEmpty, playingSource == .playlist {
             RemoteCommandController.shared.disable()
@@ -264,45 +245,28 @@ final class PlayerViewModel: ObservableObject {
     func clearPlaylist() {
         if playingSource == .playlist {
             pause()
-            currentTrackIndex = nil
         }
         
+        playbackStateManager.handlePlaylistCleared()
         playlistManager.clearAll()
         
         if playingSource == .playlist {
-            currentTracks = []
             RemoteCommandController.shared.disable()
         }
         
-        savePlaybackState()
+        playbackStateManager.saveState()
     }
     
     func moveTrackInPlaylist(from source: Int, to destination: Int) {
         playlistManager.moveTrack(from: source, to: destination)
-        
-        if playingSource == .playlist, let currentIndex = currentTrackIndex {
-            if source == currentIndex {
-                currentTrackIndex = destination
-            } else if source < currentIndex, destination >= currentIndex {
-                currentTrackIndex = currentIndex - 1
-            } else if source > currentIndex, destination <= currentIndex {
-                currentTrackIndex = currentIndex + 1
-            }
-        }
-        
-        if playingSource == .playlist {
-            currentTracks = playlistManager.tracks
-        }
-        
-        savePlaybackState()
+        playbackStateManager.handlePlaylistTrackMoved(from: source, to: destination)
+        playbackStateManager.saveState()
     }
     
     func playPlaylistTrack(at index: Int) {
         guard playlistManager.tracks.indices.contains(index) else { return }
         
-        playingSource = .playlist
-        currentTracks = playlistManager.tracks
-        
+        playbackStateManager.switchToPlaylist()
         loadAndPlay(at: index)
     }
     
@@ -314,56 +278,40 @@ final class PlayerViewModel: ObservableObject {
             return
         }
         
-        playingSource = .album(album.id)
-        currentTracks = album.tracks
-        
-        logger.info("💿 Playing album: \(album.name) (\(album.tracks.count) tracks)")
-        
+        playbackStateManager.switchToAlbum(album)
         loadAndPlay(at: index)
     }
     
-    // MARK: - Track Loading
+    // MARK: - Track Loading (私有方法)
     
-    private func loadTrack(at index: Int) async {
-        guard currentTracks.indices.contains(index) else { return }
-        
-        let track = currentTracks[index]
-        currentTrackIndex = index
-        
+    private func loadTrack(_ track: AudioTrack) async {
         await playerCore.loadTrack(track)
     }
     
     private func loadAndPlay(at index: Int) {
+        guard currentTracks.indices.contains(index) else { return }
+        
         Task {
-            await loadTrack(at: index)
+            playbackStateManager.setCurrentIndex(index)
+            let track = currentTracks[index]
+            await loadTrack(track)
             playerCore.play()
-            savePlaybackState()
+            playbackStateManager.saveState()
         }
     }
     
     private func enqueueNextTrack() {
-        guard let currentIndex = currentTrackIndex else { return }
-        
-        let nextIndex: Int?
-        
-        switch repeatMode {
-        case .one:
-            return
-        case .all:
-            if currentIndex < currentTracks.count - 1 {
-                nextIndex = currentIndex + 1
-            } else {
-                nextIndex = 0
+        let stateRepeatMode: PlaybackStateManager.RepeatMode = {
+            switch repeatMode {
+            case .off: return .off
+            case .all: return .all
+            case .one: return .one
             }
-        case .off:
-            if currentIndex < currentTracks.count - 1 {
-                nextIndex = currentIndex + 1
-            } else {
-                nextIndex = nil
-            }
-        }
+        }()
         
-        guard let nextIndex, currentTracks.indices.contains(nextIndex) else {
+        guard let nextIndex = playbackStateManager.calculateNextIndex(repeatMode: stateRepeatMode),
+              currentTracks.indices.contains(nextIndex)
+        else {
             logger.debug("No next track to enqueue")
             return
         }
@@ -410,98 +358,14 @@ final class PlayerViewModel: ObservableObject {
     }
     
     // MARK: - Persistence
-    
-    private func savePlaybackState() {
-        let sourceData: PlaybackState.PlayingSourceData? = {
-            switch playingSource {
-            case .playlist:
-                return .playlist
-            case .album(let id):
-                return .album(id)
-            }
-        }()
-        
-        let state = PlaybackState(
-            playlistCurrentIndex: playingSource == .playlist ? currentTrackIndex : nil,
-            albumCurrentIndex: {
-                if case .album = playingSource {
-                    return currentTrackIndex
-                }
-                return nil
-            }(),
-            playingSource: sourceData
-        )
-        
-        do {
-            try persistenceService.savePlaybackState(state)
-        } catch {
-            let appError = AppError.persistenceFailed("save playback state")
-            logger.logError(appError, context: "savePlaybackState")
-        }
-    }
  
-    private func restorePlaybackState() {
-        guard let state = try? persistenceService.loadPlaybackState() else {
-            logger.notice("No saved playback state found")
+    private func restorePlaybackState() async {
+        guard let restored = await playbackStateManager.restoreState() else {
             isPlaylistLoaded = true
             return
         }
         
-        if let source = state.playingSource {
-            switch source {
-            case .playlist:
-                playingSource = .playlist
-                currentTracks = playlistManager.tracks
-                currentTrackIndex = nil
-                
-                if let savedIndex = state.playlistCurrentIndex,
-                   playlistManager.tracks.indices.contains(savedIndex)
-                {
-                    currentTrackIndex = savedIndex
-                    
-                    Task {
-                        await loadTrack(at: savedIndex)
-                    }
-                    
-                    logger.info("📋 Restored playlist: track \(savedIndex + 1)/\(self.playlistManager.count)")
-                }
-                
-            case .album(let albumId):
-                if let albumIndex = state.albumCurrentIndex {
-                    Task {
-                        if let album = await collectionManager?.loadSingleAlbum(id: albumId),
-                           album.tracks.indices.contains(albumIndex)
-                        {
-                            await MainActor.run {
-                                self.playingSource = .album(albumId)
-                                self.currentTracks = album.tracks
-                                self.currentTrackIndex = albumIndex
-                            }
-                            
-                            await loadTrack(at: albumIndex)
-                            
-                            logger.info("💿 Restored album: \(album.name) - track \(albumIndex + 1)")
-                        } else {
-                            await MainActor.run {
-                                self.playingSource = .playlist
-                                self.currentTracks = self.playlistManager.tracks
-                                self.currentTrackIndex = nil
-                            }
-                            logger.warning("Album or track not found, fallback to playlist")
-                        }
-                    }
-                } else {
-                    playingSource = .playlist
-                    currentTracks = playlistManager.tracks
-                    currentTrackIndex = nil
-                }
-            }
-        } else {
-            playingSource = .playlist
-            currentTracks = playlistManager.tracks
-            currentTrackIndex = nil
-        }
-        
+        await loadTrack(restored.track)
         isPlaylistLoaded = true
     }
 }
@@ -548,7 +412,7 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
             
             if indexChanged {
                 logger.info("🔄 Auto switched to track \(index + 1): \(self.currentTracks[index].title)")
-                currentTrackIndex = index
+                playbackStateManager.setCurrentIndex(index)
             }
             
             Task {
@@ -561,7 +425,7 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
                     self.updateNowPlayingInfo()
                     
                     if indexChanged {
-                        self.savePlaybackState()
+                        self.playbackStateManager.saveState()
                     }
                 }
             }
@@ -576,10 +440,8 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
     }
     
     func playerCoreDidReachEnd(_ core: AudioPlayerCore) {
-        if repeatMode == .one {
-            if let index = currentTrackIndex {
-                loadAndPlay(at: index)
-            }
+        if repeatMode == .one, let index = currentTrackIndex {
+            loadAndPlay(at: index)
         }
     }
 }
