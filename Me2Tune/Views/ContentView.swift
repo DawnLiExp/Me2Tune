@@ -13,6 +13,7 @@ struct ContentView: View {
     @EnvironmentObject private var playerViewModel: PlayerViewModel
     @EnvironmentObject private var collectionManager: CollectionManager
     @EnvironmentObject private var windowStateMonitor: WindowStateMonitor
+    @ObservedObject private var themeManager = ThemeManager.shared
     
     @State private var albumGlowColor = Color.defaultAlbumGlow
     @State private var previousTrackID: UUID?

@@ -2,7 +2,7 @@
 //  ColorExtensions.swift
 //  Me2Tune
 //
-//  颜色扩展 - 统一配色管理
+//  颜色扩展 - 统一配色管理（从 ThemeManager 动态读取）
 //
 
 import SwiftUI
@@ -31,88 +31,100 @@ extension Color {
     }
 }
 
-// MARK: - App Color Palette
+// MARK: - App Color Palette (动态读取 ThemeManager)
 
 extension Color {
     // MARK: Accent Colors
     
-    /// 主强调色 - 青色 (#00E5FF)
-    static let accent = Color(hex: "#00E5FF")
+    static var accent: Color {
+        ThemeManager.shared.currentTheme.colors.accent
+    }
     
-    /// 强调色光晕
-    static let accentGlow = accent.opacity(0.5)
+    static var accentGlow: Color {
+        ThemeManager.shared.currentTheme.colors.accentGlow
+    }
     
-    /// 强调色浅色版（用于背景）
-    static let accentLight = accent.opacity(0.08)
+    static var accentLight: Color {
+        ThemeManager.shared.currentTheme.colors.accentLight
+    }
     
     // MARK: Album Glow Colors
     
-    /// 专辑光晕颜色集合（用于封面切换时的背景光效）
-    static let albumGlowColors: [Color] = [
-        Color(hex: "#E20764"),
-        Color(hex: "#9D4EDD"),
-        Color(hex: "#FF4466"),
-        Color(hex: "#D55C10"),
-        Color(hex: "#CF9810"),
-        Color(hex: "#FF3BA7"),
-        Color(hex: "#33CCFF"),
-        Color(hex: "#0066E5"),
-        Color(hex: "#00FFA3"),
-    ]
+    static var albumGlowColors: [Color] {
+        ThemeManager.shared.currentTheme.colors.albumGlowColors
+    }
     
-    /// 默认专辑光晕色
-    static let defaultAlbumGlow = Color(hex: "#FF4466")
+    static var defaultAlbumGlow: Color {
+        ThemeManager.shared.currentTheme.colors.defaultAlbumGlow
+    }
     
     // MARK: Background Colors
     
-    /// 主背景
-    static let mainBackground = Color.black
+    static var mainBackground: Color {
+        ThemeManager.shared.currentTheme.colors.mainBackground
+    }
     
-    /// 顶部渐变背景（起始色）
-    static let gradientTop = Color(white: 0.02)
+    static var gradientTop: Color {
+        ThemeManager.shared.currentTheme.colors.gradientTop
+    }
     
-    /// 容器背景（半透明玻璃态）
-    static let containerBackground = Color.white.opacity(0.05)
+    static var containerBackground: Color {
+        ThemeManager.shared.currentTheme.colors.containerBackground
+    }
     
-    /// 控制面板背景
-    static let controlBackground = Color(white: 0.12).opacity(0.85)
+    static var controlBackground: Color {
+        ThemeManager.shared.currentTheme.colors.controlBackground
+    }
     
-    /// 信息栏背景
-    static let infoBackground = Color.white.opacity(0.08)
+    static var infoBackground: Color {
+        ThemeManager.shared.currentTheme.colors.infoBackground
+    }
     
     // MARK: Interactive States
     
-    /// Hover 背景色
-    static let hoverBackground = Color.white.opacity(0.05)
+    static var hoverBackground: Color {
+        ThemeManager.shared.currentTheme.colors.hoverBackground
+    }
     
-    /// 选中背景色（浅色）
-    static let selectedBackground = Color.white.opacity(0.03)
+    static var selectedBackground: Color {
+        ThemeManager.shared.currentTheme.colors.selectedBackground
+    }
     
-    // MARK: - Text Colors
-
-    /// 主文本（柔和白色）
-    static let primaryText = Color(hex: "#E0E0E0")
-
-    /// 次要文本（灰色）
-    static let secondaryText = Color.gray
-
-    /// 三级文本（更浅灰）
-    static let tertiaryText = Color.gray.opacity(0.7)
-
-    /// 禁用文本
-    static let disabledText = Color.gray.opacity(0.3)
-
-    /// 播放按钮背景色
-    static let playButtonBackground = Color(hex: "#EBEBEB")
+    // MARK: Text Colors
+    
+    static var primaryText: Color {
+        ThemeManager.shared.currentTheme.colors.primaryText
+    }
+    
+    static var secondaryText: Color {
+        ThemeManager.shared.currentTheme.colors.secondaryText
+    }
+    
+    static var tertiaryText: Color {
+        ThemeManager.shared.currentTheme.colors.tertiaryText
+    }
+    
+    static var disabledText: Color {
+        ThemeManager.shared.currentTheme.colors.disabledText
+    }
+    
+    static var playButtonBackground: Color {
+        ThemeManager.shared.currentTheme.colors.playButtonBackground
+    }
     
     // MARK: Icon Colors
     
-    /// 空状态图标
-    static let emptyStateIcon = Color.gray.opacity(0.5)
+    static var emptyStateIcon: Color {
+        ThemeManager.shared.currentTheme.colors.emptyStateIcon
+    }
     
     // MARK: Border Colors
     
-    /// 容器边框渐变（强调色）
-    static let borderGradientStart = accent.opacity(0.3)
-    static let borderGradientEnd = accent.opacity(0.0)
+    static var borderGradientStart: Color {
+        ThemeManager.shared.currentTheme.colors.borderGradientStart
+    }
+    
+    static var borderGradientEnd: Color {
+        ThemeManager.shared.currentTheme.colors.borderGradientEnd
+    }
 }

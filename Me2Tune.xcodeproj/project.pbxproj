@@ -13,6 +13,10 @@
 		FC13779B2EFCF9AD00A9CE99 /* CollectionsGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC13779A2EFCF9AB00A9CE99 /* CollectionsGridView.swift */; };
 		FC13779D2EFCF9CC00A9CE99 /* PlaylistTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC13779C2EFCF9CB00A9CE99 /* PlaylistTabView.swift */; };
 		FC1377A42EFD0FF700A9CE99 /* ColorExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1377A32EFD0FE800A9CE99 /* ColorExtensions.swift */; };
+		FC2032F72F08E8F700D17FEE /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC2032F62F08E8F500D17FEE /* Theme.swift */; };
+		FC2032FB2F08E91400D17FEE /* DarkTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC2032FA2F08E91300D17FEE /* DarkTheme.swift */; };
+		FC2032FD2F08E93100D17FEE /* LightTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC2032FC2F08E92F00D17FEE /* LightTheme.swift */; };
+		FC2033012F08E96C00D17FEE /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC2033002F08E96A00D17FEE /* ThemeManager.swift */; };
 		FC31BA492F08323A00786380 /* PlaylistManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC31BA482F08323800786380 /* PlaylistManager.swift */; };
 		FC32865D2F010F3D000D8F2A /* PlayerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC32865C2F010F3B000D8F2A /* PlayerViewModel.swift */; };
 		FC32865F2F011243000D8F2A /* AudioPlayerCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC32865E2F011242000D8F2A /* AudioPlayerCore.swift */; };
@@ -49,6 +53,10 @@
 		FC13779C2EFCF9CB00A9CE99 /* PlaylistTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistTabView.swift; sourceTree = "<group>"; };
 		FC1377A32EFD0FE800A9CE99 /* ColorExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorExtensions.swift; sourceTree = "<group>"; };
 		FC16622A2EEFAE2C00F01BCE /* Me2Tune.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Me2Tune.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		FC2032F62F08E8F500D17FEE /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		FC2032FA2F08E91300D17FEE /* DarkTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DarkTheme.swift; sourceTree = "<group>"; };
+		FC2032FC2F08E92F00D17FEE /* LightTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightTheme.swift; sourceTree = "<group>"; };
+		FC2033002F08E96A00D17FEE /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
 		FC31BA482F08323800786380 /* PlaylistManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistManager.swift; sourceTree = "<group>"; };
 		FC32865C2F010F3B000D8F2A /* PlayerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerViewModel.swift; sourceTree = "<group>"; };
 		FC32865E2F011242000D8F2A /* AudioPlayerCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerCore.swift; sourceTree = "<group>"; };
@@ -113,6 +121,25 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		FC2032F42F08E8D900D17FEE /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				FC2032F62F08E8F500D17FEE /* Theme.swift */,
+				FC2033002F08E96A00D17FEE /* ThemeManager.swift */,
+				FC2032F52F08E8E700D17FEE /* Themes */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		FC2032F52F08E8E700D17FEE /* Themes */ = {
+			isa = PBXGroup;
+			children = (
+				FC2032FA2F08E91300D17FEE /* DarkTheme.swift */,
+				FC2032FC2F08E92F00D17FEE /* LightTheme.swift */,
+			);
+			path = Themes;
+			sourceTree = "<group>";
+		};
 		FC32865B2F010F0F000D8F2A /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
@@ -133,6 +160,7 @@
 				FC85280E2F014F6900B53540 /* Utilities */,
 				FC32865B2F010F0F000D8F2A /* ViewModels */,
 				FC480EBF2EF13912000D8393 /* Views */,
+				FC2032F42F08E8D900D17FEE /* Theme */,
 				FC480EA22EF107E8000D8393 /* Me2TuneApp.swift */,
 			);
 			path = Me2Tune;
@@ -348,6 +376,7 @@
 			files = (
 				FCE6E86F2F053E7C004D5E21 /* NowPlayingService.swift in Sources */,
 				FC1377A42EFD0FF700A9CE99 /* ColorExtensions.swift in Sources */,
+				FC2032FD2F08E93100D17FEE /* LightTheme.swift in Sources */,
 				FC8528102F014F7C00B53540 /* AppError.swift in Sources */,
 				FC8528122F014FAA00B53540 /* Logger+Extensions.swift in Sources */,
 				FCE6E8712F053E8E004D5E21 /* RemoteCommandController.swift in Sources */,
@@ -368,8 +397,11 @@
 				FC13779B2EFCF9AD00A9CE99 /* CollectionsGridView.swift in Sources */,
 				FC62DA392F0372C000DD1509 /* ArtworkCacheService.swift in Sources */,
 				FC8528082F01486100B53540 /* ContentSectionView.swift in Sources */,
+				FC2032F72F08E8F700D17FEE /* Theme.swift in Sources */,
 				FC31BA492F08323A00786380 /* PlaylistManager.swift in Sources */,
 				FC50C7392F06583100597B19 /* ControlSectionView.swift in Sources */,
+				FC2032FB2F08E91400D17FEE /* DarkTheme.swift in Sources */,
+				FC2033012F08E96C00D17FEE /* ThemeManager.swift in Sources */,
 				FC480EAC2EF107E8000D8393 /* PersistenceService.swift in Sources */,
 				FC50C7462F0658E600597B19 /* VinylSectionView.swift in Sources */,
 				FC50C7422F06589800597B19 /* SongRowView.swift in Sources */,
