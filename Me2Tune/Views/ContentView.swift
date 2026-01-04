@@ -30,7 +30,6 @@ struct ContentView: View {
     
     var body: some View {
         mainView
-            .frame(width: 495)
             .frame(minHeight: 800, maxHeight: .infinity)
             .preferredColorScheme(.dark)
             .onDrop(of: [.fileURL], isTargeted: $isDragging) { providers in

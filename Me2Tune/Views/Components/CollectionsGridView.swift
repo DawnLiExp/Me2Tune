@@ -27,8 +27,16 @@ struct CollectionsGridView: View {
     @State private var renameText = ""
     @State private var albumToDelete: Album?
     @State private var preloadedAlbumIds = Set<UUID>()
-    @State private var hoveredAlbumId: UUID? // 共享的 hover 状态
-    @State private var hoveredTrackIndex: Int? // 共享的 track hover 状态
+    @State private var hoveredAlbumId: UUID?
+    @State private var hoveredTrackIndex: Int?
+    @State private var columns: [GridItem] = [
+        GridItem(.fixed(135), spacing: 14),
+        GridItem(.fixed(135), spacing: 14),
+        GridItem(.fixed(135), spacing: 14)
+    ]
+    
+    private let cardSize: CGFloat = 135
+    private let spacing: CGFloat = 14
     
     var body: some View {
         Group {
@@ -96,43 +104,60 @@ struct CollectionsGridView: View {
                         loadingView
                     }
                 } else {
-                    ScrollView(showsIndicators: false) {
-                        LazyVGrid(columns: [
-                            GridItem(.adaptive(minimum: 140, maximum: 180), spacing: 16)
-                        ], spacing: 16) {
-                            ForEach(albums) { album in
-                                AlbumCardView(
-                                    album: album,
-                                    artwork: artworkCache[album.id],
-                                    isHovered: hoveredAlbumId == album.id,
-                                    onTap: {
-                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                            selectedAlbum = album
+                    GeometryReader { geometry in
+                        ScrollView(showsIndicators: false) {
+                            LazyVGrid(columns: columns, spacing: spacing) {
+                                ForEach(albums) { album in
+                                    AlbumCardView(
+                                        album: album,
+                                        artwork: artworkCache[album.id],
+                                        isHovered: hoveredAlbumId == album.id,
+                                        onTap: {
+                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                                selectedAlbum = album
+                                            }
+                                        },
+                                        onHoverChange: { isHovered in
+                                            hoveredAlbumId = isHovered ? album.id : nil
+                                        },
+                                        onRename: {
+                                            renamingAlbumId = album.id
+                                            renameText = album.name
+                                        },
+                                        onRemove: {
+                                            albumToDelete = album
                                         }
-                                    },
-                                    onHoverChange: { isHovered in
-                                        hoveredAlbumId = isHovered ? album.id : nil
-                                    },
-                                    onRename: {
-                                        renamingAlbumId = album.id
-                                        renameText = album.name
-                                    },
-                                    onRemove: {
-                                        albumToDelete = album
+                                    )
+                                    .task {
+                                        await loadArtwork(for: album)
                                     }
-                                )
-                                .task {
-                                    await loadArtwork(for: album)
-                                }
-                                .onAppear {
-                                    preloadNearbyArtworks(for: album)
+                                    .onAppear {
+                                        preloadNearbyArtworks(for: album)
+                                    }
                                 }
                             }
+                            .padding(.vertical, 8)
                         }
-                        .padding(.vertical, 8)
+                        .onAppear {
+                            updateColumns(for: geometry.size.width)
+                        }
+                        .onChange(of: geometry.size.width) { _, newWidth in
+                            updateColumns(for: newWidth)
+                        }
                     }
                 }
             }
+        }
+    }
+    
+    // MARK: - Column Layout Logic
+    
+    private func updateColumns(for width: CGFloat) {
+        // GeometryReader 已经是减去外层 padding 后的宽度
+        let columnCount = max(2, Int((width + spacing) / (cardSize + spacing)))
+        
+        if columns.count != columnCount {
+            columns = Array(repeating: GridItem(.fixed(cardSize), spacing: spacing), count: columnCount)
         }
     }
     
@@ -298,7 +323,7 @@ struct CollectionsGridView: View {
     }
 }
 
-// MARK: - Album Card View (优化版)
+// MARK: - Album Card View
 
 struct AlbumCardView: View {
     let album: Album
@@ -311,10 +336,8 @@ struct AlbumCardView: View {
     
     var body: some View {
         VStack(spacing: 8) {
-            // 封面
             artworkView
             
-            // 信息
             VStack(spacing: 2) {
                 Text(album.name)
                     .font(.system(size: 13, weight: .medium))
@@ -326,8 +349,8 @@ struct AlbumCardView: View {
                     .foregroundColor(.secondaryText)
             }
         }
-        // 优化：移除 scaleEffect 动画，降低 hover 开销
-        .contentShape(Rectangle())
+        .scaleEffect(isHovered ? 1.02 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
         .onTapGesture {
             onTap()
         }
@@ -363,7 +386,7 @@ struct AlbumCardView: View {
                     )
             }
         }
-        .frame(height: 140)
+        .frame(width: 135, height: 135)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
@@ -372,7 +395,6 @@ struct AlbumCardView: View {
                     lineWidth: 2
                 )
         )
-        // 优化：简化阴影效果
         .shadow(
             color: isHovered ? Color.accent.opacity(0.2) : .clear,
             radius: 8
@@ -380,7 +402,7 @@ struct AlbumCardView: View {
     }
 }
 
-// MARK: - Album Track Row View (优化版)
+// MARK: - Album Track Row View
 
 struct AlbumTrackRowView: View {
     let track: AudioTrack
@@ -446,7 +468,6 @@ struct AlbumTrackRowView: View {
         }
     }
     
-    // 优化：简化背景
     @ViewBuilder
     private var background: some View {
         if isPlaying {

@@ -26,6 +26,7 @@ struct Me2TuneApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .frame(minWidth: 495)
                 .environmentObject(playerViewModel)
                 .environmentObject(collectionManager)
                 .environmentObject(windowStateMonitor)
@@ -42,6 +43,7 @@ struct Me2TuneApp: App {
                 }
         }
         .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 495, height: 800)
         .windowResizability(.contentSize)
         .commands {
             CommandGroup(replacing: .newItem) {}
@@ -69,12 +71,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         windowDelegate = WindowInterceptor()
         window.delegate = windowDelegate
 
-        window.minSize = NSSize(width: 495, height: 800)
-        window.maxSize = NSSize(width: 495, height: CGFloat.greatestFiniteMagnitude)
         window.isMovableByWindowBackground = false
         window.tabbingMode = .disallowed
 
-        logger.info("🚀 App launched")
+        logger.info("🚀🚀 App launched")
     }
 }
 
