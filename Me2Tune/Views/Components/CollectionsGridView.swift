@@ -221,7 +221,7 @@ struct CollectionsGridView: View {
     }
     
     private func albumHeader(album: Album) -> some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 12) {
             Button(action: {
                 withAnimation(.easeInOut(duration: 0.25)) {
                     selectedAlbum = nil
@@ -248,7 +248,7 @@ struct CollectionsGridView: View {
                         )
                 }
             }
-            .frame(width: 64, height: 64)
+            .frame(width: 48, height: 48)
             .clipShape(RoundedRectangle(cornerRadius: 8))
             
             VStack(alignment: .leading, spacing: 4) {
@@ -265,7 +265,7 @@ struct CollectionsGridView: View {
             Spacer()
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 16)
+        .padding(.vertical, 10)
         .background(Color.selectedBackground)
     }
     
