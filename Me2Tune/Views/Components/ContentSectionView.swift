@@ -89,6 +89,9 @@ struct ContentSectionView: View {
                 onAlbumRenamed: { albumId, newName in
                     collectionManager.renameAlbum(id: albumId, newName: newName)
                 },
+                onAlbumMoved: { from, to in
+                    collectionManager.moveAlbum(from: from, to: to)
+                },
                 onTrackAddedToPlaylist: { track in
                     playerViewModel.addTracksToPlaylist(urls: [track.url])
                 },

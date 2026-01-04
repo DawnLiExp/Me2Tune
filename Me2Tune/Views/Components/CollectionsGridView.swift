@@ -2,11 +2,12 @@
 //  CollectionsGridView.swift
 //  Me2Tune
 //
-//  专辑收藏视图:专辑卡片展示+详情视图
+//  专辑收藏视图:专辑卡片展示+详情视图+拖拽排序
 //
 
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct CollectionsGridView: View {
     @Binding var selectedTab: PlaylistTab
@@ -18,6 +19,7 @@ struct CollectionsGridView: View {
     let onAlbumPlayAt: (Album, Int) -> Void
     let onAlbumRemoved: (UUID) -> Void
     let onAlbumRenamed: (UUID, String) -> Void
+    let onAlbumMoved: (Int, Int) -> Void
     let onTrackAddedToPlaylist: (AudioTrack) -> Void
     let onEnsureLoaded: () async -> Void
     
@@ -34,6 +36,10 @@ struct CollectionsGridView: View {
         GridItem(.fixed(135), spacing: 14),
         GridItem(.fixed(135), spacing: 14)
     ]
+    
+    // 拖拽状态
+    @State private var draggingAlbumId: UUID?
+    @State private var dropTargetIndex: Int?
     
     private let cardSize: CGFloat = 135
     private let spacing: CGFloat = 14
@@ -107,11 +113,12 @@ struct CollectionsGridView: View {
                     GeometryReader { geometry in
                         ScrollView(showsIndicators: false) {
                             LazyVGrid(columns: columns, spacing: spacing) {
-                                ForEach(albums) { album in
+                                ForEach(Array(albums.enumerated()), id: \.element.id) { _, album in
                                     AlbumCardView(
                                         album: album,
                                         artwork: artworkCache[album.id],
                                         isHovered: hoveredAlbumId == album.id,
+                                        isDragging: draggingAlbumId == album.id,
                                         onTap: {
                                             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                                 selectedAlbum = album
@@ -134,6 +141,19 @@ struct CollectionsGridView: View {
                                     .onAppear {
                                         preloadNearbyArtworks(for: album)
                                     }
+                                    .onDrag {
+                                        draggingAlbumId = album.id
+                                        return NSItemProvider(object: album.id.uuidString as NSString)
+                                    }
+                                    .onDrop(of: [.text], delegate: AlbumDropDelegate(
+                                        albumId: album.id,
+                                        albums: albums,
+                                        draggingAlbumId: $draggingAlbumId,
+                                        dropTargetIndex: $dropTargetIndex,
+                                        onDrop: { sourceIndex, targetIndex in
+                                            onAlbumMoved(sourceIndex, targetIndex)
+                                        }
+                                    ))
                                 }
                             }
                             .padding(.vertical, 8)
@@ -153,7 +173,6 @@ struct CollectionsGridView: View {
     // MARK: - Column Layout Logic
     
     private func updateColumns(for width: CGFloat) {
-        // GeometryReader 已经是减去外层 padding 后的宽度
         let columnCount = max(2, Int((width + spacing) / (cardSize + spacing)))
         
         if columns.count != columnCount {
@@ -323,12 +342,62 @@ struct CollectionsGridView: View {
     }
 }
 
+// MARK: - Album Drop Delegate
+
+struct AlbumDropDelegate: DropDelegate {
+    let albumId: UUID
+    let albums: [Album]
+    @Binding var draggingAlbumId: UUID?
+    @Binding var dropTargetIndex: Int?
+    let onDrop: (Int, Int) -> Void
+    
+    func dropEntered(info: DropInfo) {
+        guard let draggingId = draggingAlbumId,
+              draggingId != albumId,
+              let targetIndex = albums.firstIndex(where: { $0.id == albumId })
+        else {
+            return
+        }
+        
+        dropTargetIndex = targetIndex
+    }
+    
+    func dropExited(info: DropInfo) {
+        dropTargetIndex = nil
+    }
+    
+    func performDrop(info: DropInfo) -> Bool {
+        guard let draggingId = draggingAlbumId,
+              let sourceIndex = albums.firstIndex(where: { $0.id == draggingId }),
+              let targetIndex = albums.firstIndex(where: { $0.id == albumId })
+        else {
+            draggingAlbumId = nil
+            dropTargetIndex = nil
+            return false
+        }
+        
+        draggingAlbumId = nil
+        dropTargetIndex = nil
+        
+        guard sourceIndex != targetIndex else { return false }
+        
+        var adjustedTarget = targetIndex
+        if sourceIndex < targetIndex {
+            adjustedTarget = targetIndex - 1
+        }
+        
+        onDrop(sourceIndex, adjustedTarget)
+        return true
+    }
+}
+
 // MARK: - Album Card View
 
 struct AlbumCardView: View {
     let album: Album
     let artwork: NSImage?
     let isHovered: Bool
+    let isDragging: Bool
     let onTap: () -> Void
     let onHoverChange: (Bool) -> Void
     let onRename: () -> Void
@@ -349,7 +418,8 @@ struct AlbumCardView: View {
                     .foregroundColor(.secondaryText)
             }
         }
-        .scaleEffect(isHovered ? 1.02 : 1.0)
+        .opacity(isDragging ? 0.4 : 1.0)
+        .scaleEffect(isHovered && !isDragging ? 1.02 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
         .onTapGesture {
             onTap()
@@ -391,12 +461,12 @@ struct AlbumCardView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(
-                    Color.accent.opacity(isHovered ? 0.4 : 0),
+                    Color.accent.opacity(isHovered && !isDragging ? 0.4 : 0),
                     lineWidth: 2
                 )
         )
         .shadow(
-            color: isHovered ? Color.accent.opacity(0.2) : .clear,
+            color: isHovered && !isDragging ? Color.accent.opacity(0.2) : .clear,
             radius: 8
         )
     }
@@ -500,6 +570,7 @@ struct AlbumTrackRowView: View {
         onAlbumPlayAt: { _, _ in },
         onAlbumRemoved: { _ in },
         onAlbumRenamed: { _, _ in },
+        onAlbumMoved: { _, _ in },
         onTrackAddedToPlaylist: { _ in },
         onEnsureLoaded: {}
     )

@@ -2,7 +2,7 @@
 //  CollectionManager.swift
 //  Me2Tune
 //
-//  专辑收藏管理 - 延迟加载优化版
+//  专辑收藏管理 - 延迟加载优化版 + 拖拽排序
 //
 
 import Combine
@@ -204,6 +204,21 @@ final class CollectionManager: ObservableObject {
         albums[index].name = newName
         
         logger.info("Album renamed: '\(oldName)' -> '\(newName)'")
+        saveCollections()
+    }
+    
+    func moveAlbum(from source: Int, to destination: Int) {
+        guard albums.indices.contains(source),
+              albums.indices.contains(destination),
+              source != destination
+        else {
+            return
+        }
+        
+        let movedAlbum = albums.remove(at: source)
+        albums.insert(movedAlbum, at: destination)
+        
+        logger.info("Album moved from \(source) to \(destination)")
         saveCollections()
     }
     
