@@ -29,6 +29,8 @@
 		FC480EB72EF13722000D8393 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = FC480EB62EF13722000D8393 /* Localizable.strings */; };
 		FC480EBE2EF137BB000D8393 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = FC480EBC2EF137AE000D8393 /* Localizable.strings */; };
 		FC480EC42EF152BC000D8393 /* AudioTrack.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480EC32EF152A2000D8393 /* AudioTrack.swift */; };
+		FC49D3B02F0AC2F000628C1B /* SearchResultRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC49D3AF2F0AC2EE00628C1B /* SearchResultRowView.swift */; };
+		FC49D3B22F0AC30000628C1B /* SearchOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC49D3B12F0AC2FE00628C1B /* SearchOverlayView.swift */; };
 		FC50C7392F06583100597B19 /* ControlSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC50C7382F06582F00597B19 /* ControlSectionView.swift */; };
 		FC50C73C2F06585700597B19 /* BackgroundLayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC50C73B2F06585400597B19 /* BackgroundLayerView.swift */; };
 		FC50C73E2F06587100597B19 /* CollapseButtonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC50C73D2F06587000597B19 /* CollapseButtonView.swift */; };
@@ -69,6 +71,8 @@
 		FC480EB52EF13722000D8393 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = Localizable.strings; sourceTree = "<group>"; };
 		FC480EBD2EF137AE000D8393 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = Localizable.strings; sourceTree = "<group>"; };
 		FC480EC32EF152A2000D8393 /* AudioTrack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioTrack.swift; sourceTree = "<group>"; };
+		FC49D3AF2F0AC2EE00628C1B /* SearchResultRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResultRowView.swift; sourceTree = "<group>"; };
+		FC49D3B12F0AC2FE00628C1B /* SearchOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchOverlayView.swift; sourceTree = "<group>"; };
 		FC50C7382F06582F00597B19 /* ControlSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlSectionView.swift; sourceTree = "<group>"; };
 		FC50C73B2F06585400597B19 /* BackgroundLayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundLayerView.swift; sourceTree = "<group>"; };
 		FC50C73D2F06587000597B19 /* CollapseButtonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollapseButtonView.swift; sourceTree = "<group>"; };
@@ -204,10 +208,11 @@
 			isa = PBXGroup;
 			children = (
 				FC8194EF2EF4EF2000401C4F /* Components */,
+				FC480EA02EF107E8000D8393 /* ContentView.swift */,
 				FC50C73A2F06584B00597B19 /* Layers */,
 				FC50C7472F065B7D00597B19 /* Playlist */,
+				FC49D3AE2F0AC2E000628C1B /* Search */,
 				FC50C7372F06582700597B19 /* Sections */,
-				FC480EA02EF107E8000D8393 /* ContentView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -241,6 +246,15 @@
 				FC480EC32EF152A2000D8393 /* AudioTrack.swift */,
 			);
 			path = Models;
+			sourceTree = "<group>";
+		};
+		FC49D3AE2F0AC2E000628C1B /* Search */ = {
+			isa = PBXGroup;
+			children = (
+				FC49D3B12F0AC2FE00628C1B /* SearchOverlayView.swift */,
+				FC49D3AF2F0AC2EE00628C1B /* SearchResultRowView.swift */,
+			);
+			path = Search;
 			sourceTree = "<group>";
 		};
 		FC50C7372F06582700597B19 /* Sections */ = {
@@ -394,6 +408,7 @@
 				FC480EAB2EF107E8000D8393 /* Me2TuneApp.swift in Sources */,
 				FC50C73C2F06585700597B19 /* BackgroundLayerView.swift in Sources */,
 				FC8C88722F06263500ABC82E /* WindowStateMonitor.swift in Sources */,
+				FC49D3B02F0AC2F000628C1B /* SearchResultRowView.swift in Sources */,
 				FC13779B2EFCF9AD00A9CE99 /* CollectionsGridView.swift in Sources */,
 				FC62DA392F0372C000DD1509 /* ArtworkCacheService.swift in Sources */,
 				FC8528082F01486100B53540 /* ContentSectionView.swift in Sources */,
@@ -404,6 +419,7 @@
 				FC2033012F08E96C00D17FEE /* ThemeManager.swift in Sources */,
 				FC480EAC2EF107E8000D8393 /* PersistenceService.swift in Sources */,
 				FC50C7462F0658E600597B19 /* VinylSectionView.swift in Sources */,
+				FC49D3B22F0AC30000628C1B /* SearchOverlayView.swift in Sources */,
 				FC50C7422F06589800597B19 /* SongRowView.swift in Sources */,
 				FC0A17402EF262620090B22C /* Album.swift in Sources */,
 			);

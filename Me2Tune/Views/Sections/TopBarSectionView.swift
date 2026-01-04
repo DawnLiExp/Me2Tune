@@ -10,13 +10,14 @@ import SwiftUI
 struct TopBarSectionView: View {
     @Binding var isRotationEnabled: Bool
     let audioFormat: AudioFormat
-    
+    let onSearchTapped: () -> Void
+        
     var body: some View {
         HStack {
             infoSection
-            
+                
             Spacer()
-            
+                
             #if DEBUG
             Button(action: {
                 print("Current format: \(audioFormat.formattedString)")
@@ -31,7 +32,11 @@ struct TopBarSectionView: View {
             }
             .buttonStyle(.plain)
             #endif
-            
+                
+            searchButton
+                .offset(y: -14)
+                .padding(.trailing, 8)
+                
             rotationToggle
                 .offset(y: -14)
                 .padding(.trailing, 12)
@@ -66,7 +71,21 @@ struct TopBarSectionView: View {
     }
     
     // MARK: - Rotation Toggle
-    
+
+    private var searchButton: some View {
+        Button(action: onSearchTapped) {
+            Circle()
+                .fill(Color.white.opacity(0.15))
+                .frame(width: 22, height: 22)
+                .overlay(
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.secondaryText)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
     private var rotationToggle: some View {
         Button(action: {
             isRotationEnabled.toggle()
@@ -94,7 +113,8 @@ struct TopBarSectionView: View {
             sampleRate: 44100,
             bitDepth: 16,
             channels: 2
-        )
+        ),
+        onSearchTapped: {}
     )
     .frame(height: 170)
     .padding(.horizontal, 12)

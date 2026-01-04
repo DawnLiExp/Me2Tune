@@ -22,6 +22,8 @@ struct ContentView: View {
     @State private var isPlaylistCollapsed = false
     @State private var isRotationEnabled = true
     @State private var isInAlbumDetail = false
+    @State private var selectedAlbumId: UUID?
+    @State private var showSearchOverlay = false
     
     @State private var showExportDialog = false
     @State private var exportAlbumName = ""
@@ -59,6 +61,11 @@ struct ContentView: View {
             BackgroundLayerView(albumGlowColor: albumGlowColor)
             
             mainContentStack
+            
+            if showSearchOverlay {
+                searchOverlay
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
         }
     }
     
@@ -66,7 +73,12 @@ struct ContentView: View {
         VStack(spacing: 0) {
             TopBarSectionView(
                 isRotationEnabled: $isRotationEnabled,
-                audioFormat: playerViewModel.currentFormat
+                audioFormat: playerViewModel.currentFormat,
+                onSearchTapped: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showSearchOverlay = true
+                    }
+                }
             )
             .frame(height: 70)
             .padding(.horizontal, 12)
@@ -105,6 +117,7 @@ struct ContentView: View {
                 selectedTab: $selectedTab,
                 isInAlbumDetail: $isInAlbumDetail,
                 isPlaylistCollapsed: $isPlaylistCollapsed,
+                selectedAlbumId: $selectedAlbumId,
                 playerViewModel: playerViewModel,
                 collectionManager: collectionManager,
                 onExportPlaylist: handleExportPlaylist,
@@ -116,6 +129,40 @@ struct ContentView: View {
             .padding(.horizontal, 12)
             .padding(.top, 16)
             .padding(.bottom, 20)
+        }
+    }
+    
+    // MARK: - Search
+    
+    private var searchOverlay: some View {
+        SearchOverlayView(
+            isPresented: $showSearchOverlay,
+            searchContext: currentSearchContext,
+            onResultSelected: handleSearchResult
+        )
+    }
+    
+    private var currentSearchContext: SearchOverlayView.SearchContext {
+        if selectedTab == .playlist {
+            return .playlist(playerViewModel.playlistManager.tracks)
+        } else {
+            return .albumsList(collectionManager.albums)
+        }
+    }
+    
+    private func handleSearchResult(_ result: SearchOverlayView.SearchResult) {
+        switch result.action {
+        case .playTrack(let index):
+            playerViewModel.playPlaylistTrack(at: index)
+            
+        case .openAlbum(let album):
+            withAnimation(.easeInOut(duration: 0.25)) {
+                selectedTab = .collections
+                selectedAlbumId = album.id
+            }
+            
+        case .playAlbumTrack(let album, let trackIndex):
+            playerViewModel.playAlbum(album, startAt: trackIndex)
         }
     }
     

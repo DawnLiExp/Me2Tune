@@ -2,7 +2,7 @@
 //  CollectionsGridView.swift
 //  Me2Tune
 //
-//  专辑收藏视图:专辑卡片展示+详情视图+拖拽排序（性能优化）
+//  专辑收藏视图:专辑卡片展示+详情视图+拖拽排序(性能优化)
 //
 
 import AppKit
@@ -12,6 +12,7 @@ import UniformTypeIdentifiers
 struct CollectionsGridView: View {
     @Binding var selectedTab: PlaylistTab
     @Binding var isInAlbumDetail: Bool
+    @Binding var selectedAlbumId: UUID?
     let albums: [Album]
     let isLoaded: Bool
     let currentIndex: Int?
@@ -58,6 +59,20 @@ struct CollectionsGridView: View {
         }
         .onChange(of: selectedAlbum) { _, newValue in
             isInAlbumDetail = (newValue != nil)
+            selectedAlbumId = newValue?.id
+        }
+        .onChange(of: selectedAlbumId) { _, newId in
+            if let newId, selectedAlbum?.id != newId {
+                if let album = albums.first(where: { $0.id == newId }) {
+                    selectedAlbum = album
+                    // 主动加载封面（搜索跳转时可能未加载）
+                    Task {
+                        await loadArtwork(for: album)
+                    }
+                }
+            } else if newId == nil {
+                selectedAlbum = nil
+            }
         }
         .alert("rename_album", isPresented: Binding(
             get: { renamingAlbumId != nil },
@@ -564,6 +579,7 @@ struct AlbumTrackRowView: View {
     CollectionsGridView(
         selectedTab: .constant(.collections),
         isInAlbumDetail: .constant(false),
+        selectedAlbumId: .constant(nil),
         albums: [],
         isLoaded: true,
         currentIndex: nil,

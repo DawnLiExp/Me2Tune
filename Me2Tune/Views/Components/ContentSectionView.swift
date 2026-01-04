@@ -11,6 +11,7 @@ struct ContentSectionView: View {
     @Binding var selectedTab: PlaylistTab
     @Binding var isInAlbumDetail: Bool
     @Binding var isPlaylistCollapsed: Bool
+    @Binding var selectedAlbumId: UUID?
     
     let playerViewModel: PlayerViewModel
     let collectionManager: CollectionManager
@@ -76,6 +77,7 @@ struct ContentSectionView: View {
             CollectionsGridView(
                 selectedTab: $selectedTab,
                 isInAlbumDetail: $isInAlbumDetail,
+                selectedAlbumId: $selectedAlbumId,
                 albums: collectionManager.albums,
                 isLoaded: collectionManager.isLoaded,
                 currentIndex: playerViewModel.currentTrackIndex,
@@ -242,6 +244,7 @@ struct TabSwitcherView: View {
         selectedTab: .constant(.playlist),
         isInAlbumDetail: .constant(false),
         isPlaylistCollapsed: .constant(false),
+        selectedAlbumId: .constant(nil),
         playerViewModel: PlayerViewModel(),
         collectionManager: CollectionManager(),
         onExportPlaylist: {},
