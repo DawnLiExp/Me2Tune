@@ -2,7 +2,7 @@
 //  CollectionsGridView.swift
 //  Me2Tune
 //
-//  专辑收藏视图:专辑卡片展示+详情视图+拖拽排序
+//  专辑收藏视图:专辑卡片展示+详情视图+拖拽排序（性能优化）
 //
 
 import AppKit
@@ -37,7 +37,6 @@ struct CollectionsGridView: View {
         GridItem(.fixed(135), spacing: 14)
     ]
     
-    // 拖拽状态
     @State private var draggingAlbumId: UUID?
     @State private var dropTargetIndex: Int?
     
@@ -120,7 +119,7 @@ struct CollectionsGridView: View {
                                         isHovered: hoveredAlbumId == album.id,
                                         isDragging: draggingAlbumId == album.id,
                                         onTap: {
-                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                            withAnimation(.easeInOut(duration: 0.25)) {
                                                 selectedAlbum = album
                                             }
                                         },
@@ -224,7 +223,7 @@ struct CollectionsGridView: View {
     private func albumHeader(album: Album) -> some View {
         HStack(spacing: 16) {
             Button(action: {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                withAnimation(.easeInOut(duration: 0.25)) {
                     selectedAlbum = nil
                 }
             }) {
@@ -420,7 +419,7 @@ struct AlbumCardView: View {
         }
         .opacity(isDragging ? 0.4 : 1.0)
         .scaleEffect(isHovered && !isDragging ? 1.02 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
+        .animation(isDragging ? nil : .spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
         .onTapGesture {
             onTap()
         }
@@ -460,7 +459,7 @@ struct AlbumCardView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(
+                .strokeBorder(
                     Color.accent.opacity(isHovered && !isDragging ? 0.4 : 0),
                     lineWidth: 2
                 )
@@ -469,6 +468,7 @@ struct AlbumCardView: View {
             color: isHovered && !isDragging ? Color.accent.opacity(0.2) : .clear,
             radius: 8
         )
+        .drawingGroup()
     }
 }
 
@@ -521,6 +521,7 @@ struct AlbumTrackRowView: View {
         .padding(.horizontal, 10)
         .background(background)
         .contentShape(Rectangle())
+        .drawingGroup()
         .onTapGesture(count: 2) {
             onTap()
         }
