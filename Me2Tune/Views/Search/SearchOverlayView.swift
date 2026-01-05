@@ -2,7 +2,7 @@
 //  SearchOverlayView.swift
 //  Me2Tune
 //
-//  搜索覆盖界面 - 当前 Tab 上下文搜索 + 结果分类
+//  搜索覆盖界面 - 当前 Tab 上下文搜索 + 结果分类（性能优化）
 //
 
 import SwiftUI
@@ -15,7 +15,9 @@ struct SearchOverlayView: View {
     let onResultSelected: (SearchResult) -> Void
     
     @State private var searchText = ""
-    @State private var hoveredIndex: Int?
+    @State private var debouncedSearchText = ""
+    @State private var hoveredResultId: UUID?
+    @State private var debounceTask: Task<Void, Never>?
     
     enum SearchContext {
         case playlist([AudioTrack])
@@ -48,7 +50,7 @@ struct SearchOverlayView: View {
             case playAlbumTrack(Album, Int)
         }
         
-        enum Category: String {
+        enum Category: String, Comparable {
             case album
             case song
             
@@ -58,13 +60,17 @@ struct SearchOverlayView: View {
                 case .song: return "category_songs"
                 }
             }
+            
+            static func < (lhs: Category, rhs: Category) -> Bool {
+                lhs.rawValue < rhs.rawValue
+            }
         }
     }
     
     var body: some View {
         ZStack {
             // 半透明背景
-            Color.black.opacity(0.75)
+            Color.black.opacity(0.8)
                 .ignoresSafeArea()
                 .onTapGesture {
                     closeSearch()
@@ -79,7 +85,7 @@ struct SearchOverlayView: View {
                 
                 searchInputSection
                 
-                if !searchText.isEmpty {
+                if !debouncedSearchText.isEmpty {
                     Divider()
                         .background(Color.white.opacity(0.1))
                         .padding(.horizontal, 16)
@@ -87,7 +93,7 @@ struct SearchOverlayView: View {
                     resultsSection
                 }
             }
-            .frame(width: 420, height: searchText.isEmpty ? 140 : 480)
+            .frame(width: 420, height: debouncedSearchText.isEmpty ? 140 : 480)
             .background(
                 RoundedRectangle(cornerRadius: 16)
                     .fill(Color.containerBackground)
@@ -104,6 +110,9 @@ struct SearchOverlayView: View {
         .onKeyPress(.escape) {
             closeSearch()
             return .handled
+        }
+        .onChange(of: searchText) { _, newValue in
+            debounceSearch(newValue)
         }
     }
     
@@ -155,11 +164,11 @@ struct SearchOverlayView: View {
             if results.isEmpty {
                 emptyResultsView
             } else {
-                let groupedResults = groupResultsByCategory(results)
+                let groupedResults = Dictionary(grouping: results, by: { $0.category })
                 
                 ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 16) {
-                        ForEach(Array(groupedResults.keys.sorted(by: { $0.rawValue < $1.rawValue })), id: \.self) { category in
+                    LazyVStack(alignment: .leading, spacing: 16) {
+                        ForEach(groupedResults.keys.sorted(), id: \.self) { category in
                             if let categoryResults = groupedResults[category], !categoryResults.isEmpty {
                                 categorySection(
                                     category: category,
@@ -190,35 +199,25 @@ struct SearchOverlayView: View {
             }
             .padding(.horizontal, 16)
             
-            VStack(spacing: 2) {
-                ForEach(Array(results.enumerated()), id: \.element.id) { index, result in
-                    let globalIndex = calculateGlobalIndex(for: result, in: results)
+            LazyVStack(spacing: 2) {
+                ForEach(results) { result in
                     SearchResultRowView(
                         title: result.title,
                         subtitle: result.subtitle,
                         icon: result.icon,
-                        isHovered: hoveredIndex == globalIndex,
+                        isHovered: hoveredResultId == result.id,
                         onTap: {
                             onResultSelected(result)
                             closeSearch()
                         },
                         onHoverChange: { isHovered in
-                            hoveredIndex = isHovered ? globalIndex : nil
+                            hoveredResultId = isHovered ? result.id : nil
                         }
                     )
                     .padding(.horizontal, 8)
                 }
             }
         }
-    }
-    
-    private func groupResultsByCategory(_ results: [SearchResult]) -> [SearchResult.Category: [SearchResult]] {
-        Dictionary(grouping: results, by: { $0.category })
-    }
-    
-    private func calculateGlobalIndex(for result: SearchResult, in categoryResults: [SearchResult]) -> Int {
-        // 使用结果的 id 作为唯一标识
-        return result.id.hashValue
     }
     
     private var emptyResultsView: some View {
@@ -235,10 +234,26 @@ struct SearchOverlayView: View {
         .padding(.vertical, 60)
     }
     
+    // MARK: - Debounce
+    
+    private func debounceSearch(_ text: String) {
+        debounceTask?.cancel()
+        
+        debounceTask = Task {
+            try? await Task.sleep(for: .milliseconds(250))
+            
+            guard !Task.isCancelled else { return }
+            
+            await MainActor.run {
+                debouncedSearchText = text
+            }
+        }
+    }
+    
     // MARK: - Search Logic
     
     private func performSearch() -> [SearchResult] {
-        let query = searchText.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = debouncedSearchText.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return [] }
         
         switch searchContext {
@@ -334,6 +349,8 @@ struct SearchOverlayView: View {
     // MARK: - Actions
     
     private func closeSearch() {
+        debounceTask?.cancel()
+        
         withAnimation(.easeOut(duration: 0.2)) {
             isPresented = false
         }
