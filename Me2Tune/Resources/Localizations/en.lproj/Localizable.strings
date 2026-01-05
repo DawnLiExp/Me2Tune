@@ -51,3 +51,15 @@
 "playlist" = "Playlist";
 "collections" = "Collections";
 "unknown_artist" = "Unknown Artist";
+
+// MARK: - Search
+"search_in_playlist" = "Search in Playlist";
+"search_in_collections" = "Search in Collections";
+"search_in_album %@" = "Search in %@";
+"search_placeholder" = "Type to search...";
+"category_albums" = "Albums";
+"category_songs" = "Songs";
+"no_results" = "No results found";
+"tracks" = "tracks";
+"in_song %@" = "in %@";
+"unknown" = "Unknown";
