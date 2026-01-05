@@ -24,6 +24,8 @@ final class PlayerViewModel: ObservableObject {
     @Published private(set) var isPlaylistLoaded = false
     @Published var repeatMode: RepeatMode = .off
     @Published var volume: Double = 0.7
+    @Published private(set) var isLoadingTracks = false
+    @Published private(set) var loadingTracksCount = 0
     
     // MARK: - Managers
     
@@ -95,8 +97,37 @@ final class PlayerViewModel: ObservableObject {
         }
         
         setupBindings()
+        setupManagerBindings()
         
         logger.debug("PlayerViewModel initialized")
+    }
+    
+    private func setupManagerBindings() {
+        playlistManager.$isLoading
+            .receive(on: RunLoop.main)
+            .assign(to: &$isLoadingTracks)
+        
+        playlistManager.$loadingCount
+            .receive(on: RunLoop.main)
+            .assign(to: &$loadingTracksCount)
+            
+        // 监听 playlistManager.tracks 的变化，同步更新 playbackStateManager
+        playlistManager.$tracks
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                self.playbackStateManager.handlePlaylistTracksAdded()
+                self.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+            
+        // 监听子 Manager 的变化，触发 PlayerViewModel 的 UI 更新
+        Publishers.Merge(playlistManager.objectWillChange, playbackStateManager.objectWillChange)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
     }
     
     deinit {
@@ -215,8 +246,6 @@ final class PlayerViewModel: ObservableObject {
                 isPlaylistLoaded = true
             }
             
-            playbackStateManager.handlePlaylistTracksAdded()
-            
             if currentTrackIndex == nil, let track = currentTrack {
                 await loadTrack(track)
             }
@@ -232,8 +261,8 @@ final class PlayerViewModel: ObservableObject {
             pause()
         }
         
-        playbackStateManager.handlePlaylistTrackRemoved(at: index, wasPlaying: wasPlaying)
         playlistManager.removeTrack(at: index)
+        playbackStateManager.handlePlaylistTrackRemoved(at: index, wasPlaying: wasPlaying)
         
         playbackStateManager.saveState()
         
@@ -247,14 +276,15 @@ final class PlayerViewModel: ObservableObject {
             pause()
         }
         
-        playbackStateManager.handlePlaylistCleared()
         playlistManager.clearAll()
+        playbackStateManager.handlePlaylistCleared()
         
         if playingSource == .playlist {
             RemoteCommandController.shared.disable()
         }
         
         playbackStateManager.saveState()
+        objectWillChange.send()
     }
     
     func moveTrackInPlaylist(from source: Int, to destination: Int) {
