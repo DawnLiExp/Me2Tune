@@ -24,6 +24,8 @@ final class PlayerViewModel: ObservableObject {
     @Published private(set) var isPlaylistLoaded = false
     @Published var repeatMode: RepeatMode = .off
     @Published var volume: Double = 0.7
+    
+    // 从 PlaylistManager 同步的加载状态
     @Published private(set) var isLoadingTracks = false
     @Published private(set) var loadingTracksCount = 0
     
@@ -97,37 +99,8 @@ final class PlayerViewModel: ObservableObject {
         }
         
         setupBindings()
-        setupManagerBindings()
         
         logger.debug("PlayerViewModel initialized")
-    }
-    
-    private func setupManagerBindings() {
-        playlistManager.$isLoading
-            .receive(on: RunLoop.main)
-            .assign(to: &$isLoadingTracks)
-        
-        playlistManager.$loadingCount
-            .receive(on: RunLoop.main)
-            .assign(to: &$loadingTracksCount)
-            
-        // 监听 playlistManager.tracks 的变化，同步更新 playbackStateManager
-        playlistManager.$tracks
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                guard let self = self else { return }
-                self.playbackStateManager.handlePlaylistTracksAdded()
-                self.objectWillChange.send()
-            }
-            .store(in: &cancellables)
-            
-        // 监听子 Manager 的变化，触发 PlayerViewModel 的 UI 更新
-        Publishers.Merge(playlistManager.objectWillChange, playbackStateManager.objectWillChange)
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.objectWillChange.send()
-            }
-            .store(in: &cancellables)
     }
     
     deinit {
@@ -137,6 +110,7 @@ final class PlayerViewModel: ObservableObject {
     }
     
     private func setupBindings() {
+        // 1. 播放控制状态绑定
         $repeatMode
             .sink { [weak self] newValue in
                 guard let self else { return }
@@ -154,6 +128,26 @@ final class PlayerViewModel: ObservableObject {
                 }
             }
             .store(in: &cancellables)
+        
+        // 2. 加载状态同步（单向绑定）
+        playlistManager.$isLoading
+            .receive(on: RunLoop.main)
+            .assign(to: &$isLoadingTracks)
+        
+        playlistManager.$loadingCount
+            .receive(on: RunLoop.main)
+            .assign(to: &$loadingTracksCount)
+        
+        // 3. 子 Manager 变化转发（统一刷新入口）
+        Publishers.Merge(
+            playlistManager.objectWillChange,
+            playbackStateManager.objectWillChange
+        )
+        .receive(on: RunLoop.main)
+        .sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }
+        .store(in: &cancellables)
     }
     
     // MARK: - Playback Control
@@ -246,6 +240,9 @@ final class PlayerViewModel: ObservableObject {
                 isPlaylistLoaded = true
             }
             
+            // 显式触发状态同步（仅在添加后）
+            playbackStateManager.handlePlaylistTracksAdded()
+            
             if currentTrackIndex == nil, let track = currentTrack {
                 await loadTrack(track)
             }
@@ -261,6 +258,7 @@ final class PlayerViewModel: ObservableObject {
             pause()
         }
         
+        // 先修改数据源，再同步状态
         playlistManager.removeTrack(at: index)
         playbackStateManager.handlePlaylistTrackRemoved(at: index, wasPlaying: wasPlaying)
         
@@ -276,6 +274,7 @@ final class PlayerViewModel: ObservableObject {
             pause()
         }
         
+        // 先修改数据源，再同步状态
         playlistManager.clearAll()
         playbackStateManager.handlePlaylistCleared()
         
@@ -284,7 +283,6 @@ final class PlayerViewModel: ObservableObject {
         }
         
         playbackStateManager.saveState()
-        objectWillChange.send()
     }
     
     func moveTrackInPlaylist(from source: Int, to destination: Int) {

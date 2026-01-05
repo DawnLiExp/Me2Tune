@@ -128,18 +128,22 @@ final class PlaybackStateManager: ObservableObject {
     // MARK: - Playlist Updates Handling
     
     func handlePlaylistTrackRemoved(at index: Int, wasPlaying: Bool) {
-        if playingSource == .playlist {
-            if let currentIndex = currentTrackIndex {
-                if index == currentIndex {
-                    currentTrackIndex = nil
-                } else if index < currentIndex {
-                    currentTrackIndex = currentIndex - 1
-                }
+        // 仅在播放列表模式下处理
+        guard playingSource == .playlist else {
+            return
+        }
+        
+        if let currentIndex = currentTrackIndex {
+            if index == currentIndex {
+                currentTrackIndex = nil
+            } else if index < currentIndex {
+                currentTrackIndex = currentIndex - 1
             }
-            
-            if let playlistManager {
-                currentTracks = playlistManager.tracks
-            }
+        }
+        
+        // 同步最新的播放列表数据
+        if let playlistManager {
+            currentTracks = playlistManager.tracks
         }
     }
     
@@ -147,11 +151,6 @@ final class PlaybackStateManager: ObservableObject {
         if playingSource == .playlist {
             currentTrackIndex = nil
             currentTracks = []
-        } else if playlistManager != nil {
-            // 即使当前播放的是专辑，如果 playlist 被清空了，
-            // 虽然不影响当前播放，但如果用户切换回 playlist tab，需要看到空列表
-            // 这里 handlePlaylistTracksAdded 已经处理了同步，但显式清空更安全
-            // 实际上 handlePlaylistTracksAdded 会被 playlistManager.$tracks 触发
         }
     }
     
@@ -180,7 +179,7 @@ final class PlaybackStateManager: ObservableObject {
             currentTracks = playlistManager.tracks
         }
         
-        // 如果之前没有曲目，自动设置第一首
+        // 如果之前没有曲目,自动设置第一首
         if currentTrackIndex == nil, !currentTracks.isEmpty {
             currentTrackIndex = 0
         }
