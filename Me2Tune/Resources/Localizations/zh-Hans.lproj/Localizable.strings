@@ -53,13 +53,11 @@
 "unknown_artist" = "未知艺术家";
 
 // MARK: - 搜索
-"search_in_playlist" = "搜索播放列表";
-"search_in_collections" = "搜索专辑收藏";
-"search_in_album %@" = "搜索「%@」";
 "search_placeholder" = "输入关键词搜索...";
 "category_albums" = "专辑";
 "category_songs" = "歌曲";
 "no_results" = "未找到结果";
 "tracks" = "首";
-"in_song %@" = "在「%@」中";
-"unknown" = "未知";
+"global_search" = "全局搜索";
+"from_playlist" = "播放列表";
+"in_album %@" = "在「%@」中";

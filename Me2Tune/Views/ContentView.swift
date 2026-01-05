@@ -133,36 +133,39 @@ struct ContentView: View {
     }
     
     // MARK: - Search
-    
+
     private var searchOverlay: some View {
         SearchOverlayView(
             isPresented: $showSearchOverlay,
-            searchContext: currentSearchContext,
+            searchData: SearchOverlayView.SearchData(
+                playlist: playerViewModel.playlistManager.tracks,
+                albums: collectionManager.albums
+            ),
             onResultSelected: handleSearchResult
         )
     }
-    
-    private var currentSearchContext: SearchOverlayView.SearchContext {
-        if selectedTab == .playlist {
-            return .playlist(playerViewModel.playlistManager.tracks)
-        } else {
-            return .albumsList(collectionManager.albums)
-        }
-    }
-    
+
     private func handleSearchResult(_ result: SearchOverlayView.SearchResult) {
         switch result.action {
-        case .playTrack(let index):
+        case .playPlaylistTrack(let index):
             playerViewModel.playPlaylistTrack(at: index)
-            
-        case .openAlbum(let album):
-            withAnimation(.easeInOut(duration: 0.25)) {
-                selectedTab = .collections
-                selectedAlbumId = album.id
-            }
             
         case .playAlbumTrack(let album, let trackIndex):
             playerViewModel.playAlbum(album, startAt: trackIndex)
+            
+        case .openAlbum(let album):
+            // 先切换 tab，等待视图就绪后再设置专辑
+            withAnimation(.easeInOut(duration: 0.25)) {
+                selectedTab = .collections
+            }
+            
+            Task {
+                // 延迟确保 CollectionsGridView 已加载
+                try? await Task.sleep(for: .milliseconds(100))
+                await MainActor.run {
+                    selectedAlbumId = album.id
+                }
+            }
         }
     }
     

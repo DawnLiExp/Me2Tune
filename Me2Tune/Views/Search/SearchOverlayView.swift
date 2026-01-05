@@ -2,7 +2,7 @@
 //  SearchOverlayView.swift
 //  Me2Tune
 //
-//  搜索覆盖界面 - 当前 Tab 上下文搜索 + 结果分类（性能优化）
+//  搜索覆盖界面 - 全局搜索 + 结果限制（性能优化）
 //
 
 import SwiftUI
@@ -11,7 +11,7 @@ struct SearchOverlayView: View {
     @Binding var isPresented: Bool
     @FocusState private var isSearchFocused: Bool
     
-    let searchContext: SearchContext
+    let searchData: SearchData
     let onResultSelected: (SearchResult) -> Void
     
     @State private var searchText = ""
@@ -19,21 +19,9 @@ struct SearchOverlayView: View {
     @State private var hoveredResultId: UUID?
     @State private var debounceTask: Task<Void, Never>?
     
-    enum SearchContext {
-        case playlist([AudioTrack])
-        case albumsList([Album])
-        case albumDetail(Album)
-        
-        var title: LocalizedStringKey {
-            switch self {
-            case .playlist:
-                return "search_in_playlist"
-            case .albumsList:
-                return "search_in_collections"
-            case .albumDetail(let album):
-                return LocalizedStringKey("search_in_album \(album.name)")
-            }
-        }
+    struct SearchData {
+        let playlist: [AudioTrack]
+        let albums: [Album]
     }
     
     struct SearchResult: Identifiable {
@@ -43,11 +31,12 @@ struct SearchOverlayView: View {
         let icon: String
         let action: Action
         let category: Category
+        let relevance: Int // 相关性评分，用于排序
         
         enum Action {
-            case playTrack(Int)
-            case openAlbum(Album)
+            case playPlaylistTrack(Int)
             case playAlbumTrack(Album, Int)
+            case openAlbum(Album)
         }
         
         enum Category: String, Comparable {
@@ -67,16 +56,17 @@ struct SearchOverlayView: View {
         }
     }
     
+    private let maxSongResults = 50
+    private let maxAlbumResults = 20
+    
     var body: some View {
         ZStack {
-            // 半透明背景
             Color.black.opacity(0.8)
                 .ignoresSafeArea()
                 .onTapGesture {
                     closeSearch()
                 }
             
-            // 搜索卡片
             VStack(spacing: 0) {
                 headerSection
                 
@@ -120,7 +110,7 @@ struct SearchOverlayView: View {
     
     private var headerSection: some View {
         HStack {
-            Text(searchContext.title)
+            Text("global_search")
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(.secondaryText)
             
@@ -256,90 +246,114 @@ struct SearchOverlayView: View {
         let query = debouncedSearchText.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return [] }
         
-        switch searchContext {
-        case .playlist(let tracks):
-            return searchInTracks(tracks, query: query) { index in
-                .playTrack(index)
-            }
-            
-        case .albumsList(let albums):
-            return searchInAlbums(albums, query: query)
-            
-        case .albumDetail(let album):
-            return searchInTracks(album.tracks, query: query) { index in
-                .playAlbumTrack(album, index)
-            }
-        }
+        var allResults: [SearchResult] = []
+        
+        // 1. 搜索播放列表歌曲
+        let playlistResults = searchPlaylistTracks(query: query)
+        
+        // 2. 搜索专辑
+        let albumResults = searchAlbums(query: query)
+        
+        // 3. 搜索专辑内歌曲
+        let albumTrackResults = searchAlbumTracks(query: query)
+        
+        allResults.append(contentsOf: playlistResults)
+        allResults.append(contentsOf: albumResults)
+        allResults.append(contentsOf: albumTrackResults)
+        
+        // 按相关性排序
+        return allResults.sorted { $0.relevance > $1.relevance }
     }
     
-    private func searchInTracks(
-        _ tracks: [AudioTrack],
-        query: String,
-        actionBuilder: (Int) -> SearchResult.Action
-    ) -> [SearchResult] {
-        tracks.enumerated().compactMap { index, track in
-            let matchesTitle = track.title.lowercased().contains(query)
-            let matchesArtist = track.artist?.lowercased().contains(query) ?? false
-            let matchesAlbum = track.albumTitle?.lowercased().contains(query) ?? false
+    // MARK: - Search Helpers
+    
+    private func searchPlaylistTracks(query: String) -> [SearchResult] {
+        var results: [SearchResult] = []
+        
+        for (index, track) in searchData.playlist.enumerated() {
+            guard results.count < maxSongResults else { break }
             
-            guard matchesTitle || matchesArtist || matchesAlbum else { return nil }
+            let titleMatch = track.title.lowercased().contains(query)
+            let artistMatch = track.artist?.lowercased().contains(query) ?? false
+            let albumMatch = track.albumTitle?.lowercased().contains(query) ?? false
+            
+            guard titleMatch || artistMatch || albumMatch else { continue }
+            
+            // 相关性评分：标题匹配 > 艺术家匹配 > 专辑匹配
+            let relevance = titleMatch ? 3 : (artistMatch ? 2 : 1)
             
             let subtitle = [
                 track.artist ?? String(localized: "unknown_artist"),
-                track.albumTitle
+                String(localized: "from_playlist")
             ]
-            .compactMap { $0 }
             .joined(separator: " • ")
             
-            return SearchResult(
-                id: track.id,
+            results.append(SearchResult(
+                id: UUID(),
                 title: track.title,
-                subtitle: subtitle.isEmpty ? String(localized: "unknown") : subtitle,
+                subtitle: subtitle,
                 icon: "music.note",
-                action: actionBuilder(index),
-                category: .song
-            )
+                action: .playPlaylistTrack(index),
+                category: .song,
+                relevance: relevance
+            ))
         }
+        
+        return results
     }
     
-    private func searchInAlbums(_ albums: [Album], query: String) -> [SearchResult] {
+    private func searchAlbums(query: String) -> [SearchResult] {
         var results: [SearchResult] = []
         
-        for album in albums {
-            // 搜索专辑名
-            let matchesAlbumName = album.name.lowercased().contains(query)
+        for album in searchData.albums {
+            guard results.count < maxAlbumResults else { break }
             
-            if matchesAlbumName {
+            let nameMatch = album.name.lowercased().contains(query)
+            guard nameMatch else { continue }
+            
+            results.append(SearchResult(
+                id: album.id,
+                title: album.name,
+                subtitle: "\(album.tracks.count) \(String(localized: "tracks"))",
+                icon: "opticaldisc",
+                action: .openAlbum(album),
+                category: .album,
+                relevance: 3
+            ))
+        }
+        
+        return results
+    }
+    
+    private func searchAlbumTracks(query: String) -> [SearchResult] {
+        var results: [SearchResult] = []
+        
+        for album in searchData.albums {
+            for (index, track) in album.tracks.enumerated() {
+                guard results.count < maxSongResults else { break }
+                
+                let titleMatch = track.title.lowercased().contains(query)
+                let artistMatch = track.artist?.lowercased().contains(query) ?? false
+                
+                guard titleMatch || artistMatch else { continue }
+                
+                let relevance = titleMatch ? 3 : 2
+                
+                let subtitle = [
+                    track.artist ?? String(localized: "unknown_artist"),
+                    String(localized: "in_album \(album.name)")
+                ]
+                .joined(separator: " • ")
+                
                 results.append(SearchResult(
-                    id: album.id,
-                    title: album.name,
-                    subtitle: "\(album.tracks.count) \(String(localized: "tracks"))",
-                    icon: "opticaldisc",
-                    action: .openAlbum(album),
-                    category: .album
+                    id: UUID(),
+                    title: track.title,
+                    subtitle: subtitle,
+                    icon: "music.note",
+                    action: .playAlbumTrack(album, index),
+                    category: .song,
+                    relevance: relevance
                 ))
-            }
-            
-            // 搜索艺术家和歌曲
-            let matchingTracks = album.tracks.filter { track in
-                let matchesTitle = track.title.lowercased().contains(query)
-                let matchesArtist = track.artist?.lowercased().contains(query) ?? false
-                return matchesTitle || matchesArtist
-            }
-            
-            if !matchingTracks.isEmpty, !matchesAlbumName {
-                // 只有在专辑名不匹配时，才作为歌曲结果添加
-                if let firstMatch = matchingTracks.first {
-                    let subtitle = String(localized: "in_song \(firstMatch.title)")
-                    results.append(SearchResult(
-                        id: UUID(), // 使用新 ID，因为同一专辑可能匹配多首歌
-                        title: album.name,
-                        subtitle: subtitle,
-                        icon: "opticaldisc",
-                        action: .openAlbum(album),
-                        category: .song
-                    ))
-                }
             }
         }
         
@@ -360,7 +374,7 @@ struct SearchOverlayView: View {
 #Preview {
     SearchOverlayView(
         isPresented: .constant(true),
-        searchContext: .playlist([]),
+        searchData: SearchOverlayView.SearchData(playlist: [], albums: []),
         onResultSelected: { _ in }
     )
 }
