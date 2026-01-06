@@ -299,24 +299,42 @@ struct SearchOverlayView: View {
     
     private func searchAlbums(query: String) -> [SearchResult] {
         var results: [SearchResult] = []
-        
+            
         for album in searchData.albums {
             guard results.count < maxAlbumResults else { break }
-            
+                
+            // 1. 匹配专辑名
             let nameMatch = album.name.lowercased().contains(query)
-            guard nameMatch else { continue }
-            
+                
+            // 2. 匹配专辑内任意歌曲的艺术家
+            let artistMatch = album.tracks.contains { track in
+                track.artist?.lowercased().contains(query) ?? false
+            }
+                
+            guard nameMatch || artistMatch else { continue }
+                
+            // 3. 提取艺术家信息（取第一首歌的艺术家）
+            let artist = album.tracks.first?.artist
+            let subtitle = if let artist, !artist.isEmpty {
+                "\(artist) · \(album.tracks.count) \(String(localized: "tracks"))"
+            } else {
+                "\(album.tracks.count) \(String(localized: "tracks"))"
+            }
+                
+            // 4. 相关性评分：专辑名匹配 > 艺术家匹配
+            let relevance = nameMatch ? 3 : 2
+                
             results.append(SearchResult(
                 id: album.id,
                 title: album.name,
-                subtitle: "\(album.tracks.count) \(String(localized: "tracks"))",
+                subtitle: subtitle,
                 icon: "opticaldisc",
                 action: .openAlbum(album),
                 category: .album,
-                relevance: 3
+                relevance: relevance
             ))
         }
-        
+            
         return results
     }
     
