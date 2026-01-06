@@ -58,6 +58,11 @@ struct SearchOverlayView: View {
     private let maxSongResults = 50
     private let maxAlbumResults = 20
     
+    // 计算高度：无结果时80，有结果时480
+    private var overlayHeight: CGFloat {
+        debouncedSearchText.isEmpty ? 80 : 480
+    }
+    
     var body: some View {
         ZStack {
             Color.black.opacity(0.8)
@@ -67,22 +72,20 @@ struct SearchOverlayView: View {
                 }
             
             VStack(spacing: 0) {
-                headerSection
-                
-                Divider()
-                    .background(Color.white.opacity(0.1))
-                
+                // 搜索输入框 - 始终在顶部
                 searchInputSection
                 
+                // 分割线
+                Divider()
+                    .background(Color.white.opacity(0.1))
+                    .padding(.horizontal, 16)
+                
+                // 搜索结果区域
                 if !debouncedSearchText.isEmpty {
-                    Divider()
-                        .background(Color.white.opacity(0.1))
-                        .padding(.horizontal, 16)
-                    
                     resultsSection
                 }
             }
-            .frame(width: 420, height: debouncedSearchText.isEmpty ? 140 : 480)
+            .frame(width: 420, height: overlayHeight)
             .background(
                 RoundedRectangle(cornerRadius: 16)
                     .fill(Color.containerBackground)
@@ -103,27 +106,6 @@ struct SearchOverlayView: View {
         .onChange(of: searchText) { _, newValue in
             debounceSearch(newValue)
         }
-    }
-    
-    // MARK: - Header
-    
-    private var headerSection: some View {
-        HStack {
-            Text("global_search")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.secondaryText)
-            
-            Spacer()
-            
-            Button(action: closeSearch) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 18))
-                    .foregroundColor(.secondaryText)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
     }
     
     // MARK: - Search Input
