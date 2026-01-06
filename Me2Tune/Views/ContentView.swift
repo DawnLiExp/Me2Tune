@@ -109,7 +109,8 @@ struct ContentView: View {
                 onPrevious: playerViewModel.previous,
                 onNext: playerViewModel.next,
                 onSeek: playerViewModel.seek,
-                onToggleRepeat: playerViewModel.toggleRepeatMode
+                onToggleRepeat: playerViewModel.toggleRepeatMode,
+                volume: $playerViewModel.volume // 新增
             )
             .fixedSize(horizontal: false, vertical: true)
 

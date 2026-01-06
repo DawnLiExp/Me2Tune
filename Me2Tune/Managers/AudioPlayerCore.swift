@@ -190,6 +190,18 @@ final class AudioPlayerCore: NSObject {
         }
     }
     
+    func setVolume(_ volume: Double) {
+        guard let player else { return }
+        
+        do {
+            try player.setVolume(Float(volume))
+            self.volume = volume
+            logger.debug("🔊 Volume set to \(String(format: "%.0f", volume * 100))%")
+        } catch {
+            logger.error("Failed to set volume: \(error.localizedDescription)")
+        }
+    }
+    
     // MARK: - Private Methods
     
     private func ensurePlayerInitialized() {

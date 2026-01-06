@@ -14,7 +14,6 @@ private let logger = Logger.viewModel
 
 @MainActor
 final class PlayerViewModel: ObservableObject {
-    
     // MARK: - Published States (UI 绑定状态)
     
     @Published private(set) var isPlaying = false
@@ -47,6 +46,7 @@ final class PlayerViewModel: ObservableObject {
     // MARK: - Private Properties
     
     private let playerCore: AudioPlayerCore
+    private let persistenceService = PersistenceService()
     private var cancellables = Set<AnyCancellable>()
     private var nowPlayingUpdateTimer: Timer?
     private var isWindowVisible = true
@@ -121,10 +121,12 @@ final class PlayerViewModel: ObservableObject {
             .store(in: &cancellables)
         
         $volume
+            .debounce(for: .milliseconds(500), scheduler: RunLoop.main)
             .sink { [weak self] newValue in
                 guard let self else { return }
                 Task { @MainActor in
-                    self.playerCore.volume = newValue
+                    self.playerCore.setVolume(newValue)
+                    self.saveVolume(newValue)
                 }
             }
             .store(in: &cancellables)
@@ -385,9 +387,33 @@ final class PlayerViewModel: ObservableObject {
         nowPlayingUpdateTimer = nil
     }
     
+    // MARK: - Volume Persistence
+    
+    private func saveVolume(_ volume: Double) {
+        do {
+            var state = (try? persistenceService.loadPlaybackState()) ?? PlaybackState(
+                playlistCurrentIndex: nil,
+                albumCurrentIndex: nil,
+                playingSource: nil,
+                volume: volume
+            )
+            state.volume = volume
+            try persistenceService.savePlaybackState(state)
+        } catch {
+            logger.error("Failed to save volume: \(error)")
+        }
+    }
+    
     // MARK: - Persistence
  
     private func restorePlaybackState() async {
+        // 恢复音量
+        if let savedVolume = try? persistenceService.loadPlaybackState().volume {
+            volume = savedVolume
+            logger.debug("🔊 Restored volume: \(String(format: "%.0f", savedVolume * 100))%")
+        }
+        
+        // 恢复播放状态
         guard let restored = await playbackStateManager.restoreState() else {
             isPlaylistLoaded = true
             return

@@ -2,7 +2,7 @@
 //  ControlSectionView.swift
 //  Me2Tune
 //
-//  播放控制区域 - 进度条+控制按钮+歌曲信息+循环模式
+//  播放控制区域 - 进度条+控制按钮+歌曲信息+循环模式+音量控制
 //
 
 import SwiftUI
@@ -22,9 +22,12 @@ struct ControlSectionView: View {
     let onSeek: (TimeInterval) -> Void
     let onToggleRepeat: () -> Void
     
+    @Binding var volume: Double
+    
     @State private var isSeekingManually = false
     @State private var manualSeekValue: TimeInterval = 0
     @State private var isHoveringTrackInfo = false
+    @State private var volumeBeforeMute: Double = 0.7
     
     var body: some View {
         VStack(spacing: 0) {
@@ -53,32 +56,35 @@ struct ControlSectionView: View {
     // MARK: - Track Info Section
     
     private var trackInfoSection: some View {
-        HStack(spacing: 0) {
-            if isHoveringTrackInfo, currentTrack != nil {
-                repeatButton
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .leading).combined(with: .opacity),
-                        removal: .move(edge: .leading).combined(with: .opacity)
-                    ))
+        ZStack(alignment: .leading) {
+            // 歌曲信息（默认显示）
+            if !isHoveringTrackInfo || currentTrack == nil {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(currentTrack?.title ?? "No Track")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(.accent)
+                        .lineLimit(1)
+                    
+                    Text(trackSubtitle)
+                        .font(.system(size: 10, weight: .regular))
+                        .foregroundColor(.tertiaryText)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .transition(.opacity)
             }
             
-            VStack(alignment: .leading, spacing: 5) {
-                Text(currentTrack?.title ?? "No Track")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(.accent)
-                    .lineLimit(1)
-                
-                Text(trackSubtitle)
-                    .font(.system(size: 10, weight: .regular))
-                    .foregroundColor(.tertiaryText)
-                    .lineLimit(1)
+            // 设置控件（hover时显示）
+            if isHoveringTrackInfo, currentTrack != nil {
+                settingsControls
+                    .transition(.opacity)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
         .onHover { hovering in
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                isHoveringTrackInfo = hovering
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isHoveringTrackInfo = hovering && currentTrack != nil
             }
         }
     }
@@ -98,6 +104,15 @@ struct ControlSectionView: View {
         }
     }
     
+    // MARK: - Settings Controls (Repeat + Volume)
+    
+    private var settingsControls: some View {
+        HStack(spacing: 12) {
+            repeatButton
+            volumeControl
+        }
+    }
+    
     // MARK: - Repeat Button
     
     private var repeatButton: some View {
@@ -112,7 +127,6 @@ struct ControlSectionView: View {
         .buttonStyle(.plain)
         .help(repeatTooltip)
         .rotationEffect(.degrees(rotationAngle))
-        .scaleEffect(scaleEffect)
         .animation(.spring(response: 0.4, dampingFraction: 0.6), value: repeatMode)
     }
     
@@ -140,8 +154,45 @@ struct ControlSectionView: View {
         repeatMode == .off ? 0 : 180
     }
     
-    private var scaleEffect: Double {
-        repeatMode == .off ? 1.0 : 1.0
+    // MARK: - Volume Control
+    
+    private var volumeControl: some View {
+        HStack(spacing: 8) {
+            Button(action: toggleMute) {
+                Image(systemName: volumeIcon)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.secondaryText)
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(.plain)
+            .help(volume > 0 ? "Mute" : "Unmute")
+            
+            Slider(value: $volume, in: 0 ... 1)
+                .frame(width: 100)
+                .tint(.accent)
+        }
+    }
+    
+    private var volumeIcon: String {
+        switch volume {
+        case 0:
+            return "speaker.slash.fill"
+        case 0.01..<0.33:
+            return "speaker.wave.1.fill"
+        case 0.33..<0.66:
+            return "speaker.wave.2.fill"
+        default:
+            return "speaker.wave.3.fill"
+        }
+    }
+    
+    private func toggleMute() {
+        if volume > 0 {
+            volumeBeforeMute = volume
+            volume = 0
+        } else {
+            volume = max(volumeBeforeMute, 0.1)
+        }
     }
     
     // MARK: - Control Buttons
@@ -261,7 +312,8 @@ struct ControlSectionView: View {
         onPrevious: {},
         onNext: {},
         onSeek: { _ in },
-        onToggleRepeat: {}
+        onToggleRepeat: {},
+        volume: .constant(0.7)
     )
     .padding()
     .background(Color.black)

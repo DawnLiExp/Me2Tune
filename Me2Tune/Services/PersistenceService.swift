@@ -14,6 +14,7 @@ struct PlaybackState: Codable, Sendable {
     var playlistCurrentIndex: Int?
     var albumCurrentIndex: Int?
     var playingSource: PlayingSourceData?
+    var volume: Double?
 
     enum PlayingSourceData: Codable, Sendable {
         case playlist
