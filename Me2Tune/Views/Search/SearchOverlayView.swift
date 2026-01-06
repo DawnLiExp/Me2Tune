@@ -16,7 +16,6 @@ struct SearchOverlayView: View {
     
     @State private var searchText = ""
     @State private var debouncedSearchText = ""
-    @State private var hoveredResultId: UUID?
     @State private var debounceTask: Task<Void, Never>?
     
     struct SearchData {
@@ -180,28 +179,24 @@ struct SearchOverlayView: View {
                 Text(category.displayName)
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(.accent)
-                
+                    
                 Text("(\(results.count))")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.tertiaryText)
-                
+                    
                 Spacer()
             }
             .padding(.horizontal, 16)
-            
+                
             LazyVStack(spacing: 2) {
                 ForEach(results) { result in
                     SearchResultRowView(
                         title: result.title,
                         subtitle: result.subtitle,
                         icon: result.icon,
-                        isHovered: hoveredResultId == result.id,
                         onTap: {
                             onResultSelected(result)
                             closeSearch()
-                        },
-                        onHoverChange: { isHovered in
-                            hoveredResultId = isHovered ? result.id : nil
                         }
                     )
                     .padding(.horizontal, 8)

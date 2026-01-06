@@ -11,9 +11,9 @@ struct SearchResultRowView: View {
     let title: String
     let subtitle: String
     let icon: String
-    let isHovered: Bool
     let onTap: () -> Void
-    let onHoverChange: (Bool) -> Void
+    
+    @State private var isHovered = false // 改为内部状态
     
     var body: some View {
         HStack(spacing: 12) {
@@ -47,7 +47,7 @@ struct SearchResultRowView: View {
             onTap()
         }
         .onHover { hovering in
-            onHoverChange(hovering)
+            isHovered = hovering
         }
     }
 }
@@ -58,18 +58,14 @@ struct SearchResultRowView: View {
             title: "Test Song",
             subtitle: "Artist • Album",
             icon: "music.note",
-            isHovered: false,
-            onTap: {},
-            onHoverChange: { _ in }
+            onTap: {}
         )
         
         SearchResultRowView(
             title: "Another Song",
             subtitle: "Artist • Album",
             icon: "music.note",
-            isHovered: true,
-            onTap: {},
-            onHoverChange: { _ in }
+            onTap: {}
         )
     }
     .padding()
