@@ -28,6 +28,7 @@ struct ControlSectionView: View {
     @State private var manualSeekValue: TimeInterval = 0
     @State private var isHoveringTrackInfo = false
     @State private var volumeBeforeMute: Double = 0.7
+    @State private var hoverDelayTask: Task<Void, Never>?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -51,6 +52,9 @@ struct ControlSectionView: View {
             )
             .padding(.horizontal, 12)
         }
+        .onDisappear {
+            hoverDelayTask?.cancel()
+        }
     }
     
     // MARK: - Track Info Section
@@ -66,7 +70,7 @@ struct ControlSectionView: View {
                         .lineLimit(1)
                     
                     Text(trackSubtitle)
-                        .font(.system(size: 10, weight: .regular))
+                        .font(.system(size: 12, weight: .regular))
                         .foregroundColor(.tertiaryText)
                         .lineLimit(1)
                 }
@@ -83,8 +87,31 @@ struct ControlSectionView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
         .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isHoveringTrackInfo = hovering && currentTrack != nil
+            hoverDelayTask?.cancel()
+            hoverDelayTask = nil
+            
+            if hovering, currentTrack != nil {
+                // 鼠标移入：延迟 0.5 秒后触发
+                hoverDelayTask = Task {
+                    do {
+                        try await Task.sleep(for: .milliseconds(500))
+                    } catch {
+                        return
+                    }
+                    
+                    guard !Task.isCancelled else { return }
+                    
+                    await MainActor.run {
+                        withAnimation(.easeInOut(duration: 0.5)) {
+                            isHoveringTrackInfo = true
+                        }
+                    }
+                }
+            } else {
+                // 鼠标移出
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    isHoveringTrackInfo = false
+                }
             }
         }
     }
