@@ -150,7 +150,7 @@ struct TabSwitcherView: View {
             
             if selectedTab == .playlist {
                 playlistToolbar
-            } else if !isInAlbumDetail {
+            } else {
                 collectionsToolbar
             }
         }
