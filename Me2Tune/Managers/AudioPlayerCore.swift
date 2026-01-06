@@ -236,7 +236,7 @@ final class AudioPlayerCore: NSObject {
         timer = nil
     }
     
-    private func updateDockIcon(_ artwork: NSImage?) {
+    func updateDockIcon(_ artwork: NSImage?) {
         guard let artwork else {
             NSApp.dockTile.contentView = nil
             NSApp.dockTile.display()

@@ -478,6 +478,9 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
                     
                     self.updateNowPlayingInfo()
                     
+                    // 🆕 更新 dock 图标
+                    self.playerCore.updateDockIcon(artwork)
+                    
                     if indexChanged {
                         self.playbackStateManager.saveState()
                     }
