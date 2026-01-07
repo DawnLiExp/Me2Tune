@@ -2,7 +2,7 @@
 //  SongRowView.swift
 //  Me2Tune
 //
-//  播放列表歌曲行组件（性能优化版）
+//  播放列表歌曲行组件 - 使用 NSView 级别 hover 检测
 //
 
 import SwiftUI
@@ -11,11 +11,27 @@ struct SongRowView: View {
     let track: AudioTrack
     let index: Int
     let isPlaying: Bool
-    let isHovered: Bool
     let onTap: () -> Void
-    let onHoverChange: (Bool) -> Void
+    
+    @State private var isHovered = false
     
     var body: some View {
+        ZStack {
+            // 内容层
+            contentView
+            
+            // Hover 检测层
+            HoverDetectingView(isHovered: $isHovered)
+                .allowsHitTesting(false)
+        }
+        .onTapGesture(count: 2) {
+            onTap()
+        }
+    }
+    
+    // MARK: - Content View
+    
+    private var contentView: some View {
         HStack(spacing: 12) {
             indexOrWaveform
                 .frame(width: 24)
@@ -40,14 +56,16 @@ struct SongRowView: View {
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 10)
-        .background(background) // 简化背景层级
+        .background {
+            if isPlaying {
+                Color.accentLight
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+            } else if isHovered {
+                Color.hoverBackground
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+            }
+        }
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) {
-            onTap()
-        }
-        .onHover { hovering in
-            onHoverChange(hovering)
-        }
     }
     
     // MARK: - Subviews
@@ -65,21 +83,7 @@ struct SongRowView: View {
         }
     }
     
-    // 优化：移除 RoundedRectangle，直接使用颜色
-    @ViewBuilder
-    private var background: some View {
-        if isPlaying {
-            Color.accentLight
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-        } else if isHovered {
-            Color.hoverBackground
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-        } else {
-            Color.clear
-        }
-    }
-    
-    // MARK: - Utils
+    // MARK: - Helper
     
     private func formatTime(_ time: TimeInterval) -> String {
         guard time.isFinite, !time.isNaN else { return "0:00" }
@@ -105,9 +109,7 @@ struct SongRowView: View {
         track: mockTrack,
         index: 0,
         isPlaying: false,
-        isHovered: false,
-        onTap: {},
-        onHoverChange: { _ in }
+        onTap: {}
     )
     .padding()
     .background(Color.black)

@@ -2,7 +2,7 @@
 //  CollectionsGridView.swift
 //  Me2Tune
 //
-//  专辑收藏视图:专辑卡片展示+详情视图+拖拽排序(性能优化)
+//  专辑收藏视图: 专辑卡片展示+详情视图+拖拽排序（使用 NSView hover）
 //
 
 import AppKit
@@ -30,8 +30,6 @@ struct CollectionsGridView: View {
     @State private var renameText = ""
     @State private var albumToDelete: Album?
     @State private var preloadedAlbumIds = Set<UUID>()
-    @State private var hoveredAlbumId: UUID?
-    @State private var hoveredTrackIndex: Int?
     @State private var columns: [GridItem] = [
         GridItem(.fixed(135), spacing: 14),
         GridItem(.fixed(135), spacing: 14),
@@ -65,7 +63,6 @@ struct CollectionsGridView: View {
             if let newId, selectedAlbum?.id != newId {
                 if let album = albums.first(where: { $0.id == newId }) {
                     selectedAlbum = album
-                    // 主动加载封面（搜索跳转时可能未加载）
                     Task {
                         await loadArtwork(for: album)
                     }
@@ -131,15 +128,11 @@ struct CollectionsGridView: View {
                                     AlbumCardView(
                                         album: album,
                                         artwork: artworkCache[album.id],
-                                        isHovered: hoveredAlbumId == album.id,
                                         isDragging: draggingAlbumId == album.id,
                                         onTap: {
                                             withAnimation(.easeInOut(duration: 0.25)) {
                                                 selectedAlbum = album
                                             }
-                                        },
-                                        onHoverChange: { isHovered in
-                                            hoveredAlbumId = isHovered ? album.id : nil
                                         },
                                         onRename: {
                                             renamingAlbumId = album.id
@@ -215,12 +208,8 @@ struct CollectionsGridView: View {
                                 }
                                 return false
                             }(),
-                            isHovered: hoveredTrackIndex == index,
                             onTap: {
                                 onAlbumPlayAt(album, index)
-                            },
-                            onHoverChange: { isHovered in
-                                hoveredTrackIndex = isHovered ? index : nil
                             },
                             onShowInFinder: {
                                 NSWorkspace.shared.activateFileViewerSelecting([track.url])
@@ -405,101 +394,40 @@ struct AlbumDropDelegate: DropDelegate {
     }
 }
 
-// MARK: - Album Card View
-
-struct AlbumCardView: View {
-    let album: Album
-    let artwork: NSImage?
-    let isHovered: Bool
-    let isDragging: Bool
-    let onTap: () -> Void
-    let onHoverChange: (Bool) -> Void
-    let onRename: () -> Void
-    let onRemove: () -> Void
-    
-    var body: some View {
-        VStack(spacing: 8) {
-            artworkView
-            
-            VStack(spacing: 2) {
-                Text(album.name)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(.primaryText)
-                    .lineLimit(1)
-                
-                Text("\(album.tracks.count) tracks")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondaryText)
-            }
-        }
-        .opacity(isDragging ? 0.4 : 1.0)
-        .scaleEffect(isHovered && !isDragging ? 1.02 : 1.0)
-        .animation(isDragging ? nil : .spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
-        .onTapGesture {
-            onTap()
-        }
-        .onHover { hovering in
-            onHoverChange(hovering)
-        }
-        .contextMenu {
-            Button("rename") {
-                onRename()
-            }
-            
-            Divider()
-            
-            Button("remove", role: .destructive) {
-                onRemove()
-            }
-        }
-    }
-    
-    private var artworkView: some View {
-        Group {
-            if let artwork {
-                Image(nsImage: artwork)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white.opacity(0.1))
-                    .overlay(
-                        Image(systemName: "opticaldisc")
-                            .font(.system(size: 40))
-                            .foregroundColor(.emptyStateIcon)
-                    )
-            }
-        }
-        .frame(width: 135, height: 135)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(
-                    Color.accent.opacity(isHovered && !isDragging ? 0.4 : 0),
-                    lineWidth: 2
-                )
-        )
-        .shadow(
-            color: isHovered && !isDragging ? Color.accent.opacity(0.2) : .clear,
-            radius: 8
-        )
-        .drawingGroup()
-    }
-}
-
-// MARK: - Album Track Row View
+// MARK: - Album Track Row View (移到文件末尾)
 
 struct AlbumTrackRowView: View {
     let track: AudioTrack
     let index: Int
     let isPlaying: Bool
-    let isHovered: Bool
     let onTap: () -> Void
-    let onHoverChange: (Bool) -> Void
     let onShowInFinder: () -> Void
     let onAddToPlaylist: () -> Void
     
+    @State private var isHovered = false
+    
     var body: some View {
+        ZStack {
+            contentView
+            
+            HoverDetectingView(isHovered: $isHovered)
+                .allowsHitTesting(false)
+        }
+        .onTapGesture(count: 2) {
+            onTap()
+        }
+        .contextMenu {
+            Button("show_in_finder") {
+                onShowInFinder()
+            }
+            
+            Button("add_to_playlist") {
+                onAddToPlaylist()
+            }
+        }
+    }
+    
+    private var contentView: some View {
         HStack(spacing: 12) {
             Group {
                 if isPlaying {
@@ -534,37 +462,17 @@ struct AlbumTrackRowView: View {
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 10)
-        .background(background)
+        .background {
+            if isPlaying {
+                Color.accentLight
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+            } else if isHovered {
+                Color.hoverBackground
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+            }
+        }
         .contentShape(Rectangle())
         .drawingGroup()
-        .onTapGesture(count: 2) {
-            onTap()
-        }
-        .onHover { hovering in
-            onHoverChange(hovering)
-        }
-        .contextMenu {
-            Button("show_in_finder") {
-                onShowInFinder()
-            }
-            
-            Button("add_to_playlist") {
-                onAddToPlaylist()
-            }
-        }
-    }
-    
-    @ViewBuilder
-    private var background: some View {
-        if isPlaying {
-            Color.accentLight
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-        } else if isHovered {
-            Color.hoverBackground
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-        } else {
-            Color.clear
-        }
     }
     
     private func formatTime(_ time: TimeInterval) -> String {

@@ -40,6 +40,8 @@
 		FC50C7462F0658E600597B19 /* VinylSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC50C7452F0658E400597B19 /* VinylSectionView.swift */; };
 		FC62DA392F0372C000DD1509 /* ArtworkCacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC62DA382F0372BA00DD1509 /* ArtworkCacheService.swift */; };
 		FC62DA3B2F0373C800DD1509 /* Array+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC62DA3A2F0373C600DD1509 /* Array+Extensions.swift */; };
+		FC746C302F0E501B008AD5B4 /* AlbumCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC746C2F2F0E5019008AD5B4 /* AlbumCardView.swift */; };
+		FC746C322F0E5043008AD5B4 /* HoverDetectingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC746C312F0E5040008AD5B4 /* HoverDetectingView.swift */; };
 		FC8528082F01486100B53540 /* ContentSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8528072F01485D00B53540 /* ContentSectionView.swift */; };
 		FC8528102F014F7C00B53540 /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC85280F2F014F7A00B53540 /* AppError.swift */; };
 		FC8528122F014FAA00B53540 /* Logger+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8528112F014FA900B53540 /* Logger+Extensions.swift */; };
@@ -82,6 +84,8 @@
 		FC50C7452F0658E400597B19 /* VinylSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VinylSectionView.swift; sourceTree = "<group>"; };
 		FC62DA382F0372BA00DD1509 /* ArtworkCacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkCacheService.swift; sourceTree = "<group>"; };
 		FC62DA3A2F0373C600DD1509 /* Array+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Array+Extensions.swift"; sourceTree = "<group>"; };
+		FC746C2F2F0E5019008AD5B4 /* AlbumCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumCardView.swift; sourceTree = "<group>"; };
+		FC746C312F0E5040008AD5B4 /* HoverDetectingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverDetectingView.swift; sourceTree = "<group>"; };
 		FC8528072F01485D00B53540 /* ContentSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentSectionView.swift; sourceTree = "<group>"; };
 		FC85280F2F014F7A00B53540 /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
 		FC8528112F014FA900B53540 /* Logger+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Logger+Extensions.swift"; sourceTree = "<group>"; };
@@ -207,6 +211,7 @@
 		FC480EBF2EF13912000D8393 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				FC746C332F0E8383008AD5B4 /* Collections */,
 				FC8194EF2EF4EF2000401C4F /* Components */,
 				FC480EA02EF107E8000D8393 /* ContentView.swift */,
 				FC50C73A2F06584B00597B19 /* Layers */,
@@ -287,18 +292,27 @@
 		FC50C7482F065B9100597B19 /* Components */ = {
 			isa = PBXGroup;
 			children = (
-				FC50C73D2F06587000597B19 /* CollapseButtonView.swift */,
 				FC50C7412F06589700597B19 /* SongRowView.swift */,
-				FC50C73F2F06588500597B19 /* ToolbarButtonView.swift */,
 			);
 			path = Components;
+			sourceTree = "<group>";
+		};
+		FC746C332F0E8383008AD5B4 /* Collections */ = {
+			isa = PBXGroup;
+			children = (
+				FC746C2F2F0E5019008AD5B4 /* AlbumCardView.swift */,
+				FC13779A2EFCF9AB00A9CE99 /* CollectionsGridView.swift */,
+			);
+			path = Collections;
 			sourceTree = "<group>";
 		};
 		FC8194EF2EF4EF2000401C4F /* Components */ = {
 			isa = PBXGroup;
 			children = (
-				FC13779A2EFCF9AB00A9CE99 /* CollectionsGridView.swift */,
+				FC50C73D2F06587000597B19 /* CollapseButtonView.swift */,
 				FC8528072F01485D00B53540 /* ContentSectionView.swift */,
+				FC746C312F0E5040008AD5B4 /* HoverDetectingView.swift */,
+				FC50C73F2F06588500597B19 /* ToolbarButtonView.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -391,6 +405,7 @@
 				FCE6E86F2F053E7C004D5E21 /* NowPlayingService.swift in Sources */,
 				FC1377A42EFD0FF700A9CE99 /* ColorExtensions.swift in Sources */,
 				FC2032FD2F08E93100D17FEE /* LightTheme.swift in Sources */,
+				FC746C302F0E501B008AD5B4 /* AlbumCardView.swift in Sources */,
 				FC8528102F014F7C00B53540 /* AppError.swift in Sources */,
 				FC8528122F014FAA00B53540 /* Logger+Extensions.swift in Sources */,
 				FCE6E8712F053E8E004D5E21 /* RemoteCommandController.swift in Sources */,
@@ -404,6 +419,7 @@
 				FC50C7402F06588700597B19 /* ToolbarButtonView.swift in Sources */,
 				FC62DA3B2F0373C800DD1509 /* Array+Extensions.swift in Sources */,
 				FC13779D2EFCF9CC00A9CE99 /* PlaylistTabView.swift in Sources */,
+				FC746C322F0E5043008AD5B4 /* HoverDetectingView.swift in Sources */,
 				FC480EAA2EF107E8000D8393 /* ContentView.swift in Sources */,
 				FC480EAB2EF107E8000D8393 /* Me2TuneApp.swift in Sources */,
 				FC50C73C2F06585700597B19 /* BackgroundLayerView.swift in Sources */,
