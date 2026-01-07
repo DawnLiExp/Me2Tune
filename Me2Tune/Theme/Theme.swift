@@ -57,4 +57,9 @@ struct ThemeColors {
 
     let borderGradientStart: Color
     let borderGradientEnd: Color
+
+    // MARK: Search Colors
+
+    let searchOverlayBackground: Color
+    let searchOverlayStroke: Color
 }

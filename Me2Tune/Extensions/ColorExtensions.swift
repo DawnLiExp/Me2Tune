@@ -127,4 +127,14 @@ extension Color {
     static var borderGradientEnd: Color {
         ThemeManager.shared.currentTheme.colors.borderGradientEnd
     }
+    
+    // MARK: Search Colors
+    
+    static var searchOverlayBackground: Color {
+        ThemeManager.shared.currentTheme.colors.searchOverlayBackground
+    }
+    
+    static var searchOverlayStroke: Color {
+        ThemeManager.shared.currentTheme.colors.searchOverlayStroke
+    }
 }

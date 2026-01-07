@@ -30,7 +30,7 @@ struct SearchOverlayView: View {
         let icon: String
         let action: Action
         let category: Category
-        let relevance: Int // 相关性评分，用于排序
+        let relevance: Int
         
         enum Action {
             case playPlaylistTrack(Int)
@@ -55,46 +55,39 @@ struct SearchOverlayView: View {
         }
     }
     
-    private let maxSongResults = 50
-    private let maxAlbumResults = 20
-    
-    // 计算高度：无结果时80，有结果时480
-    private var overlayHeight: CGFloat {
-        debouncedSearchText.isEmpty ? 80 : 480
-    }
+    private let maxSongResults = 10
+    private let maxAlbumResults = 10
     
     var body: some View {
-        ZStack {
-            Color.black.opacity(0.8)
+        ZStack(alignment: .top) {
+            Color.black.opacity(0.6)
                 .ignoresSafeArea()
                 .onTapGesture {
                     closeSearch()
                 }
             
             VStack(spacing: 0) {
-                // 搜索输入框 - 始终在顶部
                 searchInputSection
                 
-                // 分割线
-                Divider()
-                    .background(Color.white.opacity(0.1))
-                    .padding(.horizontal, 16)
-                
-                // 搜索结果区域
                 if !debouncedSearchText.isEmpty {
+                    Divider()
+                        .background(Color.white.opacity(0.1))
+                        .padding(.horizontal, 16)
+                    
                     resultsSection
                 }
             }
-            .frame(width: 420, height: overlayHeight)
+            .frame(width: 420, height: debouncedSearchText.isEmpty ? 60 : 480)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.containerBackground)
+                    .fill(Color.searchOverlayBackground)
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color.accent.opacity(0.3), lineWidth: 1.5)
+                            .stroke(Color.searchOverlayStroke, lineWidth: 1.5)
                     )
                     .shadow(color: .black.opacity(0.6), radius: 30)
             )
+            .padding(.top, 145)
         }
         .onAppear {
             isSearchFocused = true
@@ -115,15 +108,24 @@ struct SearchOverlayView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 16))
                 .foregroundColor(.secondaryText)
+                .frame(width: 24, height: 24)
             
             TextField("search_placeholder", text: $searchText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 15))
                 .foregroundColor(.primaryText)
                 .focused($isSearchFocused)
+            
+            Button(action: closeSearch) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 15))
+                    .foregroundColor(.secondaryText)
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .frame(height: 60)
     }
     
     // MARK: - Results
@@ -160,7 +162,7 @@ struct SearchOverlayView: View {
             HStack {
                 Text(category.displayName)
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.accent)
+                    .foregroundColor(.accent.opacity(0.9))
                     
                 Text("(\(results.count))")
                     .font(.system(size: 12, weight: .medium))
@@ -225,20 +227,14 @@ struct SearchOverlayView: View {
         
         var allResults: [SearchResult] = []
         
-        // 1. 搜索播放列表歌曲
         let playlistResults = searchPlaylistTracks(query: query)
-        
-        // 2. 搜索专辑
         let albumResults = searchAlbums(query: query)
-        
-        // 3. 搜索专辑内歌曲
         let albumTrackResults = searchAlbumTracks(query: query)
         
         allResults.append(contentsOf: playlistResults)
         allResults.append(contentsOf: albumResults)
         allResults.append(contentsOf: albumTrackResults)
         
-        // 按相关性排序
         return allResults.sorted { $0.relevance > $1.relevance }
     }
     
@@ -256,7 +252,6 @@ struct SearchOverlayView: View {
             
             guard titleMatch || artistMatch || albumMatch else { continue }
             
-            // 相关性评分：标题匹配 > 艺术家匹配 > 专辑匹配
             let relevance = titleMatch ? 3 : (artistMatch ? 2 : 1)
             
             let subtitle = [
@@ -285,17 +280,13 @@ struct SearchOverlayView: View {
         for album in searchData.albums {
             guard results.count < maxAlbumResults else { break }
                 
-            // 1. 匹配专辑名
             let nameMatch = album.name.lowercased().contains(query)
-                
-            // 2. 匹配专辑内任意歌曲的艺术家
             let artistMatch = album.tracks.contains { track in
                 track.artist?.lowercased().contains(query) ?? false
             }
                 
             guard nameMatch || artistMatch else { continue }
                 
-            // 3. 提取艺术家信息（取第一首歌的艺术家）
             let artist = album.tracks.first?.artist
             let subtitle = if let artist, !artist.isEmpty {
                 "\(artist) · \(album.tracks.count) \(String(localized: "tracks"))"
@@ -303,7 +294,6 @@ struct SearchOverlayView: View {
                 "\(album.tracks.count) \(String(localized: "tracks"))"
             }
                 
-            // 4. 相关性评分：专辑名匹配 > 艺术家匹配
             let relevance = nameMatch ? 3 : 2
                 
             results.append(SearchResult(

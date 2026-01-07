@@ -9,14 +9,14 @@ import SwiftUI
 
 struct DarkTheme: Theme {
     let name = "Dark"
-    
+
     let colors = ThemeColors(
         // MARK: Accent Colors
 
         accent: Color(hex: "#00E5FF"),
         accentGlow: Color(hex: "#00E5FF").opacity(0.5),
         accentLight: Color(hex: "#00E5FF").opacity(0.08),
-        
+
         // MARK: Album Glow Colors
 
         albumGlowColors: [
@@ -31,7 +31,7 @@ struct DarkTheme: Theme {
             Color(hex: "#00FFA3"),
         ],
         defaultAlbumGlow: Color(hex: "#FF4466"),
-        
+
         // MARK: Background Colors
 
         mainBackground: .black,
@@ -39,27 +39,32 @@ struct DarkTheme: Theme {
         containerBackground: Color.white.opacity(0.05),
         controlBackground: Color(white: 0.12).opacity(0.85),
         infoBackground: Color.white.opacity(0.08),
-        
+
         // MARK: Interactive States
 
         hoverBackground: Color.white.opacity(0.05),
         selectedBackground: Color.white.opacity(0.03),
-        
+
         // MARK: Text Colors
 
         primaryText: Color(hex: "#E0E0E0"),
         secondaryText: .gray,
         tertiaryText: Color.gray.opacity(0.7),
         disabledText: Color.gray.opacity(0.3),
-        
+
         // MARK: UI Elements
 
         playButtonBackground: Color(hex: "#EBEBEB"),
         emptyStateIcon: Color.gray.opacity(0.5),
-        
+
         // MARK: Border Colors
 
         borderGradientStart: Color(hex: "#00E5FF").opacity(0.3),
-        borderGradientEnd: Color(hex: "#00E5FF").opacity(0.0)
+        borderGradientEnd: Color(hex: "#00E5FF").opacity(0.0),
+
+        // MARK: Search Colors
+
+        searchOverlayBackground: Color(hex: "#1A1B1F").opacity(0.85),
+        searchOverlayStroke: Color(hex: "#00E5FF").opacity(0.4)
     )
 }

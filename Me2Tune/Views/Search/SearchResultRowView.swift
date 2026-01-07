@@ -19,7 +19,7 @@ struct SearchResultRowView: View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 16))
-                .foregroundColor(.accent)
+                .foregroundColor(.accent.opacity(0.85))
                 .frame(width: 24)
             
             VStack(alignment: .leading, spacing: 2) {
