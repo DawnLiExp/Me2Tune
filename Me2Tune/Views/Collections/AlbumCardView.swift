@@ -2,10 +2,12 @@
 //  AlbumCardView.swift
 //  Me2Tune
 //
-//  专辑卡片组件 - 使用 NSView 级别的 hover 检测
+//  专辑卡片组件
 //
 
+import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct AlbumCardView: View {
     let album: Album
@@ -16,6 +18,8 @@ struct AlbumCardView: View {
     let onRemove: () -> Void
     
     @State private var isHovered = false
+    
+    // MARK: - Body
     
     var body: some View {
         ZStack {
@@ -62,6 +66,7 @@ struct AlbumCardView: View {
         .opacity(isDragging ? 0.4 : 1.0)
         .scaleEffect(isHovered && !isDragging ? 1.02 : 1.0)
         .animation(.easeOut(duration: 0.15), value: isHovered)
+        .animation(.easeOut(duration: 0.15), value: isDragging)
     }
     
     // MARK: - Artwork View
@@ -95,6 +100,5 @@ struct AlbumCardView: View {
             color: isHovered && !isDragging ? Color.accent.opacity(0.2) : .clear,
             radius: 8
         )
-        .drawingGroup()
     }
 }

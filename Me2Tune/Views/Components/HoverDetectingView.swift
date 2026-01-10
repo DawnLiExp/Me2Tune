@@ -13,16 +13,16 @@ struct HoverDetectingView: NSViewRepresentable {
     
     func makeNSView(context: Context) -> HoverTrackingView {
         let view = HoverTrackingView()
-        view.onHoverChange = { [weak view] hovering in
-            guard view != nil else { return }
-            DispatchQueue.main.async {
-                self.isHovered = hovering
-            }
+        view.onHoverChange = { hovering in
+            // 直接在主线程更新，无需 DispatchQueue
+            self.isHovered = hovering
         }
         return view
     }
     
-    func updateNSView(_ nsView: HoverTrackingView, context: Context) {}
+    func updateNSView(_ nsView: HoverTrackingView, context: Context) {
+        // 空实现，避免不必要的更新
+    }
 }
 
 // MARK: - HoverTrackingView
@@ -31,17 +31,19 @@ final class HoverTrackingView: NSView {
     var onHoverChange: ((Bool) -> Void)?
     private var isCurrentlyHovered = false
     
+    // MARK: - Tracking Area Management
+    
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         
         // 移除旧的 tracking areas
         trackingAreas.forEach { removeTrackingArea($0) }
         
-        // 添加新的 tracking area
+        // 添加新的 tracking area（使用更精简的选项）
         let options: NSTrackingArea.Options = [
             .mouseEnteredAndExited,
             .activeInKeyWindow,
-            .inVisibleRect
+            .inVisibleRect // 自动调整到可见区域
         ]
         
         let trackingArea = NSTrackingArea(
@@ -53,34 +55,21 @@ final class HoverTrackingView: NSView {
         
         addTrackingArea(trackingArea)
         
-        // ✅ 滚动后验证鼠标是否真的在视图内
+        // ✅ 修复滚动 bug：更新 tracking area 后立即验证鼠标位置
         checkMouseLocation()
     }
     
+    // MARK: - Mouse Events
+    
     override func mouseEntered(with event: NSEvent) {
-        isCurrentlyHovered = true
-        onHoverChange?(true)
+        setHoverState(true)
     }
     
     override func mouseExited(with event: NSEvent) {
-        isCurrentlyHovered = false
-        onHoverChange?(false)
+        setHoverState(false)
     }
     
-    // ✅ 验证鼠标实际位置，修正滚动导致的状态错误
-    private func checkMouseLocation() {
-        guard let window else { return }
-        
-        let mouseLocation = window.mouseLocationOutsideOfEventStream
-        let locationInView = convert(mouseLocation, from: nil)
-        let shouldBeHovered = bounds.contains(locationInView)
-        
-        // 如果状态不匹配，立即修正
-        if shouldBeHovered != isCurrentlyHovered {
-            isCurrentlyHovered = shouldBeHovered
-            onHoverChange?(shouldBeHovered)
-        }
-    }
+    // MARK: - Window Lifecycle
     
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
@@ -88,8 +77,30 @@ final class HoverTrackingView: NSView {
         if window != nil {
             checkMouseLocation()
         } else {
-            isCurrentlyHovered = false
-            onHoverChange?(false)
+            setHoverState(false)
         }
+    }
+    
+    // MARK: - Helper Methods
+    
+    /// 设置 hover 状态（避免重复回调）
+    private func setHoverState(_ shouldBeHovered: Bool) {
+        guard shouldBeHovered != isCurrentlyHovered else { return }
+        isCurrentlyHovered = shouldBeHovered
+        onHoverChange?(shouldBeHovered)
+    }
+    
+    /// 验证鼠标实际位置，修正滚动导致的状态错误
+    private func checkMouseLocation() {
+        guard let window else {
+            setHoverState(false)
+            return
+        }
+        
+        let mouseLocation = window.mouseLocationOutsideOfEventStream
+        let locationInView = convert(mouseLocation, from: nil)
+        let shouldBeHovered = bounds.contains(locationInView)
+        
+        setHoverState(shouldBeHovered)
     }
 }

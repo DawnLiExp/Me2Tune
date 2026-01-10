@@ -2,7 +2,7 @@
 //  SongRowView.swift
 //  Me2Tune
 //
-//  播放列表歌曲行组件 - 使用 NSView 级别 hover 检测
+//  播放列表歌曲行组件
 //
 
 import SwiftUI
@@ -15,18 +15,27 @@ struct SongRowView: View {
     
     @State private var isHovered = false
     
+    // 预计算不变的内容
+    private let timeString: String
+    private let artistString: String
+    
+    init(track: AudioTrack, index: Int, isPlaying: Bool, onTap: @escaping () -> Void) {
+        self.track = track
+        self.index = index
+        self.isPlaying = isPlaying
+        self.onTap = onTap
+        
+        // 构造时计算，避免每次 body 执行时重新格式化
+        self.timeString = Self.formatTime(track.duration)
+        self.artistString = track.artist ?? String(localized: "unknown_artist")
+    }
+    
     var body: some View {
-        ZStack {
-            // 内容层
-            contentView
-            
-            // Hover 检测层
-            HoverDetectingView(isHovered: $isHovered)
-                .allowsHitTesting(false)
-        }
-        .onTapGesture(count: 2) {
-            onTap()
-        }
+        contentView
+            .background(HoverDetector(isHovered: $isHovered))
+            .onTapGesture(count: 2) {
+                onTap()
+            }
     }
     
     // MARK: - Content View
@@ -41,34 +50,42 @@ struct SongRowView: View {
                 .foregroundColor(isPlaying ? .primaryText : .primaryText.opacity(0.8))
                 .lineLimit(1)
             
-            Spacer()
+            Spacer(minLength: 0)
             
-            Text(track.artist ?? String(localized: "unknown_artist"))
+            Text(artistString)
                 .font(.system(size: 13))
                 .foregroundColor(.secondaryText)
                 .lineLimit(1)
                 .frame(maxWidth: 120, alignment: .trailing)
             
-            Text(formatTime(track.duration))
+            Text(timeString)
                 .font(.system(size: 13, design: .monospaced))
                 .foregroundColor(.secondaryText)
                 .frame(width: 48, alignment: .trailing)
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 10)
-        .background {
-            if isPlaying {
-                Color.accentLight
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-            } else if isHovered {
-                Color.hoverBackground
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-            }
-        }
+        .background(backgroundView) // 独立背景视图
         .contentShape(Rectangle())
     }
     
-    // MARK: - Subviews
+    // 用 opacity 替代 if-else，避免条件分支
+    private var backgroundView: some View {
+        ZStack {
+            // Playing 状态背景（始终存在，用透明度控制）
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color.accentLight)
+                .opacity(isPlaying ? 1 : 0)
+            
+            // Hover 状态背景（始终存在，用透明度控制）
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color.hoverBackground)
+                .opacity(!isPlaying && isHovered ? 1 : 0)
+        }
+        .animation(.easeInOut(duration: 0.15), value: isHovered)
+    }
+    
+    // MARK: - Index or Waveform
     
     @ViewBuilder
     private var indexOrWaveform: some View {
@@ -85,7 +102,7 @@ struct SongRowView: View {
     
     // MARK: - Helper
     
-    private func formatTime(_ time: TimeInterval) -> String {
+    private static func formatTime(_ time: TimeInterval) -> String {
         guard time.isFinite, !time.isNaN else { return "0:00" }
         let minutes = Int(time) / 60
         let seconds = Int(time) % 60
@@ -93,24 +110,72 @@ struct SongRowView: View {
     }
 }
 
-#Preview {
-    let mockTrack = AudioTrack(
-        id: UUID(),
-        url: URL(fileURLWithPath: "/test.mp3"),
-        title: "Test Song",
-        artist: "Test Artist",
-        albumTitle: "Test Album",
-        duration: 180,
-        format: AudioFormat(codec: "AAC", bitrate: 256, sampleRate: 44100, bitDepth: 16, channels: 2),
-        bookmark: nil
-    )
+// MARK: - Hover Detector (轻量级版本)
+
+private struct HoverDetector: NSViewRepresentable {
+    @Binding var isHovered: Bool
     
-    SongRowView(
-        track: mockTrack,
-        index: 0,
-        isPlaying: false,
-        onTap: {}
-    )
-    .padding()
-    .background(Color.black)
+    func makeNSView(context: Context) -> HoverView {
+        let view = HoverView()
+        view.onHoverChange = { [weak view] hovering in
+            guard view != nil else { return }
+            // 去掉 DispatchQueue.main.async，直接更新
+            self.isHovered = hovering
+        }
+        return view
+    }
+    
+    func updateNSView(_ nsView: HoverView, context: Context) {}
+    
+    final class HoverView: NSView {
+        var onHoverChange: ((Bool) -> Void)?
+        private var isCurrentlyHovered = false
+        
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            trackingAreas.forEach { removeTrackingArea($0) }
+            
+            let trackingArea = NSTrackingArea(
+                rect: bounds,
+                options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+                owner: self,
+                userInfo: nil
+            )
+            addTrackingArea(trackingArea)
+            
+            // 简化位置检查
+            updateHoverState()
+        }
+        
+        override func mouseEntered(with event: NSEvent) {
+            updateHoverState(true)
+        }
+        
+        override func mouseExited(with event: NSEvent) {
+            updateHoverState(false)
+        }
+        
+        private func updateHoverState(_ newState: Bool? = nil) {
+            let shouldBeHovered: Bool
+            
+            if let newState {
+                shouldBeHovered = newState
+            } else if let window {
+                let mouseLocation = window.mouseLocationOutsideOfEventStream
+                let locationInView = convert(mouseLocation, from: nil)
+                shouldBeHovered = bounds.contains(locationInView)
+            } else {
+                shouldBeHovered = false
+            }
+            
+            guard shouldBeHovered != isCurrentlyHovered else { return }
+            isCurrentlyHovered = shouldBeHovered
+            onHoverChange?(shouldBeHovered)
+        }
+        
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            updateHoverState()
+        }
+    }
 }

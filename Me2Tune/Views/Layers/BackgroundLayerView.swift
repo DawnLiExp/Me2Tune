@@ -19,8 +19,11 @@ struct BackgroundLayerView: View {
             )
             .ignoresSafeArea()
             
-            vinylGlowLayer
-            playlistGlowLayer
+            Group {
+                vinylGlowLayer
+                playlistGlowLayer
+            }
+            .drawingGroup()
         }
     }
     
@@ -44,6 +47,7 @@ struct BackgroundLayerView: View {
                         )
                     )
                     .frame(width: 450, height: 330)
+                    // 模糊效果非常耗电，确保半径适中
                     .blur(radius: 40)
             }
             .offset(y: 30)
@@ -76,9 +80,6 @@ struct BackgroundLayerView: View {
                 .blur(radius: 35)
                 .padding(.bottom, 40)
         }
+        .allowsHitTesting(false)
     }
-}
-
-#Preview {
-    BackgroundLayerView(albumGlowColor: .defaultAlbumGlow)
 }
