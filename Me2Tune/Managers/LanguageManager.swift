@@ -10,7 +10,7 @@ import Foundation
 import OSLog
 import SwiftUI
 
-private let logger = Logger(subsystem: "me2.Me2Tune", category: "Language")
+private let logger = Logger.language
 
 @MainActor
 final class LanguageManager: ObservableObject {

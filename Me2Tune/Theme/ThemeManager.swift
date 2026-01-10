@@ -10,7 +10,7 @@ import Foundation
 import OSLog
 import SwiftUI
 
-private let logger = Logger(subsystem: "me2.Me2Tune", category: "Theme")
+private let logger = Logger.theme
 
 @MainActor
 final class ThemeManager: ObservableObject {
