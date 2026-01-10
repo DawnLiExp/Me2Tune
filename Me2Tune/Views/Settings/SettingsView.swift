@@ -12,10 +12,12 @@ struct SettingsView: View {
     @ObservedObject private var languageManager = LanguageManager.shared
     
     @State private var showLanguageChangeAlert = false
+    @State private var showThemeChangeAlert = false
     @State private var pendingLanguage: LanguageManager.AppLanguage?
+    @State private var pendingTheme: ThemeManager.ThemeMode?
     @State private var selectedTab = 0
     
-    // 性能模式（预留）
+    // 性能模式(预留)
     @AppStorage("PerformanceMode") private var performanceMode = false
     
     var body: some View {
@@ -47,6 +49,26 @@ struct SettingsView: View {
             }
         } message: {
             Text("language_change_message")
+        }
+        .alert("theme_change_title", isPresented: $showThemeChangeAlert) {
+            Button("restart_now") {
+                if let theme = pendingTheme {
+                    themeManager.setThemeMode(theme)
+                    restartApp()
+                }
+                pendingTheme = nil
+            }
+            Button("restart_later") {
+                if let theme = pendingTheme {
+                    themeManager.setThemeMode(theme)
+                }
+                pendingTheme = nil
+            }
+            Button("cancel", role: .cancel) {
+                pendingTheme = nil
+            }
+        } message: {
+            Text("theme_change_message")
         }
     }
     
@@ -148,7 +170,14 @@ struct SettingsView: View {
                     
                     Spacer()
                     
-                    Picker("", selection: $themeManager.themeMode) {
+                    Picker("", selection: Binding(
+                        get: { themeManager.themeMode },
+                        set: { newMode in
+                            guard newMode != themeManager.themeMode else { return }
+                            pendingTheme = newMode
+                            showThemeChangeAlert = true
+                        }
+                    )) {
                         ForEach(ThemeManager.ThemeMode.allCases) { mode in
                             Text(mode.displayName).tag(mode)
                         }
@@ -156,9 +185,6 @@ struct SettingsView: View {
                     .labelsHidden()
                     .pickerStyle(.menu)
                     .frame(width: 140)
-                    .onChange(of: themeManager.themeMode) { _, newMode in
-                        themeManager.setThemeMode(newMode)
-                    }
                 }
             } header: {
                 Text("settings_appearance_header")
@@ -181,7 +207,7 @@ struct SettingsView: View {
         Form {
             Section {
                 Toggle("settings_performance_mode", isOn: $performanceMode)
-                    .disabled(true) // 暂时禁用，待实现
+                    .disabled(true) // 暂时禁用,待实现
             } header: {
                 Text("settings_performance_header")
                     .font(.system(size: 11))

@@ -72,17 +72,19 @@
 "settings_language_header" = "语言（需要重启）";
 "settings_language_label" = "语言";
 "language_change_title" = "需要重启";
-"language_change_message" = "更改语言需要重启应用后生效。";
+"language_change_message" = "更改语言需重启应用后生效。";
 "restart_now" = "立即重启";
 "restart_later" = "稍后重启";
 
 // MARK: - 设置 - 主题
 "settings_appearance_header" = "外观设置";
 "settings_theme_label" = "主题";
-"settings_theme_footer" = "自动模式将跟随系统外观";
+"settings_theme_footer" = "自动模式将在重启后跟随系统外观生效";
 "theme_auto" = "自动";
 "theme_dark" = "深色";
 "theme_light" = "浅色";
+"theme_change_title" = "需要重启";
+"theme_change_message" = "更改主题需重启应用后生效。";
 
 // MARK: - 设置 - 性能
 "settings_performance_mode" = "性能模式";
