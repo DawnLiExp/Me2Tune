@@ -61,3 +61,30 @@
 "global_search" = "全局搜索";
 "from_playlist" = "播放列表";
 "in_album %@" = "在「%@」中";
+
+// MARK: - 设置
+"settings_menu" = "设置...";
+"settings_general" = "通用";
+"settings_advanced" = "高级";
+"settings_about" = "关于";
+
+// MARK: - 设置 - 语言
+"settings_language_header" = "语言（需要重启）";
+"settings_language_label" = "语言";
+"language_change_title" = "需要重启";
+"language_change_message" = "更改语言需要重启应用后生效。";
+"restart_now" = "立即重启";
+"restart_later" = "稍后重启";
+
+// MARK: - 设置 - 主题
+"settings_appearance_header" = "外观设置";
+"settings_theme_label" = "主题";
+"settings_theme_footer" = "自动模式将跟随系统外观";
+"theme_auto" = "自动";
+"theme_dark" = "深色";
+"theme_light" = "浅色";
+
+// MARK: - 设置 - 性能
+"settings_performance_mode" = "性能模式";
+"settings_performance_header" = "性能";
+"settings_performance_footer" = "减少动画和特效以提升性能（即将推出）";

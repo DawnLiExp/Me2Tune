@@ -61,3 +61,30 @@
 "global_search" = "Global Search";
 "from_playlist" = "Playlist";
 "in_album %@" = "in %@";
+
+// MARK: - Settings
+"settings_menu" = "Settings...";
+"settings_general" = "General";
+"settings_advanced" = "Advanced";
+"settings_about" = "About";
+
+// MARK: - Settings - Language
+"settings_language_header" = "Language (Restart Required)";
+"settings_language_label" = "Language";
+"language_change_title" = "Restart Required";
+"language_change_message" = "Language change will take effect after restarting the app.";
+"restart_now" = "Restart Now";
+"restart_later" = "Later";
+
+// MARK: - Settings - Theme
+"settings_appearance_header" = "Appearance";
+"settings_theme_label" = "Theme";
+"settings_theme_footer" = "Auto mode follows system appearance";
+"theme_auto" = "Auto";
+"theme_dark" = "Dark";
+"theme_light" = "Light";
+
+// MARK: - Settings - Performance
+"settings_performance_mode" = "Performance Mode";
+"settings_performance_header" = "Performance";
+"settings_performance_footer" = "Reduces animations and effects for better performance (Coming Soon)";

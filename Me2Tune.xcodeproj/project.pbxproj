@@ -46,6 +46,8 @@
 		FC8528102F014F7C00B53540 /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC85280F2F014F7A00B53540 /* AppError.swift */; };
 		FC8528122F014FAA00B53540 /* Logger+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8528112F014FA900B53540 /* Logger+Extensions.swift */; };
 		FC8C88722F06263500ABC82E /* WindowStateMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8C88712F06263100ABC82E /* WindowStateMonitor.swift */; };
+		FCCAAFBA2F12847900DF5D71 /* LanguageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCAAFB92F12847600DF5D71 /* LanguageManager.swift */; };
+		FCCAAFBD2F1284C700DF5D71 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCAAFBC2F1284C500DF5D71 /* SettingsView.swift */; };
 		FCE6E86F2F053E7C004D5E21 /* NowPlayingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCE6E86E2F053E6F004D5E21 /* NowPlayingService.swift */; };
 		FCE6E8712F053E8E004D5E21 /* RemoteCommandController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCE6E8702F053E8D004D5E21 /* RemoteCommandController.swift */; };
 /* End PBXBuildFile section */
@@ -90,6 +92,8 @@
 		FC85280F2F014F7A00B53540 /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
 		FC8528112F014FA900B53540 /* Logger+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Logger+Extensions.swift"; sourceTree = "<group>"; };
 		FC8C88712F06263100ABC82E /* WindowStateMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowStateMonitor.swift; sourceTree = "<group>"; };
+		FCCAAFB92F12847600DF5D71 /* LanguageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageManager.swift; sourceTree = "<group>"; };
+		FCCAAFBC2F1284C500DF5D71 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		FCE6E86E2F053E6F004D5E21 /* NowPlayingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingService.swift; sourceTree = "<group>"; };
 		FCE6E8702F053E8D004D5E21 /* RemoteCommandController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteCommandController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -216,8 +220,9 @@
 				FC480EA02EF107E8000D8393 /* ContentView.swift */,
 				FC50C73A2F06584B00597B19 /* Layers */,
 				FC50C7472F065B7D00597B19 /* Playlist */,
-				FC49D3AE2F0AC2E000628C1B /* Search */,
 				FC50C7372F06582700597B19 /* Sections */,
+				FC49D3AE2F0AC2E000628C1B /* Search */,
+				FCCAAFBB2F1284BA00DF5D71 /* Settings */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -227,6 +232,7 @@
 			children = (
 				FC32865E2F011242000D8F2A /* AudioPlayerCore.swift */,
 				FC0A17432EF2628E0090B22C /* CollectionManager.swift */,
+				FCCAAFB92F12847600DF5D71 /* LanguageManager.swift */,
 				FC3E2B032F08BF1400F59E4B /* PlaybackStateManager.swift */,
 				FC31BA482F08323800786380 /* PlaylistManager.swift */,
 			);
@@ -325,6 +331,14 @@
 				FC8C88712F06263100ABC82E /* WindowStateMonitor.swift */,
 			);
 			path = Utilities;
+			sourceTree = "<group>";
+		};
+		FCCAAFBB2F1284BA00DF5D71 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				FCCAAFBC2F1284C500DF5D71 /* SettingsView.swift */,
+			);
+			path = Settings;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -426,6 +440,7 @@
 				FC8C88722F06263500ABC82E /* WindowStateMonitor.swift in Sources */,
 				FC49D3B02F0AC2F000628C1B /* SearchResultRowView.swift in Sources */,
 				FC13779B2EFCF9AD00A9CE99 /* CollectionsGridView.swift in Sources */,
+				FCCAAFBA2F12847900DF5D71 /* LanguageManager.swift in Sources */,
 				FC62DA392F0372C000DD1509 /* ArtworkCacheService.swift in Sources */,
 				FC8528082F01486100B53540 /* ContentSectionView.swift in Sources */,
 				FC2032F72F08E8F700D17FEE /* Theme.swift in Sources */,
@@ -438,6 +453,7 @@
 				FC49D3B22F0AC30000628C1B /* SearchOverlayView.swift in Sources */,
 				FC50C7422F06589800597B19 /* SongRowView.swift in Sources */,
 				FC0A17402EF262620090B22C /* Album.swift in Sources */,
+				FCCAAFBD2F1284C700DF5D71 /* SettingsView.swift in Sources */,
 			);
 		};
 /* End PBXSourcesBuildPhase section */

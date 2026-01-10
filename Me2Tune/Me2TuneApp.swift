@@ -48,6 +48,10 @@ struct Me2TuneApp: App {
         .commands {
             CommandGroup(replacing: .newItem) {}
         }
+
+        Settings {
+            SettingsView()
+        }
     }
 }
 
