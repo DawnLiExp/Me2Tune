@@ -2,7 +2,7 @@
 //  SearchOverlayView.swift
 //  Me2Tune
 //
-//  搜索覆盖界面 - 全局搜索 + 结果限制（性能优化）
+//  搜索覆盖界面 - 全局搜索 + 结果限制(优化过渡动画)
 //
 
 import SwiftUI
@@ -17,6 +17,7 @@ struct SearchOverlayView: View {
     @State private var searchText = ""
     @State private var debouncedSearchText = ""
     @State private var debounceTask: Task<Void, Never>?
+    @State private var animationProgress: CGFloat = 0
     
     struct SearchData {
         let playlist: [AudioTrack]
@@ -60,37 +61,24 @@ struct SearchOverlayView: View {
     
     var body: some View {
         ZStack(alignment: .top) {
-            Color.black.opacity(0.6)
+            // 背景蒙层（单独动画）
+            Color.black.opacity(0.6 * animationProgress)
                 .ignoresSafeArea()
                 .onTapGesture {
                     closeSearch()
                 }
             
-            VStack(spacing: 0) {
-                searchInputSection
-                
-                if !debouncedSearchText.isEmpty {
-                    Divider()
-                        .background(Color.white.opacity(0.1))
-                        .padding(.horizontal, 16)
-                    
-                    resultsSection
-                }
-            }
-            .frame(width: 420, height: debouncedSearchText.isEmpty ? 60 : 480)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.searchOverlayBackground)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color.searchOverlayStroke, lineWidth: 1.5)
-                    )
-                    .shadow(color: .black.opacity(0.6), radius: 30)
-            )
-            .padding(.top, 145)
+            // 搜索卡片（单独动画）
+            searchCard
+                .opacity(animationProgress)
+                .offset(y: (1 - animationProgress) * 20)
+                .padding(.top, 130)
         }
         .onAppear {
             isSearchFocused = true
+            withAnimation(.easeOut(duration: 0.25)) {
+                animationProgress = 1
+            }
         }
         .onKeyPress(.escape) {
             closeSearch()
@@ -99,6 +87,34 @@ struct SearchOverlayView: View {
         .onChange(of: searchText) { _, newValue in
             debounceSearch(newValue)
         }
+    }
+    
+    // MARK: - Search Card
+    
+    private var searchCard: some View {
+        VStack(spacing: 0) {
+            searchInputSection
+            
+            if !debouncedSearchText.isEmpty {
+                Divider()
+                    .background(Color.white.opacity(0.1))
+                    .padding(.horizontal, 16)
+                
+                resultsSection
+                    .frame(height: 420)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .frame(width: 420)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.searchOverlayBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.searchOverlayStroke, lineWidth: 1.5)
+                )
+                .shadow(color: .black.opacity(0.6), radius: 30)
+        )
     }
     
     // MARK: - Search Input
@@ -351,7 +367,15 @@ struct SearchOverlayView: View {
         debounceTask?.cancel()
         
         withAnimation(.easeOut(duration: 0.2)) {
-            isPresented = false
+            animationProgress = 0
+        }
+        
+        // 延迟关闭，等动画完成
+        Task {
+            try? await Task.sleep(for: .milliseconds(200))
+            await MainActor.run {
+                isPresented = false
+            }
         }
     }
 }
