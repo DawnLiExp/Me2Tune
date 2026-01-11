@@ -254,7 +254,7 @@ struct ControlSectionView: View {
                 
                 Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                     .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(.black)
+                    .foregroundColor(.playButtonIconColor)
             }
         }
         .buttonStyle(PlainButtonStyle())

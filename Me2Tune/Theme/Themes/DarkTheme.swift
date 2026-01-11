@@ -55,6 +55,7 @@ struct DarkTheme: Theme {
         // MARK: UI Elements
 
         playButtonBackground: Color(hex: "#EBEBEB"),
+        playButtonIconColor: Color(hex: "#0A0A0A"), 
         emptyStateIcon: Color.gray.opacity(0.5),
         controlButtonColor: Color.white.opacity(0.7),
         timeDisplayColor: Color.white.opacity(0.8),

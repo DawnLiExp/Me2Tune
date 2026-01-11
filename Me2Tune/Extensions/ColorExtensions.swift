@@ -112,6 +112,10 @@ extension Color {
         ThemeManager.shared.currentTheme.colors.playButtonBackground
     }
     
+    static var playButtonIconColor: Color {
+        ThemeManager.shared.currentTheme.colors.playButtonIconColor
+    }
+    
     // MARK: Icon Colors
     
     static var emptyStateIcon: Color {

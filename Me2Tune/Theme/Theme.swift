@@ -51,6 +51,7 @@ struct ThemeColors {
     // MARK: UI Elements
 
     let playButtonBackground: Color
+    let playButtonIconColor: Color 
     let emptyStateIcon: Color
     let controlButtonColor: Color
     let timeDisplayColor: Color
