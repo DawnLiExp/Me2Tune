@@ -118,6 +118,16 @@ extension Color {
         ThemeManager.shared.currentTheme.colors.emptyStateIcon
     }
     
+    // MARK: Control Colors (新增)
+    
+    static var controlButtonColor: Color {
+        ThemeManager.shared.currentTheme.colors.controlButtonColor
+    }
+    
+    static var timeDisplayColor: Color {
+        ThemeManager.shared.currentTheme.colors.timeDisplayColor
+    }
+    
     // MARK: Border Colors
     
     static var borderGradientStart: Color {

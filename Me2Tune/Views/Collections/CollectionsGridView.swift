@@ -236,7 +236,7 @@ struct CollectionsGridView: View {
                     .foregroundColor(.accent)
             }
             .buttonStyle(.plain)
-            
+                
             Group {
                 if let artwork = artworkCache[album.id] {
                     Image(nsImage: artwork)
@@ -254,23 +254,26 @@ struct CollectionsGridView: View {
             }
             .frame(width: 48, height: 48)
             .clipShape(RoundedRectangle(cornerRadius: 8))
-            
+                
             VStack(alignment: .leading, spacing: 4) {
                 Text(album.name)
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.primaryText)
                     .lineLimit(2)
-                
+                    
                 Text("\(album.tracks.count) tracks")
                     .font(.system(size: 12))
                     .foregroundColor(.secondaryText)
             }
-            
+                
             Spacer()
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(Color.selectedBackground)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color.selectedBackground)
+        )
     }
     
     // MARK: - Empty State

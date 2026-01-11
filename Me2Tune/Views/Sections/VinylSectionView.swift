@@ -71,7 +71,7 @@ struct VinylSectionView: View {
 
     // MARK: - Vinyl Disc
 
-    // 优化：将旋转部分独立为 RotatingVinyl，避免整个视图重建
+    // 优化:将旋转部分独立为 RotatingVinyl,避免整个视图重建
     private var vinylDisc: some View {
         RotatingVinyl(
             rotationAngle: rotationAngle,
@@ -94,7 +94,7 @@ struct VinylSectionView: View {
     private func timeLabel(_ text: String) -> some View {
         Text(text)
             .font(.system(size: 16, weight: .light, design: .rounded))
-            .foregroundColor(.white.opacity(0.8))
+            .foregroundColor(.timeDisplayColor)
             .frame(width: 60)
     }
 
@@ -116,7 +116,7 @@ struct VinylSectionView: View {
     private func startRotation() {
         guard rotationTimer == nil else { return }
 
-        // 优化：降低刷新率 0.033 -> 0.05 (从 30fps -> 20fps)
+        // 优化:降低刷新率 0.033 -> 0.05 (从 30fps -> 20fps)
         rotationTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [self] _ in
             DispatchQueue.main.async { [self] in
                 rotationAngle += 0.5 // 调整旋转步长保持视觉流畅度

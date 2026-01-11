@@ -56,6 +56,8 @@ struct LightTheme: Theme {
 
         playButtonBackground: Color(hex: "#333333"),
         emptyStateIcon: Color.gray.opacity(0.4),
+        controlButtonColor: Color.black.opacity(0.7), // 亮色主题：深色按钮
+        timeDisplayColor: Color.black.opacity(0.8), // 亮色主题：深色时间
 
         // MARK: Border Colors
 

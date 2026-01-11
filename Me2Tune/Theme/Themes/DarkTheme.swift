@@ -56,6 +56,8 @@ struct DarkTheme: Theme {
 
         playButtonBackground: Color(hex: "#EBEBEB"),
         emptyStateIcon: Color.gray.opacity(0.5),
+        controlButtonColor: Color.white.opacity(0.7), // 暗色主题：浅色按钮
+        timeDisplayColor: Color.white.opacity(0.8), // 暗色主题：浅色时间
 
         // MARK: Border Colors
 

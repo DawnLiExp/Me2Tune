@@ -266,7 +266,7 @@ struct ControlSectionView: View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: size, weight: .semibold))
-                .foregroundColor(enabled ? .white.opacity(0.7) : .white.opacity(0.3))
+                .foregroundColor(enabled ? .controlButtonColor : .controlButtonColor.opacity(0.3))
         }
         .buttonStyle(PlainButtonStyle())
         .disabled(!enabled)
