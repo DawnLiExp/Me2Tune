@@ -118,7 +118,7 @@ extension Color {
         ThemeManager.shared.currentTheme.colors.emptyStateIcon
     }
     
-    // MARK: Control Colors (新增)
+    // MARK: Control Colors
     
     static var controlButtonColor: Color {
         ThemeManager.shared.currentTheme.colors.controlButtonColor
@@ -146,5 +146,21 @@ extension Color {
     
     static var searchOverlayStroke: Color {
         ThemeManager.shared.currentTheme.colors.searchOverlayStroke
+    }
+    
+    static var searchInputText: Color {
+        ThemeManager.shared.currentTheme.colors.searchInputText
+    }
+    
+    static var searchPrimaryText: Color {
+        ThemeManager.shared.currentTheme.colors.searchPrimaryText
+    }
+    
+    static var searchSecondaryText: Color {
+        ThemeManager.shared.currentTheme.colors.searchSecondaryText
+    }
+    
+    static var searchIconColor: Color {
+        ThemeManager.shared.currentTheme.colors.searchIconColor
     }
 }

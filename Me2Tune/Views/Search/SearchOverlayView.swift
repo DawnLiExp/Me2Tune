@@ -2,7 +2,7 @@
 //  SearchOverlayView.swift
 //  Me2Tune
 //
-//  搜索覆盖界面 - 全局搜索 + 结果限制(优化过渡动画)
+//  搜索覆盖界面 - 全局搜索 + 结果限制
 //
 
 import SwiftUI
@@ -61,14 +61,14 @@ struct SearchOverlayView: View {
     
     var body: some View {
         ZStack(alignment: .top) {
-            // 背景蒙层（单独动画）
+            // 背景蒙层（保持通用半透明黑色）
             Color.black.opacity(0.6 * animationProgress)
                 .ignoresSafeArea()
                 .onTapGesture {
                     closeSearch()
                 }
             
-            // 搜索卡片（单独动画）
+            // 搜索卡片
             searchCard
                 .opacity(animationProgress)
                 .offset(y: (1 - animationProgress) * 20)
@@ -97,7 +97,7 @@ struct SearchOverlayView: View {
             
             if !debouncedSearchText.isEmpty {
                 Divider()
-                    .background(Color.white.opacity(0.1))
+                    .background(Color.searchOverlayStroke.opacity(0.3))
                     .padding(.horizontal, 16)
                 
                 resultsSection
@@ -123,19 +123,19 @@ struct SearchOverlayView: View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 16))
-                .foregroundColor(.secondaryText)
+                .foregroundColor(.searchIconColor)
                 .frame(width: 24, height: 24)
             
             TextField("search_placeholder", text: $searchText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 15))
-                .foregroundColor(.primaryText)
+                .foregroundColor(.searchInputText)
                 .focused($isSearchFocused)
             
             Button(action: closeSearch) {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 15))
-                    .foregroundColor(.secondaryText)
+                    .foregroundColor(.searchIconColor)
                     .frame(width: 24, height: 24)
             }
             .buttonStyle(.plain)
@@ -182,7 +182,7 @@ struct SearchOverlayView: View {
                     
                 Text("(\(results.count))")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.tertiaryText)
+                    .foregroundColor(.searchSecondaryText)
                     
                 Spacer()
             }
@@ -213,7 +213,7 @@ struct SearchOverlayView: View {
             
             Text("no_results")
                 .font(.system(size: 14))
-                .foregroundColor(.secondaryText)
+                .foregroundColor(.searchSecondaryText)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.vertical, 60)

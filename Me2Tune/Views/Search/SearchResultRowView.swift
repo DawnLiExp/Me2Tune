@@ -13,24 +13,24 @@ struct SearchResultRowView: View {
     let icon: String
     let onTap: () -> Void
     
-    @State private var isHovered = false // 改为内部状态
+    @State private var isHovered = false
     
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 16))
-                .foregroundColor(.accent.opacity(0.85))
+                .foregroundColor(.searchIconColor)
                 .frame(width: 24)
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.primaryText)
+                    .foregroundColor(.searchPrimaryText)
                     .lineLimit(1)
                 
                 Text(subtitle)
                     .font(.system(size: 12))
-                    .foregroundColor(.secondaryText)
+                    .foregroundColor(.searchSecondaryText)
                     .lineLimit(1)
             }
             

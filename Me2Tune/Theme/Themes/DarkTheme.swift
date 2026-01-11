@@ -56,8 +56,8 @@ struct DarkTheme: Theme {
 
         playButtonBackground: Color(hex: "#EBEBEB"),
         emptyStateIcon: Color.gray.opacity(0.5),
-        controlButtonColor: Color.white.opacity(0.7), // 暗色主题：浅色按钮
-        timeDisplayColor: Color.white.opacity(0.8), // 暗色主题：浅色时间
+        controlButtonColor: Color.white.opacity(0.7),
+        timeDisplayColor: Color.white.opacity(0.8),
 
         // MARK: Border Colors
 
@@ -67,6 +67,10 @@ struct DarkTheme: Theme {
         // MARK: Search Colors
 
         searchOverlayBackground: Color(hex: "#1A1B1F").opacity(0.85),
-        searchOverlayStroke: Color(hex: "#00E5FF").opacity(0.4)
+        searchOverlayStroke: Color(hex: "#00E5FF").opacity(0.4),
+        searchInputText: Color(hex: "#F5F5F5"),
+        searchPrimaryText: Color(hex: "#E0E0E0"),
+        searchSecondaryText: Color(hex: "#999999"),
+        searchIconColor: Color(hex: "#00E5FF").opacity(0.85)
     )
 }

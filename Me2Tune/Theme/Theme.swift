@@ -64,4 +64,8 @@ struct ThemeColors {
 
     let searchOverlayBackground: Color
     let searchOverlayStroke: Color
+    let searchInputText: Color
+    let searchPrimaryText: Color
+    let searchSecondaryText: Color
+    let searchIconColor: Color
 }

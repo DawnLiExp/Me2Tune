@@ -2,20 +2,20 @@
 //  LightTheme.swift
 //  Me2Tune
 //
-//  亮色主题（基础框架，待完整设计）
+//  暖沙主题 - 温暖舒适的浅色调
 //
 
 import SwiftUI
 
 struct LightTheme: Theme {
-    let name = "Light"
+    let name = "Warm Sand"
 
     let colors = ThemeColors(
         // MARK: Accent Colors
 
-        accent: Color(hex: "#0099CC"),
-        accentGlow: Color(hex: "#0099CC").opacity(0.4),
-        accentLight: Color(hex: "#0099CC").opacity(0.1),
+        accent: Color(hex: "#D84315"),
+        accentGlow: Color(hex: "#D84315").opacity(0.4),
+        accentLight: Color(hex: "#D84315").opacity(0.08),
 
         // MARK: Album Glow Colors
 
@@ -34,39 +34,43 @@ struct LightTheme: Theme {
 
         // MARK: Background Colors
 
-        mainBackground: Color(white: 0.98),
-        gradientTop: Color(white: 0.95),
-        containerBackground: Color.white.opacity(0.8),
-        controlBackground: Color.white.opacity(0.9),
-        infoBackground: Color.black.opacity(0.05),
+        mainBackground: Color(hex: "#F5F1EA"),
+        gradientTop: Color(hex: "#EDE7DD"),
+        containerBackground: Color(hex: "#FFFFFF").opacity(0.75),
+        controlBackground: Color(hex: "#FAFAF8").opacity(0.92),
+        infoBackground: Color(hex: "#000000").opacity(0.04),
 
         // MARK: Interactive States
 
-        hoverBackground: Color.black.opacity(0.05),
-        selectedBackground: Color.black.opacity(0.08),
+        hoverBackground: Color(hex: "#000000").opacity(0.04),
+        selectedBackground: Color(hex: "#000000").opacity(0.06),
 
         // MARK: Text Colors
 
-        primaryText: Color(hex: "#1A1A1A"),
-        secondaryText: Color.gray,
-        tertiaryText: Color.gray.opacity(0.6),
-        disabledText: Color.gray.opacity(0.3),
+        primaryText: Color(hex: "#3E2723"),
+        secondaryText: Color(hex: "#6D4C41"),
+        tertiaryText: Color(hex: "#8D6E63").opacity(0.75),
+        disabledText: Color(hex: "#A1887F").opacity(0.4),
 
         // MARK: UI Elements
 
-        playButtonBackground: Color(hex: "#333333"),
-        emptyStateIcon: Color.gray.opacity(0.4),
-        controlButtonColor: Color.black.opacity(0.7), // 亮色主题：深色按钮
-        timeDisplayColor: Color.black.opacity(0.8), // 亮色主题：深色时间
+        playButtonBackground: Color(hex: "#D84315"),
+        emptyStateIcon: Color(hex: "#A1887F").opacity(0.45),
+        controlButtonColor: Color.black.opacity(0.7),
+        timeDisplayColor: Color.black.opacity(0.8),
 
         // MARK: Border Colors
 
-        borderGradientStart: Color(hex: "#0099CC").opacity(0.3),
-        borderGradientEnd: Color(hex: "#00E5FF").opacity(0.0),
+        borderGradientStart: Color(hex: "#D84315").opacity(0.25),
+        borderGradientEnd: Color(hex: "#D84315").opacity(0.0),
 
         // MARK: Search Colors
 
-        searchOverlayBackground: Color(hex: "#1A1A1A").opacity(0.95),
-        searchOverlayStroke: Color(hex: "#00E5FF").opacity(0.3)
+        searchOverlayBackground: Color(hex: "#3E2723").opacity(0.88),
+        searchOverlayStroke: Color(hex: "#D84315").opacity(0.35),
+        searchInputText: Color(hex: "#F5EDE7"),
+        searchPrimaryText: Color(hex: "#EDE7DD"),
+        searchSecondaryText: Color(hex: "#BCAAA0"),
+        searchIconColor: Color(hex: "#D84315").opacity(0.9)
     )
 }

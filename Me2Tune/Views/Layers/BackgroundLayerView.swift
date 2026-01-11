@@ -42,14 +42,14 @@ struct BackgroundLayerView: View {
                             ],
                             center: .center,
                             startRadius: 60,
-                            endRadius: 380
+                            endRadius: 320
                         )
                     )
-                    .frame(width: 450, height: 330)
+                    .frame(width: 480, height: 330)
                     // 模糊效果非常耗电，确保半径适中
-                    .blur(radius: 40)
+                    .blur(radius: 30)
             }
-            .offset(y: 30)
+            .offset(y: 70)
             
             Spacer()
         }
