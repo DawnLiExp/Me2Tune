@@ -59,12 +59,13 @@ struct ContentView: View {
     private var mainView: some View {
         ZStack {
             BackgroundLayerView(albumGlowColor: albumGlowColor)
-            
+                .ignoresSafeArea(.all)
             mainContentStack
-            
+                
             if showSearchOverlay {
                 searchOverlay
-                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                    .transition(.opacity)
+                    .zIndex(100)
             }
         }
     }

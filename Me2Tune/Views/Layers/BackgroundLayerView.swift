@@ -17,7 +17,6 @@ struct BackgroundLayerView: View {
                 startPoint: .top,
                 endPoint: .bottom
             )
-            .ignoresSafeArea()
             
             Group {
                 vinylGlowLayer
