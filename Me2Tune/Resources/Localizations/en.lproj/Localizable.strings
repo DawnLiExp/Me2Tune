@@ -77,7 +77,7 @@
 "restart_later" = "Later";
 
 // MARK: - Settings - Theme
-"settings_appearance_header" = "Appearance";
+"settings_appearance_header" = "Appearance (Restart Required)";
 "settings_theme_label" = "Theme";
 "settings_theme_footer" = "Auto mode follows system appearance after restart.";
 "theme_auto" = "Auto";
@@ -87,7 +87,7 @@
 "theme_change_title" = "Restart Required";
 "theme_change_message" = "Theme change will take effect after restarting the app.";
 
-// MARK: - Settings - Performance
-"settings_performance_mode" = "Performance Mode";
-"settings_performance_header" = "Performance";
-"settings_performance_footer" = "Reduces animations and effects for better performance (Coming Soon)";
+// MARK: - Settings - Clean Mode
+"settings_visual_header" = "Visual Effects";
+"settings_clean_mode" = "Clean Mode";
+"settings_clean_mode_footer" = "Reduces visual effects like hover highlights, shadows, and background glows for a cleaner interface.";

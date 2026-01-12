@@ -10,6 +10,8 @@ import SwiftUI
 struct BackgroundLayerView: View {
     let albumGlowColor: Color
     
+    @AppStorage("CleanMode") private var cleanMode = false
+    
     var body: some View {
         ZStack {
             LinearGradient(
@@ -18,11 +20,14 @@ struct BackgroundLayerView: View {
                 endPoint: .bottom
             )
             
-            Group {
-                vinylGlowLayer
-                playlistGlowLayer
+            // 简洁模式下隐藏光晕
+            if !cleanMode {
+                Group {
+                    vinylGlowLayer
+                    playlistGlowLayer
+                }
+                .drawingGroup()
             }
-            .drawingGroup()
         }
     }
     
@@ -46,7 +51,6 @@ struct BackgroundLayerView: View {
                         )
                     )
                     .frame(width: 480, height: 320)
-                    // 模糊效果非常耗电，确保半径适中
                     .blur(radius: 30)
             }
             .offset(y: 66)

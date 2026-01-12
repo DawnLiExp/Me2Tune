@@ -18,6 +18,7 @@ struct AlbumCardView: View {
     let onRemove: () -> Void
     
     @State private var isHovered = false
+    @AppStorage("CleanMode") private var cleanMode = false // 新增：简洁模式设置
     
     // MARK: - Body
     
@@ -26,9 +27,12 @@ struct AlbumCardView: View {
             // 内容层
             contentView
             
-            // Hover 检测层（透明覆盖）
-            HoverDetectingView(isHovered: $isHovered)
-                .allowsHitTesting(false)
+            // 简洁模式下跳过 hover 检测
+            if !cleanMode {
+                // Hover 检测层（透明覆盖）
+                HoverDetectingView(isHovered: $isHovered)
+                    .allowsHitTesting(false)
+            }
         }
         .onTapGesture {
             onTap()
@@ -64,7 +68,8 @@ struct AlbumCardView: View {
             }
         }
         .opacity(isDragging ? 0.4 : 1.0)
-        .scaleEffect(isHovered && !isDragging ? 1.02 : 1.0)
+        // 简洁模式下禁用缩放动画
+        .scaleEffect((isHovered && !isDragging && !cleanMode) ? 1.02 : 1.0)
         .animation(.easeOut(duration: 0.15), value: isHovered)
         .animation(.easeOut(duration: 0.15), value: isDragging)
     }
@@ -92,12 +97,14 @@ struct AlbumCardView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .strokeBorder(
-                    Color.accent.opacity(isHovered && !isDragging ? 0.4 : 0),
+                    // 简洁模式下禁用边框高亮
+                    Color.accent.opacity((isHovered && !isDragging && !cleanMode) ? 0.4 : 0),
                     lineWidth: 2
                 )
         )
         .shadow(
-            color: isHovered && !isDragging ? Color.accent.opacity(0.2) : .clear,
+            // 简洁模式下禁用阴影
+            color: (isHovered && !isDragging && !cleanMode) ? Color.accent.opacity(0.2) : .clear,
             radius: 8
         )
     }

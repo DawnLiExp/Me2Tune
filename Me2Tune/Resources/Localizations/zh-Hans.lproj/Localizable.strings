@@ -77,7 +77,7 @@
 "restart_later" = "稍后重启";
 
 // MARK: - 设置 - 主题
-"settings_appearance_header" = "外观设置";
+"settings_appearance_header" = "外观设置（需要重启）";
 "settings_theme_label" = "主题";
 "settings_theme_footer" = "自动模式将在重启后跟随系统外观生效";
 "theme_auto" = "自动";
@@ -87,7 +87,7 @@
 "theme_change_title" = "需要重启";
 "theme_change_message" = "更改主题需重启应用后生效。";
 
-// MARK: - 设置 - 性能
-"settings_performance_mode" = "性能模式";
-"settings_performance_header" = "性能";
-"settings_performance_footer" = "减少动画和特效以提升性能（即将推出）";
+// MARK: - 设置 - 简洁模式
+"settings_visual_header" = "视觉效果";
+"settings_clean_mode" = "简洁模式";
+"settings_clean_mode_footer" = "减少悬停高亮、阴影和背景光晕等视觉效果，提供更简洁的界面。";

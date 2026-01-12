@@ -2,7 +2,7 @@
 //  SettingsView.swift
 //  Me2Tune
 //
-//  设置界面 - 语言/主题/性能设置
+//  设置界面 - 语言/主题/简洁模式设置
 //
 
 import SwiftUI
@@ -17,8 +17,8 @@ struct SettingsView: View {
     @State private var pendingTheme: ThemeManager.ThemeMode?
     @State private var selectedTab = 0
     
-    // 性能模式(预留)
-    @AppStorage("PerformanceMode") private var performanceMode = false
+    // 简洁模式
+    @AppStorage("CleanMode") private var cleanMode = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -206,15 +206,14 @@ struct SettingsView: View {
     private var advancedSettings: some View {
         Form {
             Section {
-                Toggle("settings_performance_mode", isOn: $performanceMode)
-                    .disabled(true) // 暂时禁用,待实现
+                Toggle("settings_clean_mode", isOn: $cleanMode)
             } header: {
-                Text("settings_performance_header")
+                Text("settings_visual_header")
                     .font(.system(size: 11))
                     .foregroundColor(Color(NSColor.tertiaryLabelColor))
                     .textCase(nil)
             } footer: {
-                Text("settings_performance_footer")
+                Text("settings_clean_mode_footer")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

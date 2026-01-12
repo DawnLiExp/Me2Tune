@@ -14,6 +14,7 @@ struct SongRowView: View {
     let onTap: () -> Void
     
     @State private var isHovered = false
+    @AppStorage("CleanMode") private var cleanMode = false // 新增：简洁模式设置
     
     // 预计算不变的内容
     private let timeString: String
@@ -32,7 +33,8 @@ struct SongRowView: View {
     
     var body: some View {
         contentView
-            .background(HoverDetector(isHovered: $isHovered))
+            // 简洁模式下跳过 hover 检测
+            .background(cleanMode ? AnyView(Color.clear) : AnyView(HoverDetector(isHovered: $isHovered)))
             .onTapGesture(count: 2) {
                 onTap()
             }
@@ -77,10 +79,12 @@ struct SongRowView: View {
                 .fill(Color.accentLight)
                 .opacity(isPlaying ? 1 : 0)
             
-            // Hover 状态背景（始终存在，用透明度控制）
-            RoundedRectangle(cornerRadius: 14)
-                .fill(Color.hoverBackground)
-                .opacity(!isPlaying && isHovered ? 1 : 0)
+            // 简洁模式下禁用 hover 背景
+            if !cleanMode {
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(Color.hoverBackground)
+                    .opacity(!isPlaying && isHovered ? 1 : 0)
+            }
         }
         .animation(.easeInOut(duration: 0.15), value: isHovered)
     }

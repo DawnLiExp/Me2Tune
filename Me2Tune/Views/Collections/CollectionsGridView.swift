@@ -408,13 +408,17 @@ struct AlbumTrackRowView: View {
     let onAddToPlaylist: () -> Void
     
     @State private var isHovered = false
+    @AppStorage("CleanMode") private var cleanMode = false
     
     var body: some View {
         ZStack {
             contentView
             
-            HoverDetectingView(isHovered: $isHovered)
-                .allowsHitTesting(false)
+            // 简洁模式下跳过 hover 检测
+            if !cleanMode {
+                HoverDetectingView(isHovered: $isHovered)
+                    .allowsHitTesting(false)
+            }
         }
         .onTapGesture(count: 2) {
             onTap()
@@ -469,7 +473,7 @@ struct AlbumTrackRowView: View {
             if isPlaying {
                 Color.accentLight
                     .clipShape(RoundedRectangle(cornerRadius: 14))
-            } else if isHovered {
+            } else if isHovered, !cleanMode { // 简洁模式下禁用 hover 背景
                 Color.hoverBackground
                     .clipShape(RoundedRectangle(cornerRadius: 14))
             }
