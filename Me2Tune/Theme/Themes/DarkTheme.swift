@@ -2,7 +2,7 @@
 //  DarkTheme.swift
 //  Me2Tune
 //
-//  暗色主题（当前默认配色）
+//  赛博夜
 //
 
 import SwiftUI
@@ -13,7 +13,7 @@ struct DarkTheme: Theme {
     let colors = ThemeColors(
         // MARK: Accent Colors
 
-        accent: Color(hex: "#00E5FF"),
+        accent: Color(hex: "#00E5FF").opacity(0.9),
         accentGlow: Color(hex: "#00E5FF").opacity(0.5),
         accentLight: Color(hex: "#00E5FF").opacity(0.08),
 
@@ -34,8 +34,8 @@ struct DarkTheme: Theme {
 
         // MARK: Background Colors
 
-        mainBackground: .black,
-        gradientTop: Color(white: 0.02),
+        mainBackground: Color(hex: "#0A0A0A"),
+        gradientTop: Color(hex: "#121212"),
         containerBackground: Color.white.opacity(0.05),
         controlBackground: Color(white: 0.12).opacity(0.85),
         infoBackground: Color.white.opacity(0.08),
@@ -47,17 +47,17 @@ struct DarkTheme: Theme {
 
         // MARK: Text Colors
 
-        primaryText: Color(hex: "#E0E0E0"),
-        secondaryText: .gray,
-        tertiaryText: Color.gray.opacity(0.7),
+        primaryText: Color(hex: "#DEDEDE"),
+        secondaryText: Color(hex: "#838383"),
+        tertiaryText: Color.gray.opacity(0.8),
         disabledText: Color.gray.opacity(0.3),
 
         // MARK: UI Elements
 
         playButtonBackground: Color(hex: "#EBEBEB"),
-        playButtonIconColor: Color(hex: "#0A0A0A"), 
+        playButtonIconColor: Color(hex: "#0A0A0A"),
         emptyStateIcon: Color.gray.opacity(0.5),
-        controlButtonColor: Color.white.opacity(0.7),
+        controlButtonColor: Color.white.opacity(0.3),
         timeDisplayColor: Color.white.opacity(0.8),
 
         // MARK: Border Colors

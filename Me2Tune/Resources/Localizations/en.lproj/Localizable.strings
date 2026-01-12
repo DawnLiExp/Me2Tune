@@ -81,8 +81,9 @@
 "settings_theme_label" = "Theme";
 "settings_theme_footer" = "Auto mode follows system appearance after restart.";
 "theme_auto" = "Auto";
-"theme_dark" = "Dark";
-"theme_light" = "Light";
+"theme_dark" = "Cyber Night";
+"theme_slate_blue" = "Slate Blue";
+"theme_emerald" = "Emerald";
 "theme_change_title" = "Restart Required";
 "theme_change_message" = "Theme change will take effect after restarting the app.";
 

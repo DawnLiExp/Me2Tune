@@ -81,8 +81,9 @@
 "settings_theme_label" = "主题";
 "settings_theme_footer" = "自动模式将在重启后跟随系统外观生效";
 "theme_auto" = "自动";
-"theme_dark" = "深色";
-"theme_light" = "浅色";
+"theme_dark" = "赛博夜";
+"theme_slate_blue" = "石板蓝";
+"theme_emerald" = "翡翠";
 "theme_change_title" = "需要重启";
 "theme_change_message" = "更改主题需重启应用后生效。";
 

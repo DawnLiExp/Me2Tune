@@ -22,7 +22,8 @@ final class ThemeManager: ObservableObject {
     enum ThemeMode: String, CaseIterable, Identifiable {
         case auto
         case dark
-        case light
+        case slateBlue
+        case emerald
         
         var id: String { rawValue }
         
@@ -32,8 +33,10 @@ final class ThemeManager: ObservableObject {
                 return "theme_auto"
             case .dark:
                 return "theme_dark"
-            case .light:
-                return "theme_light"
+            case .slateBlue:
+                return "theme_slate_blue"
+            case .emerald:
+                return "theme_emerald"
             }
         }
     }
@@ -43,7 +46,8 @@ final class ThemeManager: ObservableObject {
     
     private let availableThemes: [Theme] = [
         DarkTheme(),
-        LightTheme()
+        SlateBlueTheme(),
+        EmeraldTheme()
     ]
     
     private init() {
@@ -62,11 +66,13 @@ final class ThemeManager: ObservableObject {
         switch savedMode {
         case .auto:
             let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            self.currentTheme = isDark ? DarkTheme() : LightTheme()
+            self.currentTheme = isDark ? DarkTheme() : SlateBlueTheme()
         case .dark:
             self.currentTheme = DarkTheme()
-        case .light:
-            self.currentTheme = LightTheme()
+        case .slateBlue:
+            self.currentTheme = SlateBlueTheme()
+        case .emerald:
+            self.currentTheme = EmeraldTheme()
         }
         
         logger.info("ThemeManager initialized with mode: \(self.themeMode.rawValue), theme: \(self.currentTheme.name)")

@@ -15,7 +15,6 @@
 		FC1377A42EFD0FF700A9CE99 /* ColorExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1377A32EFD0FE800A9CE99 /* ColorExtensions.swift */; };
 		FC2032F72F08E8F700D17FEE /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC2032F62F08E8F500D17FEE /* Theme.swift */; };
 		FC2032FB2F08E91400D17FEE /* DarkTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC2032FA2F08E91300D17FEE /* DarkTheme.swift */; };
-		FC2032FD2F08E93100D17FEE /* LightTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC2032FC2F08E92F00D17FEE /* LightTheme.swift */; };
 		FC2033012F08E96C00D17FEE /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC2033002F08E96A00D17FEE /* ThemeManager.swift */; };
 		FC31BA492F08323A00786380 /* PlaylistManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC31BA482F08323800786380 /* PlaylistManager.swift */; };
 		FC32865D2F010F3D000D8F2A /* PlayerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC32865C2F010F3B000D8F2A /* PlayerViewModel.swift */; };
@@ -48,6 +47,8 @@
 		FC8C88722F06263500ABC82E /* WindowStateMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8C88712F06263100ABC82E /* WindowStateMonitor.swift */; };
 		FCCAAFBA2F12847900DF5D71 /* LanguageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCAAFB92F12847600DF5D71 /* LanguageManager.swift */; };
 		FCCAAFBD2F1284C700DF5D71 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCAAFBC2F1284C500DF5D71 /* SettingsView.swift */; };
+		FCDDF5AE2F14DACE003AFB85 /* EmeraldTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDDF5AD2F14DACD003AFB85 /* EmeraldTheme.swift */; };
+		FCDDF5B02F14DAE0003AFB85 /* SlateBlueTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDDF5AF2F14DADE003AFB85 /* SlateBlueTheme.swift */; };
 		FCE6E86F2F053E7C004D5E21 /* NowPlayingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCE6E86E2F053E6F004D5E21 /* NowPlayingService.swift */; };
 		FCE6E8712F053E8E004D5E21 /* RemoteCommandController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCE6E8702F053E8D004D5E21 /* RemoteCommandController.swift */; };
 /* End PBXBuildFile section */
@@ -61,7 +62,6 @@
 		FC16622A2EEFAE2C00F01BCE /* Me2Tune.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Me2Tune.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FC2032F62F08E8F500D17FEE /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		FC2032FA2F08E91300D17FEE /* DarkTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DarkTheme.swift; sourceTree = "<group>"; };
-		FC2032FC2F08E92F00D17FEE /* LightTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightTheme.swift; sourceTree = "<group>"; };
 		FC2033002F08E96A00D17FEE /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
 		FC31BA482F08323800786380 /* PlaylistManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistManager.swift; sourceTree = "<group>"; };
 		FC32865C2F010F3B000D8F2A /* PlayerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerViewModel.swift; sourceTree = "<group>"; };
@@ -94,6 +94,8 @@
 		FC8C88712F06263100ABC82E /* WindowStateMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowStateMonitor.swift; sourceTree = "<group>"; };
 		FCCAAFB92F12847600DF5D71 /* LanguageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageManager.swift; sourceTree = "<group>"; };
 		FCCAAFBC2F1284C500DF5D71 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		FCDDF5AD2F14DACD003AFB85 /* EmeraldTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmeraldTheme.swift; sourceTree = "<group>"; };
+		FCDDF5AF2F14DADE003AFB85 /* SlateBlueTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlateBlueTheme.swift; sourceTree = "<group>"; };
 		FCE6E86E2F053E6F004D5E21 /* NowPlayingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingService.swift; sourceTree = "<group>"; };
 		FCE6E8702F053E8D004D5E21 /* RemoteCommandController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteCommandController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -147,7 +149,8 @@
 			isa = PBXGroup;
 			children = (
 				FC2032FA2F08E91300D17FEE /* DarkTheme.swift */,
-				FC2032FC2F08E92F00D17FEE /* LightTheme.swift */,
+				FCDDF5AD2F14DACD003AFB85 /* EmeraldTheme.swift */,
+				FCDDF5AF2F14DADE003AFB85 /* SlateBlueTheme.swift */,
 			);
 			path = Themes;
 			sourceTree = "<group>";
@@ -418,7 +421,6 @@
 			files = (
 				FCE6E86F2F053E7C004D5E21 /* NowPlayingService.swift in Sources */,
 				FC1377A42EFD0FF700A9CE99 /* ColorExtensions.swift in Sources */,
-				FC2032FD2F08E93100D17FEE /* LightTheme.swift in Sources */,
 				FC746C302F0E501B008AD5B4 /* AlbumCardView.swift in Sources */,
 				FC8528102F014F7C00B53540 /* AppError.swift in Sources */,
 				FC8528122F014FAA00B53540 /* Logger+Extensions.swift in Sources */,
@@ -443,6 +445,7 @@
 				FCCAAFBA2F12847900DF5D71 /* LanguageManager.swift in Sources */,
 				FC62DA392F0372C000DD1509 /* ArtworkCacheService.swift in Sources */,
 				FC8528082F01486100B53540 /* ContentSectionView.swift in Sources */,
+				FCDDF5AE2F14DACE003AFB85 /* EmeraldTheme.swift in Sources */,
 				FC2032F72F08E8F700D17FEE /* Theme.swift in Sources */,
 				FC31BA492F08323A00786380 /* PlaylistManager.swift in Sources */,
 				FC50C7392F06583100597B19 /* ControlSectionView.swift in Sources */,
@@ -450,6 +453,7 @@
 				FC2033012F08E96C00D17FEE /* ThemeManager.swift in Sources */,
 				FC480EAC2EF107E8000D8393 /* PersistenceService.swift in Sources */,
 				FC50C7462F0658E600597B19 /* VinylSectionView.swift in Sources */,
+				FCDDF5B02F14DAE0003AFB85 /* SlateBlueTheme.swift in Sources */,
 				FC49D3B22F0AC30000628C1B /* SearchOverlayView.swift in Sources */,
 				FC50C7422F06589800597B19 /* SongRowView.swift in Sources */,
 				FC0A17402EF262620090B22C /* Album.swift in Sources */,
