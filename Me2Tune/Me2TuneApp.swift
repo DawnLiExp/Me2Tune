@@ -73,25 +73,27 @@ struct Me2TuneApp: App {
 
     private func configureWindowForMode(window: NSWindow) {
         if displayMode == DisplayMode.mini.rawValue {
+            // Mini：无标题栏
+            window.styleMask.remove(.titled)
+            window.titleVisibility = .hidden
+            window.titlebarAppearsTransparent = true
+
             window.styleMask.remove(.resizable)
             window.isMovableByWindowBackground = true
             window.tabbingMode = .disallowed
 
+            // ✅ 窗口圆角
+            window.isOpaque = false
+            window.backgroundColor = .clear
+
+            if let contentView = window.contentView {
+                contentView.wantsLayer = true
+                contentView.layer?.cornerRadius = 12
+                contentView.layer?.masksToBounds = true
+            }
+
             window.center()
             logger.info("🎵 Switched to Mini mode")
-
-        } else {
-            window.styleMask.insert(.resizable)
-
-            window.minSize = NSSize(width: 495, height: 400)
-
-            window.setContentSize(NSSize(width: 495, height: 800))
-            window.isMovableByWindowBackground = false
-
-            windowStateMonitor.startMonitoring(window: window)
-
-            window.center()
-            logger.info("🖥️ Switched to Full mode")
         }
     }
 
