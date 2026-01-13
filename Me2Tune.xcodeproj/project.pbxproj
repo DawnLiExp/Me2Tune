@@ -49,6 +49,7 @@
 		FC8C88722F06263500ABC82E /* WindowStateMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8C88712F06263100ABC82E /* WindowStateMonitor.swift */; };
 		FCCAAFBA2F12847900DF5D71 /* LanguageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCAAFB92F12847600DF5D71 /* LanguageManager.swift */; };
 		FCCAAFBD2F1284C700DF5D71 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCAAFBC2F1284C500DF5D71 /* SettingsView.swift */; };
+		FCD1A6A42F16ABED00EC88E2 /* DisplayMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCD1A6A32F16ABEB00EC88E2 /* DisplayMode.swift */; };
 		FCDDF5AE2F14DACE003AFB85 /* EmeraldTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDDF5AD2F14DACD003AFB85 /* EmeraldTheme.swift */; };
 		FCDDF5B02F14DAE0003AFB85 /* SlateBlueTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDDF5AF2F14DADE003AFB85 /* SlateBlueTheme.swift */; };
 		FCE6E86F2F053E7C004D5E21 /* NowPlayingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCE6E86E2F053E6F004D5E21 /* NowPlayingService.swift */; };
@@ -98,6 +99,7 @@
 		FC8C88712F06263100ABC82E /* WindowStateMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowStateMonitor.swift; sourceTree = "<group>"; };
 		FCCAAFB92F12847600DF5D71 /* LanguageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageManager.swift; sourceTree = "<group>"; };
 		FCCAAFBC2F1284C500DF5D71 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		FCD1A6A32F16ABEB00EC88E2 /* DisplayMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayMode.swift; sourceTree = "<group>"; };
 		FCDDF5AD2F14DACD003AFB85 /* EmeraldTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmeraldTheme.swift; sourceTree = "<group>"; };
 		FCDDF5AF2F14DADE003AFB85 /* SlateBlueTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlateBlueTheme.swift; sourceTree = "<group>"; };
 		FCE6E86E2F053E6F004D5E21 /* NowPlayingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingService.swift; sourceTree = "<group>"; };
@@ -343,6 +345,7 @@
 		FC85280E2F014F6900B53540 /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
+				FCD1A6A32F16ABEB00EC88E2 /* DisplayMode.swift */,
 				FC85280F2F014F7A00B53540 /* AppError.swift */,
 				FC8528112F014FA900B53540 /* Logger+Extensions.swift */,
 				FC8C88712F06263100ABC82E /* WindowStateMonitor.swift */,
@@ -448,6 +451,7 @@
 				FC0A17442EF262910090B22C /* CollectionManager.swift in Sources */,
 				FC50C7402F06588700597B19 /* ToolbarButtonView.swift in Sources */,
 				FC62DA3B2F0373C800DD1509 /* Array+Extensions.swift in Sources */,
+				FCD1A6A42F16ABED00EC88E2 /* DisplayMode.swift in Sources */,
 				FC13779D2EFCF9CC00A9CE99 /* PlaylistTabView.swift in Sources */,
 				FC746C322F0E5043008AD5B4 /* HoverDetectingView.swift in Sources */,
 				FC480EAA2EF107E8000D8393 /* ContentView.swift in Sources */,

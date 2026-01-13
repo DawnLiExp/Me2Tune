@@ -99,3 +99,8 @@
 "Repeat: One" = "Repeat: One";
 "Mute" = "Mute";
 "Unmute" = "Unmute";
+
+// MARK: - Mini Mode
+"always_on_top" = "Always on Top";
+"no_track" = "No Track";
+

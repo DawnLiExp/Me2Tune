@@ -99,3 +99,7 @@
 "Repeat: One" = "循环模式：单曲";
 "Mute" = "静音";
 "Unmute" = "取消静音";
+
+// MARK: - Mini Mode
+"always_on_top" = "置顶";
+"no_track" = "无歌曲";

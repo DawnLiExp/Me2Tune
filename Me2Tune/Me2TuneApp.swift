@@ -88,7 +88,7 @@ struct Me2TuneApp: App {
 
             if let contentView = window.contentView {
                 contentView.wantsLayer = true
-                contentView.layer?.cornerRadius = 12
+                contentView.layer?.cornerRadius = 14
                 contentView.layer?.masksToBounds = true
             }
 
