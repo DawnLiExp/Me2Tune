@@ -64,7 +64,7 @@ struct ControlSectionView: View {
             // 歌曲信息（默认显示）
             if !isHoveringTrackInfo || currentTrack == nil {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(currentTrack?.title ?? "No Track")
+                    Text(currentTrack?.title ?? String(localized: "No Track"))
                         .font(.system(size: 20, weight: .semibold))
                         .foregroundColor(.accent)
                         .lineLimit(1)
@@ -118,10 +118,10 @@ struct ControlSectionView: View {
     
     private var trackSubtitle: String {
         guard let track = currentTrack else {
-            return "Ready to play"
+            return String(localized: "Ready to play")
         }
         
-        let artist = track.artist ?? "Unknown Artist"
+        let artist = track.artist ?? String(localized: "Unknown Artist")
         let album = track.albumTitle ?? ""
         
         if album.isEmpty {
@@ -135,21 +135,21 @@ struct ControlSectionView: View {
     
     private var settingsControls: some View {
         HStack(spacing: 12) {
-            repeatButton
-            volumeControl
             switchToMiniButton
+            volumeControl
+            repeatButton
         }
     }
         
     private var switchToMiniButton: some View {
         Button(action: switchToMiniMode) {
             Image(systemName: "arrow.down.right.and.arrow.up.left")
-                .font(.system(size: 11))
+                .font(.system(size: 14))
                 .foregroundColor(.secondaryText)
                 .frame(width: 24, height: 24)
         }
         .buttonStyle(.plain)
-        .help("Switch to Mini Mode")
+        .help(String(localized: "Switch to Mini Mode"))
     }
         
     @AppStorage("displayMode") private var displayMode = DisplayMode.full.rawValue
@@ -160,6 +160,8 @@ struct ControlSectionView: View {
     
     // MARK: - Repeat Button
     
+    // MARK: - Repeat Button
+
     private var repeatButton: some View {
         Button(action: {
             onToggleRepeat()
@@ -170,11 +172,11 @@ struct ControlSectionView: View {
                 .frame(width: 28, height: 28)
         }
         .buttonStyle(.plain)
-        .help(repeatTooltip)
+        .help(String(localized: repeatTooltip))
         .rotationEffect(.degrees(rotationAngle))
         .animation(.spring(response: 0.4, dampingFraction: 0.6), value: repeatMode)
     }
-    
+
     private var repeatIcon: String {
         switch repeatMode {
         case .off, .all:
@@ -183,8 +185,8 @@ struct ControlSectionView: View {
             return "repeat.1"
         }
     }
-    
-    private var repeatTooltip: String {
+
+    private var repeatTooltip: String.LocalizationValue {
         switch repeatMode {
         case .off:
             return "Repeat: Off"
@@ -194,7 +196,7 @@ struct ControlSectionView: View {
             return "Repeat: One"
         }
     }
-    
+
     private var rotationAngle: Double {
         repeatMode == .off ? 0 : 180
     }
@@ -210,7 +212,7 @@ struct ControlSectionView: View {
                     .frame(width: 24, height: 24)
             }
             .buttonStyle(.plain)
-            .help(volume > 0 ? "Mute" : "Unmute")
+            .help(volume > 0 ? String(localized: "Mute") : String(localized: "Unmute"))
             
             Slider(value: $volume, in: 0 ... 1)
                 .frame(width: 100)

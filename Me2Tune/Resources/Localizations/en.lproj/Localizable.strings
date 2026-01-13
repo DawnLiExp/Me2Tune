@@ -91,3 +91,11 @@
 "settings_visual_header" = "Visual Effects";
 "settings_clean_mode" = "Clean Mode";
 "settings_clean_mode_footer" = "Reduces visual effects like hover highlights, shadows, and background glows for a cleaner interface.";
+
+// MARK: - ControlSection
+"Switch to Mini Mode" = "Switch to Mini Mode";
+"Repeat: Off" = "Repeat: Off";
+"Repeat: All" = "Repeat: All";
+"Repeat: One" = "Repeat: One";
+"Mute" = "Mute";
+"Unmute" = "Unmute";
