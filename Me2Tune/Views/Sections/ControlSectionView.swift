@@ -131,13 +131,31 @@ struct ControlSectionView: View {
         }
     }
     
-    // MARK: - Settings Controls (Repeat + Volume)
+    // MARK: - Settings Controls (Repeat + Volume + Mini Switch)
     
     private var settingsControls: some View {
         HStack(spacing: 12) {
             repeatButton
             volumeControl
+            switchToMiniButton
         }
+    }
+        
+    private var switchToMiniButton: some View {
+        Button(action: switchToMiniMode) {
+            Image(systemName: "arrow.down.right.and.arrow.up.left")
+                .font(.system(size: 11))
+                .foregroundColor(.secondaryText)
+                .frame(width: 24, height: 24)
+        }
+        .buttonStyle(.plain)
+        .help("Switch to Mini Mode")
+    }
+        
+    @AppStorage("displayMode") private var displayMode = DisplayMode.full.rawValue
+        
+    private func switchToMiniMode() {
+        displayMode = DisplayMode.mini.rawValue
     }
     
     // MARK: - Repeat Button

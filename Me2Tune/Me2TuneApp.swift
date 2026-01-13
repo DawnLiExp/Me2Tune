@@ -2,7 +2,7 @@
 //  Me2TuneApp.swift
 //  Me2Tune
 //
-//  应用入口 - 使用 ViewModel 架构 + 窗口状态监控
+//  应用入口 - 支持完整版和 Mini 模式切换
 //
 
 import OSLog
@@ -17,6 +17,8 @@ struct Me2TuneApp: App {
     @StateObject private var windowStateMonitor = WindowStateMonitor()
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
+    @AppStorage("displayMode") private var displayMode = DisplayMode.full.rawValue
+
     init() {
         let manager = CollectionManager()
         _collectionManager = StateObject(wrappedValue: manager)
@@ -25,32 +27,82 @@ struct Me2TuneApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .frame(minWidth: 495)
-                .environmentObject(playerViewModel)
-                .environmentObject(collectionManager)
-                .environmentObject(windowStateMonitor)
-                .onAppear {
-                    if let window = NSApp.windows.first {
-                        appDelegate.window = window
-                        windowStateMonitor.startMonitoring(window: window)
-                    }
-
-                    // 延迟后台加载专辑列表
-                    Task {
-                        collectionManager.scheduleDelayedLoad(delay: 1.5)
-                    }
+            Group {
+                if displayMode == DisplayMode.mini.rawValue {
+                    MiniPlayerView()
+                        .environmentObject(playerViewModel)
+                } else {
+                    ContentView()
+                        .frame(minWidth: 495)
+                        .environmentObject(playerViewModel)
+                        .environmentObject(collectionManager)
+                        .environmentObject(windowStateMonitor)
+                        .onAppear {
+                            setupFullMode()
+                        }
                 }
+            }
+            .onAppear {
+                if let window = NSApp.windows.first {
+                    appDelegate.window = window
+                    configureWindowForMode(window: window)
+                }
+            }
+            .onChange(of: displayMode) { _, _ in
+                if let window = NSApp.windows.first {
+                    configureWindowForMode(window: window)
+                }
+            }
         }
         .windowStyle(.hiddenTitleBar)
-        .defaultSize(width: 495, height: 800)
-        .windowResizability(.contentSize)
+        .windowResizability(
+            displayMode == DisplayMode.mini.rawValue
+                ? .contentSize
+                : .automatic
+        )
         .commands {
             CommandGroup(replacing: .newItem) {}
         }
 
         Settings {
             SettingsView()
+        }
+    }
+
+    // MARK: - Window Configuration
+
+    private func configureWindowForMode(window: NSWindow) {
+        if displayMode == DisplayMode.mini.rawValue {
+            window.styleMask.remove(.resizable)
+            window.isMovableByWindowBackground = true
+            window.tabbingMode = .disallowed
+
+            window.center()
+            logger.info("🎵 Switched to Mini mode")
+
+        } else {
+            window.styleMask.insert(.resizable)
+
+            window.minSize = NSSize(width: 495, height: 400)
+
+            window.setContentSize(NSSize(width: 495, height: 800))
+            window.isMovableByWindowBackground = false
+
+            windowStateMonitor.startMonitoring(window: window)
+
+            window.center()
+            logger.info("🖥️ Switched to Full mode")
+        }
+    }
+
+    private func setupFullMode() {
+        guard let window = NSApp.windows.first else { return }
+
+        windowStateMonitor.startMonitoring(window: window)
+
+        // 延迟后台加载专辑列表
+        Task {
+            collectionManager.scheduleDelayedLoad(delay: 1.5)
         }
     }
 }
@@ -75,7 +127,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         windowDelegate = WindowInterceptor()
         window.delegate = windowDelegate
 
-        window.isMovableByWindowBackground = false
         window.tabbingMode = .disallowed
 
         logger.info("🚀🚀 App launched")

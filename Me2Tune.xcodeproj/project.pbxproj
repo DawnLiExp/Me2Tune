@@ -13,6 +13,8 @@
 		FC13779B2EFCF9AD00A9CE99 /* CollectionsGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC13779A2EFCF9AB00A9CE99 /* CollectionsGridView.swift */; };
 		FC13779D2EFCF9CC00A9CE99 /* PlaylistTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC13779C2EFCF9CB00A9CE99 /* PlaylistTabView.swift */; };
 		FC1377A42EFD0FF700A9CE99 /* ColorExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1377A32EFD0FE800A9CE99 /* ColorExtensions.swift */; };
+		FC13AFCD2F15EBD400D9E0D4 /* MiniPlayerTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC13AFCC2F15EBD200D9E0D4 /* MiniPlayerTheme.swift */; };
+		FC13AFCF2F15EBE800D9E0D4 /* MiniPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC13AFCE2F15EBE600D9E0D4 /* MiniPlayerView.swift */; };
 		FC2032F72F08E8F700D17FEE /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC2032F62F08E8F500D17FEE /* Theme.swift */; };
 		FC2032FB2F08E91400D17FEE /* DarkTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC2032FA2F08E91300D17FEE /* DarkTheme.swift */; };
 		FC2033012F08E96C00D17FEE /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC2033002F08E96A00D17FEE /* ThemeManager.swift */; };
@@ -59,6 +61,8 @@
 		FC13779A2EFCF9AB00A9CE99 /* CollectionsGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionsGridView.swift; sourceTree = "<group>"; };
 		FC13779C2EFCF9CB00A9CE99 /* PlaylistTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistTabView.swift; sourceTree = "<group>"; };
 		FC1377A32EFD0FE800A9CE99 /* ColorExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorExtensions.swift; sourceTree = "<group>"; };
+		FC13AFCC2F15EBD200D9E0D4 /* MiniPlayerTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniPlayerTheme.swift; sourceTree = "<group>"; };
+		FC13AFCE2F15EBE600D9E0D4 /* MiniPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniPlayerView.swift; sourceTree = "<group>"; };
 		FC16622A2EEFAE2C00F01BCE /* Me2Tune.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Me2Tune.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FC2032F62F08E8F500D17FEE /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		FC2032FA2F08E91300D17FEE /* DarkTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DarkTheme.swift; sourceTree = "<group>"; };
@@ -117,6 +121,15 @@
 				FC1377A32EFD0FE800A9CE99 /* ColorExtensions.swift */,
 			);
 			path = Extensions;
+			sourceTree = "<group>";
+		};
+		FC13AFCB2F15EBC600D9E0D4 /* Mini */ = {
+			isa = PBXGroup;
+			children = (
+				FC13AFCE2F15EBE600D9E0D4 /* MiniPlayerView.swift */,
+				FC13AFCC2F15EBD200D9E0D4 /* MiniPlayerTheme.swift */,
+			);
+			path = Mini;
 			sourceTree = "<group>";
 		};
 		FC1662212EEFAE2C00F01BCE = {
@@ -218,6 +231,7 @@
 		FC480EBF2EF13912000D8393 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				FC13AFCB2F15EBC600D9E0D4 /* Mini */,
 				FC746C332F0E8383008AD5B4 /* Collections */,
 				FC8194EF2EF4EF2000401C4F /* Components */,
 				FC480EA02EF107E8000D8393 /* ContentView.swift */,
@@ -448,6 +462,7 @@
 				FCDDF5AE2F14DACE003AFB85 /* EmeraldTheme.swift in Sources */,
 				FC2032F72F08E8F700D17FEE /* Theme.swift in Sources */,
 				FC31BA492F08323A00786380 /* PlaylistManager.swift in Sources */,
+				FC13AFCD2F15EBD400D9E0D4 /* MiniPlayerTheme.swift in Sources */,
 				FC50C7392F06583100597B19 /* ControlSectionView.swift in Sources */,
 				FC2032FB2F08E91400D17FEE /* DarkTheme.swift in Sources */,
 				FC2033012F08E96C00D17FEE /* ThemeManager.swift in Sources */,
@@ -458,6 +473,7 @@
 				FC50C7422F06589800597B19 /* SongRowView.swift in Sources */,
 				FC0A17402EF262620090B22C /* Album.swift in Sources */,
 				FCCAAFBD2F1284C700DF5D71 /* SettingsView.swift in Sources */,
+				FC13AFCF2F15EBE800D9E0D4 /* MiniPlayerView.swift in Sources */,
 			);
 		};
 /* End PBXSourcesBuildPhase section */
