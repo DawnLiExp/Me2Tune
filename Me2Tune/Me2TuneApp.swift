@@ -48,9 +48,15 @@ struct Me2TuneApp: App {
                     configureWindowForMode(window: window)
                 }
             }
-            .onChange(of: displayMode) { _, _ in
+            .onChange(of: displayMode) { _, newMode in
                 if let window = NSApp.windows.first {
-                    configureWindowForMode(window: window)
+                    if newMode == DisplayMode.mini.rawValue {
+                        // 切换到 Mini 模式
+                        configureWindowForMode(window: window)
+                    } else {
+                        // 从 Mini 切回 Full：重启应用以恢复干净状态
+                        AppDelegate.restartApplication()
+                    }
                 }
             }
         }
@@ -73,16 +79,15 @@ struct Me2TuneApp: App {
 
     private func configureWindowForMode(window: NSWindow) {
         if displayMode == DisplayMode.mini.rawValue {
-            // Mini：无标题栏
+            // ===== Mini 模式：完全隐藏 titlebar =====
             window.styleMask.remove(.titled)
+            window.styleMask.remove(.resizable)
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
-
-            window.styleMask.remove(.resizable)
             window.isMovableByWindowBackground = true
             window.tabbingMode = .disallowed
 
-            // ✅ 窗口圆角
+            // 圆角效果
             window.isOpaque = false
             window.backgroundColor = .clear
 
@@ -95,6 +100,7 @@ struct Me2TuneApp: App {
             window.center()
             logger.info("🎵 Switched to Mini mode")
         }
+        // Full 模式由 .windowStyle(.hiddenTitleBar) 和应用重启管理，无需配置
     }
 
     private func setupFullMode() {
@@ -132,6 +138,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.tabbingMode = .disallowed
 
         logger.info("🚀🚀 App launched")
+    }
+
+    // MARK: - Application Restart
+
+    static func restartApplication() {
+        logger.info("🔄 Restarting application for mode switch")
+
+        let task = Process()
+        task.launchPath = "/bin/sh"
+        task.arguments = ["-c", "sleep 0.2; open '\(Bundle.main.bundlePath)'"]
+        task.launch()
+
+        NSApp.terminate(nil)
     }
 }
 
