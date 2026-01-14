@@ -19,7 +19,6 @@ struct NonDraggableView<Content: View>: View {
     var body: some View {
         content
             .background(NonDraggableHostingView())
-            .clipped() // 阻止事件穿透到窗口
     }
 }
 
@@ -36,5 +35,22 @@ private struct NonDraggableHostingView: NSViewRepresentable {
 private final class NonDraggableNSView: NSView {
     override var mouseDownCanMoveWindow: Bool {
         return false // 🚫 阻止此区域拖动窗口
+    }
+
+    // ✅ 关键优化：完全拦截鼠标事件，防止传递给窗口拖动系统
+    override func mouseDown(with event: NSEvent) {
+        // 不调用 super.mouseDown，事件会被传递给 SwiftUI gesture
+        // 这确保事件优先被 SwiftUI 处理，而不是被窗口拖动捕获
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        // 同样拦截拖动事件，避免窗口拖动的边缘情况
+    }
+
+    // ✅ 额外优化：确保这个区域总是接收事件
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let result = super.hitTest(point)
+        // 如果没有子视图响应，返回自己以确保事件不穿透
+        return result ?? (bounds.contains(point) ? self : nil)
     }
 }
