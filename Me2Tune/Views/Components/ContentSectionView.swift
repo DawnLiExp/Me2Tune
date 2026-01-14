@@ -23,33 +23,35 @@ struct ContentSectionView: View {
     let onPlaylistDrop: ([URL]) -> Void
     
     var body: some View {
-        ZStack(alignment: .bottom) {
-            VStack(spacing: 0) {
-                TabSwitcherView(
-                    selectedTab: $selectedTab,
-                    isInAlbumDetail: isInAlbumDetail,
-                    playlistEmpty: playerViewModel.playlistManager.isEmpty,
-                    collectionsEmpty: collectionManager.albums.isEmpty,
-                    onExportPlaylist: onExportPlaylist,
-                    onClearPlaylist: onClearPlaylist,
-                    onClearCollections: onClearCollections,
-                    onOpenFilePicker: onOpenFilePicker
-                )
-                .padding(.top, 12)
-                .padding(.horizontal, 12)
+        NonDraggableView {
+            ZStack(alignment: .bottom) {
+                VStack(spacing: 0) {
+                    TabSwitcherView(
+                        selectedTab: $selectedTab,
+                        isInAlbumDetail: isInAlbumDetail,
+                        playlistEmpty: playerViewModel.playlistManager.isEmpty,
+                        collectionsEmpty: collectionManager.albums.isEmpty,
+                        onExportPlaylist: onExportPlaylist,
+                        onClearPlaylist: onClearPlaylist,
+                        onClearCollections: onClearCollections,
+                        onOpenFilePicker: onOpenFilePicker
+                    )
+                    .padding(.top, 12)
+                    .padding(.horizontal, 12)
+                    
+                    contentView
+                        .frame(maxHeight: .infinity)
+                }
+                .frame(minHeight: 405)
+                .background(containerBackground)
                 
-                contentView
-                    .frame(maxHeight: .infinity)
+                CollapseButtonView(isCollapsed: $isPlaylistCollapsed)
+                    .offset(y: 8)
             }
-            .frame(minHeight: 405)
-            .background(containerBackground)
-            
-            CollapseButtonView(isCollapsed: $isPlaylistCollapsed)
-                .offset(y: 8)
+            .allowsHitTesting(true)
         }
-        .allowsHitTesting(true)
     }
-    
+
     // MARK: - Content View
     
     @ViewBuilder

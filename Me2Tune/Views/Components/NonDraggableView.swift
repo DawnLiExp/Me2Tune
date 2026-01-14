@@ -11,14 +11,15 @@ import SwiftUI
 /// 包装内容视图，阻止该区域触发窗口拖动
 struct NonDraggableView<Content: View>: View {
     let content: Content
-    
+
     init(@ViewBuilder content: () -> Content) {
         self.content = content()
     }
-    
+
     var body: some View {
         content
             .background(NonDraggableHostingView())
+            .clipped() // 阻止事件穿透到窗口
     }
 }
 
@@ -28,12 +29,12 @@ private struct NonDraggableHostingView: NSViewRepresentable {
     func makeNSView(context: Context) -> NonDraggableNSView {
         return NonDraggableNSView()
     }
-    
+
     func updateNSView(_ nsView: NonDraggableNSView, context: Context) {}
 }
 
 private final class NonDraggableNSView: NSView {
     override var mouseDownCanMoveWindow: Bool {
-        return false  // 🚫 阻止此区域拖动窗口
+        return false // 🚫 阻止此区域拖动窗口
     }
 }

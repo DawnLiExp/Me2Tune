@@ -293,12 +293,13 @@ struct ControlSectionView: View {
     }
     
     // MARK: - Progress Bar
-    
+
     private var progressBar: some View {
         GeometryReader { geometry in
             let width = geometry.size.width
             let height = geometry.size.height
             
+            // 视觉层（保持细条）
             ZStack(alignment: .leading) {
                 Rectangle()
                     .fill(Color.white.opacity(0.12))
@@ -316,25 +317,29 @@ struct ControlSectionView: View {
                     .shadow(color: .accentGlow, radius: 4)
             }
             .overlay(
-                Color.clear
-                    .frame(height: 20)
-                    .contentShape(Rectangle())
-                    .gesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { value in
-                                if !isSeekingManually {
-                                    isSeekingManually = true
-                                }
-                                let newProgress = min(max(0, value.location.x / width), 1)
-                                manualSeekValue = newProgress * max(duration, 0.1)
+                // ✅ 交互层：用 NonDraggableView 包裹透明扩大区域
+                NonDraggableView {
+                    Color.clear
+                        .frame(height: 20)
+                        .contentShape(Rectangle())
+                }
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            if !isSeekingManually {
+                                isSeekingManually = true
                             }
-                            .onEnded { value in
-                                let newProgress = min(max(0, value.location.x / width), 1)
-                                let seekTime = newProgress * max(duration, 0.1)
-                                onSeek(seekTime)
-                                isSeekingManually = false
-                            }
-                    )
+                            let newProgress = min(max(0, value.location.x / width), 1)
+                            manualSeekValue = newProgress * max(duration, 0.1)
+                        }
+                        .onEnded { value in
+                            let newProgress = min(max(0, value.location.x / width), 1)
+                            let seekTime = newProgress * max(duration, 0.1)
+                            onSeek(seekTime)
+                            isSeekingManually = false
+                        }
+                ),
+                alignment: .center
             )
         }
     }

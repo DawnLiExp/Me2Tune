@@ -106,6 +106,8 @@ struct Me2TuneApp: App {
     private func setupFullMode() {
         guard let window = NSApp.windows.first else { return }
 
+        window.isMovableByWindowBackground = true
+
         windowStateMonitor.startMonitoring(window: window)
 
         // 延迟后台加载专辑列表
