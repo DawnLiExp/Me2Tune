@@ -120,9 +120,11 @@ struct Me2TuneApp: App {
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var windowDelegate: WindowInterceptor?
     weak var window: NSWindow?
+    private nonisolated(unsafe) var commandWMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         configureWindow()
+        setupCommandWHandler()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -140,6 +142,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         logger.info("🚀🚀 App launched")
     }
 
+    // MARK: - Command+W Handler
+
+    private func setupCommandWHandler() {
+        commandWMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            // 拦截 Command+W
+            if event.modifierFlags.contains(.command), event.charactersIgnoringModifiers == "w" {
+                if let window = NSApp.windows.first {
+                    window.miniaturize(nil)
+                    logger.debug("⌘+W → Minimize")
+                }
+                return nil
+            }
+            return event
+        }
+    }
+
     // MARK: - Application Restart
 
     static func restartApplication() {
@@ -151,6 +169,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         task.launch()
 
         NSApp.terminate(nil)
+    }
+
+    deinit {
+        if let monitor = commandWMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
     }
 }
 
