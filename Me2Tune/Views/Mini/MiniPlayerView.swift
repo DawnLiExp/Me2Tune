@@ -2,7 +2,7 @@
 //  MiniPlayerView.swift
 //  Me2Tune
 //
-//  Mini 播放器视图 - 增强版布局
+//  Mini 播放器视图 - 封面填充优化版 + 精细化布局
 //
 
 import SwiftUI
@@ -21,7 +21,7 @@ struct MiniPlayerView: View {
             
             contentView
         }
-        .frame(width: 420, height: 78)
+                    .frame(width: 440, height: 78)  // 🖼️ 窗口尺寸：增加宽度和高度提升呼吸感
         .contextMenu {
             Toggle(isOn: $alwaysOnTop) {
                 Label("Always on Top", systemImage: "pin.fill")
@@ -38,20 +38,23 @@ struct MiniPlayerView: View {
     // MARK: - Content View
     
     private var contentView: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 0) {
+            // 封面：完全填充左侧
             artworkView
+                .frame(width: 78, height: 78)  // 📐 封面区域尺寸（与窗口高度一致）
             
-            VStack(alignment: .leading, spacing: 8) {
+            // 右侧内容区
+            VStack(alignment: .leading, spacing: 10) {  // 📏 上下间距 10
                 trackInfoRow
                 controlsRow
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 14)  // 📏 左右内边距 14
+            .padding(.vertical, 10)    // 📏 上下内边距 10
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
     }
     
-    // MARK: - Artwork
+    // MARK: - Artwork (完全填充)
     
     private var artworkView: some View {
         Group {
@@ -60,17 +63,17 @@ struct MiniPlayerView: View {
                     .resizable()
                     .scaledToFill()
             } else {
-                RoundedRectangle(cornerRadius: 6)
+                Rectangle()
                     .fill(Color.white.opacity(0.1))
                     .overlay(
                         Image(systemName: "music.note")
-                            .font(.system(size: 20))
+                            .font(.system(size: 24))
                             .foregroundColor(.gray.opacity(0.5))
                     )
             }
         }
-        .frame(width: 50, height: 50)
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .frame(width: 84, height: 84)
+        .clipped()
     }
     
     // MARK: - Track Info Row
@@ -116,41 +119,45 @@ struct MiniPlayerView: View {
         return String(format: "-%d:%02d", minutes, seconds)
     }
     
-    // MARK: - Controls Row
+    // MARK: - Controls Row (主要调整区域)
     
     private var controlsRow: some View {
         HStack(spacing: 0) {
-            repeatButton
-                .padding(.trailing, 14)
-            
-            // 播放控制组（紧密排列）
-            HStack(spacing: 10) {
-                controlButton(
-                    icon: "backward.end",
-                    size: 15,
-                    enabled: playerViewModel.canGoPrevious,
-                    action: playerViewModel.previous
-                )
+            // ========== 左侧：主任务组（循环 + 播放控制）==========
+            HStack(spacing: 14) {  // 📏 小组间距 14（循环 ↔ 播放组）
+                // 循环按钮（对齐歌名左边缘）
+                repeatButton
                 
-                playPauseButton
-                
-                controlButton(
-                    icon: "forward.end",
-                    size: 15,
-                    enabled: playerViewModel.canGoNext,
-                    action: playerViewModel.next
-                )
+                // 播放控制组（⏮️▶️⏭️）
+                HStack(spacing: 8) {  // 📏 播放键组内间距 6（最紧密）
+                    controlButton(
+                        icon: "backward.end",
+                        size: 24,  // 🎛️ 前后按钮尺寸
+                        enabled: playerViewModel.canGoPrevious,
+                        action: playerViewModel.previous
+                    )
+                    
+                    playPauseButton  // ▶️ 主焦点按钮
+                    
+                    controlButton(
+                        icon: "forward.end",
+                        size: 24,  // 🎛️ 前后按钮尺寸
+                        enabled: playerViewModel.canGoNext,
+                        action: playerViewModel.next
+                    )
+                }
             }
-            .padding(.trailing, 14)
             
-            // 音量控制
-            volumeControl
-                .padding(.trailing, 14)
+            Spacer(minLength: 24)  // 📏 大组间距 24（主任务 ↔ 次任务）
             
-            Spacer(minLength: 0)
-            
-            // 切换按钮
-            switchToFullButton
+            // ========== 右侧：次任务组（音量 + 模式切换）==========
+            HStack(spacing: 16) {  // 📏 小组间距 14（音量 ↔ 切换）
+                // 音量控制
+                volumeControl
+                
+                // 切换按钮（对齐时间右边缘）
+                switchToFullButton
+            }
         }
     }
     
@@ -161,7 +168,7 @@ struct MiniPlayerView: View {
             Image(systemName: repeatIcon)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(repeatColor)
-                .frame(width: 24, height: 24)
+                .frame(width: 24, height: 24)  // 🎛️ 循环按钮尺寸
         }
         .buttonStyle(.plain)
     }
@@ -181,14 +188,18 @@ struct MiniPlayerView: View {
             : miniTheme.colors.accent
     }
     
-    // MARK: - Play/Pause Button
+    // MARK: - Play/Pause Button (主焦点)
     
     private var playPauseButton: some View {
         Button(action: playerViewModel.togglePlayPause) {
-            Image(systemName: playerViewModel.isPlaying ? "pause.fill" : "play.fill")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(miniTheme.colors.primaryText)
-                .frame(width: 28, height: 28)
+            ZStack {
+                // 背景凸起效果
+          
+                
+                Image(systemName: playerViewModel.isPlaying ? "pause.fill" : "play.fill")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(miniTheme.colors.primaryText)
+            }
         }
         .buttonStyle(.plain)
         .disabled(playerViewModel.currentTrack == nil)
@@ -201,16 +212,16 @@ struct MiniPlayerView: View {
         HStack(spacing: 6) {
             Button(action: toggleMute) {
                 Image(systemName: volumeIcon)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundColor(miniTheme.colors.controlButtonColor)
-                    .frame(width: 20, height: 20)
+                    .frame(width: 20, height: 20)  // 🎛️ 音量图标尺寸
             }
             .buttonStyle(.plain)
             
-            Slider(value: $playerViewModel.volume, in: 0...1)
-                .frame(width: 70)
-                .tint(miniTheme.colors.accent.opacity(0.8))
+            MiniVolumeSlider(value: $playerViewModel.volume)
+                .frame(width: 75, height: 20)  // 🎚️ 音量滑块尺寸（够用但不抢焦点）
         }
+        .frame(height: 24, alignment: .center)  // 🎯 整体垂直居中，与喇叭图标对齐
     }
     
     @State private var volumeBeforeMute: Double = 0.7
@@ -242,9 +253,9 @@ struct MiniPlayerView: View {
     private var switchToFullButton: some View {
         Button(action: switchToFullMode) {
             Image(systemName: "arrow.up.left.and.arrow.down.right")
-                .font(.system(size: 11))
-                .foregroundColor(miniTheme.colors.controlButtonColor)
-                .frame(width: 24, height: 24)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(miniTheme.colors.controlButtonColor.opacity(0.7))
+                .frame(width: 22, height: 22)  // 🎛️ 切换按钮尺寸（最小，低频操作）
         }
         .buttonStyle(.plain)
     }
@@ -252,9 +263,9 @@ struct MiniPlayerView: View {
     private func controlButton(icon: String, size: CGFloat, enabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: size, weight: .medium))
+                .font(.system(size: size - 8, weight: .medium))  // 📐 图标比按钮框小 8pt
                 .foregroundColor(enabled ? miniTheme.colors.controlButtonColor : miniTheme.colors.controlButtonColor.opacity(0.3))
-                .frame(width: 24, height: 24)
+                .frame(width: size, height: size)
         }
         .buttonStyle(.plain)
         .disabled(!enabled)

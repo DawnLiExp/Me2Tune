@@ -50,6 +50,8 @@
 		FCCAAFBA2F12847900DF5D71 /* LanguageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCAAFB92F12847600DF5D71 /* LanguageManager.swift */; };
 		FCCAAFBD2F1284C700DF5D71 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCAAFBC2F1284C500DF5D71 /* SettingsView.swift */; };
 		FCD1A6A42F16ABED00EC88E2 /* DisplayMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCD1A6A32F16ABEB00EC88E2 /* DisplayMode.swift */; };
+		FCDDD83F2F17625F00295F8C /* MiniVolumeSliderStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDDD83E2F17625D00295F8C /* MiniVolumeSliderStyle.swift */; };
+		FCDDD8412F17656500295F8C /* NonDraggableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDDD8402F17656300295F8C /* NonDraggableView.swift */; };
 		FCDDF5AE2F14DACE003AFB85 /* EmeraldTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDDF5AD2F14DACD003AFB85 /* EmeraldTheme.swift */; };
 		FCDDF5B02F14DAE0003AFB85 /* SlateBlueTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDDF5AF2F14DADE003AFB85 /* SlateBlueTheme.swift */; };
 		FCE6E86F2F053E7C004D5E21 /* NowPlayingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCE6E86E2F053E6F004D5E21 /* NowPlayingService.swift */; };
@@ -100,6 +102,8 @@
 		FCCAAFB92F12847600DF5D71 /* LanguageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageManager.swift; sourceTree = "<group>"; };
 		FCCAAFBC2F1284C500DF5D71 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		FCD1A6A32F16ABEB00EC88E2 /* DisplayMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayMode.swift; sourceTree = "<group>"; };
+		FCDDD83E2F17625D00295F8C /* MiniVolumeSliderStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniVolumeSliderStyle.swift; sourceTree = "<group>"; };
+		FCDDD8402F17656300295F8C /* NonDraggableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NonDraggableView.swift; sourceTree = "<group>"; };
 		FCDDF5AD2F14DACD003AFB85 /* EmeraldTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmeraldTheme.swift; sourceTree = "<group>"; };
 		FCDDF5AF2F14DADE003AFB85 /* SlateBlueTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlateBlueTheme.swift; sourceTree = "<group>"; };
 		FCE6E86E2F053E6F004D5E21 /* NowPlayingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingService.swift; sourceTree = "<group>"; };
@@ -128,6 +132,7 @@
 		FC13AFCB2F15EBC600D9E0D4 /* Mini */ = {
 			isa = PBXGroup;
 			children = (
+				FCDDD83E2F17625D00295F8C /* MiniVolumeSliderStyle.swift */,
 				FC13AFCE2F15EBE600D9E0D4 /* MiniPlayerView.swift */,
 				FC13AFCC2F15EBD200D9E0D4 /* MiniPlayerTheme.swift */,
 			);
@@ -334,6 +339,7 @@
 		FC8194EF2EF4EF2000401C4F /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				FCDDD8402F17656300295F8C /* NonDraggableView.swift */,
 				FC50C73D2F06587000597B19 /* CollapseButtonView.swift */,
 				FC8528072F01485D00B53540 /* ContentSectionView.swift */,
 				FC746C312F0E5040008AD5B4 /* HoverDetectingView.swift */,
@@ -449,6 +455,7 @@
 				FC480EC42EF152BC000D8393 /* AudioTrack.swift in Sources */,
 				FC32865D2F010F3D000D8F2A /* PlayerViewModel.swift in Sources */,
 				FC0A17442EF262910090B22C /* CollectionManager.swift in Sources */,
+				FCDDD83F2F17625F00295F8C /* MiniVolumeSliderStyle.swift in Sources */,
 				FC50C7402F06588700597B19 /* ToolbarButtonView.swift in Sources */,
 				FC62DA3B2F0373C800DD1509 /* Array+Extensions.swift in Sources */,
 				FCD1A6A42F16ABED00EC88E2 /* DisplayMode.swift in Sources */,
@@ -471,6 +478,7 @@
 				FC2032FB2F08E91400D17FEE /* DarkTheme.swift in Sources */,
 				FC2033012F08E96C00D17FEE /* ThemeManager.swift in Sources */,
 				FC480EAC2EF107E8000D8393 /* PersistenceService.swift in Sources */,
+				FCDDD8412F17656500295F8C /* NonDraggableView.swift in Sources */,
 				FC50C7462F0658E600597B19 /* VinylSectionView.swift in Sources */,
 				FCDDF5B02F14DAE0003AFB85 /* SlateBlueTheme.swift in Sources */,
 				FC49D3B22F0AC30000628C1B /* SearchOverlayView.swift in Sources */,
