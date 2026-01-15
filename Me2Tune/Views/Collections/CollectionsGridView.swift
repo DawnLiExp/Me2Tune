@@ -190,11 +190,8 @@ struct CollectionsGridView: View {
     // MARK: - Album Detail View
     
     private func albumDetailView(album: Album) -> some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 5) {
             albumHeader(album: album)
-            
-            Divider()
-                .padding(.horizontal, 12)
             
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
@@ -220,6 +217,7 @@ struct CollectionsGridView: View {
                         )
                     }
                 }
+                .padding(.bottom, 20)
             }
         }
     }
@@ -269,7 +267,7 @@ struct CollectionsGridView: View {
             Spacer()
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.vertical, 9)
         .background(
             RoundedRectangle(cornerRadius: 14)
                 .fill(Color.selectedBackground)

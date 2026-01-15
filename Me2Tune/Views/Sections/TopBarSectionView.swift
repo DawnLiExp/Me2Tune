@@ -65,7 +65,7 @@ struct TopBarSectionView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .background(
-            RoundedRectangle(cornerRadius: 18)
+            RoundedRectangle(cornerRadius: 16)
                 .fill(Color.infoBackground)
         )
     }
