@@ -2,7 +2,7 @@
 //  AppDelegate.swift
 //  Me2Tune
 //
-//  应用代理 - 管理窗口模式切换
+//  应用代理 - 管理窗口模式切换 + Command+W 支持
 //
 
 import AppKit
@@ -33,6 +33,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return false
+    }
+    
+    // MARK: - Dock Icon Click Handler
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        let mode = UserDefaults.standard.string(forKey: "displayMode") ?? DisplayMode.full.rawValue
+        
+        if mode == DisplayMode.mini.rawValue {
+            // ✅ 先强制隐藏 Full 窗口（防止系统自动恢复）
+            fullModeWindow?.orderOut(nil)
+            windowStateMonitor?.isWindowVisible = false
+            
+            // 然后显示 Mini 窗口
+            miniWindowController?.show()
+            logger.debug("🔄 Restored Mini window from Dock")
+            
+            return false // ✅ 阻止系统默认行为
+        } else {
+            // 先关闭 Mini 窗口
+            miniWindowController?.close()
+            
+            // 然后显示 Full 窗口
+            fullModeWindow?.makeKeyAndOrderFront(nil)
+            windowStateMonitor?.isWindowVisible = true
+            logger.debug("🔄 Restored Full window from Dock")
+            
+            return false // ✅ 阻止系统默认行为
+        }
     }
     
     // MARK: - Mode Management
@@ -132,8 +160,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         commandWMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             if event.modifierFlags.contains(.command), event.charactersIgnoringModifiers == "w" {
                 if let window = NSApp.keyWindow {
-                    window.miniaturize(nil)
-                    logger.debug("⌘+W → Minimize")
+                    // 检测是否为 Mini 模式（NSPanel）
+                    if window is NSPanel {
+                        window.orderOut(nil)
+                        logger.debug("⌘+W → Hide Mini window")
+                    } else {
+                        window.miniaturize(nil)
+                        logger.debug("⌘+W → Minimize Full window")
+                    }
                 }
                 return nil
             }

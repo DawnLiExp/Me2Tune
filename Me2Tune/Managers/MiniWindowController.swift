@@ -2,7 +2,7 @@
 //  MiniWindowController.swift
 //  Me2Tune
 //
-//  Mini 模式窗口控制器 - NSPanel 实现
+//  Mini 模式窗口控制器 - NSPanel 实现 + Command+W 支持
 //
 
 import AppKit
@@ -41,7 +41,7 @@ final class MiniWindowController {
         let hostingView = NSHostingView(rootView: contentView)
         hostingView.frame = NSRect(x: 0, y: 0, width: 440, height: 78)
         
-        let panel = NSPanel(
+        let panel = MiniPanel(
             contentRect: NSRect(x: 0, y: 0, width: 440, height: 78),
             styleMask: [.borderless],
             backing: .buffered,
@@ -51,6 +51,10 @@ final class MiniWindowController {
         // 窗口配置
         panel.contentView = hostingView
         panel.isMovableByWindowBackground = true
+        
+        // ✅ 关键：允许 panel 成为 key window 以接收键盘事件
+       
+        panel.becomesKeyOnlyIfNeeded = true
         
         // 圆角效果
         panel.isOpaque = false
@@ -64,7 +68,6 @@ final class MiniWindowController {
         // 窗口行为
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenNone]
         panel.hidesOnDeactivate = false
-        panel.becomesKeyOnlyIfNeeded = false
         
         // 监听置顶设置
         setupAlwaysOnTopObserver(for: panel)
@@ -91,5 +94,28 @@ final class MiniWindowController {
         // 初始状态
         let alwaysOnTop = UserDefaults.standard.bool(forKey: "miniAlwaysOnTop")
         panel.level = alwaysOnTop ? .floating : .normal
+    }
+}
+
+// MARK: - Custom Mini Panel
+
+private final class MiniPanel: NSPanel {
+    override var canBecomeKey: Bool {
+        return true
+    }
+    
+    override var canBecomeMain: Bool {
+        return false
+    }
+    
+    // ✅ 处理 Command+W
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.modifierFlags.contains(.command),
+           event.charactersIgnoringModifiers == "w"
+        {
+            orderOut(nil)
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
     }
 }
