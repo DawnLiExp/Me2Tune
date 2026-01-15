@@ -11,7 +11,7 @@ import Foundation
 
 @MainActor
 final class WindowStateMonitor: ObservableObject {
-    @Published private(set) var isWindowVisible = true
+    @Published var isWindowVisible = true // 移除 private(set)
     
     private var cancellables = Set<AnyCancellable>()
     private weak var window: NSWindow?
