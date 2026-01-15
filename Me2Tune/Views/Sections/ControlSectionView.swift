@@ -64,7 +64,7 @@ struct ControlSectionView: View {
             // 歌曲信息（默认显示）
             if !isHoveringTrackInfo || currentTrack == nil {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(currentTrack?.title ?? String(localized: "No Track"))
+                    Text(currentTrack?.title ?? String(localized: "no_track"))
                         .font(.system(size: 20, weight: .semibold))
                         .foregroundColor(.accent)
                         .lineLimit(1)
@@ -118,10 +118,10 @@ struct ControlSectionView: View {
     
     private var trackSubtitle: String {
         guard let track = currentTrack else {
-            return String(localized: "Ready to play")
+            return String(localized: "ready_to_play")
         }
         
-        let artist = track.artist ?? String(localized: "Unknown Artist")
+        let artist = track.artist ?? String(localized: "unknown_artist")
         let album = track.albumTitle ?? ""
         
         if album.isEmpty {

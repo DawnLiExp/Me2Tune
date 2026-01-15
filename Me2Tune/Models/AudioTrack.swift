@@ -45,7 +45,7 @@ struct AudioFormat: Codable, Sendable {
             components.append(channelName)
         }
         
-        return components.isEmpty ? "Unknown Format" : components.joined(separator: " | ")
+        return components.isEmpty ? String(localized: "unknown_format") : components.joined(separator: " | ")
     }
     
     static let unknown = AudioFormat(

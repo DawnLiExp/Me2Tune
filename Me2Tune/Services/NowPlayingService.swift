@@ -31,7 +31,7 @@ final class NowPlayingService {
         
         // 基本信息
         nowPlayingInfo[MPMediaItemPropertyTitle] = track.title
-        nowPlayingInfo[MPMediaItemPropertyArtist] = track.artist ?? "Unknown Artist"
+        nowPlayingInfo[MPMediaItemPropertyArtist] = track.artist ?? String(localized: "unknown_artist")
         if let albumTitle = track.albumTitle {
             nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = albumTitle
         }

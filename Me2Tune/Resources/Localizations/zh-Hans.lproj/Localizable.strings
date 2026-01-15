@@ -102,4 +102,9 @@
 
 // MARK: - Mini Mode
 "always_on_top" = "置顶";
+
+// MARK: - 播放状态
 "no_track" = "无歌曲";
+"ready_to_play" = "未选择歌曲";
+"unknown_format" = "未知格式";
+"always_on_top" = "置顶";

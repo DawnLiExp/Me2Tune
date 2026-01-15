@@ -24,7 +24,7 @@ struct MiniPlayerView: View {
         .frame(width: 440, height: 78) // 🖼️ 窗口尺寸：增加宽度和高度提升呼吸感
         .contextMenu {
             Toggle(isOn: $alwaysOnTop) {
-                Label("Always on Top", systemImage: "pin.fill")
+                Label(String(localized: "always_on_top"), systemImage: "pin.fill")
             }
         }
     }
@@ -76,7 +76,7 @@ struct MiniPlayerView: View {
         HStack(spacing: 6) {
             // 歌曲信息
             HStack(spacing: 6) {
-                Text(playerViewModel.currentTrack?.title ?? "No Track")
+                Text(playerViewModel.currentTrack?.title ?? String(localized: "no_track"))
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(miniTheme.colors.primaryText)
                     .lineLimit(1)
@@ -86,7 +86,7 @@ struct MiniPlayerView: View {
                         .font(.system(size: 12))
                         .foregroundColor(miniTheme.colors.secondaryText.opacity(0.5))
                     
-                    Text(track.artist ?? "Unknown Artist")
+                    Text(track.artist ?? String(localized: "unknown_artist"))
                         .font(.system(size: 12))
                         .foregroundColor(miniTheme.colors.secondaryText)
                         .lineLimit(1)

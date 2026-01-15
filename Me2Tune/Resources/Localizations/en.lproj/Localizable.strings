@@ -102,5 +102,9 @@
 
 // MARK: - Mini Mode
 "always_on_top" = "Always on Top";
-"no_track" = "No Track";
 
+// MARK: - Playback States
+"no_track" = "No Track";
+"ready_to_play" = "No song selected";
+"unknown_format" = "Unknown Format";
+"always_on_top" = "Always on Top";
