@@ -24,11 +24,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     weak var windowStateMonitor: WindowStateMonitor?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
-        setupCommandWHandler()
-        setupDisplayModeObserver()
+        // 启动时总是设置为完整模式
+        UserDefaults.standard.set(DisplayMode.full.rawValue, forKey: "displayMode")
         
-        // 立即应用初始模式（无延迟）
-        applyInitialMode()
+        setupCommandWHandler()
+        configureFullModeWindow()
+        setupDisplayModeObserver() // 在窗口配置完成后再监听模式切换
     }
     
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -38,29 +39,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Dock Icon Click Handler
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        let mode = UserDefaults.standard.string(forKey: "displayMode") ?? DisplayMode.full.rawValue
-        
-        if mode == DisplayMode.mini.rawValue {
-            // ✅ 先强制隐藏 Full 窗口（防止系统自动恢复）
-            fullModeWindow?.orderOut(nil)
-            windowStateMonitor?.isWindowVisible = false
-            
-            // 然后显示 Mini 窗口
+        // 基于当前运行时状态恢复窗口
+        if miniWindowController != nil {
             miniWindowController?.show()
             logger.debug("🔄 Restored Mini window from Dock")
-            
-            return false // ✅ 阻止系统默认行为
         } else {
-            // 先关闭 Mini 窗口
-            miniWindowController?.close()
-            
-            // 然后显示 Full 窗口
             fullModeWindow?.makeKeyAndOrderFront(nil)
-            windowStateMonitor?.isWindowVisible = true
             logger.debug("🔄 Restored Full window from Dock")
-            
-            return false // ✅ 阻止系统默认行为
         }
+        
+        return false
     }
     
     // MARK: - Mode Management
@@ -73,23 +61,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
     }
     
-    private func applyInitialMode() {
-        let mode = UserDefaults.standard.string(forKey: "displayMode") ?? DisplayMode.full.rawValue
-        
-        if mode == DisplayMode.mini.rawValue {
-            // 立即隐藏 Full 模式窗口
-            fullModeWindow?.orderOut(nil)
-            
-            // 等待 playerViewModel 注入后创建 Mini 窗口
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
-                self?.switchToMiniMode()
-            }
-        } else {
-            configureFullModeWindow()
-        }
-    }
-    
     private func handleDisplayModeChange() {
+        // 运行时模式切换(由用户主动触发)
         let mode = UserDefaults.standard.string(forKey: "displayMode") ?? DisplayMode.full.rawValue
         
         if mode == DisplayMode.mini.rawValue {
@@ -104,9 +77,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             logger.error("PlayerViewModel not available")
             return
         }
-        
-        // 通知窗口不可见，停止所有刷新
-        windowStateMonitor?.isWindowVisible = false
         
         // 隐藏完整模式窗口
         fullModeWindow?.orderOut(nil)
@@ -128,10 +98,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 显示完整模式窗口
         if let window = fullModeWindow {
             window.makeKeyAndOrderFront(nil)
-            
-            // 恢复窗口可见状态
-            windowStateMonitor?.isWindowVisible = true
-            
             logger.info("🖥️ Switched to Full mode")
         } else {
             logger.error("Full mode window not available")
@@ -179,7 +145,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let monitor = commandWMonitor {
             NSEvent.removeMonitor(monitor)
         }
-        // displayModeCancellable 会自动在释放时取消订阅
     }
 }
 
