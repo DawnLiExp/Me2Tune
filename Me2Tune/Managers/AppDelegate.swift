@@ -23,6 +23,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     weak var collectionManager: CollectionManager?
     weak var windowStateMonitor: WindowStateMonitor?
     
+    // 记录当前显示模式
+    private var currentDisplayMode: DisplayMode = .full
+    
     func applicationDidFinishLaunching(_ notification: Notification) {
         // 启动时总是设置为完整模式
         UserDefaults.standard.set(DisplayMode.full.rawValue, forKey: "displayMode")
@@ -62,10 +65,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     private func handleDisplayModeChange() {
-        // 运行时模式切换(由用户主动触发)
-        let mode = UserDefaults.standard.string(forKey: "displayMode") ?? DisplayMode.full.rawValue
+        let modeString = UserDefaults.standard.string(forKey: "displayMode") ?? DisplayMode.full.rawValue
+        guard let mode = DisplayMode(rawValue: modeString) else { return }
         
-        if mode == DisplayMode.mini.rawValue {
+        // ✅ 只在模式真正改变时才切换
+        guard mode != currentDisplayMode else { return }
+        currentDisplayMode = mode
+        
+        if mode == .mini {
             switchToMiniMode()
         } else {
             switchToFullMode()
