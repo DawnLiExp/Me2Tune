@@ -20,25 +20,37 @@ final class WindowStateMonitor: ObservableObject {
         self.window = window
         
         // 初始状态
-        isWindowVisible = !window.isMiniaturized
+        isWindowVisible = !window.isMiniaturized && window.isVisible
         
         // 监听窗口最小化
-        NotificationCenter.default.publisher(for: NSWindow.didMiniaturizeNotification, object: window)
-            .sink { [weak self] _ in
-                self?.isWindowVisible = false
-            }
-            .store(in: &cancellables)
+        NotificationCenter.default.publisher(
+            for: NSWindow.didMiniaturizeNotification,
+            object: window
+        )
+        .sink { [weak self] _ in
+            self?.isWindowVisible = false
+        }
+        .store(in: &cancellables)
         
         // 监听窗口恢复
-        NotificationCenter.default.publisher(for: NSWindow.didDeminiaturizeNotification, object: window)
-            .sink { [weak self] _ in
-                self?.isWindowVisible = true
-            }
-            .store(in: &cancellables)
+        NotificationCenter.default.publisher(
+            for: NSWindow.didDeminiaturizeNotification,
+            object: window
+        )
+        .sink { [weak self] _ in
+            self?.isWindowVisible = true
+        }
+        .store(in: &cancellables)
     }
     
     func stopMonitoring() {
         cancellables.removeAll()
         window = nil
+    }
+    
+    // 🆕 供 AppDelegate 主动控制（mini / full 切换）
+    func forceSetVisible(_ visible: Bool) {
+        guard isWindowVisible != visible else { return }
+        isWindowVisible = visible
     }
 }

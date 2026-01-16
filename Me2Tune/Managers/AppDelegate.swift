@@ -85,6 +85,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         
+        // ✅ 明确告诉系统：Full 窗口不可见
+        windowStateMonitor?.forceSetVisible(false)
+        
         // 隐藏完整模式窗口
         fullModeWindow?.orderOut(nil)
         
@@ -105,6 +108,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 显示完整模式窗口
         if let window = fullModeWindow {
             window.makeKeyAndOrderFront(nil)
+            
+            // ✅ Full 窗口重新可见
+            windowStateMonitor?.forceSetVisible(true)
+            
             logger.info("🖥️ Switched to Full mode")
         } else {
             logger.error("Full mode window not available")
