@@ -61,7 +61,7 @@ final class MiniWindowController {
         panel.backgroundColor = .clear
         if let contentView = panel.contentView {
             contentView.wantsLayer = true
-            contentView.layer?.cornerRadius = 13
+            contentView.layer?.cornerRadius = 12
             contentView.layer?.masksToBounds = true
         }
         

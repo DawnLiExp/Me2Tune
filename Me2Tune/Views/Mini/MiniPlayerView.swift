@@ -66,8 +66,15 @@ struct MiniPlayerView: View {
                     )
             }
         }
-        .frame(width: 84, height: 84)
         .clipped()
+        .clipShape(
+            UnevenRoundedRectangle(
+                topLeadingRadius: 0,
+                bottomLeadingRadius: 0,
+                bottomTrailingRadius: 3,
+                topTrailingRadius: 3
+            )
+        )
     }
     
     // MARK: - Track Info Row
