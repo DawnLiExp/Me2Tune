@@ -150,6 +150,17 @@ final class PlayerViewModel: ObservableObject {
             self?.objectWillChange.send()
         }
         .store(in: &cancellables)
+        
+        // 4. 监听窗口状态变化（独立于 ContentView）
+        NotificationCenter.default.publisher(for: .windowVisibilityDidChange)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] notification in
+                guard let self,
+                      let state = notification.object as? WindowStateMonitor.WindowVisibilityState
+                else { return }
+                self.playerCore.updateVisibilityState(state)
+            }
+            .store(in: &cancellables)
     }
     
     // MARK: - Playback Control

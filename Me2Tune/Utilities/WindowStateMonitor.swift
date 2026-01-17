@@ -2,7 +2,7 @@
 //  WindowStateMonitor.swift
 //  Me2Tune
 //
-//  窗口状态监控 - 检测窗口可见性以优化性能（三档刷新频率 + Mini 低频模式）
+//  窗口状态监控 - 检测窗口可见性以优化性能（Full 三档 + Mini 两档）
 //
 
 import AppKit
@@ -12,6 +12,14 @@ import OSLog
 
 private let logger = Logger.app
 
+// MARK: - Notification Extension
+
+extension Notification.Name {
+    static let windowVisibilityDidChange = Notification.Name("WindowVisibilityDidChange")
+}
+
+// MARK: - Window State Monitor
+
 @MainActor
 final class WindowStateMonitor: ObservableObject {
     @Published private(set) var visibilityState: WindowVisibilityState = .activeFocused
@@ -19,10 +27,11 @@ final class WindowStateMonitor: ObservableObject {
     // MARK: - Types
     
     enum WindowVisibilityState: Equatable {
-        case activeFocused // 前台+焦点（最高频率）
-        case inactive // 前台无焦点或后台（中等频率）
-        case hidden // 完全隐藏/最小化（最低频率）
-        case miniMode // Mini 模式专用（固定低频）
+        case activeFocused // Full 前台+焦点（最高频率）
+        case inactive // Full 前台无焦点或后台（中等频率）
+        case hidden // Full 完全隐藏/最小化（最低频率）
+        case miniVisible // Mini 显示状态（前台/后台）
+        case miniHidden // Mini 最小化到 dock
         
         var updateInterval: TimeInterval {
             switch self {
@@ -32,21 +41,25 @@ final class WindowStateMonitor: ObservableObject {
                 return 0.5 // 1fps - 平衡
             case .hidden:
                 return 2.0 // 0.5fps - 省电
-            case .miniMode:
-                return 1.0 // 1fps - Mini 专用低频
+            case .miniVisible:
+                return 1.0 // 1fps - Mini 显示
+            case .miniHidden:
+                return 2.0 // 0.5fps - Mini 最小化
             }
         }
         
         var description: String {
             switch self {
             case .activeFocused:
-                return "前台焦点"
+                return "Full前台焦点"
             case .inactive:
-                return "非活跃"
+                return "Full非活跃"
             case .hidden:
-                return "隐藏"
-            case .miniMode:
-                return "Mini模式"
+                return "Full隐藏"
+            case .miniVisible:
+                return "Mini显示"
+            case .miniHidden:
+                return "Mini最小化"
             }
         }
     }
@@ -54,9 +67,8 @@ final class WindowStateMonitor: ObservableObject {
     // MARK: - Computed Properties
     
     var isWindowVisible: Bool {
-        // ✅ Mini 模式下，Full 窗口应该认为是不可见的
         return visibilityState == .activeFocused || visibilityState == .inactive
-        }
+    }
     
     // MARK: - Private Properties
     
@@ -67,13 +79,14 @@ final class WindowStateMonitor: ObservableObject {
     private var isWindowKey = true
     private var isWindowMinimized = false
     
-    // ✅ 新增：标记是否处于 Mini 模式（锁定状态）
-    private var isMiniModeLocked = false
+    // ✅ 新逻辑：区分是否正在监听 Full 窗口
+    private var isMonitoringFullWindow = true
     
     // MARK: - Public Methods
     
     func startMonitoring(window: NSWindow) {
         self.window = window
+        isMonitoringFullWindow = true
         
         // 初始状态
         isAppActive = NSApp.isActive
@@ -137,29 +150,41 @@ final class WindowStateMonitor: ObservableObject {
     func forceSetState(_ state: WindowVisibilityState) {
         guard visibilityState != state else { return }
         
-        // ✅ 进入 Mini 模式时，锁定状态
-        if state == .miniMode {
-            isMiniModeLocked = true
+        // ✅ 进入 Mini 模式时，停止监听 Full 窗口事件
+        if state == .miniVisible || state == .miniHidden {
+            isMonitoringFullWindow = false
         } else {
-            // 离开 Mini 模式时，解锁
-            isMiniModeLocked = false
+            // 离开 Mini 模式，恢复监听 Full 窗口
+            isMonitoringFullWindow = true
         }
         
         visibilityState = state
+        NotificationCenter.default.post(name: .windowVisibilityDidChange, object: state)
         logger.debug("🔄 Force set visibility: \(state.description)")
     }
     
-    /// Mini 模式专用：设置为固定低频刷新
-    func switchToMiniMode() {
-        forceSetState(.miniMode)
+    /// Mini 模式专用：更新 Mini 窗口状态（显示/最小化）
+    func updateMiniWindowState(_ isMinimized: Bool) {
+        guard !isMonitoringFullWindow else {
+            logger.debug("🔒 Monitoring Full window, ignoring Mini state change")
+            return
+        }
+        
+        let newState: WindowVisibilityState = isMinimized ? .miniHidden : .miniVisible
+        
+        guard visibilityState != newState else { return }
+        
+        visibilityState = newState
+        NotificationCenter.default.post(name: .windowVisibilityDidChange, object: newState)
+        logger.debug("🔄 Mini visibility changed: \(newState.description) (interval: \(String(format: "%.1f", newState.updateInterval))s)")
     }
     
     // MARK: - Private Methods
     
     private func updateVisibilityState() {
-        // ✅ 如果已锁定为 Mini 模式，忽略所有窗口事件
-        guard !isMiniModeLocked else {
-            logger.debug("🔒 Mini mode locked, ignoring window state change")
+        // ✅ 如果正在 Mini 模式，忽略 Full 窗口事件
+        guard isMonitoringFullWindow else {
+            logger.debug("🔒 Mini mode active, ignoring Full window state change")
             return
         }
         
@@ -168,13 +193,13 @@ final class WindowStateMonitor: ObservableObject {
         } else if isAppActive, isWindowKey {
             .activeFocused
         } else {
-            // 前台无焦点 或 后台 → 统一为非活跃
             .inactive
         }
         
         guard visibilityState != newState else { return }
         
         visibilityState = newState
+        NotificationCenter.default.post(name: .windowVisibilityDidChange, object: newState)
         logger.debug("🔄 Visibility changed: \(newState.description) (interval: \(String(format: "%.1f", newState.updateInterval))s)")
     }
 }

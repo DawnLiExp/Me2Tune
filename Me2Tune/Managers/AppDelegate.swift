@@ -89,12 +89,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         fullModeWindow?.orderOut(nil)
         
         // 2. 设置为 Mini 模式（这会让 isWindowVisible = false）
-        windowStateMonitor?.forceSetState(.miniMode)
-        playerViewModel.updateWindowVisibility(.miniMode)
+        windowStateMonitor?.forceSetState(.miniVisible)
+        playerViewModel.updateWindowVisibility(.miniVisible)
         
         // 3. 创建 Mini 模式窗口
         if miniWindowController == nil {
-            miniWindowController = MiniWindowController(playerViewModel: playerViewModel)
+            miniWindowController = MiniWindowController(
+                playerViewModel: playerViewModel,
+                windowStateMonitor: windowStateMonitor
+            )
         }
         miniWindowController?.show()
         

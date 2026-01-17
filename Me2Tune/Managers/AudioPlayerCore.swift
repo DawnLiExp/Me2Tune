@@ -69,7 +69,12 @@ final class AudioPlayerCore: NSObject {
     // MARK: - Window Visibility
     
     func updateVisibilityState(_ state: WindowStateMonitor.WindowVisibilityState) {
-        guard visibilityState != state else { return }
+        logger.debug("🎯 AudioPlayerCore received state: \(state.description)")
+        
+        guard visibilityState != state else {
+            logger.debug("🎯 State unchanged, skipping")
+            return
+        }
         
         let oldState = visibilityState
         visibilityState = state
