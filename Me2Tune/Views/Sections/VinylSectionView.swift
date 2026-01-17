@@ -93,7 +93,7 @@ struct VinylSectionView: View {
 
     private func timeLabel(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 16, weight: .light, design: .rounded))
+            .font(.system(size: 15, weight: .light, design: .rounded))
             .foregroundColor(.timeDisplayColor)
             .frame(width: 60)
     }
