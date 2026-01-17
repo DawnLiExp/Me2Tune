@@ -2,7 +2,7 @@
 //  CollectionsGridView.swift
 //  Me2Tune
 //
-//  专辑收藏视图: 专辑卡片展示+详情视图+拖拽排序（使用 NSView hover）
+//  专辑收藏视图: 专辑卡片展示 + 拖拽排序
 //
 
 import AppKit
@@ -45,8 +45,27 @@ struct CollectionsGridView: View {
     var body: some View {
         Group {
             if let album = selectedAlbum {
-                albumDetailView(album: album)
-                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                AlbumDetailView(
+                    album: album,
+                    artwork: artworkCache[album.id],
+                    playingSource: playingSource,
+                    currentIndex: currentIndex,
+                    onBack: {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            selectedAlbum = nil
+                        }
+                    },
+                    onTrackTap: { index in
+                        onAlbumPlayAt(album, index)
+                    },
+                    onShowInFinder: { track in
+                        NSWorkspace.shared.activateFileViewerSelecting([track.url])
+                    },
+                    onAddToPlaylist: { track in
+                        onTrackAddedToPlaylist(track)
+                    }
+                )
+                .transition(.move(edge: .trailing).combined(with: .opacity))
             } else {
                 albumGridView
                     .transition(.move(edge: .leading).combined(with: .opacity))
@@ -187,93 +206,6 @@ struct CollectionsGridView: View {
         }
     }
     
-    // MARK: - Album Detail View
-    
-    private func albumDetailView(album: Album) -> some View {
-        VStack(spacing: 5) {
-            albumHeader(album: album)
-            
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
-                    ForEach(Array(album.tracks.enumerated()), id: \.element.id) { index, track in
-                        AlbumTrackRowView(
-                            track: track,
-                            index: index,
-                            isPlaying: {
-                                if case .album(let id) = playingSource {
-                                    return id == album.id && currentIndex == index
-                                }
-                                return false
-                            }(),
-                            onTap: {
-                                onAlbumPlayAt(album, index)
-                            },
-                            onShowInFinder: {
-                                NSWorkspace.shared.activateFileViewerSelecting([track.url])
-                            },
-                            onAddToPlaylist: {
-                                onTrackAddedToPlaylist(track)
-                            }
-                        )
-                    }
-                }
-                .padding(.bottom, 20)
-            }
-        }
-    }
-    
-    private func albumHeader(album: Album) -> some View {
-        HStack(spacing: 12) {
-            Button(action: {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    selectedAlbum = nil
-                }
-            }) {
-                Image(systemName: "chevron.left.circle.fill")
-                    .font(.system(size: 24))
-                    .foregroundColor(.accent)
-            }
-            .buttonStyle(.plain)
-                
-            Group {
-                if let artwork = artworkCache[album.id] {
-                    Image(nsImage: artwork)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.white.opacity(0.1))
-                        .overlay(
-                            Image(systemName: "opticaldisc")
-                                .font(.system(size: 24))
-                                .foregroundColor(.emptyStateIcon)
-                        )
-                }
-            }
-            .frame(width: 48, height: 48)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-                
-            VStack(alignment: .leading, spacing: 4) {
-                Text(album.name)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.primaryText)
-                    .lineLimit(2)
-                    
-                Text("\(album.tracks.count) tracks")
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondaryText)
-            }
-                
-            Spacer()
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 9)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(Color.selectedBackground)
-        )
-    }
-    
     // MARK: - Empty State
     
     private var emptyStateView: some View {
@@ -392,99 +324,6 @@ struct AlbumDropDelegate: DropDelegate {
         
         onDrop(sourceIndex, adjustedTarget)
         return true
-    }
-}
-
-// MARK: - Album Track Row View (移到文件末尾)
-
-struct AlbumTrackRowView: View {
-    let track: AudioTrack
-    let index: Int
-    let isPlaying: Bool
-    let onTap: () -> Void
-    let onShowInFinder: () -> Void
-    let onAddToPlaylist: () -> Void
-    
-    @State private var isHovered = false
-    @AppStorage("CleanMode") private var cleanMode = false
-    
-    var body: some View {
-        ZStack {
-            contentView
-            
-            // 简洁模式下跳过 hover 检测
-            if !cleanMode {
-                HoverDetectingView(isHovered: $isHovered)
-                    .allowsHitTesting(false)
-            }
-        }
-        .onTapGesture(count: 2) {
-            onTap()
-        }
-        .contextMenu {
-            Button("show_in_finder") {
-                onShowInFinder()
-            }
-            
-            Button("add_to_playlist") {
-                onAddToPlaylist()
-            }
-        }
-    }
-    
-    private var contentView: some View {
-        HStack(spacing: 12) {
-            Group {
-                if isPlaying {
-                    Image(systemName: "waveform")
-                        .foregroundColor(.accent)
-                        .font(.system(size: 13, weight: .semibold))
-                } else {
-                    Text("\(index + 1)")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.secondaryText)
-                }
-            }
-            .frame(width: 24)
-            
-            Text(track.title)
-                .font(.system(size: 14, weight: isPlaying ? .semibold : .regular))
-                .foregroundColor(isPlaying ? .primaryText : .primaryText.opacity(0.8))
-                .lineLimit(1)
-            
-            Spacer()
-            
-            Text(track.artist ?? String(localized: "unknown_artist"))
-                .font(.system(size: 13))
-                .foregroundColor(.secondaryText)
-                .lineLimit(1)
-                .frame(maxWidth: 120, alignment: .trailing)
-            
-            Text(formatTime(track.duration))
-                .font(.system(size: 13, design: .monospaced))
-                .foregroundColor(.secondaryText)
-                .frame(width: 48, alignment: .trailing)
-        }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 10)
-        .background {
-            if isPlaying {
-                Color.accentLight
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-            } else if isHovered, !cleanMode { // 简洁模式下禁用 hover 背景
-                Color.hoverBackground
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-            }
-        }
-        .contentShape(Rectangle())
-        .drawingGroup()
-    }
-    
-    private func formatTime(_ time: TimeInterval) -> String {
-        guard time.isFinite, !time.isNaN else { return "0:00" }
-        let minutes = Int(time) / 60
-        let seconds = Int(time) % 60
-        return String(format: "%d:%02d", minutes, seconds)
     }
 }
 

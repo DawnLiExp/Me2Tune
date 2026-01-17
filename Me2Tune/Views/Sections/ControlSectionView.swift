@@ -159,8 +159,6 @@ struct ControlSectionView: View {
     }
     
     // MARK: - Repeat Button
-    
-    // MARK: - Repeat Button
 
     private var repeatButton: some View {
         Button(action: {
