@@ -42,6 +42,11 @@ final class AudioPlayerCore: NSObject {
     // 窗口可见性状态
     private(set) var visibilityState: WindowStateMonitor.WindowVisibilityState = .activeFocused
     
+    // ✅ 新增：追踪 timer 是否应该运行
+    private var shouldTimerRun: Bool {
+        return isPlaying
+    }
+    
     enum RepeatMode {
         case off
         case all
@@ -66,14 +71,19 @@ final class AudioPlayerCore: NSObject {
     func updateVisibilityState(_ state: WindowStateMonitor.WindowVisibilityState) {
         guard visibilityState != state else { return }
         
+        let oldState = visibilityState
         visibilityState = state
         
-        // 重新配置定时器以使用新的更新频率
-        if isPlaying {
-            startTimer()
-        }
+        logger.debug("⚡ Visibility changed: \(oldState.description) -> \(state.description)")
+        logger.debug("⚡ Update interval: \(String(format: "%.1f", state.updateInterval))s")
         
-        logger.debug("⚡ Update frequency: \(String(format: "%.1f", state.updateInterval))s (\(state.description))")
+        // ✅ 关键修复：只在播放时才重建 timer
+        if shouldTimerRun {
+            logger.debug("⚡ Rebuilding timer with new interval")
+            startTimer()
+        } else {
+            logger.debug("⚡ Not playing, skipping timer rebuild")
+        }
     }
     
     // MARK: - Playback Control
@@ -213,10 +223,12 @@ final class AudioPlayerCore: NSObject {
     }
     
     private func startTimer() {
+        // ✅ 严格清理旧 timer
         stopTimer()
         
-        // 使用当前可见性状态的更新间隔
         let interval = visibilityState.updateInterval
+        
+        logger.debug("⏱️ Creating timer with interval: \(String(format: "%.1f", interval))s (state: \(self.visibilityState.description))")
         
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             guard let self else { return }
@@ -232,6 +244,9 @@ final class AudioPlayerCore: NSObject {
     }
     
     private func stopTimer() {
+        if timer != nil {
+            logger.debug("⏱️ Stopping timer")
+        }
         timer?.invalidate()
         timer = nil
     }

@@ -85,13 +85,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         
-        // ✅ 明确告诉系统：Full 窗口不可见
-        windowStateMonitor?.forceSetState(.hidden)
-        
-        // 隐藏完整模式窗口
+        // 1. 隐藏完整模式窗口
         fullModeWindow?.orderOut(nil)
         
-        // 创建 Mini 模式窗口
+        // 2. 设置为 Mini 模式（这会让 isWindowVisible = false）
+        windowStateMonitor?.forceSetState(.miniMode)
+        playerViewModel.updateWindowVisibility(.miniMode)
+        
+        // 3. 创建 Mini 模式窗口
         if miniWindowController == nil {
             miniWindowController = MiniWindowController(playerViewModel: playerViewModel)
         }
@@ -99,7 +100,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         
         logger.info("🎵 Switched to Mini mode")
     }
-    
+
     private func switchToFullMode() {
         // 关闭 Mini 模式窗口
         miniWindowController?.close()
@@ -109,7 +110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let window = fullModeWindow {
             window.makeKeyAndOrderFront(nil)
             
-            // ✅ Full 窗口重新可见
+            // ✅ 恢复 Full 窗口监听
             windowStateMonitor?.forceSetState(.activeFocused)
             
             logger.info("🖥️ Switched to Full mode")
