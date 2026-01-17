@@ -2,7 +2,13 @@
 //  PlayerViewModel.swift
 //  Me2Tune
 //
-//  播放器视图模型 - 播放控制 + 协调器
+//  播放器视图模型 - 协调播放控制、播放列表、状态管理
+//
+//  职责边界：
+//  1. 协调 AudioPlayerCore（播放控制）
+//  2. 委托 PlaylistManager（播放列表增删改查）
+//  3. 委托 PlaybackStateManager（播放源切换、状态持久化）
+//  4. 统一对外接口（View 层只与 ViewModel 交互）
 //
 
 import AppKit
@@ -14,7 +20,9 @@ private let logger = Logger.viewModel
 
 @MainActor
 final class PlayerViewModel: ObservableObject {
+    
     // MARK: - Published States (UI 绑定状态)
+    // 这些状态由 ViewModel 管理，直接影响 UI 显示
     
     @Published private(set) var isPlaying = false
     @Published private(set) var currentTime: TimeInterval = 0
@@ -28,10 +36,11 @@ final class PlayerViewModel: ObservableObject {
     @Published private(set) var isLoadingTracks = false
     @Published private(set) var loadingTracksCount = 0
     
-    // MARK: - Managers
+    // MARK: - Managers (委托的管理器)
+    // ViewModel 委托这些 Manager 处理具体业务逻辑
     
-    let playlistManager: PlaylistManager
-    let playbackStateManager: PlaybackStateManager
+    let playlistManager: PlaylistManager            // 播放列表管理
+    let playbackStateManager: PlaybackStateManager  // 播放状态管理
     
     // MARK: - Types
     
@@ -51,7 +60,8 @@ final class PlayerViewModel: ObservableObject {
     private var nowPlayingUpdateTimer: Timer?
     private var isWindowVisible = true
     
-    // MARK: - Computed Properties (代理到 PlaybackStateManager)
+    // MARK: - Computed Properties (代理到 Manager 的只读属性)
+    // 这些属性从 Manager 获取，简化 View 层调用
     
     var currentFormat: AudioFormat {
         currentTrack?.format ?? .unknown
@@ -163,7 +173,8 @@ final class PlayerViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
-    // MARK: - Playback Control
+    // MARK: - Playback Control (核心播放控制 - 协调 AudioPlayerCore)
+    // 这些方法直接操作播放器，是 ViewModel 的核心职责
     
     func play() {
         if currentTrack == nil, !playlistManager.isEmpty {
@@ -224,7 +235,7 @@ final class PlayerViewModel: ObservableObject {
         logger.debug("Repeat mode: \(String(describing: self.repeatMode))")
     }
     
-    // MARK: - Window Visibility
+    // MARK: - Window Visibility (窗口状态管理)
     
     func updateWindowVisibility(_ state: WindowStateMonitor.WindowVisibilityState) {
         playerCore.updateVisibilityState(state)
@@ -240,8 +251,11 @@ final class PlayerViewModel: ObservableObject {
         logger.debug("ViewModel visibility: \(state.description)")
     }
     
-    // MARK: - Playlist Playback
+    // MARK: - Playlist Operations (播放列表操作 - 委托给 PlaylistManager)
+    // 这些方法是便利接口，实际操作由 PlaylistManager 执行
+    // View 层统一调用 ViewModel，避免直接依赖 Manager
     
+    /// 添加曲目到播放列表（异步批量加载）
     func addTracksToPlaylist(urls: [URL]) {
         Task {
             await playlistManager.addTracks(urls: urls)
@@ -259,6 +273,7 @@ final class PlayerViewModel: ObservableObject {
         }
     }
     
+    /// 从播放列表移除曲目
     func removeTrackFromPlaylist(at index: Int) {
         guard playlistManager.tracks.indices.contains(index) else { return }
         
@@ -279,6 +294,7 @@ final class PlayerViewModel: ObservableObject {
         }
     }
     
+    /// 清空播放列表
     func clearPlaylist() {
         if playingSource == .playlist {
             pause()
@@ -295,12 +311,14 @@ final class PlayerViewModel: ObservableObject {
         playbackStateManager.saveState()
     }
     
+    /// 移动播放列表中的曲目
     func moveTrackInPlaylist(from source: Int, to destination: Int) {
         playlistManager.moveTrack(from: source, to: destination)
         playbackStateManager.handlePlaylistTrackMoved(from: source, to: destination)
         playbackStateManager.saveState()
     }
     
+    /// 播放播放列表中的指定曲目
     func playPlaylistTrack(at index: Int) {
         guard playlistManager.tracks.indices.contains(index) else { return }
         
@@ -308,8 +326,10 @@ final class PlayerViewModel: ObservableObject {
         loadAndPlay(at: index)
     }
     
-    // MARK: - Album Playback
+    // MARK: - Album Playback (专辑播放 - 协调 PlaybackStateManager)
+    // 切换播放源到专辑，由 PlaybackStateManager 管理状态
     
+    /// 播放专辑（切换播放源）
     func playAlbum(_ album: Album, startAt index: Int = 0) {
         guard !album.tracks.isEmpty else {
             logger.warning("Cannot play empty album: \(album.name)")
@@ -320,7 +340,8 @@ final class PlayerViewModel: ObservableObject {
         loadAndPlay(at: index)
     }
     
-    // MARK: - Track Loading (私有方法)
+    // MARK: - Track Loading (内部方法 - 曲目加载)
+    // 这些是私有协调逻辑，View 层不应直接调用
     
     private func loadTrack(_ track: AudioTrack) async {
         await playerCore.loadTrack(track)
@@ -361,7 +382,7 @@ final class PlayerViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Now Playing Updates
+    // MARK: - Now Playing Updates (系统媒体控制中心更新)
     
     private func updateNowPlayingInfo() {
         guard let track = currentTrack else {
@@ -395,7 +416,7 @@ final class PlayerViewModel: ObservableObject {
         nowPlayingUpdateTimer = nil
     }
     
-    // MARK: - Volume Persistence
+    // MARK: - Volume Persistence (音量持久化)
     
     private func saveVolume(_ volume: Double) {
         do {
@@ -412,7 +433,7 @@ final class PlayerViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Persistence
+    // MARK: - Persistence (状态恢复)
  
     private func restorePlaybackState() async {
         // 恢复音量
@@ -432,7 +453,8 @@ final class PlayerViewModel: ObservableObject {
     }
 }
 
-// MARK: - AudioPlayerCore Delegate
+// MARK: - AudioPlayerCore Delegate (播放器核心回调)
+// 处理 AudioPlayerCore 的状态变化，更新 UI 和系统媒体控制
 
 extension PlayerViewModel: AudioPlayerCoreDelegate {
     func playerCore(_ core: AudioPlayerCore, didUpdatePlaybackState isPlaying: Bool) {
