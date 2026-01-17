@@ -215,21 +215,18 @@ final class PlayerViewModel: ObservableObject {
     
     // MARK: - Window Visibility
     
-    func updateWindowVisibility(_ isVisible: Bool) {
-        guard isWindowVisible != isVisible else { return }
+    func updateWindowVisibility(_ state: WindowStateMonitor.WindowVisibilityState) {
+        playerCore.updateVisibilityState(state)
         
-        isWindowVisible = isVisible
-        playerCore.updateWindowVisibility(isVisible)
-        
-        if isPlaying {
-            if isVisible {
+        if playerCore.isPlaying {
+            if state == .activeFocused {
                 startNowPlayingUpdateTimer()
             } else {
                 stopNowPlayingUpdateTimer()
             }
         }
         
-        logger.debug("ViewModel window visibility: \(isVisible ? "visible" : "hidden")")
+        logger.debug("ViewModel visibility: \(state.description)")
     }
     
     // MARK: - Playlist Playback

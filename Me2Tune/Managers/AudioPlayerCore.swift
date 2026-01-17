@@ -2,7 +2,7 @@
 //  AudioPlayerCore.swift
 //  Me2Tune
 //
-//  音频播放核心 - 纯播放逻辑,无 UI 状态(窗口不可见时降低更新频率)
+//  音频播放核心 - 纯播放逻辑（三档自适应刷新频率）
 //
 
 import AppKit
@@ -40,7 +40,7 @@ final class AudioPlayerCore: NSObject {
     private(set) var currentTrack: AudioTrack?
     
     // 窗口可见性状态
-    private(set) var isWindowVisible = true
+    private(set) var visibilityState: WindowStateMonitor.WindowVisibilityState = .activeFocused
     
     enum RepeatMode {
         case off
@@ -63,17 +63,17 @@ final class AudioPlayerCore: NSObject {
     
     // MARK: - Window Visibility
     
-    func updateWindowVisibility(_ isVisible: Bool) {
-        guard isWindowVisible != isVisible else { return }
+    func updateVisibilityState(_ state: WindowStateMonitor.WindowVisibilityState) {
+        guard visibilityState != state else { return }
         
-        isWindowVisible = isVisible
+        visibilityState = state
         
         // 重新配置定时器以使用新的更新频率
         if isPlaying {
             startTimer()
         }
         
-        logger.debug("Window visibility: \(isVisible ? "visible" : "hidden")")
+        logger.debug("⚡ Update frequency: \(String(format: "%.1f", state.updateInterval))s (\(state.description))")
     }
     
     // MARK: - Playback Control
@@ -215,8 +215,8 @@ final class AudioPlayerCore: NSObject {
     private func startTimer() {
         stopTimer()
         
-        // 窗口不可见时降低更新频率: 0.2s -> 1.0s
-        let interval: TimeInterval = isWindowVisible ? 0.2 : 1.0
+        // 使用当前可见性状态的更新间隔
+        let interval = visibilityState.updateInterval
         
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             guard let self else { return }

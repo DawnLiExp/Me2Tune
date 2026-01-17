@@ -37,8 +37,8 @@ struct ContentView: View {
             .onDrop(of: [.fileURL], isTargeted: $isDragging) { providers in
                 handleDrop(providers: providers)
             }
-            .onChange(of: windowStateMonitor.isWindowVisible) { _, isVisible in
-                playerViewModel.updateWindowVisibility(isVisible)
+            .onChange(of: windowStateMonitor.visibilityState) { _, newState in
+                playerViewModel.updateWindowVisibility(newState)
             }
             .modifier(AlertsModifier(
                 showExportDialog: $showExportDialog,
