@@ -125,15 +125,15 @@ enum LyricsError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidURL:
-            return "Invalid API URL"
+            return String(localized: "invalid_api_url")
         case .invalidResponse:
-            return "Invalid response from server"
+            return String(localized: "invalid_response")
         case .notFound:
-            return "Lyrics not found"
+            return String(localized: "lyrics_not_found")
         case .apiError(let code):
-            return "API error: \(code)"
+            return String(localized: "api_error \(code)")
         case .networkError(let error):
-            return "Network error: \(error.localizedDescription)"
+            return String(localized: "network_error \(error.localizedDescription)")
         }
     }
 }

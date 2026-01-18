@@ -6,8 +6,8 @@
 //
 
 import AppKit
-import SwiftUI
 import OSLog
+import SwiftUI
 
 private nonisolated let logger = Logger(subsystem: "me2.Me2Tune", category: "Lyrics")
 

@@ -112,3 +112,14 @@
 // MARK: - Lyrics
 "lyrics_menu_item" = "Lyrics";
 "lyrics_window_title" = "Lyrics";
+"instrumental_track" = "Instrumental Track";
+"no_lyrics" = "No lyrics available";
+"loading_lyrics" = "Loading lyrics...";
+"failed_to_load_lyrics" = "Failed to load lyrics";
+
+// MARK: - Lyrics Errors
+"lyrics_not_found" = "Lyrics not found";
+"invalid_api_url" = "Invalid API URL";
+"invalid_response" = "Invalid server response";
+"api_error %d" = "Server error: %d";
+"network_error %@" = "Network error: %@";

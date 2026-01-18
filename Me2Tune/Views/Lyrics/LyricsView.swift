@@ -106,7 +106,7 @@ struct LyricsView: View {
                 .scaleEffect(1.2)
                 .tint(themeManager.currentTheme.colors.accent)
             
-            Text("Loading lyrics...")
+            Text("loading_lyrics")
                 .font(.system(size: 14))
                 .foregroundColor(themeManager.currentTheme.colors.secondaryText)
         }
@@ -134,7 +134,7 @@ struct LyricsView: View {
                 .font(.system(size: 48))
                 .foregroundColor(themeManager.currentTheme.colors.emptyStateIcon)
             
-            Text("No lyrics available")
+            Text("no_lyrics")
                 .font(.system(size: 14))
                 .foregroundColor(themeManager.currentTheme.colors.secondaryText)
         }
@@ -147,7 +147,7 @@ struct LyricsView: View {
                 .font(.system(size: 48))
                 .foregroundColor(themeManager.currentTheme.colors.accent.opacity(0.6))
             
-            Text("🎵 Instrumental Track")
+            Text("instrumental_track")
                 .font(.system(size: 16))
                 .foregroundColor(themeManager.currentTheme.colors.secondaryText)
         }
@@ -158,7 +158,7 @@ struct LyricsView: View {
     
     private var syncedLyricsView: some View {
         ScrollViewReader { proxy in
-            ScrollView(showsIndicators: true) {
+            ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
                     // 顶部间距
                     Color.clear
@@ -196,7 +196,7 @@ struct LyricsView: View {
     // MARK: - Plain Lyrics View (纯文本)
     
     private func plainLyricsView(text: String) -> some View {
-        ScrollView(showsIndicators: true) {
+        ScrollView(showsIndicators: false) {
             Text(text)
                 .font(.system(size: 15, weight: .regular))
                 .foregroundColor(themeManager.currentTheme.colors.primaryText)
@@ -235,7 +235,7 @@ struct LyricsView: View {
                 currentLineIndex = nil
                 isLoading = false
                 
-                // 立即更新当前行（如果正在播放）
+                // 立即更新当前行(如果正在播放)
                 if playerViewModel.isPlaying {
                     updateCurrentLine(time: playerViewModel.currentTime)
                 }
@@ -250,7 +250,7 @@ struct LyricsView: View {
                 if let lyricsError = error as? LyricsError {
                     errorMessage = lyricsError.errorDescription
                 } else {
-                    errorMessage = "Failed to load lyrics"
+                    errorMessage = String(localized: "failed_to_load_lyrics")
                 }
             }
         }
@@ -264,7 +264,7 @@ struct LyricsView: View {
             return
         }
         
-        // 找到当前时间对应的歌词行（最后一个时间戳 <= 当前时间的行）
+        // 找到当前时间对应的歌词行(最后一个时间戳 <= 当前时间的行)
         var foundIndex: Int?
         for (index, line) in lyricLines.enumerated() {
             if line.timestamp <= time {
@@ -274,7 +274,7 @@ struct LyricsView: View {
             }
         }
         
-        // 只在索引变化时更新（避免频繁触发动画）
+        // 只在索引变化时更新(避免频繁触发动画)
         if foundIndex != currentLineIndex {
             currentLineIndex = foundIndex
         }
@@ -299,27 +299,27 @@ struct LyricLineView: View {
         return lineIndex < current
     }
     
-    // 计算距离当前行的距离（用于渐变效果）
+    // 计算距离当前行的距离(用于渐变效果)
     private var distanceFromCurrent: Int {
         guard let current = currentLineIndex else { return 0 }
         return abs(lineIndex - current)
     }
     
-    // 根据距离计算透明度（距离越远越淡）
+    // 根据距离计算透明度(距离越远越淡)
     private var distanceOpacity: Double {
         switch distanceFromCurrent {
         case 0:
-            return 1.0 // 当前行：完全不透明
+            return 1.0 // 当前行:完全不透明
         case 1:
-            return 0.85 // 相邻行：稍微淡一点
+            return 0.85 // 相邻行:稍微淡一点
         case 2:
-            return 0.6 // 第二邻居：更淡
+            return 0.6 // 第二邻居:更淡
         case 3:
-            return 0.4 // 第三邻居：很淡
+            return 0.4 // 第三邻居:很淡
         case 4:
-            return 0.25 // 第四邻居：非常淡
+            return 0.25 // 第四邻居:非常淡
         default:
-            return 0.15 // 更远的行：几乎透明
+            return 0.15 // 更远的行:几乎透明
         }
     }
     

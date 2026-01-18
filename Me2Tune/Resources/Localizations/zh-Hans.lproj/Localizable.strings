@@ -30,11 +30,11 @@
 // MARK: - 提示框 - 专辑
 "album_name" = "专辑名称";
 "enter_new_album_name" = "为此专辑输入新名称";
-"remove_album_confirm" = "确定要从收藏中移除「%@」吗？";
-"clear_collections_confirm" = "确定要清空所有专辑吗？此操作不可撤销。";
+"remove_album_confirm" = "确定要从收藏中移除「%@」吗?";
+"clear_collections_confirm" = "确定要清空所有专辑吗?此操作不可撤销。";
 
 // MARK: - 提示框 - 播放列表
-"clear_playlist_confirm" = "确定要清空整个播放列表吗？";
+"clear_playlist_confirm" = "确定要清空整个播放列表吗?";
 "export_playlist_title" = "导出播放列表到专辑";
 "export_playlist_message" = "从当前播放列表创建新专辑";
 
@@ -69,7 +69,7 @@
 "settings_about" = "关于";
 
 // MARK: - 设置 - 语言
-"settings_language_header" = "语言（需要重启）";
+"settings_language_header" = "语言(需要重启)";
 "settings_language_label" = "语言";
 "language_change_title" = "需要重启";
 "language_change_message" = "更改语言需重启应用后生效。";
@@ -77,7 +77,7 @@
 "restart_later" = "稍后重启";
 
 // MARK: - 设置 - 主题
-"settings_appearance_header" = "外观设置（需要重启）";
+"settings_appearance_header" = "外观设置(需要重启)";
 "settings_theme_label" = "主题";
 "settings_theme_footer" = "自动模式将在重启后跟随系统外观生效";
 "theme_auto" = "自动";
@@ -90,13 +90,13 @@
 // MARK: - 设置 - 简洁模式
 "settings_visual_header" = "视觉效果";
 "settings_clean_mode" = "简洁模式";
-"settings_clean_mode_footer" = "减少悬停高亮、阴影和背景光晕等视觉效果，提供更简洁的界面。";
+"settings_clean_mode_footer" = "减少悬停高亮、阴影和背景光晕等视觉效果,提供更简洁的界面。";
 
 // MARK: - 设置 - 播放控制
 "Switch to Mini Mode" = "切换到迷你模式";
-"Repeat: Off" = "循环模式：关闭";
-"Repeat: All" = "循环模式：全部";
-"Repeat: One" = "循环模式：单曲";
+"Repeat: Off" = "循环模式:关闭";
+"Repeat: All" = "循环模式:全部";
+"Repeat: One" = "循环模式:单曲";
 "Mute" = "静音";
 "Unmute" = "取消静音";
 
@@ -112,3 +112,14 @@
 // MARK: - 歌词
 "lyrics_menu_item" = "歌词";
 "lyrics_window_title" = "歌词";
+"instrumental_track" = "纯音乐";
+"no_lyrics" = "暂无歌词";
+"loading_lyrics" = "加载歌词中...";
+"failed_to_load_lyrics" = "加载失败";
+
+// MARK: - 歌词错误
+"lyrics_not_found" = "未找到歌词";
+"invalid_api_url" = "API 地址无效";
+"invalid_response" = "服务器响应无效";
+"api_error %d" = "服务器错误: %d";
+"network_error %@" = "网络错误: %@";

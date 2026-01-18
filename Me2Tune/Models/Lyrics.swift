@@ -5,7 +5,6 @@
 //  Created by me2 on 2026/1/18.
 //
 
-
 //
 //  Lyrics.swift
 //  Me2Tune
@@ -24,14 +23,14 @@ struct Lyrics: Codable, Sendable {
     let instrumental: Bool
     let plainLyrics: String?
     let syncedLyrics: String?
-    
+
     var hasLyrics: Bool {
         if instrumental {
             return false
         }
         return plainLyrics != nil || syncedLyrics != nil
     }
-    
+
     var displayLyrics: String {
         if instrumental {
             return String(localized: "instrumental_track")
@@ -54,16 +53,16 @@ extension Lyrics {
         guard let syncedLyrics, !syncedLyrics.isEmpty else {
             return []
         }
-        
+
         var lines: [LyricLine] = []
         let pattern = #"\[(\d{2}):(\d{2})\.(\d{2})\]\s*(.*)$"#
         let regex = try? NSRegularExpression(pattern: pattern, options: [])
-        
+
         syncedLyrics.enumerateLines { line, _ in
             guard let match = regex?.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)) else {
                 return
             }
-            
+
             guard match.numberOfRanges == 5,
                   let minutesRange = Range(match.range(at: 1), in: line),
                   let secondsRange = Range(match.range(at: 2), in: line),
@@ -75,13 +74,13 @@ extension Lyrics {
             else {
                 return
             }
-            
+
             let timestamp = TimeInterval(minutes * 60) + TimeInterval(seconds) + TimeInterval(centiseconds) / 100.0
             let text = String(line[textRange]).trimmingCharacters(in: .whitespaces)
-            
+
             lines.append(LyricLine(timestamp: timestamp, text: text))
         }
-        
+
         return lines.sorted { $0.timestamp < $1.timestamp }
     }
 }

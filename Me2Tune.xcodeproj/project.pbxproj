@@ -285,8 +285,8 @@
 		FC480EC12EF13946000D8393 /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				FCB9B9672F1C0ACB00CA7866 /* LyricsService.swift */,
 				FC62DA382F0372BA00DD1509 /* ArtworkCacheService.swift */,
+				FCB9B9672F1C0ACB00CA7866 /* LyricsService.swift */,
 				FCE6E86E2F053E6F004D5E21 /* NowPlayingService.swift */,
 				FC480EA32EF107E8000D8393 /* PersistenceService.swift */,
 				FCE6E8702F053E8D004D5E21 /* RemoteCommandController.swift */,
@@ -297,9 +297,9 @@
 		FC480EC22EF15296000D8393 /* Models */ = {
 			isa = PBXGroup;
 			children = (
-				FCB9B9652F1C0AB400CA7866 /* Lyrics.swift */,
 				FC0A173F2EF262600090B22C /* Album.swift */,
 				FC480EC32EF152A2000D8393 /* AudioTrack.swift */,
+				FCB9B9652F1C0AB400CA7866 /* Lyrics.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
