@@ -76,6 +76,9 @@ final class LyricsWindowController {
         // 背景色与主题一致
         window.backgroundColor = NSColor(ThemeManager.shared.currentTheme.colors.mainBackground)
         
+        // ✅ 全背景可拖拽
+        window.isMovableByWindowBackground = true
+        
         // 监听置顶设置
         setupAlwaysOnTopObserver(for: window)
         

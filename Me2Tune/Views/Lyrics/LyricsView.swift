@@ -29,11 +29,13 @@ struct LyricsView: View {
                 // 头部信息
                 headerSection
                     .padding(.horizontal, 20)
-                    .padding(.top, 20)
+                    .padding(.top, 12)
                 
                 Divider()
+                    .frame(width: 360)
                     .background(themeManager.currentTheme.colors.borderGradientStart.opacity(0.3))
-                    .padding(.vertical, 12)
+                    .padding(.top, 18)
+                    .padding(.bottom, 20)
                 
                 // 歌词内容
                 contentSection
@@ -187,7 +189,7 @@ struct LyricsView: View {
             .onChange(of: currentLineIndex) { _, newIndex in
                 guard let newIndex else { return }
                 withAnimation(.easeOut(duration: 0.3)) {
-                    proxy.scrollTo(newIndex, anchor: .center)
+                    proxy.scrollTo(newIndex, anchor: UnitPoint(x: 0.5, y: 0.4))
                 }
             }
         }
@@ -306,22 +308,44 @@ struct LyricLineView: View {
     }
     
     // 根据距离计算透明度(距离越远越淡)
+    
+    // ✅ 效果1：当前行1行 + 其他每档2行
     private var distanceOpacity: Double {
         switch distanceFromCurrent {
         case 0:
-            return 1.0 // 当前行:完全不透明
-        case 1:
-            return 0.85 // 相邻行:稍微淡一点
-        case 2:
-            return 0.6 // 第二邻居:更淡
-        case 3:
-            return 0.4 // 第三邻居:很淡
-        case 4:
-            return 0.25 // 第四邻居:非常淡
+            return 1.0 // 当前行：完全不透明
+        case 1, 2:
+            return 0.85 // 相邻2行：稍微淡一点
+        case 3, 4:
+            return 0.6 // 第2档2行：更淡
+        case 5, 6:
+            return 0.4 // 第3档2行：很淡
+        case 7, 8:
+            return 0.25 // 第4档2行：非常淡
         default:
-            return 0.15 // 更远的行:几乎透明
+            return 0.18 // 更远的行：几乎透明
         }
     }
+
+    /*
+     // ✅ 效果2：当前行1行 + 相邻行各1行 + 其他每档2行
+     private var distanceOpacity: Double {
+         switch distanceFromCurrent {
+         case 0:
+             return 1.0 // 当前行：完全不透明
+         case 1:
+             return 0.85 // 相邻行各1行：稍微淡一点
+         case 2, 3:
+             return 0.6 // 第2档2行：更淡
+         case 4, 5:
+             return 0.4 // 第3档2行：很淡
+         case 6, 7:
+             return 0.25 // 第4档2行：非常淡
+         default:
+             return 0.15 // 更远的行：几乎透明
+         }
+     }
+       */
     
     var body: some View {
         Text(line.text.isEmpty ? "♪" : line.text)
