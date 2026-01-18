@@ -209,8 +209,6 @@ struct LyricsView: View {
         }
     }
     
-    // MARK: - Load Lyrics
-
     private func loadLyrics() async {
         guard let track = playerViewModel.currentTrack else {
             lyrics = nil
@@ -223,33 +221,8 @@ struct LyricsView: View {
         isLoading = true
         errorMessage = nil
         
-        // 1. 优先尝试读取本地歌词文件
         do {
-            let result = try await LyricsService.shared.getLocalLyrics(audioURL: track.url)
-            
-            await MainActor.run {
-                lyrics = result
-                lyricLines = result.parseSyncedLyrics()
-                currentLineIndex = nil
-                isLoading = false
-                
-                if playerViewModel.isPlaying {
-                    updateCurrentLine(time: playerViewModel.currentTime)
-                }
-            }
-            return
-        } catch {
-            // 本地歌词加载失败，继续尝试网络
-        }
-        
-        // 2. 本地失败，尝试网络获取
-        do {
-            let result = try await LyricsService.shared.getLyrics(
-                trackName: track.title,
-                artistName: track.artist ?? "Unknown Artist",
-                albumName: track.albumTitle ?? "",
-                duration: Int(track.duration)
-            )
+            let result = try await LyricsService.shared.getLyricsWithCache(track: track)
             
             await MainActor.run {
                 lyrics = result

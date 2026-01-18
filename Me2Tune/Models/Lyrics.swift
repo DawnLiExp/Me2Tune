@@ -2,13 +2,6 @@
 //  Lyrics.swift
 //  Me2Tune
 //
-//  Created by me2 on 2026/1/18.
-//
-
-//
-//  Lyrics.swift
-//  Me2Tune
-//
 //  歌词模型 - LRCLIB 数据结构
 //
 

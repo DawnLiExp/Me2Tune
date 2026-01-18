@@ -2,7 +2,7 @@
 //  LyricsService.swift
 //  Me2Tune
 //
-//  歌词服务 - LRCLIB API 调用 + 本地 LRC 文件读取
+//  歌词服务 - LRCLIB API 调用 + 本地 LRC 文件读取 + 缓存集成
 //
 
 import Foundation
@@ -23,6 +23,43 @@ actor LyricsService {
             "User-Agent": "Me2Tune v0.4.0 (https://github.com/DawnLiExp/Me2Tune)"
         ]
         self.session = URLSession(configuration: config)
+    }
+    
+    // MARK: - Unified Entry Point
+    
+    /// 统一的歌词获取入口（优先级：本地 > 缓存 > 网络）
+    func getLyricsWithCache(track: AudioTrack) async throws -> Lyrics {
+        // 1. 本地LRC文件（优先级最高）
+        if let local = try? await getLocalLyrics(audioURL: track.url) {
+            logger.info("✅ Local lyrics loaded")
+            return local
+        }
+        
+        // 2. 缓存LRC
+        if let cached = await LyricsCacheService.shared.getCachedLyrics(
+            trackName: track.title,
+            artistName: track.artist ?? "Unknown Artist",
+            duration: Int(track.duration)
+        ) {
+            logger.info("✅ Cached lyrics loaded")
+            return cached
+        }
+        
+        // 3. 网络API
+        logger.info("🌐 Fetching lyrics from API...")
+        let lyrics = try await getLyrics(
+            trackName: track.title,
+            artistName: track.artist ?? "Unknown Artist",
+            albumName: track.albumTitle ?? "",
+            duration: Int(track.duration)
+        )
+        
+        // 保存到缓存（异步，不阻塞返回）
+        Task {
+            await LyricsCacheService.shared.saveLyrics(lyrics)
+        }
+        
+        return lyrics
     }
     
     // MARK: - Local LRC File

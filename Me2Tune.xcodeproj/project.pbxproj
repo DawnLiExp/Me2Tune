@@ -49,6 +49,7 @@
 		FC8528102F014F7C00B53540 /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC85280F2F014F7A00B53540 /* AppError.swift */; };
 		FC8528122F014FAA00B53540 /* Logger+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8528112F014FA900B53540 /* Logger+Extensions.swift */; };
 		FC8C88722F06263500ABC82E /* WindowStateMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8C88712F06263100ABC82E /* WindowStateMonitor.swift */; };
+		FC9596682F1D23CE00ED7FB7 /* LyricsCacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC9596672F1D23CE00ED7FB7 /* LyricsCacheService.swift */; };
 		FCAE83FF2F18C07A00BBEC0B /* MiniWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCAE83FE2F18C07800BBEC0B /* MiniWindowController.swift */; };
 		FCAE84012F18C09F00BBEC0B /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCAE84002F18C09D00BBEC0B /* AppDelegate.swift */; };
 		FCB9B9662F1C0AB400CA7866 /* Lyrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB9B9652F1C0AB400CA7866 /* Lyrics.swift */; };
@@ -109,6 +110,7 @@
 		FC85280F2F014F7A00B53540 /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
 		FC8528112F014FA900B53540 /* Logger+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Logger+Extensions.swift"; sourceTree = "<group>"; };
 		FC8C88712F06263100ABC82E /* WindowStateMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowStateMonitor.swift; sourceTree = "<group>"; };
+		FC9596672F1D23CE00ED7FB7 /* LyricsCacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsCacheService.swift; sourceTree = "<group>"; };
 		FCAE83FE2F18C07800BBEC0B /* MiniWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniWindowController.swift; sourceTree = "<group>"; };
 		FCAE84002F18C09D00BBEC0B /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		FCB9B9652F1C0AB400CA7866 /* Lyrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lyrics.swift; sourceTree = "<group>"; };
@@ -286,6 +288,7 @@
 			isa = PBXGroup;
 			children = (
 				FC62DA382F0372BA00DD1509 /* ArtworkCacheService.swift */,
+				FC9596672F1D23CE00ED7FB7 /* LyricsCacheService.swift */,
 				FCB9B9672F1C0ACB00CA7866 /* LyricsService.swift */,
 				FCE6E86E2F053E6F004D5E21 /* NowPlayingService.swift */,
 				FC480EA32EF107E8000D8393 /* PersistenceService.swift */,
@@ -521,6 +524,7 @@
 				FCB9B96C2F1C0AE900CA7866 /* LyricsView.swift in Sources */,
 				FCDDF5B02F14DAE0003AFB85 /* SlateBlueTheme.swift in Sources */,
 				FC49D3B22F0AC30000628C1B /* SearchOverlayView.swift in Sources */,
+				FC9596682F1D23CE00ED7FB7 /* LyricsCacheService.swift in Sources */,
 				FCB9B9682F1C0ACB00CA7866 /* LyricsService.swift in Sources */,
 				FC50C7422F06589800597B19 /* SongRowView.swift in Sources */,
 				FC0A17402EF262620090B22C /* Album.swift in Sources */,
