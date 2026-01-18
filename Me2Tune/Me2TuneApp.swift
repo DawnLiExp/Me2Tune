@@ -39,12 +39,11 @@ struct Me2TuneApp: App {
         .commands {
             CommandGroup(replacing: .newItem) {}
             
-            // ✅ 新增：歌词菜单
             CommandGroup(after: .windowArrangement) {
-                Button("Lyrics") {
+                Button(String(localized: "lyrics_menu_item")) {
                     LyricsWindowController.shared.show()
                 }
-                .keyboardShortcut("l", modifiers: [.command, .shift])
+                .keyboardShortcut("l", modifiers: .command)
             }
         }
 

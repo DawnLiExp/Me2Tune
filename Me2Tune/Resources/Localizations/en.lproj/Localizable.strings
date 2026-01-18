@@ -108,3 +108,7 @@
 "ready_to_play" = "No song selected";
 "unknown_format" = "Unknown Format";
 "always_on_top" = "Always on Top";
+
+// MARK: - Lyrics
+"lyrics_menu_item" = "Lyrics";
+"lyrics_window_title" = "Lyrics";

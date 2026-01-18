@@ -17,6 +17,8 @@ struct LyricsView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     
+    @AppStorage("lyricsAlwaysOnTop") private var alwaysOnTop = false
+    
     var body: some View {
         ZStack {
             // 背景
@@ -39,6 +41,11 @@ struct LyricsView: View {
             }
         }
         .frame(width: 440, height: 800)
+        .contextMenu {
+            Toggle(isOn: $alwaysOnTop) {
+                Label(String(localized: "always_on_top"), systemImage: "pin.fill")
+            }
+        }
         .task(id: playerViewModel.currentTrack?.id) {
             await loadLyrics()
         }

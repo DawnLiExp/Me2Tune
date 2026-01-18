@@ -64,10 +64,20 @@ final class LyricsWindowController {
             defer: false
         )
         
-        window.title = "Lyrics"
+        window.title = String(localized: "lyrics_window_title")
         window.contentView = hostingView
         window.isReleasedWhenClosed = false
         window.center()
+        
+        // 隐藏标题栏但保留窗口按钮
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        
+        // 背景色与主题一致
+        window.backgroundColor = NSColor(ThemeManager.shared.currentTheme.colors.mainBackground)
+        
+        // 监听置顶设置
+        setupAlwaysOnTopObserver(for: window)
         
         // 窗口关闭时清理
         NotificationCenter.default.addObserver(
@@ -83,5 +93,22 @@ final class LyricsWindowController {
         
         window.makeKeyAndOrderFront(nil)
         self.window = window
+    }
+    
+    private func setupAlwaysOnTopObserver(for window: NSWindow) {
+        NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak window] _ in
+            let alwaysOnTop = UserDefaults.standard.bool(forKey: "lyricsAlwaysOnTop")
+            Task { @MainActor in
+                window?.level = alwaysOnTop ? .floating : .normal
+            }
+        }
+        
+        // 初始状态
+        let alwaysOnTop = UserDefaults.standard.bool(forKey: "lyricsAlwaysOnTop")
+        window.level = alwaysOnTop ? .floating : .normal
     }
 }

@@ -108,3 +108,7 @@
 "ready_to_play" = "未选择歌曲";
 "unknown_format" = "未知格式";
 "always_on_top" = "置顶";
+
+// MARK: - 歌词
+"lyrics_menu_item" = "歌词";
+"lyrics_window_title" = "歌词";
