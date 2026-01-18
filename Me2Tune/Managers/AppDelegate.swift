@@ -140,23 +140,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     
     // MARK: - Command+W Handler
     
+    // MARK: - Command+W Handler (智能路由版本)
+
     private func setupCommandWHandler() {
         commandWMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             if event.modifierFlags.contains(.command), event.charactersIgnoringModifiers == "w" {
-                if let window = NSApp.keyWindow {
-                    // 检测是否为 Mini 模式（NSPanel）
-                    if window is NSPanel {
-                        window.orderOut(nil)
-                        logger.debug("⌘+W → Hide Mini window")
-                    } else {
-                        window.miniaturize(nil)
-                        logger.debug("⌘+W → Minimize Full window")
+                // ✅ 优先检查鼠标位置
+                let mouseLocation = NSEvent.mouseLocation
+                
+                // 遍历所有可见窗口
+                for window in NSApp.windows where window.isVisible {
+                    let windowFrame = window.frame
+                    
+                    // 鼠标是否在此窗口内
+                    if windowFrame.contains(mouseLocation) {
+                        self.handleCommandW(for: window, reason: "mouse inside")
+                        return nil
                     }
                 }
+                
+                // 兜底：使用keyWindow
+                if let window = NSApp.keyWindow {
+                    self.handleCommandW(for: window, reason: "fallback to keyWindow")
+                }
+                
                 return nil
             }
             return event
         }
+    }
+
+    private func handleCommandW(for window: NSWindow, reason: String) {
+        // Mini 模式（NSPanel）
+        if window is NSPanel {
+            window.orderOut(nil)
+            logger.debug("⌘+W → Hide Mini window (\(reason))")
+            return
+        }
+        
+        // 歌词窗口（通过title识别）
+        if window.title.contains("歌词") || window.title.contains("Lyrics") {
+            window.miniaturize(nil)
+            logger.debug("⌘+W → Minimize Lyrics window (\(reason))")
+            return
+        }
+        
+        // Full 模式主窗口
+        window.miniaturize(nil)
+        logger.debug("⌘+W → Minimize Full window (\(reason))")
     }
     
     deinit {
