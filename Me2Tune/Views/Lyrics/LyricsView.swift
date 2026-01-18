@@ -2,15 +2,7 @@
 //  LyricsView.swift
 //  Me2Tune
 //
-//  Created by me2 on 2026/1/18.
-//
-
-
-//
-//  LyricsView.swift
-//  Me2Tune
-//
-//  歌词显示视图 - 第一步基础功能
+//  歌词显示视图 - 滚动和高亮功能
 //
 
 import SwiftUI
@@ -20,6 +12,8 @@ struct LyricsView: View {
     @ObservedObject private var themeManager = ThemeManager.shared
     
     @State private var lyrics: Lyrics?
+    @State private var lyricLines: [LyricLine] = []
+    @State private var currentLineIndex: Int?
     @State private var isLoading = false
     @State private var errorMessage: String?
     
@@ -47,6 +41,9 @@ struct LyricsView: View {
         .frame(width: 440, height: 800)
         .task(id: playerViewModel.currentTrack?.id) {
             await loadLyrics()
+        }
+        .onChange(of: playerViewModel.currentTime) { _, newTime in
+            updateCurrentLine(time: newTime)
         }
     }
     
@@ -82,7 +79,15 @@ struct LyricsView: View {
         } else if let errorMessage {
             errorView(message: errorMessage)
         } else if let lyrics {
-            lyricsTextView(lyrics: lyrics)
+            if lyrics.instrumental {
+                instrumentalView
+            } else if !lyricLines.isEmpty {
+                syncedLyricsView
+            } else if lyrics.plainLyrics != nil {
+                plainLyricsView(text: lyrics.plainLyrics!)
+            } else {
+                emptyView
+            }
         } else {
             emptyView
         }
@@ -129,25 +134,72 @@ struct LyricsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
-    private func lyricsTextView(lyrics: Lyrics) -> some View {
-        ScrollView(showsIndicators: true) {
-            VStack(alignment: .leading, spacing: 16) {
-                if lyrics.instrumental {
-                    Text("🎵 Instrumental Track")
-                        .font(.system(size: 16))
-                        .foregroundColor(themeManager.currentTheme.colors.secondaryText)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.top, 40)
-                } else {
-                    Text(lyrics.displayLyrics)
-                        .font(.system(size: 15, weight: .regular))
-                        .foregroundColor(themeManager.currentTheme.colors.primaryText)
-                        .lineSpacing(8)
-                        .multilineTextAlignment(.leading)
+    private var instrumentalView: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "music.note")
+                .font(.system(size: 48))
+                .foregroundColor(themeManager.currentTheme.colors.accent.opacity(0.6))
+            
+            Text("🎵 Instrumental Track")
+                .font(.system(size: 16))
+                .foregroundColor(themeManager.currentTheme.colors.secondaryText)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    // MARK: - Synced Lyrics View (滚动 + 高亮)
+    
+    private var syncedLyricsView: some View {
+        ScrollViewReader { proxy in
+            ScrollView(showsIndicators: true) {
+                VStack(spacing: 0) {
+                    // 顶部间距
+                    Color.clear
+                        .frame(height: 300)
+                        .id("top-spacer")
+                    
+                    // 歌词行
+                    ForEach(Array(lyricLines.enumerated()), id: \.offset) { index, line in
+                        LyricLineView(
+                            line: line,
+                            isCurrent: index == currentLineIndex,
+                            isPassed: {
+                                guard let current = currentLineIndex else { return false }
+                                return index < current
+                            }(),
+                            theme: themeManager.currentTheme.colors
+                        )
+                        .id(index)
+                        .padding(.vertical, 8)
+                    }
+                    
+                    // 底部间距
+                    Color.clear
+                        .frame(height: 300)
+                        .id("bottom-spacer")
+                }
+                .padding(.horizontal, 20)
+            }
+            .onChange(of: currentLineIndex) { _, newIndex in
+                guard let newIndex else { return }
+                withAnimation(.easeOut(duration: 0.3)) {
+                    proxy.scrollTo(newIndex, anchor: .center)
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 20)
+        }
+    }
+    
+    // MARK: - Plain Lyrics View (纯文本)
+    
+    private func plainLyricsView(text: String) -> some View {
+        ScrollView(showsIndicators: true) {
+            Text(text)
+                .font(.system(size: 15, weight: .regular))
+                .foregroundColor(themeManager.currentTheme.colors.primaryText)
+                .lineSpacing(8)
+                .multilineTextAlignment(.leading)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 20)
         }
     }
     
@@ -156,6 +208,8 @@ struct LyricsView: View {
     private func loadLyrics() async {
         guard let track = playerViewModel.currentTrack else {
             lyrics = nil
+            lyricLines = []
+            currentLineIndex = nil
             errorMessage = nil
             return
         }
@@ -173,11 +227,20 @@ struct LyricsView: View {
             
             await MainActor.run {
                 lyrics = result
+                lyricLines = result.parseSyncedLyrics()
+                currentLineIndex = nil
                 isLoading = false
+                
+                // 立即更新当前行（如果正在播放）
+                if playerViewModel.isPlaying {
+                    updateCurrentLine(time: playerViewModel.currentTime)
+                }
             }
         } catch {
             await MainActor.run {
                 lyrics = nil
+                lyricLines = []
+                currentLineIndex = nil
                 isLoading = false
                 
                 if let lyricsError = error as? LyricsError {
@@ -186,6 +249,62 @@ struct LyricsView: View {
                     errorMessage = "Failed to load lyrics"
                 }
             }
+        }
+    }
+    
+    // MARK: - Update Current Line
+    
+    private func updateCurrentLine(time: TimeInterval) {
+        guard !lyricLines.isEmpty else {
+            currentLineIndex = nil
+            return
+        }
+        
+        // 找到当前时间对应的歌词行（最后一个时间戳 <= 当前时间的行）
+        var foundIndex: Int?
+        for (index, line) in lyricLines.enumerated() {
+            if line.timestamp <= time {
+                foundIndex = index
+            } else {
+                break
+            }
+        }
+        
+        // 只在索引变化时更新（避免频繁触发动画）
+        if foundIndex != currentLineIndex {
+            currentLineIndex = foundIndex
+        }
+    }
+}
+
+// MARK: - Lyric Line View
+
+struct LyricLineView: View {
+    let line: LyricLine
+    let isCurrent: Bool
+    let isPassed: Bool
+    let theme: ThemeColors
+    
+    var body: some View {
+        Text(line.text.isEmpty ? "♪" : line.text)
+            .font(.system(
+                size: isCurrent ? 17 : 15,
+                weight: isCurrent ? .semibold : .regular
+            ))
+            .foregroundColor(textColor)
+            .multilineTextAlignment(.center)
+            .lineSpacing(6)
+            .frame(maxWidth: .infinity)
+            .animation(.easeOut(duration: 0.2), value: isCurrent)
+    }
+    
+    private var textColor: Color {
+        if isCurrent {
+            return theme.accent
+        } else if isPassed {
+            return theme.primaryText.opacity(0.5)
+        } else {
+            return theme.secondaryText.opacity(0.7)
         }
     }
 }
