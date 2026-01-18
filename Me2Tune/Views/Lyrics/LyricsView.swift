@@ -162,11 +162,8 @@ struct LyricsView: View {
                     ForEach(Array(lyricLines.enumerated()), id: \.offset) { index, line in
                         LyricLineView(
                             line: line,
-                            isCurrent: index == currentLineIndex,
-                            isPassed: {
-                                guard let current = currentLineIndex else { return false }
-                                return index < current
-                            }(),
+                            lineIndex: index,
+                            currentLineIndex: currentLineIndex,
                             theme: themeManager.currentTheme.colors
                         )
                         .id(index)
@@ -281,9 +278,43 @@ struct LyricsView: View {
 
 struct LyricLineView: View {
     let line: LyricLine
-    let isCurrent: Bool
-    let isPassed: Bool
+    let lineIndex: Int
+    let currentLineIndex: Int?
     let theme: ThemeColors
+    
+    private var isCurrent: Bool {
+        guard let current = currentLineIndex else { return false }
+        return lineIndex == current
+    }
+    
+    private var isPassed: Bool {
+        guard let current = currentLineIndex else { return false }
+        return lineIndex < current
+    }
+    
+    // 计算距离当前行的距离（用于渐变效果）
+    private var distanceFromCurrent: Int {
+        guard let current = currentLineIndex else { return 0 }
+        return abs(lineIndex - current)
+    }
+    
+    // 根据距离计算透明度（距离越远越淡）
+    private var distanceOpacity: Double {
+        switch distanceFromCurrent {
+        case 0:
+            return 1.0 // 当前行：完全不透明
+        case 1:
+            return 0.85 // 相邻行：稍微淡一点
+        case 2:
+            return 0.6 // 第二邻居：更淡
+        case 3:
+            return 0.4 // 第三邻居：很淡
+        case 4:
+            return 0.25 // 第四邻居：非常淡
+        default:
+            return 0.15 // 更远的行：几乎透明
+        }
+    }
     
     var body: some View {
         Text(line.text.isEmpty ? "♪" : line.text)
@@ -292,19 +323,21 @@ struct LyricLineView: View {
                 weight: isCurrent ? .semibold : .regular
             ))
             .foregroundColor(textColor)
+            .opacity(distanceOpacity)
             .multilineTextAlignment(.center)
             .lineSpacing(6)
             .frame(maxWidth: .infinity)
-            .animation(.easeOut(duration: 0.2), value: isCurrent)
+            .animation(.easeOut(duration: 0.3), value: isCurrent)
+            .animation(.easeOut(duration: 0.3), value: distanceFromCurrent)
     }
     
     private var textColor: Color {
         if isCurrent {
             return theme.accent
         } else if isPassed {
-            return theme.primaryText.opacity(0.5)
+            return theme.primaryText.opacity(0.7)
         } else {
-            return theme.secondaryText.opacity(0.7)
+            return theme.secondaryText.opacity(0.8)
         }
     }
 }
