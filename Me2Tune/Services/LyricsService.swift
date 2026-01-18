@@ -2,7 +2,7 @@
 //  LyricsService.swift
 //  Me2Tune
 //
-//  歌词服务 - LRCLIB API 调用
+//  歌词服务 - LRCLIB API 调用 + 本地 LRC 文件读取
 //
 
 import Foundation
@@ -25,7 +25,53 @@ actor LyricsService {
         self.session = URLSession(configuration: config)
     }
     
-    // MARK: - Public Methods
+    // MARK: - Local LRC File
+    
+    /// 从本地读取 LRC 歌词文件（精确文件名匹配，同目录）
+    func getLocalLyrics(audioURL: URL) async throws -> Lyrics {
+        // 1. 构建 .lrc 文件路径（精确匹配文件名）
+        let lrcURL = audioURL.deletingPathExtension().appendingPathExtension("lrc")
+        
+        logger.debug("Looking for local lyrics: \(lrcURL.lastPathComponent)")
+        
+        // 2. 检查文件是否存在
+        guard FileManager.default.fileExists(atPath: lrcURL.path) else {
+            logger.debug("Local lyrics file not found")
+            throw LyricsError.notFound
+        }
+        
+        // 3. 读取文件内容（UTF-8 编码）
+        let content: String
+        do {
+            content = try String(contentsOf: lrcURL, encoding: .utf8)
+        } catch {
+            logger.error("Failed to read local lyrics: \(error.localizedDescription)")
+            throw LyricsError.fileReadError
+        }
+        
+        // 4. 检查是否为空
+        guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            logger.warning("Local lyrics file is empty")
+            throw LyricsError.emptyFile
+        }
+        
+        // 5. 构建 Lyrics 对象（本地文件没有 API 返回的元数据）
+        let lyrics = Lyrics(
+            id: 0, // 本地文件没有 ID
+            trackName: audioURL.deletingPathExtension().lastPathComponent,
+            artistName: "Local",
+            albumName: nil,
+            duration: 0,
+            instrumental: false,
+            plainLyrics: nil,
+            syncedLyrics: content
+        )
+        
+        logger.info("✅ Local lyrics loaded: \(lrcURL.lastPathComponent)")
+        return lyrics
+    }
+    
+    // MARK: - Network API
     
     /// 根据曲目签名获取歌词（会尝试外部源）
     func getLyrics(
@@ -46,7 +92,7 @@ actor LyricsService {
             throw LyricsError.invalidURL
         }
         
-        logger.info("Fetching lyrics for: \(trackName) - \(artistName)")
+        logger.info("Fetching lyrics from API: \(trackName) - \(artistName)")
         
         let (data, response) = try await session.data(from: url)
         
@@ -57,11 +103,11 @@ actor LyricsService {
         switch httpResponse.statusCode {
         case 200:
             let lyrics = try await decodeLyrics(from: data)
-            logger.info("✅ Lyrics found: \(lyrics.id)")
+            logger.info("✅ API lyrics found: \(lyrics.id)")
             return lyrics
             
         case 404:
-            logger.notice("❌ Lyrics not found")
+            logger.notice("❌ API lyrics not found")
             throw LyricsError.notFound
             
         default:
@@ -121,6 +167,8 @@ enum LyricsError: LocalizedError {
     case notFound
     case apiError(Int)
     case networkError(Error)
+    case fileReadError
+    case emptyFile
     
     var errorDescription: String? {
         switch self {
@@ -134,6 +182,10 @@ enum LyricsError: LocalizedError {
             return String(localized: "api_error \(code)")
         case .networkError(let error):
             return String(localized: "network_error \(error.localizedDescription)")
+        case .fileReadError:
+            return String(localized: "failed_to_load_lyrics")
+        case .emptyFile:
+            return String(localized: "lyrics_not_found")
         }
     }
 }
