@@ -38,6 +38,14 @@ struct Me2TuneApp: App {
         .windowResizability(.automatic)
         .commands {
             CommandGroup(replacing: .newItem) {}
+            
+            // ✅ 新增：歌词菜单
+            CommandGroup(after: .windowArrangement) {
+                Button("Lyrics") {
+                    LyricsWindowController.shared.show()
+                }
+                .keyboardShortcut("l", modifiers: [.command, .shift])
+            }
         }
 
         Settings {
@@ -56,6 +64,9 @@ struct Me2TuneApp: App {
         appDelegate.collectionManager = collectionManager
         appDelegate.windowStateMonitor = windowStateMonitor
         
+        // ✅ 新增：初始化歌词窗口控制器
+        LyricsWindowController.shared.setup(playerViewModel: playerViewModel)
+        
         logger.info("🚀 App launched")
     }
-}
+    }
