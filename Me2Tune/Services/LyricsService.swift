@@ -37,6 +37,7 @@ actor LyricsService {
         
         // 2. 缓存LRC
         if let cached = await LyricsCacheService.shared.getCachedLyrics(
+            audioURL: track.url,
             trackName: track.title,
             artistName: track.artist ?? "Unknown Artist",
             duration: Int(track.duration)
@@ -56,7 +57,7 @@ actor LyricsService {
         
         // 保存到缓存（异步，不阻塞返回）
         Task {
-            await LyricsCacheService.shared.saveLyrics(lyrics)
+            await LyricsCacheService.shared.saveLyrics(lyrics, audioURL: track.url)
         }
         
         return lyrics
@@ -66,18 +67,15 @@ actor LyricsService {
     
     /// 从本地读取 LRC 歌词文件（精确文件名匹配，同目录）
     func getLocalLyrics(audioURL: URL) async throws -> Lyrics {
-        // 1. 构建 .lrc 文件路径（精确匹配文件名）
         let lrcURL = audioURL.deletingPathExtension().appendingPathExtension("lrc")
         
         logger.debug("Looking for local lyrics: \(lrcURL.lastPathComponent)")
         
-        // 2. 检查文件是否存在
         guard FileManager.default.fileExists(atPath: lrcURL.path) else {
             logger.debug("Local lyrics file not found")
             throw LyricsError.notFound
         }
         
-        // 3. 读取文件内容（UTF-8 编码）
         let content: String
         do {
             content = try String(contentsOf: lrcURL, encoding: .utf8)
@@ -86,15 +84,13 @@ actor LyricsService {
             throw LyricsError.fileReadError
         }
         
-        // 4. 检查是否为空
         guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             logger.warning("Local lyrics file is empty")
             throw LyricsError.emptyFile
         }
         
-        // 5. 构建 Lyrics 对象（本地文件没有 API 返回的元数据）
         let lyrics = Lyrics(
-            id: 0, // 本地文件没有 ID
+            id: 0,
             trackName: audioURL.deletingPathExtension().lastPathComponent,
             artistName: "Local",
             albumName: nil,
@@ -149,41 +145,6 @@ actor LyricsService {
             
         default:
             logger.error("API error: \(httpResponse.statusCode)")
-            throw LyricsError.apiError(httpResponse.statusCode)
-        }
-    }
-    
-    /// 仅从缓存获取歌词（不访问外部源）
-    func getCachedLyrics(
-        trackName: String,
-        artistName: String,
-        albumName: String,
-        duration: Int
-    ) async throws -> Lyrics {
-        var components = URLComponents(string: "\(baseURL)/get-cached")!
-        components.queryItems = [
-            URLQueryItem(name: "track_name", value: trackName),
-            URLQueryItem(name: "artist_name", value: artistName),
-            URLQueryItem(name: "album_name", value: albumName),
-            URLQueryItem(name: "duration", value: String(duration))
-        ]
-        
-        guard let url = components.url else {
-            throw LyricsError.invalidURL
-        }
-        
-        let (data, response) = try await session.data(from: url)
-        
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw LyricsError.invalidResponse
-        }
-        
-        switch httpResponse.statusCode {
-        case 200:
-            return try await decodeLyrics(from: data)
-        case 404:
-            throw LyricsError.notFound
-        default:
             throw LyricsError.apiError(httpResponse.statusCode)
         }
     }
