@@ -92,6 +92,14 @@
 "settings_clean_mode" = "Clean Mode";
 "settings_clean_mode_footer" = "Reduces visual effects like hover highlights, shadows, and background glows for a cleaner interface.";
 
+// MARK: - Settings - Cache
+"cache_location" = "Cache Location";
+"cache_settings_header" = "Cache Settings";
+"cache_settings_footer" = "Automatically manages up to %d items for both artwork and lyrics cache. Least recently used items will be removed when limit is reached.";
+"select_directory" = "Select Directory";
+"reset_default" = "Reset to Default";
+"select_cache_directory_message" = "Choose a directory to store cache files";
+
 // MARK: - ControlSection
 "Switch to Mini Mode" = "Switch to Mini Mode";
 "Repeat: Off" = "Repeat: Off";

@@ -2,7 +2,7 @@
 //  SettingsView.swift
 //  Me2Tune
 //
-//  设置界面 - 语言/主题/简洁模式设置
+//  设置界面 - 语言/主题/简洁模式/缓存设置
 //
 
 import SwiftUI
@@ -10,6 +10,7 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject private var themeManager = ThemeManager.shared
     @ObservedObject private var languageManager = LanguageManager.shared
+    @ObservedObject private var cacheManager = CacheConfigManager.shared
     
     @State private var showLanguageChangeAlert = false
     @State private var showThemeChangeAlert = false
@@ -205,6 +206,120 @@ struct SettingsView: View {
     
     private var advancedSettings: some View {
         Form {
+            // 缓存设置
+            Section {
+                // 第一行：标题
+                HStack(spacing: 12) {
+                    Image(systemName: "folder.badge.gearshape")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                        .frame(width: 20)
+                    
+                    Text("cache_location")
+                        .font(.system(size: 13))
+                }
+                .padding(.bottom, 4)
+                
+                // 第二行：当前路径 + 状态 + Finder按钮
+                HStack(spacing: 8) {
+                    // 状态图标
+                    Image(systemName: cacheManager.isCustomPathWritable ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(cacheManager.isCustomPathWritable ? .green : .red)
+                    
+                    // 路径文本
+                    Text(displayCachePath)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    
+                    Spacer()
+                    
+                    // Finder 按钮
+                    Button(action: {
+                        cacheManager.revealInFinder()
+                    }) {
+                        Image(systemName: "magnifyingglass.circle")
+                            .font(.system(size: 14))
+                            .foregroundColor(.accentColor)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.vertical, 4)
+                .padding(.horizontal, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color(NSColor.controlBackgroundColor))
+                )
+                
+                // 第三行：选择目录按钮
+                HStack {
+                    Spacer()
+                    
+                    Button(action: selectCacheDirectory) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "folder.badge.plus")
+                                .font(.system(size: 12))
+                            Text("select_directory")
+                                .font(.system(size: 12))
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color.accentColor.opacity(0.1))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    
+                    // 恢复默认按钮
+                    if cacheManager.customCachePath != nil {
+                        Button(action: {
+                            cacheManager.setCustomCachePath(nil)
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "arrow.counterclockwise")
+                                    .font(.system(size: 12))
+                                Text("reset_default")
+                                    .font(.system(size: 12))
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color(NSColor.controlBackgroundColor))
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    
+                    Spacer()
+                }
+                .padding(.top, 4)
+                
+            } header: {
+                Text("cache_settings_header")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color(NSColor.tertiaryLabelColor))
+                    .textCase(nil)
+            } footer: {
+                Text(
+                    String(
+                        format: String(localized: "cache_settings_footer"),
+                        CacheConfigManager.maxCacheCount
+                    )
+                )
+
+                .font(.caption)
+                .foregroundColor(.secondary)
+            }
+            
+            // 视觉效果设置
             Section {
                 Toggle("settings_clean_mode", isOn: $cleanMode)
             } header: {
@@ -266,6 +381,32 @@ struct SettingsView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(20)
+    }
+    
+    // MARK: - Helpers
+    
+    private var displayCachePath: String {
+        if let customPath = cacheManager.customCachePath {
+            return customPath.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
+        }
+        return "~/Library/Caches/Me2Tune"
+    }
+    
+    private func selectCacheDirectory() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.message = String(localized: "select_cache_directory_message")
+        
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            
+            Task { @MainActor in
+                cacheManager.setCustomCachePath(url)
+            }
+        }
     }
     
     // MARK: - Private Methods
