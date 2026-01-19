@@ -29,21 +29,29 @@ actor LyricsService {
     
     /// 统一的歌词获取入口（优先级：本地 > 缓存 > 网络）
     func getLyricsWithCache(track: AudioTrack) async throws -> Lyrics {
+        // ✅ 开始前检查取消
+        try Task.checkCancellation()
+        
         // 1. 本地LRC文件（优先级最高）
         if let local = try? await getLocalLyrics(audioURL: track.url) {
+            // ✅ 每个await后检查取消
+            try Task.checkCancellation()
             logger.info("✅ Local lyrics loaded")
             return local
         }
         
         // 2. 缓存LRC
+        try Task.checkCancellation()
         if let cached = await LyricsCacheService.shared.getCachedLyrics(
             audioURL: track.url
         ) {
+            try Task.checkCancellation()
             logger.info("✅ Cached lyrics loaded")
             return cached
         }
         
         // 3. 网络API
+        try Task.checkCancellation()
         logger.info("🌐 Fetching lyrics from API...")
         let lyrics = try await getLyrics(
             trackName: track.title,
@@ -51,6 +59,9 @@ actor LyricsService {
             albumName: track.albumTitle ?? "",
             duration: Int(track.duration)
         )
+        
+        // ✅ API返回后再次检查取消（避免不必要的缓存操作）
+        try Task.checkCancellation()
         
         // 保存到缓存（异步，不阻塞返回）
         Task {
@@ -110,6 +121,9 @@ actor LyricsService {
         albumName: String,
         duration: Int
     ) async throws -> Lyrics {
+        // ✅ 网络请求前检查取消
+        try Task.checkCancellation()
+        
         var components = URLComponents(string: "\(baseURL)/get")!
         components.queryItems = [
             URLQueryItem(name: "track_name", value: trackName),
@@ -125,6 +139,9 @@ actor LyricsService {
         logger.info("Fetching lyrics from API: \(trackName) - \(artistName)")
         
         let (data, response) = try await session.data(from: url)
+        
+        // ✅ 网络请求返回后检查取消
+        try Task.checkCancellation()
         
         guard let httpResponse = response as? HTTPURLResponse else {
             throw LyricsError.invalidResponse
