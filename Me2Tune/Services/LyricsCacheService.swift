@@ -16,9 +16,6 @@ actor LyricsCacheService {
     
     // MARK: - Configuration
     
-    private let maxCacheSize = 1000 // 最多缓存1000首歌词
-    private let maxCacheAge: TimeInterval = 90 * 24 * 60 * 60 // 90天
-    
     private let cacheDirectory: URL
     private let metadataURL: URL
     
@@ -26,7 +23,7 @@ actor LyricsCacheService {
     
     struct CacheEntry: Codable, Sendable {
         let hash: String
-        let fileName: String // 音频文件名（不含扩展名）
+        let fileName: String
         let trackName: String
         let artistName: String
         var lastAccess: Date
@@ -44,24 +41,17 @@ actor LyricsCacheService {
     // MARK: - Initialization
     
     private init() {
-        let cacheDir = FileManager.default.urls(
-            for: .cachesDirectory,
-            in: .userDomainMask
-        ).first!.appendingPathComponent("Me2Tune/Lyrics", isDirectory: true)
+        // ✅ 使用静态方法获取路径
+        self.cacheDirectory = CacheConfigManager.getLyricsCacheDirectory()
+        self.metadataURL = cacheDirectory.appendingPathComponent("cache_metadata.json")
         
+        // 确保目录存在
         try? FileManager.default.createDirectory(
-            at: cacheDir,
+            at: cacheDirectory,
             withIntermediateDirectories: true
         )
         
-        self.cacheDirectory = cacheDir
-        self.metadataURL = cacheDir.appendingPathComponent("cache_metadata.json")
-        
-        logger.info("LyricsCacheService initialized at: \(cacheDir.path)")
-        
-        Task {
-            await cleanupExpiredCache()
-        }
+        logger.info("LyricsCacheService initialized at: \(self.cacheDirectory.path)")
     }
     
     // MARK: - Public Methods
@@ -70,7 +60,6 @@ actor LyricsCacheService {
     func getCachedLyrics(audioURL: URL, trackName: String, artistName: String, duration: Int) async -> Lyrics? {
         let hash = cacheKey(trackName: trackName, artistName: artistName, duration: duration)
         
-        // 从元数据查找对应的文件名
         let metadata = loadMetadata()
         guard let entry = metadata.entries.first(where: { $0.hash == hash }) else {
             return nil
@@ -78,13 +67,11 @@ actor LyricsCacheService {
         
         let fileURL = cacheDirectory.appendingPathComponent("\(entry.fileName).lrc")
         
-        // 检查文件是否存在
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
             logger.warning("Cache entry exists but file missing: \(entry.fileName)")
             return nil
         }
         
-        // 读取LRC内容
         guard let content = try? String(contentsOf: fileURL, encoding: .utf8),
               !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else {
@@ -92,7 +79,6 @@ actor LyricsCacheService {
             return nil
         }
         
-        // 更新访问时间
         await updateAccessTime(hash: hash)
         
         let lyrics = Lyrics(
@@ -124,20 +110,16 @@ actor LyricsCacheService {
             duration: lyrics.duration
         )
         
-        // 生成文件名（音频文件名）
         let baseFileName = audioURL.deletingPathExtension().lastPathComponent
         let finalFileName = findAvailableFileName(baseFileName: baseFileName, hash: hash)
         let fileURL = cacheDirectory.appendingPathComponent("\(finalFileName).lrc")
         
         do {
-            // 写入LRC文件
             try syncedLyrics.write(to: fileURL, atomically: true, encoding: .utf8)
             
-            // 获取文件大小
             let attributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)
             let fileSize = attributes[.size] as? Int ?? 0
             
-            // 更新元数据
             var metadata = loadMetadata()
             metadata.entries.removeAll { $0.hash == hash }
             
@@ -163,34 +145,6 @@ actor LyricsCacheService {
         }
     }
     
-    /// 清理过期缓存
-    func cleanupExpiredCache() async {
-        var metadata = loadMetadata()
-        let now = Date()
-        var removedCount = 0
-        
-        let expiredEntries = metadata.entries.filter { entry in
-            let age = now.timeIntervalSince(entry.lastAccess)
-            return age > maxCacheAge
-        }
-        
-        for entry in expiredEntries {
-            let fileURL = cacheDirectory.appendingPathComponent("\(entry.fileName).lrc")
-            try? FileManager.default.removeItem(at: fileURL)
-            removedCount += 1
-        }
-        
-        metadata.entries.removeAll { entry in
-            let age = now.timeIntervalSince(entry.lastAccess)
-            return age > maxCacheAge
-        }
-        
-        if removedCount > 0 {
-            saveMetadata(metadata)
-            logger.info("🧹 Cleaned \(removedCount) expired cache entries")
-        }
-    }
-    
     /// 获取缓存统计信息
     func getCacheStats() async -> (count: Int, totalSize: Int) {
         let metadata = loadMetadata()
@@ -207,23 +161,19 @@ actor LyricsCacheService {
         return hash.map { String(format: "%02x", $0) }.joined()
     }
     
-    /// 查找可用文件名（处理重名）
     private func findAvailableFileName(baseFileName: String, hash: String) -> String {
         let metadata = loadMetadata()
         
-        // 检查是否已有此hash的缓存（更新场景）
         if let existing = metadata.entries.first(where: { $0.hash == hash }) {
             return existing.fileName
         }
         
-        // 检查基础文件名是否可用
         let existingFileNames = Set(metadata.entries.map(\.fileName))
         
         if !existingFileNames.contains(baseFileName) {
             return baseFileName
         }
         
-        // 重名处理：追加 -1, -2, -3
         var counter = 1
         while true {
             let candidate = "\(baseFileName)-\(counter)"
@@ -232,7 +182,6 @@ actor LyricsCacheService {
             }
             counter += 1
             
-            // 安全阈值
             if counter > 100 {
                 logger.warning("Too many duplicates, using hash fallback")
                 return String(hash.prefix(8))
@@ -252,13 +201,14 @@ actor LyricsCacheService {
     private func cleanupIfNeeded() async {
         var metadata = loadMetadata()
         
-        guard metadata.entries.count > maxCacheSize else {
+        let maxCount = CacheConfigManager.maxCacheCount
+        guard metadata.entries.count > maxCount else {
             return
         }
         
         metadata.entries.sort { $0.lastAccess < $1.lastAccess }
         
-        let removeCount = metadata.entries.count - maxCacheSize
+        let removeCount = metadata.entries.count - maxCount
         let entriesToRemove = metadata.entries.prefix(removeCount)
         
         for entry in entriesToRemove {
