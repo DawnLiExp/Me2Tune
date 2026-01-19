@@ -27,14 +27,14 @@ actor LyricsService {
     
     // MARK: - Unified Entry Point
     
-    /// 统一的歌词获取入口（优先级：本地 > 缓存 > 网络）
+    /// 统一的歌词获取入口(优先级:本地 > 缓存 > 网络)
     func getLyricsWithCache(track: AudioTrack) async throws -> Lyrics {
-        // ✅ 开始前检查取消
+        // ✅ 方法入口检查取消
         try Task.checkCancellation()
         
-        // 1. 本地LRC文件（优先级最高）
+        // 1. 本地LRC文件(优先级最高)
         if let local = try? await getLocalLyrics(audioURL: track.url) {
-            // ✅ 每个await后检查取消
+            // ✅ await后检查取消
             try Task.checkCancellation()
             logger.info("✅ Local lyrics loaded")
             return local
@@ -60,10 +60,10 @@ actor LyricsService {
             duration: Int(track.duration)
         )
         
-        // ✅ API返回后再次检查取消（避免不必要的缓存操作）
+        // ✅ 网络返回后检查取消(避免不必要的缓存)
         try Task.checkCancellation()
         
-        // 保存到缓存（异步，不阻塞返回）
+        // 保存到缓存(异步,不阻塞返回)
         Task {
             await LyricsCacheService.shared.saveLyrics(lyrics, audioURL: track.url)
         }
@@ -73,7 +73,7 @@ actor LyricsService {
     
     // MARK: - Local LRC File
     
-    /// 从本地读取 LRC 歌词文件（精确文件名匹配，同目录）
+    /// 从本地读取 LRC 歌词文件(精确文件名匹配,同目录)
     func getLocalLyrics(audioURL: URL) async throws -> Lyrics {
         let lrcURL = audioURL.deletingPathExtension().appendingPathExtension("lrc")
         
@@ -114,7 +114,7 @@ actor LyricsService {
     
     // MARK: - Network API
     
-    /// 根据曲目签名获取歌词（会尝试外部源）
+    /// 根据曲目签名获取歌词(会尝试外部源)
     func getLyrics(
         trackName: String,
         artistName: String,
@@ -140,7 +140,7 @@ actor LyricsService {
         
         let (data, response) = try await session.data(from: url)
         
-        // ✅ 网络请求返回后检查取消
+        // ✅ 网络返回后检查取消
         try Task.checkCancellation()
         
         guard let httpResponse = response as? HTTPURLResponse else {

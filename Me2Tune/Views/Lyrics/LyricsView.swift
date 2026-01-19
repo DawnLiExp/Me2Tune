@@ -5,10 +5,7 @@
 //  歌词显示视图 - 滚动和高亮功能
 //
 
-import OSLog
 import SwiftUI
-
-private let logger = Logger(subsystem: "me2.Me2Tune", category: "LyricsUI")
 
 struct LyricsView: View {
     @EnvironmentObject private var playerViewModel: PlayerViewModel
@@ -223,8 +220,8 @@ struct LyricsView: View {
             return
         }
         
-        let trackTitle = track.title
-        logger.debug("🎵 Loading lyrics for: \(trackTitle)")
+        // ✅ 核心修复1：捕获当前trackID
+        let trackID = track.id
         
         isLoading = true
         errorMessage = nil
@@ -232,10 +229,17 @@ struct LyricsView: View {
         do {
             let result = try await LyricsService.shared.getLyricsWithCache(track: track)
             
-            // ✅ 加载成功后检查task是否被取消（避免覆盖新task的状态）
-            try Task.checkCancellation()
+            // ✅ 核心修复2：成功后检查track是否已切换
+            guard playerViewModel.currentTrack?.id == trackID else {
+                return
+            }
             
             await MainActor.run {
+                // ✅ 核心修复3：UI更新前再次检查
+                guard playerViewModel.currentTrack?.id == trackID else {
+                    return
+                }
+                
                 lyrics = result
                 lyricLines = result.parseSyncedLyrics()
                 currentLineIndex = nil
@@ -244,15 +248,21 @@ struct LyricsView: View {
                 if playerViewModel.isPlaying {
                     updateCurrentLine(time: playerViewModel.currentTime)
                 }
-                
-                logger.info("✅ Lyrics loaded and displayed: \(trackTitle)")
             }
         } catch is CancellationError {
-            // ✅ Task被取消时不更新状态（避免覆盖新task的状态）
-            logger.debug("🚫 Lyrics loading cancelled for: \(trackTitle)")
+            // ✅ 核心修复4：被取消的task不更新任何状态
+            return
         } catch {
-            // ✅ 只有真正的错误才更新错误状态
+            // ✅ 核心修复5：错误时也检查track是否匹配
+            guard playerViewModel.currentTrack?.id == trackID else {
+                return
+            }
+            
             await MainActor.run {
+                guard playerViewModel.currentTrack?.id == trackID else {
+                    return
+                }
+                
                 lyrics = nil
                 lyricLines = []
                 currentLineIndex = nil
@@ -263,8 +273,6 @@ struct LyricsView: View {
                 } else {
                     errorMessage = String(localized: "failed_to_load_lyrics")
                 }
-                
-                logger.error("❌ Lyrics loading failed for \(trackTitle): \(error.localizedDescription)")
             }
         }
     }
@@ -319,22 +327,44 @@ struct LyricLineView: View {
     }
     
     // 根据距离计算透明度(距离越远越淡)
+    
+    // ✅ 效果1:当前行1行 + 其他每档2行
     private var distanceOpacity: Double {
         switch distanceFromCurrent {
         case 0:
-            return 1.0 // 当前行：完全不透明
+            return 1.0 // 当前行:完全不透明
         case 1, 2:
-            return 0.85 // 相邻2行：稍微淡一点
+            return 0.85 // 相邻2行:稍微淡一点
         case 3, 4:
-            return 0.6 // 第2档2行：更淡
+            return 0.6 // 第2档2行:更淡
         case 5, 6:
-            return 0.4 // 第3档2行：很淡
+            return 0.4 // 第3档2行:很淡
         case 7, 8:
-            return 0.25 // 第4档2行：非常淡
+            return 0.25 // 第4档2行:非常淡
         default:
-            return 0.18 // 更远的行：几乎透明
+            return 0.18 // 更远的行:几乎透明
         }
     }
+
+    /*
+     // ✅ 效果2:当前行1行 + 相邻行各1行 + 其他每档2行
+     private var distanceOpacity: Double {
+         switch distanceFromCurrent {
+         case 0:
+             return 1.0 // 当前行:完全不透明
+         case 1:
+             return 0.85 // 相邻行各1行:稍微淡一点
+         case 2, 3:
+             return 0.6 // 第2档2行:更淡
+         case 4, 5:
+             return 0.4 // 第3档2行:很淡
+         case 6, 7:
+             return 0.25 // 第4档2行:非常淡
+         default:
+             return 0.15 // 更远的行:几乎透明
+         }
+     }
+       */
     
     var body: some View {
         Text(line.text.isEmpty ? "♪" : line.text)
