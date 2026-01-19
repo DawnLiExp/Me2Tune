@@ -8,7 +8,7 @@
 import Foundation
 import OSLog
 
-private nonisolated let logger = Logger(subsystem: "me2.Me2Tune", category: "Lyrics")
+private nonisolated let logger = Logger.lyrics
 
 actor LyricsService {
     static let shared = LyricsService()
@@ -27,32 +27,27 @@ actor LyricsService {
     
     // MARK: - Unified Entry Point
     
-    /// 统一的歌词获取入口(优先级:本地 > 缓存 > 网络)
     func getLyricsWithCache(track: AudioTrack) async throws -> Lyrics {
-        // ✅ 方法入口检查取消
         try Task.checkCancellation()
         
-        // 1. 本地LRC文件(优先级最高)
+        // 1. 本地LRC文件
         if let local = try? await getLocalLyrics(audioURL: track.url) {
-            // ✅ await后检查取消
             try Task.checkCancellation()
-            logger.info("✅ Local lyrics loaded")
+            logger.info("✅ Local lyrics found")
             return local
         }
         
         // 2. 缓存LRC
         try Task.checkCancellation()
-        if let cached = await LyricsCacheService.shared.getCachedLyrics(
-            audioURL: track.url
-        ) {
+        if let cached = await LyricsCacheService.shared.getCachedLyrics(audioURL: track.url) {
             try Task.checkCancellation()
-            logger.info("✅ Cached lyrics loaded")
+            logger.info("✅ Cache hit")
             return cached
         }
         
         // 3. 网络API
         try Task.checkCancellation()
-        logger.info("🌐 Fetching lyrics from API...")
+        logger.info("🌐 Fetching from API: \(track.title)")
         let lyrics = try await getLyrics(
             trackName: track.title,
             artistName: track.artist ?? "Unknown Artist",
@@ -60,10 +55,8 @@ actor LyricsService {
             duration: Int(track.duration)
         )
         
-        // ✅ 网络返回后检查取消(避免不必要的缓存)
         try Task.checkCancellation()
         
-        // 保存到缓存(异步,不阻塞返回)
         Task {
             await LyricsCacheService.shared.saveLyrics(lyrics, audioURL: track.url)
         }
@@ -73,14 +66,10 @@ actor LyricsService {
     
     // MARK: - Local LRC File
     
-    /// 从本地读取 LRC 歌词文件(精确文件名匹配,同目录)
     func getLocalLyrics(audioURL: URL) async throws -> Lyrics {
         let lrcURL = audioURL.deletingPathExtension().appendingPathExtension("lrc")
         
-        logger.debug("Looking for local lyrics: \(lrcURL.lastPathComponent)")
-        
         guard FileManager.default.fileExists(atPath: lrcURL.path) else {
-            logger.debug("Local lyrics file not found")
             throw LyricsError.notFound
         }
         
@@ -88,16 +77,15 @@ actor LyricsService {
         do {
             content = try String(contentsOf: lrcURL, encoding: .utf8)
         } catch {
-            logger.error("Failed to read local lyrics: \(error.localizedDescription)")
+            logger.error("Failed to read local LRC: \(error.localizedDescription)")
             throw LyricsError.fileReadError
         }
         
         guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            logger.warning("Local lyrics file is empty")
             throw LyricsError.emptyFile
         }
         
-        let lyrics = Lyrics(
+        return Lyrics(
             id: 0,
             trackName: audioURL.deletingPathExtension().lastPathComponent,
             artistName: "Local",
@@ -107,21 +95,16 @@ actor LyricsService {
             plainLyrics: nil,
             syncedLyrics: content
         )
-        
-        logger.info("✅ Local lyrics loaded: \(lrcURL.lastPathComponent)")
-        return lyrics
     }
     
     // MARK: - Network API
     
-    /// 根据曲目签名获取歌词(会尝试外部源)
     func getLyrics(
         trackName: String,
         artistName: String,
         albumName: String,
         duration: Int
     ) async throws -> Lyrics {
-        // ✅ 网络请求前检查取消
         try Task.checkCancellation()
         
         var components = URLComponents(string: "\(baseURL)/get")!
@@ -136,11 +119,8 @@ actor LyricsService {
             throw LyricsError.invalidURL
         }
         
-        logger.info("Fetching lyrics from API: \(trackName) - \(artistName)")
-        
         let (data, response) = try await session.data(from: url)
         
-        // ✅ 网络返回后检查取消
         try Task.checkCancellation()
         
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -150,11 +130,10 @@ actor LyricsService {
         switch httpResponse.statusCode {
         case 200:
             let lyrics = try await decodeLyrics(from: data)
-            logger.info("✅ API lyrics found: \(lyrics.id)")
+            logger.info("✅ API success: ID \(lyrics.id)")
             return lyrics
             
         case 404:
-            logger.notice("❌ API lyrics not found")
             throw LyricsError.notFound
             
         default:
@@ -164,7 +143,7 @@ actor LyricsService {
     }
 }
 
-// MARK: - Decoding Helper (Global)
+// MARK: - Decoding Helper
 
 private func decodeLyrics(from data: Data) throws -> Lyrics {
     let decoder = JSONDecoder()

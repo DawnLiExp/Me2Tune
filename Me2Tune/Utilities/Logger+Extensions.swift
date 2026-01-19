@@ -22,6 +22,8 @@ nonisolated extension Logger {
     static let remoteCommand = Logger(subsystem: subsystem, category: "RemoteCommand")
     static let theme = Logger(subsystem: subsystem, category: "Theme")
     static let language = Logger(subsystem: subsystem, category: "Language")
+    static let lyrics = Logger(subsystem: subsystem, category: "Lyrics")
+    static let cache = Logger(subsystem: subsystem, category: "Cache")
 }
 
 extension Logger {

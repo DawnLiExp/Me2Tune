@@ -9,7 +9,7 @@ import AppKit
 import OSLog
 import SwiftUI
 
-private nonisolated let logger = Logger(subsystem: "me2.Me2Tune", category: "Lyrics")
+private let logger = Logger.lyrics
 
 @MainActor
 final class LyricsWindowController {
@@ -34,18 +34,16 @@ final class LyricsWindowController {
         
         if let existingWindow = window {
             existingWindow.makeKeyAndOrderFront(nil)
-            logger.debug("Lyrics window shown (existing)")
             return
         }
         
         createWindow(playerViewModel: playerViewModel)
-        logger.info("Lyrics window created and shown")
+        logger.info("Lyrics window created")
     }
     
     func close() {
         window?.close()
         window = nil
-        logger.debug("Lyrics window closed")
     }
     
     // MARK: - Private Methods
@@ -69,20 +67,13 @@ final class LyricsWindowController {
         window.isReleasedWhenClosed = false
         window.center()
         
-        // 隐藏标题栏但保留窗口按钮
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
-        
-        // 背景色与主题一致
         window.backgroundColor = NSColor(ThemeManager.shared.currentTheme.colors.mainBackground)
-        
-        // ✅ 全背景可拖拽
         window.isMovableByWindowBackground = true
         
-        // 监听置顶设置
         setupAlwaysOnTopObserver(for: window)
         
-        // 窗口关闭时清理
         NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification,
             object: window,
@@ -91,7 +82,6 @@ final class LyricsWindowController {
             Task { @MainActor [weak self] in
                 self?.window = nil
             }
-            logger.debug("Lyrics window will close, clearing reference")
         }
         
         window.makeKeyAndOrderFront(nil)
@@ -110,7 +100,6 @@ final class LyricsWindowController {
             }
         }
         
-        // 初始状态
         let alwaysOnTop = UserDefaults.standard.bool(forKey: "lyricsAlwaysOnTop")
         window.level = alwaysOnTop ? .floating : .normal
     }

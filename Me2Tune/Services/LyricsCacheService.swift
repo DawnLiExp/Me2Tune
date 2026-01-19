@@ -2,14 +2,14 @@
 //  LyricsCacheService.swift
 //  Me2Tune
 //
-//  歌词缓存服务 - 可读文件名 + LRU清理 (修复缓存key逻辑)
+//  歌词缓存服务 - 可读文件名 + LRU清理
 //
 
 import CryptoKit
 import Foundation
 import OSLog
 
-private nonisolated let logger = Logger(subsystem: "me2.Me2Tune", category: "LyricsCache")
+private nonisolated let logger = Logger.cache
 
 actor LyricsCacheService {
     static let shared = LyricsCacheService()
@@ -22,10 +22,10 @@ actor LyricsCacheService {
     // MARK: - Types
     
     struct CacheEntry: Codable, Sendable {
-        let urlHash: String // ✅ 改为基于 URL 的 hash
+        let urlHash: String
         let fileName: String
-        let trackName: String // 保留用于展示
-        let artistName: String // 保留用于展示
+        let trackName: String
+        let artistName: String
         var lastAccess: Date
         let fileSize: Int
         let createdAt: Date
@@ -49,12 +49,11 @@ actor LyricsCacheService {
             withIntermediateDirectories: true
         )
         
-        logger.info("LyricsCacheService initialized at: \(self.cacheDirectory.path)")
+        logger.info("Lyrics cache initialized: \(self.cacheDirectory.path)")
     }
     
     // MARK: - Public Methods
     
-    /// 获取缓存的歌词（只需 audioURL）
     func getCachedLyrics(audioURL: URL) async -> Lyrics? {
         let urlHash = cacheKey(audioURL: audioURL)
         
@@ -65,37 +64,30 @@ actor LyricsCacheService {
         
         let fileURL = cacheDirectory.appendingPathComponent("\(entry.fileName).lrc")
         
-        guard FileManager.default.fileExists(atPath: fileURL.path) else {
-            logger.warning("Cache entry exists but file missing: \(entry.fileName)")
-            return nil
-        }
-        
-        guard let content = try? String(contentsOf: fileURL, encoding: .utf8),
+        guard FileManager.default.fileExists(atPath: fileURL.path),
+              let content = try? String(contentsOf: fileURL, encoding: .utf8),
               !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else {
-            logger.warning("Failed to read cached lyrics: \(entry.fileName)")
+            logger.warning("Cache file missing or invalid: \(entry.fileName)")
             return nil
         }
         
         await updateAccessTime(urlHash: urlHash)
         
-        // ✅ 使用缓存的 trackName/artistName 构造返回值
         let lyrics = Lyrics(
             id: 0,
             trackName: entry.trackName,
             artistName: entry.artistName,
             albumName: nil,
-            duration: 0, // duration 不重要，歌词不需要
+            duration: 0,
             instrumental: false,
             plainLyrics: nil,
             syncedLyrics: content
         )
         
-        logger.info("✅ Cache hit: \(entry.fileName).lrc")
         return lyrics
     }
     
-    /// 保存歌词到缓存（使用 audioURL 作为 key）
     func saveLyrics(_ lyrics: Lyrics, audioURL: URL) async {
         guard let syncedLyrics = lyrics.syncedLyrics,
               !syncedLyrics.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -104,7 +96,6 @@ actor LyricsCacheService {
         }
         
         let urlHash = cacheKey(audioURL: audioURL)
-        
         let baseFileName = audioURL.deletingPathExtension().lastPathComponent
         let finalFileName = findAvailableFileName(baseFileName: baseFileName, urlHash: urlHash)
         let fileURL = cacheDirectory.appendingPathComponent("\(finalFileName).lrc")
@@ -118,7 +109,6 @@ actor LyricsCacheService {
             var metadata = loadMetadata()
             metadata.entries.removeAll { $0.urlHash == urlHash }
             
-            // ✅ 保存 trackName/artistName 仅用于展示
             let entry = CacheEntry(
                 urlHash: urlHash,
                 fileName: finalFileName,
@@ -132,16 +122,15 @@ actor LyricsCacheService {
             
             saveMetadata(metadata)
             
-            logger.info("💾 Cached lyrics: \(finalFileName).lrc (\(fileSize) bytes)")
+            logger.info("💾 Saved: \(finalFileName).lrc (\(fileSize) bytes)")
             
             await cleanupIfNeeded()
             
         } catch {
-            logger.error("Failed to save lyrics cache: \(error.localizedDescription)")
+            logger.error("Failed to save cache: \(error.localizedDescription)")
         }
     }
     
-    /// 获取缓存统计信息
     func getCacheStats() async -> (count: Int, totalSize: Int) {
         let metadata = loadMetadata()
         let totalSize = metadata.entries.reduce(0) { $0 + $1.fileSize }
@@ -150,7 +139,6 @@ actor LyricsCacheService {
     
     // MARK: - Private Methods
     
-    /// ✅ 新的 cacheKey 方法：基于 audioURL.path
     private func cacheKey(audioURL: URL) -> String {
         let path = audioURL.path
         let data = Data(path.utf8)
@@ -172,18 +160,15 @@ actor LyricsCacheService {
         }
         
         var counter = 1
-        while true {
+        while counter <= 100 {
             let candidate = "\(baseFileName)-\(counter)"
             if !existingFileNames.contains(candidate) {
                 return candidate
             }
             counter += 1
-            
-            if counter > 100 {
-                logger.warning("Too many duplicates, using hash fallback")
-                return String(urlHash.prefix(8))
-            }
         }
+        
+        return String(urlHash.prefix(8))
     }
     
     private func updateAccessTime(urlHash: String) async {
@@ -216,7 +201,7 @@ actor LyricsCacheService {
         metadata.entries.removeFirst(removeCount)
         saveMetadata(metadata)
         
-        logger.info("🧹 LRU cleanup: removed \(removeCount) oldest entries")
+        logger.info("🧹 LRU cleanup: removed \(removeCount) entries")
     }
     
     private func loadMetadata() -> CacheMetadata {
@@ -232,7 +217,7 @@ actor LyricsCacheService {
     
     private func saveMetadata(_ metadata: CacheMetadata) {
         guard let data = try? JSONEncoder().encode(metadata) else {
-            logger.error("Failed to encode cache metadata")
+            logger.error("Failed to encode metadata")
             return
         }
         
