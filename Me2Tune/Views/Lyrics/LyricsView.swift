@@ -2,7 +2,7 @@
 //  LyricsView.swift
 //  Me2Tune
 //
-//  歌词显示视图 - 滚动和高亮功能
+//  歌词显示视图 - 独立高频刷新，不依赖主窗口状态
 //
 
 import SwiftUI
@@ -19,14 +19,16 @@ struct LyricsView: View {
     
     @AppStorage("lyricsAlwaysOnTop") private var alwaysOnTop = false
     
+    // ✅ 独立刷新 Timer
+    @State private var updateTimer: Timer?
+    @State private var currentPlaybackTime: TimeInterval = 0
+    
     var body: some View {
         ZStack {
-            // 背景
             themeManager.currentTheme.colors.mainBackground
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // 头部信息
                 headerSection
                     .padding(.horizontal, 20)
                     .padding(.top, 12)
@@ -37,7 +39,6 @@ struct LyricsView: View {
                     .padding(.top, 18)
                     .padding(.bottom, 20)
                 
-                // 歌词内容
                 contentSection
                     .frame(maxHeight: .infinity)
             }
@@ -51,8 +52,11 @@ struct LyricsView: View {
         .task(id: playerViewModel.currentTrack?.id) {
             await loadLyrics()
         }
-        .onChange(of: playerViewModel.currentTime) { _, newTime in
-            updateCurrentLine(time: newTime)
+        .onAppear {
+            startUpdateTimer()
+        }
+        .onDisappear {
+            stopUpdateTimer()
         }
     }
     
@@ -156,18 +160,16 @@ struct LyricsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
-    // MARK: - Synced Lyrics View (滚动 + 高亮)
+    // MARK: - Synced Lyrics View
     
     private var syncedLyricsView: some View {
         ScrollViewReader { proxy in
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
-                    // 顶部间距
                     Color.clear
                         .frame(height: 300)
                         .id("top-spacer")
                     
-                    // 歌词行
                     ForEach(Array(lyricLines.enumerated()), id: \.offset) { index, line in
                         LyricLineView(
                             line: line,
@@ -179,7 +181,6 @@ struct LyricsView: View {
                         .padding(.vertical, 8)
                     }
                     
-                    // 底部间距
                     Color.clear
                         .frame(height: 300)
                         .id("bottom-spacer")
@@ -195,7 +196,7 @@ struct LyricsView: View {
         }
     }
     
-    // MARK: - Plain Lyrics View (纯文本)
+    // MARK: - Plain Lyrics View
     
     private func plainLyricsView(text: String) -> some View {
         ScrollView(showsIndicators: false) {
@@ -209,7 +210,29 @@ struct LyricsView: View {
         }
     }
     
-    // MARK: - Load Lyrics (修复竞态条件)
+    // MARK: - Independent Update Timer
+    
+    private func startUpdateTimer() {
+        stopUpdateTimer()
+        
+        // ✅ 歌词窗口前台时：0.3s 高频刷新
+        updateTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak playerViewModel] _ in
+            guard let playerViewModel else { return }
+            
+            Task { @MainActor in
+                // ✅ 直接从播放器获取实时进度
+                currentPlaybackTime = playerViewModel.getCurrentPlaybackTime()
+                updateCurrentLine(time: currentPlaybackTime)
+            }
+        }
+    }
+    
+    private func stopUpdateTimer() {
+        updateTimer?.invalidate()
+        updateTimer = nil
+    }
+    
+    // MARK: - Load Lyrics
     
     private func loadLyrics() async {
         guard let track = playerViewModel.currentTrack else {
@@ -220,7 +243,6 @@ struct LyricsView: View {
             return
         }
         
-        // ✅ 核心修复1：捕获当前trackID
         let trackID = track.id
         
         isLoading = true
@@ -229,13 +251,11 @@ struct LyricsView: View {
         do {
             let result = try await LyricsService.shared.getLyricsWithCache(track: track)
             
-            // ✅ 核心修复2：成功后检查track是否已切换
             guard playerViewModel.currentTrack?.id == trackID else {
                 return
             }
             
             await MainActor.run {
-                // ✅ 核心修复3：UI更新前再次检查
                 guard playerViewModel.currentTrack?.id == trackID else {
                     return
                 }
@@ -246,14 +266,13 @@ struct LyricsView: View {
                 isLoading = false
                 
                 if playerViewModel.isPlaying {
-                    updateCurrentLine(time: playerViewModel.currentTime)
+                    currentPlaybackTime = playerViewModel.getCurrentPlaybackTime()
+                    updateCurrentLine(time: currentPlaybackTime)
                 }
             }
         } catch is CancellationError {
-            // ✅ 核心修复4：被取消的task不更新任何状态
             return
         } catch {
-            // ✅ 核心修复5：错误时也检查track是否匹配
             guard playerViewModel.currentTrack?.id == trackID else {
                 return
             }
@@ -285,7 +304,6 @@ struct LyricsView: View {
             return
         }
         
-        // 找到当前时间对应的歌词行(最后一个时间戳 <= 当前时间的行)
         var foundIndex: Int?
         for (index, line) in lyricLines.enumerated() {
             if line.timestamp <= time {
@@ -295,7 +313,6 @@ struct LyricsView: View {
             }
         }
         
-        // 只在索引变化时更新(避免频繁触发动画)
         if foundIndex != currentLineIndex {
             currentLineIndex = foundIndex
         }
@@ -320,51 +337,27 @@ struct LyricLineView: View {
         return lineIndex < current
     }
     
-    // 计算距离当前行的距离(用于渐变效果)
     private var distanceFromCurrent: Int {
         guard let current = currentLineIndex else { return 0 }
         return abs(lineIndex - current)
     }
     
-    // 根据距离计算透明度(距离越远越淡)
-    
-    // ✅ 效果1:当前行1行 + 其他每档2行
     private var distanceOpacity: Double {
         switch distanceFromCurrent {
         case 0:
-            return 1.0 // 当前行:完全不透明
+            return 1.0
         case 1, 2:
-            return 0.85 // 相邻2行:稍微淡一点
+            return 0.85
         case 3, 4:
-            return 0.6 // 第2档2行:更淡
+            return 0.6
         case 5, 6:
-            return 0.4 // 第3档2行:很淡
+            return 0.4
         case 7, 8:
-            return 0.25 // 第4档2行:非常淡
+            return 0.25
         default:
-            return 0.18 // 更远的行:几乎透明
+            return 0.18
         }
     }
-
-    /*
-     // ✅ 效果2:当前行1行 + 相邻行各1行 + 其他每档2行
-     private var distanceOpacity: Double {
-         switch distanceFromCurrent {
-         case 0:
-             return 1.0 // 当前行:完全不透明
-         case 1:
-             return 0.85 // 相邻行各1行:稍微淡一点
-         case 2, 3:
-             return 0.6 // 第2档2行:更淡
-         case 4, 5:
-             return 0.4 // 第3档2行:很淡
-         case 6, 7:
-             return 0.25 // 第4档2行:非常淡
-         default:
-             return 0.15 // 更远的行:几乎透明
-         }
-     }
-       */
     
     var body: some View {
         Text(line.text.isEmpty ? "♪" : line.text)

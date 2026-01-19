@@ -20,8 +20,8 @@ private let logger = Logger.viewModel
 
 @MainActor
 final class PlayerViewModel: ObservableObject {
-    
     // MARK: - Published States (UI 绑定状态)
+
     // 这些状态由 ViewModel 管理，直接影响 UI 显示
     
     @Published private(set) var isPlaying = false
@@ -37,10 +37,11 @@ final class PlayerViewModel: ObservableObject {
     @Published private(set) var loadingTracksCount = 0
     
     // MARK: - Managers (委托的管理器)
+
     // ViewModel 委托这些 Manager 处理具体业务逻辑
     
-    let playlistManager: PlaylistManager            // 播放列表管理
-    let playbackStateManager: PlaybackStateManager  // 播放状态管理
+    let playlistManager: PlaylistManager // 播放列表管理
+    let playbackStateManager: PlaybackStateManager // 播放状态管理
     
     // MARK: - Types
     
@@ -61,6 +62,7 @@ final class PlayerViewModel: ObservableObject {
     private var isWindowVisible = true
     
     // MARK: - Computed Properties (代理到 Manager 的只读属性)
+
     // 这些属性从 Manager 获取，简化 View 层调用
     
     var currentFormat: AudioFormat {
@@ -174,6 +176,7 @@ final class PlayerViewModel: ObservableObject {
     }
     
     // MARK: - Playback Control (核心播放控制 - 协调 AudioPlayerCore)
+
     // 这些方法直接操作播放器，是 ViewModel 的核心职责
     
     func play() {
@@ -235,6 +238,13 @@ final class PlayerViewModel: ObservableObject {
         logger.debug("Repeat mode: \(String(describing: self.repeatMode))")
     }
     
+    // MARK: - Real-time Progress Access
+
+    /// 供歌词窗口使用：获取实时播放进度
+    func getCurrentPlaybackTime() -> TimeInterval {
+        return playerCore.getCurrentPlaybackTime()
+    }
+    
     // MARK: - Window Visibility (窗口状态管理)
     
     func updateWindowVisibility(_ state: WindowStateMonitor.WindowVisibilityState) {
@@ -252,6 +262,7 @@ final class PlayerViewModel: ObservableObject {
     }
     
     // MARK: - Playlist Operations (播放列表操作 - 委托给 PlaylistManager)
+
     // 这些方法是便利接口，实际操作由 PlaylistManager 执行
     // View 层统一调用 ViewModel，避免直接依赖 Manager
     
@@ -327,6 +338,7 @@ final class PlayerViewModel: ObservableObject {
     }
     
     // MARK: - Album Playback (专辑播放 - 协调 PlaybackStateManager)
+
     // 切换播放源到专辑，由 PlaybackStateManager 管理状态
     
     /// 播放专辑（切换播放源）
@@ -341,6 +353,7 @@ final class PlayerViewModel: ObservableObject {
     }
     
     // MARK: - Track Loading (内部方法 - 曲目加载)
+
     // 这些是私有协调逻辑，View 层不应直接调用
     
     private func loadTrack(_ track: AudioTrack) async {
@@ -454,6 +467,7 @@ final class PlayerViewModel: ObservableObject {
 }
 
 // MARK: - AudioPlayerCore Delegate (播放器核心回调)
+
 // 处理 AudioPlayerCore 的状态变化，更新 UI 和系统媒体控制
 
 extension PlayerViewModel: AudioPlayerCoreDelegate {

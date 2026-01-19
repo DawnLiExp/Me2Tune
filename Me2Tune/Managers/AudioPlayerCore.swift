@@ -217,6 +217,13 @@ final class AudioPlayerCore: NSObject {
         }
     }
     
+    // MARK: - Real-time Progress (for Lyrics Window)
+
+    /// 获取当前播放进度(实时，不依赖 timer)
+    func getCurrentPlaybackTime() -> TimeInterval {
+        return player?.currentTime ?? currentTime
+    }
+    
     // MARK: - Private Methods
     
     private func ensurePlayerInitialized() {
