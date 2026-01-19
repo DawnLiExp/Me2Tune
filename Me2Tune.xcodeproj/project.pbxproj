@@ -279,6 +279,7 @@
 			children = (
 				FCAE84002F18C09D00BBEC0B /* AppDelegate.swift */,
 				FC32865E2F011242000D8F2A /* AudioPlayerCore.swift */,
+				FC51ACE42F1DD1D4009C47C9 /* CacheConfigManager.swift */,
 				FC9596692F1D57B700ED7FB7 /* CacheLocationManager.swift */,
 				FC0A17432EF2628E0090B22C /* CollectionManager.swift */,
 				FCCAAFB92F12847600DF5D71 /* LanguageManager.swift */,
@@ -293,7 +294,6 @@
 			isa = PBXGroup;
 			children = (
 				FC62DA382F0372BA00DD1509 /* ArtworkCacheService.swift */,
-				FC51ACE42F1DD1D4009C47C9 /* CacheConfigManager.swift */,
 				FC9596672F1D23CE00ED7FB7 /* LyricsCacheService.swift */,
 				FCB9B9672F1C0ACB00CA7866 /* LyricsService.swift */,
 				FCE6E86E2F053E6F004D5E21 /* NowPlayingService.swift */,

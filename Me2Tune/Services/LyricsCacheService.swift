@@ -2,7 +2,7 @@
 //  LyricsCacheService.swift
 //  Me2Tune
 //
-//  歌词缓存服务 - 可读文件名 + LRU清理
+//  歌词缓存服务 - 可读文件名 + LRU清理 (修复缓存key逻辑)
 //
 
 import CryptoKit
@@ -22,10 +22,10 @@ actor LyricsCacheService {
     // MARK: - Types
     
     struct CacheEntry: Codable, Sendable {
-        let hash: String
+        let urlHash: String // ✅ 改为基于 URL 的 hash
         let fileName: String
-        let trackName: String
-        let artistName: String
+        let trackName: String // 保留用于展示
+        let artistName: String // 保留用于展示
         var lastAccess: Date
         let fileSize: Int
         let createdAt: Date
@@ -41,11 +41,9 @@ actor LyricsCacheService {
     // MARK: - Initialization
     
     private init() {
-        // ✅ 使用静态方法获取路径
         self.cacheDirectory = CacheConfigManager.getLyricsCacheDirectory()
         self.metadataURL = cacheDirectory.appendingPathComponent("cache_metadata.json")
         
-        // 确保目录存在
         try? FileManager.default.createDirectory(
             at: cacheDirectory,
             withIntermediateDirectories: true
@@ -56,12 +54,12 @@ actor LyricsCacheService {
     
     // MARK: - Public Methods
     
-    /// 获取缓存的歌词
-    func getCachedLyrics(audioURL: URL, trackName: String, artistName: String, duration: Int) async -> Lyrics? {
-        let hash = cacheKey(trackName: trackName, artistName: artistName, duration: duration)
+    /// 获取缓存的歌词（只需 audioURL）
+    func getCachedLyrics(audioURL: URL) async -> Lyrics? {
+        let urlHash = cacheKey(audioURL: audioURL)
         
         let metadata = loadMetadata()
-        guard let entry = metadata.entries.first(where: { $0.hash == hash }) else {
+        guard let entry = metadata.entries.first(where: { $0.urlHash == urlHash }) else {
             return nil
         }
         
@@ -79,14 +77,15 @@ actor LyricsCacheService {
             return nil
         }
         
-        await updateAccessTime(hash: hash)
+        await updateAccessTime(urlHash: urlHash)
         
+        // ✅ 使用缓存的 trackName/artistName 构造返回值
         let lyrics = Lyrics(
             id: 0,
-            trackName: trackName,
-            artistName: artistName,
+            trackName: entry.trackName,
+            artistName: entry.artistName,
             albumName: nil,
-            duration: duration,
+            duration: 0, // duration 不重要，歌词不需要
             instrumental: false,
             plainLyrics: nil,
             syncedLyrics: content
@@ -96,7 +95,7 @@ actor LyricsCacheService {
         return lyrics
     }
     
-    /// 保存歌词到缓存
+    /// 保存歌词到缓存（使用 audioURL 作为 key）
     func saveLyrics(_ lyrics: Lyrics, audioURL: URL) async {
         guard let syncedLyrics = lyrics.syncedLyrics,
               !syncedLyrics.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -104,14 +103,10 @@ actor LyricsCacheService {
             return
         }
         
-        let hash = cacheKey(
-            trackName: lyrics.trackName,
-            artistName: lyrics.artistName,
-            duration: lyrics.duration
-        )
+        let urlHash = cacheKey(audioURL: audioURL)
         
         let baseFileName = audioURL.deletingPathExtension().lastPathComponent
-        let finalFileName = findAvailableFileName(baseFileName: baseFileName, hash: hash)
+        let finalFileName = findAvailableFileName(baseFileName: baseFileName, urlHash: urlHash)
         let fileURL = cacheDirectory.appendingPathComponent("\(finalFileName).lrc")
         
         do {
@@ -121,10 +116,11 @@ actor LyricsCacheService {
             let fileSize = attributes[.size] as? Int ?? 0
             
             var metadata = loadMetadata()
-            metadata.entries.removeAll { $0.hash == hash }
+            metadata.entries.removeAll { $0.urlHash == urlHash }
             
+            // ✅ 保存 trackName/artistName 仅用于展示
             let entry = CacheEntry(
-                hash: hash,
+                urlHash: urlHash,
                 fileName: finalFileName,
                 trackName: lyrics.trackName,
                 artistName: lyrics.artistName,
@@ -154,17 +150,18 @@ actor LyricsCacheService {
     
     // MARK: - Private Methods
     
-    private func cacheKey(trackName: String, artistName: String, duration: Int) -> String {
-        let signature = "\(trackName)|\(artistName)|\(duration)"
-        let data = Data(signature.utf8)
+    /// ✅ 新的 cacheKey 方法：基于 audioURL.path
+    private func cacheKey(audioURL: URL) -> String {
+        let path = audioURL.path
+        let data = Data(path.utf8)
         let hash = Insecure.MD5.hash(data: data)
         return hash.map { String(format: "%02x", $0) }.joined()
     }
     
-    private func findAvailableFileName(baseFileName: String, hash: String) -> String {
+    private func findAvailableFileName(baseFileName: String, urlHash: String) -> String {
         let metadata = loadMetadata()
         
-        if let existing = metadata.entries.first(where: { $0.hash == hash }) {
+        if let existing = metadata.entries.first(where: { $0.urlHash == urlHash }) {
             return existing.fileName
         }
         
@@ -184,15 +181,15 @@ actor LyricsCacheService {
             
             if counter > 100 {
                 logger.warning("Too many duplicates, using hash fallback")
-                return String(hash.prefix(8))
+                return String(urlHash.prefix(8))
             }
         }
     }
     
-    private func updateAccessTime(hash: String) async {
+    private func updateAccessTime(urlHash: String) async {
         var metadata = loadMetadata()
         
-        if let index = metadata.entries.firstIndex(where: { $0.hash == hash }) {
+        if let index = metadata.entries.firstIndex(where: { $0.urlHash == urlHash }) {
             metadata.entries[index].lastAccess = Date()
             saveMetadata(metadata)
         }

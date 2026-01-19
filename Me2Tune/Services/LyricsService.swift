@@ -37,10 +37,7 @@ actor LyricsService {
         
         // 2. 缓存LRC
         if let cached = await LyricsCacheService.shared.getCachedLyrics(
-            audioURL: track.url,
-            trackName: track.title,
-            artistName: track.artist ?? "Unknown Artist",
-            duration: Int(track.duration)
+            audioURL: track.url
         ) {
             logger.info("✅ Cached lyrics loaded")
             return cached
