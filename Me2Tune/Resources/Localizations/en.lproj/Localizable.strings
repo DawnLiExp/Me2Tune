@@ -69,7 +69,6 @@
 "settings_about" = "About";
 
 // MARK: - Settings - Language
-"settings_language_header" = "Language (Restart Required)";
 "settings_language_label" = "Language";
 "language_change_title" = "Restart Required";
 "language_change_message" = "Language change will take effect after restarting the app.";
@@ -77,7 +76,6 @@
 "restart_later" = "Later";
 
 // MARK: - Settings - Theme
-"settings_appearance_header" = "Appearance (Restart Required)";
 "settings_theme_label" = "Theme";
 "settings_theme_footer" = "Auto mode follows system appearance after restart.";
 "theme_auto" = "Auto";
@@ -88,17 +86,16 @@
 "theme_change_message" = "Theme change will take effect after restarting the app.";
 
 // MARK: - Settings - Clean Mode
-"settings_visual_header" = "Visual Effects";
 "settings_clean_mode" = "Clean Mode";
 "settings_clean_mode_footer" = "Reduces visual effects like hover highlights, shadows, and background glows for a cleaner interface.";
 
 // MARK: - Settings - Cache
 "cache_location" = "Cache Location";
-"cache_settings_header" = "Cache Settings";
-"cache_settings_footer" = "Automatically manages up to %d items for both artwork and lyrics cache. Least recently used items will be removed when limit is reached.";
+"cache_settings_footer" = "Artwork and lyrics caches are limited to %d items each. Oldest items are cleaned when limits are reached (restart required for location changes).";
 "select_directory" = "Select Directory";
 "reset_default" = "Reset to Default";
 "select_cache_directory_message" = "Choose a directory to store cache files";
+"reveal_in_finder" = "Reveal in Finder";
 
 // MARK: - ControlSection
 "Switch to Mini Mode" = "Switch to Mini Mode";

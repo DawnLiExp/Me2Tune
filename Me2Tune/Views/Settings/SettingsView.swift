@@ -30,7 +30,8 @@ struct SettingsView: View {
             tabContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(width: 500, height: 360)
+        .frame(width: 500, height: 350)
+        .background(Color(NSColor.windowBackgroundColor))
         .alert("language_change_title", isPresented: $showLanguageChangeAlert) {
             Button("restart_now") {
                 if let language = pendingLanguage {
@@ -88,7 +89,9 @@ struct SettingsView: View {
     
     private func tabButton(index: Int, title: String, icon: String) -> some View {
         Button(action: {
-            selectedTab = index
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedTab = index
+            }
         }) {
             HStack(spacing: 6) {
                 Image(systemName: icon)
@@ -99,6 +102,10 @@ struct SettingsView: View {
             .foregroundColor(selectedTab == index ? .accentColor : Color(NSColor.secondaryLabelColor))
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(selectedTab == index ? Color.accentColor.opacity(0.1) : Color.clear)
+            )
             .contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
@@ -108,107 +115,76 @@ struct SettingsView: View {
     
     @ViewBuilder
     private var tabContent: some View {
-        switch selectedTab {
-        case 0:
-            generalSettings
-        case 1:
-            advancedSettings
-        case 2:
-            aboutSettings
-        default:
-            generalSettings
+        ScrollView {
+            VStack(spacing: 24) {
+                switch selectedTab {
+                case 0:
+                    generalSettings
+                case 1:
+                    advancedSettings
+                case 2:
+                    aboutSettings
+                default:
+                    generalSettings
+                }
+            }
+            .padding(24)
         }
     }
     
     // MARK: - General Settings
     
     private var generalSettings: some View {
-        Form {
-            Section {
-                HStack(spacing: 12) {
-                    Image(systemName: "globe")
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-                        .frame(width: 20)
-                    
-                    Text("settings_language_label")
-                        .font(.system(size: 13))
-                    
-                    Spacer()
-                    
-                    Picker("", selection: Binding(
-                        get: { languageManager.currentLanguage },
-                        set: { newLanguage in
-                            guard newLanguage != languageManager.currentLanguage else { return }
-                            pendingLanguage = newLanguage
-                            showLanguageChangeAlert = true
-                        }
-                    )) {
-                        ForEach(LanguageManager.AppLanguage.allCases) { language in
-                            Text(language.displayName).tag(language)
-                        }
+        VStack(spacing: 16) {
+            // 语言设置
+            settingRow(icon: "globe", label: "settings_language_label") {
+                Picker("", selection: Binding(
+                    get: { languageManager.currentLanguage },
+                    set: { newLanguage in
+                        guard newLanguage != languageManager.currentLanguage else { return }
+                        pendingLanguage = newLanguage
+                        showLanguageChangeAlert = true
                     }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .frame(width: 140)
+                )) {
+                    ForEach(LanguageManager.AppLanguage.allCases) { language in
+                        Text(language.displayName).tag(language)
+                    }
                 }
-            } header: {
-                Text("settings_language_header")
-                    .font(.system(size: 11))
-                    .foregroundColor(Color(NSColor.tertiaryLabelColor))
-                    .textCase(nil)
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .frame(width: 140)
             }
             
-            Section {
-                HStack(spacing: 12) {
-                    Image(systemName: "paintpalette")
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-                        .frame(width: 20)
-                    
-                    Text("settings_theme_label")
-                        .font(.system(size: 13))
-                    
-                    Spacer()
-                    
-                    Picker("", selection: Binding(
-                        get: { themeManager.themeMode },
-                        set: { newMode in
-                            guard newMode != themeManager.themeMode else { return }
-                            pendingTheme = newMode
-                            showThemeChangeAlert = true
-                        }
-                    )) {
-                        ForEach(ThemeManager.ThemeMode.allCases) { mode in
-                            Text(mode.displayName).tag(mode)
-                        }
+            Divider()
+                .padding(.leading, 32)
+            
+            // 主题设置
+            settingRow(icon: "paintpalette", label: "settings_theme_label", helpText: "settings_theme_footer") {
+                Picker("", selection: Binding(
+                    get: { themeManager.themeMode },
+                    set: { newMode in
+                        guard newMode != themeManager.themeMode else { return }
+                        pendingTheme = newMode
+                        showThemeChangeAlert = true
                     }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .frame(width: 140)
+                )) {
+                    ForEach(ThemeManager.ThemeMode.allCases) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
                 }
-            } header: {
-                Text("settings_appearance_header")
-                    .font(.system(size: 11))
-                    .foregroundColor(Color(NSColor.tertiaryLabelColor))
-                    .textCase(nil)
-            } footer: {
-                Text("settings_theme_footer")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .frame(width: 140)
             }
         }
-        .formStyle(.grouped)
-        .padding(20)
     }
     
     // MARK: - Advanced Settings
     
     private var advancedSettings: some View {
-        Form {
+        VStack(spacing: 20) {
             // 缓存设置
-            Section {
-                // 第一行：标题
+            VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
                     Image(systemName: "folder.badge.gearshape")
                         .font(.system(size: 14))
@@ -217,170 +193,192 @@ struct SettingsView: View {
                     
                     Text("cache_location")
                         .font(.system(size: 13))
-                }
-                .padding(.bottom, 4)
-                
-                // 第二行：当前路径 + 状态 + Finder按钮
-                HStack(spacing: 8) {
-                    // 状态图标
-                    Image(systemName: cacheManager.isCustomPathWritable ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(cacheManager.isCustomPathWritable ? .green : .red)
-                    
-                    // 路径文本
-                    Text(displayCachePath)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
                     
                     Spacer()
-                    
-                    // Finder 按钮
-                    Button(action: {
-                        cacheManager.revealInFinder()
-                    }) {
-                        Image(systemName: "magnifyingglass.circle")
-                            .font(.system(size: 14))
-                            .foregroundColor(.accentColor)
-                    }
-                    .buttonStyle(.plain)
                 }
-                .padding(.vertical, 4)
-                .padding(.horizontal, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color(NSColor.controlBackgroundColor))
-                )
                 
-                // 第三行：选择目录按钮
-                HStack {
-                    Spacer()
-                    
-                    Button(action: selectCacheDirectory) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "folder.badge.plus")
-                                .font(.system(size: 12))
-                            Text("select_directory")
-                                .font(.system(size: 12))
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(Color.accentColor.opacity(0.1))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 6)
-                                .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    
-                    // 恢复默认按钮
-                    if cacheManager.customCachePath != nil {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        Image(systemName: cacheManager.isCustomPathWritable ? "checkmark.circle.fill" : "xmark.circle.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(cacheManager.isCustomPathWritable ? .green : .red)
+                        
+                        Text(displayCachePath)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        
+                        Spacer()
+                        
                         Button(action: {
-                            cacheManager.setCustomCachePath(nil)
+                            cacheManager.revealInFinder()
                         }) {
+                            Image(systemName: "magnifyingglass.circle")
+                                .font(.system(size: 14))
+                                .foregroundColor(.accentColor)
+                        }
+                        .buttonStyle(.plain)
+                        .help(Text("reveal_in_finder"))
+                    }
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color(NSColor.controlBackgroundColor))
+                    )
+                    
+                    HStack(spacing: 12) {
+                        Button(action: selectCacheDirectory) {
                             HStack(spacing: 6) {
-                                Image(systemName: "arrow.counterclockwise")
-                                    .font(.system(size: 12))
-                                Text("reset_default")
+                                Image(systemName: "folder.badge.plus")
+                                    .font(.system(size: 11))
+                                Text("select_directory")
                                     .font(.system(size: 12))
                             }
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
                             .background(
                                 RoundedRectangle(cornerRadius: 6)
-                                    .fill(Color(NSColor.controlBackgroundColor))
+                                    .fill(Color.accentColor.opacity(0.1))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(Color.accentColor.opacity(0.2), lineWidth: 1)
                             )
                         }
                         .buttonStyle(.plain)
+                        
+                        if cacheManager.customCachePath != nil {
+                            Button(action: {
+                                cacheManager.setCustomCachePath(nil)
+                            }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "arrow.counterclockwise")
+                                        .font(.system(size: 11))
+                                    Text("reset_default")
+                                        .font(.system(size: 12))
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(Color(NSColor.controlBackgroundColor))
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
-                    
-                    Spacer()
                 }
-                .padding(.top, 4)
                 
-            } header: {
-                Text("cache_settings_header")
+                Text(String(format: String(localized: "cache_settings_footer"), CacheConfigManager.maxCacheCount))
                     .font(.system(size: 11))
-                    .foregroundColor(Color(NSColor.tertiaryLabelColor))
-                    .textCase(nil)
-            } footer: {
-                Text(
-                    String(
-                        format: String(localized: "cache_settings_footer"),
-                        CacheConfigManager.maxCacheCount
-                    )
-                )
-
-                .font(.caption)
-                .foregroundColor(.secondary)
+                    .foregroundColor(.secondary)
+                    .padding(.leading, 32)
             }
             
-            // 视觉效果设置
-            Section {
-                Toggle("settings_clean_mode", isOn: $cleanMode)
-            } header: {
-                Text("settings_visual_header")
-                    .font(.system(size: 11))
-                    .foregroundColor(Color(NSColor.tertiaryLabelColor))
-                    .textCase(nil)
-            } footer: {
-                Text("settings_clean_mode_footer")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+            Divider()
+            
+            // 视觉效果
+            settingRow(icon: "sparkles", label: "settings_clean_mode", helpText: "settings_clean_mode_footer") {
+                Toggle("", isOn: $cleanMode)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                    .controlSize(.small)
             }
         }
-        .formStyle(.grouped)
-        .padding(20)
     }
     
     // MARK: - About Settings
     
     private var aboutSettings: some View {
-        VStack(spacing: 20) {
-            Spacer()
-            
-            // App Icon
-            if let appIcon = NSImage(named: "AppIcon") {
-                Image(nsImage: appIcon)
-                    .resizable()
-                    .frame(width: 80, height: 80)
-                    .cornerRadius(16)
-                    .shadow(color: .black.opacity(0.2), radius: 4)
-            } else {
-                Image(systemName: "headphones")
-                    .resizable()
-                    .frame(width: 64, height: 64)
-                    .foregroundColor(.accentColor)
-            }
-            
-            // App Name & Version
-            VStack(spacing: 6) {
-                Text("Me2Tune")
-                    .font(.title2)
-                    .fontWeight(.semibold)
+        VStack(spacing: 24) {
+            // App Info
+            VStack(spacing: 16) {
+                if let appIcon = NSImage(named: "AppIcon") {
+                    Image(nsImage: appIcon)
+                        .resizable()
+                        .frame(width: 72, height: 72)
+                        .cornerRadius(14)
+                        .shadow(color: .black.opacity(0.15), radius: 5, y: 2)
+                } else {
+                    Image(systemName: "headphones")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 64, height: 64)
+                        .foregroundColor(.accentColor)
+                }
                 
-                if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String,
-                   let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String
-                {
-                    Text("Version \(version) (\(build))")
-                        .font(.callout)
-                        .foregroundColor(.secondary)
+                VStack(spacing: 4) {
+                    Text("Me2Tune")
+                        .font(.system(size: 20, weight: .bold))
+                    
+                    if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String,
+                       let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String
+                    {
+                        Text("Version \(version) (\(build))")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
             
-            // Copyright
-            Text("© 2025 Me2Tune")
-                .font(.caption)
+            VStack(spacing: 12) {
+                Link(destination: URL(string: "https://github.com/DawnLiExp/Me2Tune")!) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "link")
+                            .font(.system(size: 12))
+                        Text("Website")
+                            .font(.system(size: 13))
+                    }
+                    .foregroundColor(.accentColor)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(
+                        Capsule()
+                            .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
+                
+                Text("© 2025 Me2Tune")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color(NSColor.tertiaryLabelColor))
+            }
+        }
+        .padding(.top, 10)
+    }
+    
+    // MARK: - Components
+    
+    private func settingRow(
+        icon: String,
+        label: LocalizedStringKey,
+        helpText: LocalizedStringKey? = nil,
+        @ViewBuilder content: () -> some View
+    ) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 14))
                 .foregroundColor(.secondary)
+                .frame(width: 20)
+            
+            HStack(spacing: 4) {
+                Text(label)
+                    .font(.system(size: 13))
+                
+                if let helpText {
+                    Image(systemName: "questionmark.circle")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary.opacity(0.6))
+                        .help(Text(helpText))
+                }
+            }
             
             Spacer()
+            
+            content()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(20)
     }
     
     // MARK: - Helpers
@@ -408,8 +406,6 @@ struct SettingsView: View {
             }
         }
     }
-    
-    // MARK: - Private Methods
     
     private func restartApp() {
         let task = Process()
