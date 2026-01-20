@@ -12,18 +12,13 @@ import SwiftUI
 
 private let logger = Logger.app
 
-// ✅ 标记MainActor：UI操作必须在主线程
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var windowDelegate: WindowInterceptor?
     private var miniWindowController: MiniWindowController?
     
-    // ✅ 并发安全说明：displayModeCancellable的清理在deinit中同步完成
-    private nonisolated(unsafe) var displayModeCancellable: AnyCancellable?
-    
-    // ✅ commandWMonitor使用nonisolated(unsafe)是安全的：
-    // NSEvent.addLocalMonitorForEvents在主线程调用，返回值存储后只在deinit中访问
-    private nonisolated(unsafe) var commandWMonitor: Any?
+    private var displayModeCancellable: AnyCancellable?
+    private var commandWMonitor: Any?
     
     weak var fullModeWindow: NSWindow?
     weak var playerViewModel: PlayerViewModel?
@@ -31,16 +26,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     weak var windowStateMonitor: WindowStateMonitor?
     
     private var currentDisplayMode: DisplayMode = .full
-    
-    // ✅ 并发安全说明：
-    // 1. AnyCancellable.cancel()和NSEvent.removeMonitor()都是线程安全的
-    // 2. deinit时对象已在销毁，不会有并发访问
-    nonisolated deinit {
-        displayModeCancellable?.cancel()
-        if let monitor = commandWMonitor {
-            NSEvent.removeMonitor(monitor)
-        }
-    }
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         UserDefaults.standard.set(DisplayMode.full.rawValue, forKey: "displayMode")
@@ -52,6 +37,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return false
+    }
+    
+    func applicationWillTerminate(_ notification: Notification) {
+        cleanup()
+    }
+    
+    // MARK: - Cleanup
+    
+    private func cleanup() {
+        displayModeCancellable?.cancel()
+        displayModeCancellable = nil
+        
+        if let monitor = commandWMonitor {
+            NSEvent.removeMonitor(monitor)
+            commandWMonitor = nil
+        }
+        
+        logger.debug("AppDelegate resources cleaned up")
     }
     
     // MARK: - Dock Icon Click Handler
@@ -71,7 +74,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Mode Management
     
     private func setupDisplayModeObserver() {
-        // ✅ 使用weak self避免循环引用
         displayModeCancellable = NotificationCenter.default
             .publisher(for: UserDefaults.didChangeNotification)
             .sink { [weak self] _ in
@@ -140,7 +142,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         
         windowStateMonitor?.startMonitoring(window: window)
         
-        // ✅ 显式使用Task with MainActor
         Task { @MainActor [weak collectionManager] in
             collectionManager?.scheduleDelayedLoad(delay: 1.5)
         }
@@ -149,7 +150,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Command+W Handler
     
     private func setupCommandWHandler() {
-        // ✅ 使用weak self避免循环引用
         commandWMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self else { return event }
             
