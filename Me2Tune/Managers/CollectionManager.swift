@@ -25,7 +25,8 @@ final class CollectionManager: ObservableObject {
     func scheduleDelayedLoad(delay: TimeInterval = 2.5) {
         guard !isLoaded, delayedLoadTask == nil else { return }
         
-        delayedLoadTask = Task {
+        // ✅ 显式标记MainActor上下文
+        delayedLoadTask = Task { @MainActor in
             do {
                 try await Task.sleep(for: .seconds(delay))
             } catch {
@@ -39,10 +40,9 @@ final class CollectionManager: ObservableObject {
             
             logger.info("⏰ Starting delayed collection load")
             await loadCollections()
-            await MainActor.run {
-                self.isLoaded = true
-                self.delayedLoadTask = nil
-            }
+            
+            self.isLoaded = true
+            self.delayedLoadTask = nil
         }
     }
     
@@ -111,14 +111,13 @@ final class CollectionManager: ObservableObject {
             
         let album = Album(name: name, folderURL: URL(fileURLWithPath: "/"), tracks: tracks)
             
-        await MainActor.run {
-            self.albums.append(album)
-            self.objectWillChange.send()
-                
-            logger.info("Album created from playlist: \(name) with \(tracks.count) tracks")
-                
-            saveCollections()
-        }
+        // ✅ 显式在MainActor上更新Published属性
+        self.albums.append(album)
+        self.objectWillChange.send()
+            
+        logger.info("Album created from playlist: \(name) with \(tracks.count) tracks")
+            
+        saveCollections()
             
         return album.id
     }
@@ -182,13 +181,12 @@ final class CollectionManager: ObservableObject {
             return tracksWithIndex.sorted { $0.0 < $1.0 }.map(\.1)
         }
         
-        await MainActor.run {
-            let album = Album(name: albumName, folderURL: url, tracks: tracks)
-            self.albums.append(album)
-            self.objectWillChange.send()
-            logger.info("Album created: \(albumName) with \(tracks.count) tracks")
-            saveCollections()
-        }
+        // ✅ 显式在MainActor上更新Published属性
+        let album = Album(name: albumName, folderURL: url, tracks: tracks)
+        self.albums.append(album)
+        self.objectWillChange.send()
+        logger.info("Album created: \(albumName) with \(tracks.count) tracks")
+        saveCollections()
     }
     
     func removeAlbum(id: UUID) {
@@ -270,6 +268,7 @@ final class CollectionManager: ObservableObject {
                 }
             }
             
+            // ✅ 显式在MainActor上更新Published属性
             self.albums = migratedAlbums
             logger.info("Loaded \(self.albums.count) albums")
             

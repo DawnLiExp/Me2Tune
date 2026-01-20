@@ -32,6 +32,12 @@ final class AudioPlayerCore: NSObject {
     weak var delegate: AudioPlayerCoreDelegate?
     
     private var player: AudioPlayer?
+    
+    // ✅ 并发安全说明：
+    // timer使用nonisolated(unsafe)是安全的，因为：
+    // 1. 所有timer操作(startTimer/stopTimer)都在MainActor上执行
+    // 2. deinit时对象已进入销毁阶段，不会有并发访问
+    // 3. Timer.scheduledTimer本身是线程安全的
     private nonisolated(unsafe) var timer: Timer?
     
     private(set) var isPlaying = false
@@ -39,10 +45,8 @@ final class AudioPlayerCore: NSObject {
     private(set) var duration: TimeInterval = 0
     private(set) var currentTrack: AudioTrack?
     
-    // 窗口可见性状态
     private(set) var visibilityState: WindowStateMonitor.WindowVisibilityState = .activeFocused
     
-    // ✅ 新增：追踪 timer 是否应该运行
     private var shouldTimerRun: Bool {
         return isPlaying
     }
@@ -62,6 +66,7 @@ final class AudioPlayerCore: NSObject {
     }
     
     nonisolated deinit {
+        // ✅ 安全：deinit时对象已在销毁，无并发风险
         timer?.invalidate()
         timer = nil
     }
@@ -82,7 +87,6 @@ final class AudioPlayerCore: NSObject {
         logger.debug("⚡ Visibility changed: \(oldState.description) -> \(state.description)")
         logger.debug("⚡ Update interval: \(String(format: "%.1f", state.updateInterval))s")
         
-        // ✅ 关键修复：只在播放时才重建 timer
         if shouldTimerRun {
             logger.debug("⚡ Rebuilding timer with new interval")
             startTimer()
@@ -217,9 +221,8 @@ final class AudioPlayerCore: NSObject {
         }
     }
     
-    // MARK: - Real-time Progress (for Lyrics Window)
-
-    /// 获取当前播放进度(实时，不依赖 timer)
+    // MARK: - Real-time Progress
+    
     func getCurrentPlaybackTime() -> TimeInterval {
         return player?.currentTime ?? currentTime
     }
@@ -235,16 +238,15 @@ final class AudioPlayerCore: NSObject {
     }
     
     private func startTimer() {
-        // ✅ 严格清理旧 timer
+        // ✅ 严格清理旧timer，避免重复创建
         stopTimer()
         
         let interval = visibilityState.updateInterval
         
         logger.debug("⏱️ Creating timer with interval: \(String(format: "%.1f", interval))s (state: \(self.visibilityState.description))")
         
+        // ✅ 显式使用MainActor上下文
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
-            guard let self else { return }
-            
             Task { @MainActor [weak self] in
                 guard let self, let player = self.player else { return }
                 
@@ -270,18 +272,15 @@ final class AudioPlayerCore: NSObject {
             return
         }
             
-        // 容器视图（128x128）
         let containerView = NSView(frame: NSRect(x: 0, y: 0, width: 128, height: 128))
         containerView.wantsLayer = true
         containerView.layer?.backgroundColor = NSColor.clear.cgColor
             
-        // 图像视图（留出边距 6px）
         let imageView = NSImageView(frame: NSRect(x: 6, y: 6, width: 116, height: 116))
         imageView.image = artwork
         imageView.imageScaling = .scaleProportionallyUpOrDown
         imageView.wantsLayer = true
             
-        // 圆角和黑边
         imageView.layer?.cornerRadius = 6
         imageView.layer?.masksToBounds = true
         imageView.layer?.borderWidth = 2

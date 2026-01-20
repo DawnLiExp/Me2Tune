@@ -12,10 +12,17 @@ import SwiftUI
 
 private let logger = Logger.app
 
+// ✅ 标记MainActor：UI操作必须在主线程
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var windowDelegate: WindowInterceptor?
     private var miniWindowController: MiniWindowController?
-    private var displayModeCancellable: AnyCancellable?
+    
+    // ✅ 并发安全说明：displayModeCancellable的清理在deinit中同步完成
+    private nonisolated(unsafe) var displayModeCancellable: AnyCancellable?
+    
+    // ✅ commandWMonitor使用nonisolated(unsafe)是安全的：
+    // NSEvent.addLocalMonitorForEvents在主线程调用，返回值存储后只在deinit中访问
     private nonisolated(unsafe) var commandWMonitor: Any?
     
     weak var fullModeWindow: NSWindow?
@@ -23,16 +30,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     weak var collectionManager: CollectionManager?
     weak var windowStateMonitor: WindowStateMonitor?
     
-    // 记录当前显示模式
     private var currentDisplayMode: DisplayMode = .full
     
+    // ✅ 并发安全说明：
+    // 1. AnyCancellable.cancel()和NSEvent.removeMonitor()都是线程安全的
+    // 2. deinit时对象已在销毁，不会有并发访问
+    nonisolated deinit {
+        displayModeCancellable?.cancel()
+        if let monitor = commandWMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+    }
+    
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // 启动时总是设置为完整模式
         UserDefaults.standard.set(DisplayMode.full.rawValue, forKey: "displayMode")
         
         setupCommandWHandler()
         configureFullModeWindow()
-        setupDisplayModeObserver() // 在窗口配置完成后再监听模式切换
+        setupDisplayModeObserver()
     }
     
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -42,7 +57,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Dock Icon Click Handler
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        // 基于当前运行时状态恢复窗口
         if miniWindowController != nil {
             miniWindowController?.show()
             logger.debug("🔄 Restored Mini window from Dock")
@@ -57,6 +71,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Mode Management
     
     private func setupDisplayModeObserver() {
+        // ✅ 使用weak self避免循环引用
         displayModeCancellable = NotificationCenter.default
             .publisher(for: UserDefaults.didChangeNotification)
             .sink { [weak self] _ in
@@ -68,7 +83,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let modeString = UserDefaults.standard.string(forKey: "displayMode") ?? DisplayMode.full.rawValue
         guard let mode = DisplayMode(rawValue: modeString) else { return }
         
-        // ✅ 只在模式真正改变时才切换
         guard mode != currentDisplayMode else { return }
         currentDisplayMode = mode
         
@@ -85,14 +99,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         
-        // 1. 隐藏完整模式窗口
         fullModeWindow?.orderOut(nil)
         
-        // 2. 设置为 Mini 模式（这会让 isWindowVisible = false）
         windowStateMonitor?.forceSetState(.miniVisible)
         playerViewModel.updateWindowVisibility(.miniVisible)
         
-        // 3. 创建 Mini 模式窗口
         if miniWindowController == nil {
             miniWindowController = MiniWindowController(
                 playerViewModel: playerViewModel,
@@ -105,15 +116,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func switchToFullMode() {
-        // 关闭 Mini 模式窗口
         miniWindowController?.close()
         miniWindowController = nil
         
-        // 显示完整模式窗口
         if let window = fullModeWindow {
             window.makeKeyAndOrderFront(nil)
             
-            // ✅ 恢复 Full 窗口监听
             windowStateMonitor?.forceSetState(.activeFocused)
             
             logger.info("🖥️ Switched to Full mode")
@@ -132,34 +140,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         
         windowStateMonitor?.startMonitoring(window: window)
         
-        // 延迟加载专辑列表
-        Task {
+        // ✅ 显式使用Task with MainActor
+        Task { @MainActor [weak collectionManager] in
             collectionManager?.scheduleDelayedLoad(delay: 1.5)
         }
     }
     
     // MARK: - Command+W Handler
     
-    // MARK: - Command+W Handler (智能路由版本)
-
     private func setupCommandWHandler() {
-        commandWMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+        // ✅ 使用weak self避免循环引用
+        commandWMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self else { return event }
+            
             if event.modifierFlags.contains(.command), event.charactersIgnoringModifiers == "w" {
-                // ✅ 优先检查鼠标位置
                 let mouseLocation = NSEvent.mouseLocation
                 
-                // 遍历所有可见窗口
                 for window in NSApp.windows where window.isVisible {
                     let windowFrame = window.frame
                     
-                    // 鼠标是否在此窗口内
                     if windowFrame.contains(mouseLocation) {
                         self.handleCommandW(for: window, reason: "mouse inside")
                         return nil
                     }
                 }
                 
-                // 兜底：使用keyWindow
                 if let window = NSApp.keyWindow {
                     self.handleCommandW(for: window, reason: "fallback to keyWindow")
                 }
@@ -171,29 +176,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func handleCommandW(for window: NSWindow, reason: String) {
-        // Mini 模式（NSPanel）
         if window is NSPanel {
             window.orderOut(nil)
             logger.debug("⌘+W → Hide Mini window (\(reason))")
             return
         }
         
-        // 歌词窗口（通过title识别）
         if window.title.contains("歌词") || window.title.contains("Lyrics") {
             window.miniaturize(nil)
             logger.debug("⌘+W → Minimize Lyrics window (\(reason))")
             return
         }
         
-        // Full 模式主窗口
         window.miniaturize(nil)
         logger.debug("⌘+W → Minimize Full window (\(reason))")
-    }
-    
-    deinit {
-        if let monitor = commandWMonitor {
-            NSEvent.removeMonitor(monitor)
-        }
     }
 }
 

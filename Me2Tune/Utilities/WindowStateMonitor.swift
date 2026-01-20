@@ -27,24 +27,24 @@ final class WindowStateMonitor: ObservableObject {
     // MARK: - Types
     
     enum WindowVisibilityState: Equatable {
-        case activeFocused // Full 前台+焦点（最高频率）
-        case inactive // Full 前台无焦点或后台（中等频率）
-        case hidden // Full 完全隐藏/最小化（最低频率）
-        case miniVisible // Mini 显示状态（前台/后台）
-        case miniHidden // Mini 最小化到 dock
+        case activeFocused
+        case inactive
+        case hidden
+        case miniVisible
+        case miniHidden
         
         var updateInterval: TimeInterval {
             switch self {
             case .activeFocused:
-                return 0.3 // 5fps - 流畅体验
+                return 0.3
             case .inactive:
-                return 0.5 // 1fps - 平衡
+                return 0.5
             case .hidden:
-                return 2.0 // 0.5fps - 省电
+                return 2.0
             case .miniVisible:
-                return 1.0 // 1fps - Mini 显示
+                return 1.0
             case .miniHidden:
-                return 2.0 // 0.5fps - Mini 最小化
+                return 2.0
             }
         }
         
@@ -72,15 +72,26 @@ final class WindowStateMonitor: ObservableObject {
     
     // MARK: - Private Properties
     
-    private var cancellables = Set<AnyCancellable>()
+    // ✅ 并发安全说明：
+    // cancellables使用nonisolated(unsafe)是安全的，因为：
+    // 1. Set.removeAll()是线程安全的
+    // 2. deinit时对象已进入销毁阶段，不会有并发访问
+    // 3. Combine的AnyCancellable.cancel()设计为可以在任何线程调用
+    private nonisolated(unsafe) var cancellables = Set<AnyCancellable>()
     private weak var window: NSWindow?
     
     private var isAppActive = true
     private var isWindowKey = true
     private var isWindowMinimized = false
     
-    // ✅ 新逻辑：区分是否正在监听 Full 窗口
     private var isMonitoringFullWindow = true
+    
+    // MARK: - Lifecycle
+    
+    // ✅ 并发安全：cancellables.removeAll()是线程安全的
+    nonisolated deinit {
+        cancellables.removeAll()
+    }
     
     // MARK: - Public Methods
     
@@ -88,13 +99,11 @@ final class WindowStateMonitor: ObservableObject {
         self.window = window
         isMonitoringFullWindow = true
         
-        // 初始状态
         isAppActive = NSApp.isActive
         isWindowKey = window.isKeyWindow
         isWindowMinimized = window.isMiniaturized
         updateVisibilityState()
         
-        // 监听应用前后台切换
         NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
             .sink { [weak self] _ in
                 self?.isAppActive = true
@@ -109,7 +118,6 @@ final class WindowStateMonitor: ObservableObject {
             }
             .store(in: &cancellables)
         
-        // 监听窗口焦点变化
         NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification, object: window)
             .sink { [weak self] _ in
                 self?.isWindowKey = true
@@ -124,7 +132,6 @@ final class WindowStateMonitor: ObservableObject {
             }
             .store(in: &cancellables)
         
-        // 监听窗口最小化/恢复
         NotificationCenter.default.publisher(for: NSWindow.didMiniaturizeNotification, object: window)
             .sink { [weak self] _ in
                 self?.isWindowMinimized = true
@@ -142,19 +149,12 @@ final class WindowStateMonitor: ObservableObject {
         logger.info("🔍 Window state monitoring started")
     }
     
-    func stopMonitoring() {
-        cancellables.removeAll()
-        window = nil
-    }
-    
     func forceSetState(_ state: WindowVisibilityState) {
         guard visibilityState != state else { return }
         
-        // ✅ 进入 Mini 模式时，停止监听 Full 窗口事件
         if state == .miniVisible || state == .miniHidden {
             isMonitoringFullWindow = false
         } else {
-            // 离开 Mini 模式，恢复监听 Full 窗口
             isMonitoringFullWindow = true
         }
         
@@ -163,7 +163,6 @@ final class WindowStateMonitor: ObservableObject {
         logger.debug("🔄 Force set visibility: \(state.description)")
     }
     
-    /// Mini 模式专用：更新 Mini 窗口状态（显示/最小化）
     func updateMiniWindowState(_ isMinimized: Bool) {
         guard !isMonitoringFullWindow else {
             logger.debug("🔒 Monitoring Full window, ignoring Mini state change")
@@ -182,7 +181,6 @@ final class WindowStateMonitor: ObservableObject {
     // MARK: - Private Methods
     
     private func updateVisibilityState() {
-        // ✅ 如果正在 Mini 模式，忽略 Full 窗口事件
         guard isMonitoringFullWindow else {
             logger.debug("🔒 Mini mode active, ignoring Full window state change")
             return

@@ -8,6 +8,8 @@
 import AppKit
 import SwiftUI
 
+// ✅ 标记MainActor：所有UI操作必须在主线程
+@MainActor
 final class MiniWindowController {
     private var panel: NSPanel?
     private let playerViewModel: PlayerViewModel
@@ -34,12 +36,10 @@ final class MiniWindowController {
         panel = nil
     }
     
-    // ✅ 窗口隐藏/最小化时调用
     func handleWindowHidden() {
         windowStateMonitor?.updateMiniWindowState(true)
     }
     
-    // ✅ 窗口显示/恢复时调用
     func handleWindowVisible() {
         windowStateMonitor?.updateMiniWindowState(false)
     }
@@ -60,15 +60,12 @@ final class MiniWindowController {
             defer: false
         )
         
-        // ✅ 建立双向关联
         panel.controller = self
         
-        // 窗口配置
         panel.contentView = hostingView
         panel.isMovableByWindowBackground = true
         panel.becomesKeyOnlyIfNeeded = true
         
-        // 圆角效果
         panel.isOpaque = false
         panel.backgroundColor = .clear
         if let contentView = panel.contentView {
@@ -77,18 +74,14 @@ final class MiniWindowController {
             contentView.layer?.masksToBounds = true
         }
         
-        // 窗口行为
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenNone]
         panel.hidesOnDeactivate = false
         
-        // 监听置顶设置
         setupAlwaysOnTopObserver(for: panel)
         
-        // 居中显示
         panel.center()
         panel.makeKeyAndOrderFront(nil)
         
-        // ✅ 初始状态：Mini 显示
         windowStateMonitor?.forceSetState(.miniVisible)
         
         self.panel = panel
@@ -101,12 +94,12 @@ final class MiniWindowController {
             queue: .main
         ) { [weak panel] _ in
             let alwaysOnTop = UserDefaults.standard.bool(forKey: "miniAlwaysOnTop")
+            // ✅ 显式使用MainActor
             Task { @MainActor in
                 panel?.level = alwaysOnTop ? .floating : .normal
             }
         }
         
-        // 初始状态
         let alwaysOnTop = UserDefaults.standard.bool(forKey: "miniAlwaysOnTop")
         panel.level = alwaysOnTop ? .floating : .normal
     }
@@ -125,7 +118,6 @@ private final class MiniPanel: NSPanel {
         return false
     }
     
-    // ✅ 处理 Command+W
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if event.modifierFlags.contains(.command),
            event.charactersIgnoringModifiers == "w"
@@ -136,21 +128,25 @@ private final class MiniPanel: NSPanel {
         return super.performKeyEquivalent(with: event)
     }
     
-    // ✅ 重写 orderOut - 统一处理为最小化状态
     override func orderOut(_ sender: Any?) {
         super.orderOut(sender)
-        controller?.handleWindowHidden()
+        // ✅ 在主线程调用controller方法
+        Task { @MainActor [weak controller] in
+            controller?.handleWindowHidden()
+        }
     }
     
-    // ✅ 重写 miniaturize - 统一处理为最小化状态
     override func miniaturize(_ sender: Any?) {
         super.miniaturize(sender)
-        controller?.handleWindowHidden()
+        Task { @MainActor [weak controller] in
+            controller?.handleWindowHidden()
+        }
     }
     
-    // ✅ 窗口恢复时调用
     override func makeKeyAndOrderFront(_ sender: Any?) {
         super.makeKeyAndOrderFront(sender)
-        controller?.handleWindowVisible()
+        Task { @MainActor [weak controller] in
+            controller?.handleWindowVisible()
+        }
     }
 }
