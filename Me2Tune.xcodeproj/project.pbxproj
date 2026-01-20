@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		FC0981D52F04DE9B00DD4CA3 /* SFBAudioEngine in Frameworks */ = {isa = PBXBuildFile; productRef = FC0981D42F04DE9B00DD4CA3 /* SFBAudioEngine */; };
 		FC0A17402EF262620090B22C /* Album.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC0A173F2EF262600090B22C /* Album.swift */; };
 		FC0A17442EF262910090B22C /* CollectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC0A17432EF2628E0090B22C /* CollectionManager.swift */; };
 		FC13779B2EFCF9AD00A9CE99 /* CollectionsGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC13779A2EFCF9AB00A9CE99 /* CollectionsGridView.swift */; };
@@ -57,6 +56,7 @@
 		FCB9B9682F1C0ACB00CA7866 /* LyricsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB9B9672F1C0ACB00CA7866 /* LyricsService.swift */; };
 		FCB9B96A2F1C0AE000CA7866 /* LyricsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB9B9692F1C0AE000CA7866 /* LyricsWindowController.swift */; };
 		FCB9B96C2F1C0AE900CA7866 /* LyricsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB9B96B2F1C0AE900CA7866 /* LyricsView.swift */; };
+		FCC613FD2F1F21690008A57E /* SFBAudioEngine in Frameworks */ = {isa = PBXBuildFile; productRef = FCC613FC2F1F21690008A57E /* SFBAudioEngine */; };
 		FCCAAFBA2F12847900DF5D71 /* LanguageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCAAFB92F12847600DF5D71 /* LanguageManager.swift */; };
 		FCCAAFBD2F1284C700DF5D71 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCAAFBC2F1284C500DF5D71 /* SettingsView.swift */; };
 		FCD1A6A42F16ABED00EC88E2 /* DisplayMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCD1A6A32F16ABEB00EC88E2 /* DisplayMode.swift */; };
@@ -134,7 +134,7 @@
 		FC1662272EEFAE2C00F01BCE /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
-				FC0981D52F04DE9B00DD4CA3 /* SFBAudioEngine in Frameworks */,
+				FCC613FD2F1F21690008A57E /* SFBAudioEngine in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -420,7 +420,7 @@
 			);
 			name = Me2Tune;
 			packageProductDependencies = (
-				FC0981D42F04DE9B00DD4CA3 /* SFBAudioEngine */,
+				FCC613FC2F1F21690008A57E /* SFBAudioEngine */,
 			);
 			productName = Me2Tune;
 			productReference = FC16622A2EEFAE2C00F01BCE /* Me2Tune.app */;
@@ -452,7 +452,7 @@
 			mainGroup = FC1662212EEFAE2C00F01BCE;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				FC0981D32F04DE9B00DD4CA3 /* XCRemoteSwiftPackageReference "SFBAudioEngine" */,
+				FCC613FB2F1F21690008A57E /* XCRemoteSwiftPackageReference "SFBAudioEngine" */,
 			);
 			preferredProjectObjectVersion = 90;
 			productRefGroup = FC16622B2EEFAE2C00F01BCE /* Products */;
@@ -562,6 +562,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = x86_64;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
@@ -626,6 +627,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = x86_64;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
@@ -673,6 +675,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 15.7;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
 			};
@@ -785,20 +788,20 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		FC0981D32F04DE9B00DD4CA3 /* XCRemoteSwiftPackageReference "SFBAudioEngine" */ = {
+		FCC613FB2F1F21690008A57E /* XCRemoteSwiftPackageReference "SFBAudioEngine" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sbooth/SFBAudioEngine";
 			requirement = {
 				kind = exactVersion;
-				version = 0.10.0;
+				version = 0.11.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		FC0981D42F04DE9B00DD4CA3 /* SFBAudioEngine */ = {
+		FCC613FC2F1F21690008A57E /* SFBAudioEngine */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FC0981D32F04DE9B00DD4CA3 /* XCRemoteSwiftPackageReference "SFBAudioEngine" */;
+			package = FCC613FB2F1F21690008A57E /* XCRemoteSwiftPackageReference "SFBAudioEngine" */;
 			productName = SFBAudioEngine;
 		};
 /* End XCSwiftPackageProductDependency section */
