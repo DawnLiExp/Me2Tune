@@ -72,12 +72,7 @@ final class WindowStateMonitor: ObservableObject {
     
     // MARK: - Private Properties
     
-    // ✅ 并发安全说明：
-    // cancellables使用nonisolated(unsafe)是安全的，因为：
-    // 1. Set.removeAll()是线程安全的
-    // 2. deinit时对象已进入销毁阶段，不会有并发访问
-    // 3. Combine的AnyCancellable.cancel()设计为可以在任何线程调用
-    private nonisolated(unsafe) var cancellables = Set<AnyCancellable>()
+    private var cancellables = Set<AnyCancellable>()
     private weak var window: NSWindow?
     
     private var isAppActive = true
@@ -85,13 +80,6 @@ final class WindowStateMonitor: ObservableObject {
     private var isWindowMinimized = false
     
     private var isMonitoringFullWindow = true
-    
-    // MARK: - Lifecycle
-    
-    // ✅ 并发安全：cancellables.removeAll()是线程安全的
-    nonisolated deinit {
-        cancellables.removeAll()
-    }
     
     // MARK: - Public Methods
     
