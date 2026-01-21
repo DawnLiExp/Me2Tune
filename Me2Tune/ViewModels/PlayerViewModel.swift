@@ -17,11 +17,13 @@ final class PlayerViewModel: ObservableObject {
     // MARK: - Published States (UI 绑定状态)
 
     @Published private(set) var isPlaying = false
-    @Published private(set) var currentTime: TimeInterval = 0
     @Published private(set) var duration: TimeInterval = 0
     @Published private(set) var currentArtwork: NSImage?
     @Published private(set) var isPlaylistLoaded = false
     @Published var repeatMode: RepeatMode = .off
+    // MARK: - Progress State (独立 ObservableObject)
+
+    let playbackProgressState = PlaybackProgressState()
     @Published var volume: Double = 0.7
     
     @Published private(set) var isLoadingTracks = false
@@ -84,6 +86,9 @@ final class PlayerViewModel: ObservableObject {
         playbackStateManager.canGoNext
     }
     
+    var currentTime: TimeInterval {
+        playbackProgressState.currentTime
+    }
     // MARK: - Initialization
     
     init(collectionManager: CollectionManager? = nil) {
@@ -452,7 +457,7 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
     }
     
     func playerCore(_ core: AudioPlayerCore, didUpdateTime currentTime: TimeInterval, duration: TimeInterval) {
-        self.currentTime = currentTime
+        playbackProgressState.currentTime = currentTime 
         self.duration = duration
     }
     

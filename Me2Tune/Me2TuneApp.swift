@@ -28,6 +28,7 @@ struct Me2TuneApp: App {
             ContentView()
                 .frame(minWidth: 495)
                 .environmentObject(playerViewModel)
+                .environmentObject(playerViewModel.playbackProgressState)  
                 .environmentObject(collectionManager)
                 .environmentObject(windowStateMonitor)
                 .onAppear {

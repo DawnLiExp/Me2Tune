@@ -9,7 +9,6 @@ import SwiftUI
 
 struct ControlSectionView: View {
     let currentTrack: AudioTrack?
-    let currentTime: TimeInterval
     let duration: TimeInterval
     let isPlaying: Bool
     let canGoPrevious: Bool
@@ -29,6 +28,7 @@ struct ControlSectionView: View {
     @State private var isHoveringTrackInfo = false
     @State private var volumeBeforeMute: Double = 0.7
     @State private var hoverDelayTask: Task<Void, Never>?
+    @EnvironmentObject private var playbackProgressState: PlaybackProgressState
     
     var body: some View {
         VStack(spacing: 0) {
@@ -311,7 +311,7 @@ struct ControlSectionView: View {
                             endPoint: .trailing
                         )
                     )
-                    .frame(width: width * progress, height: height)
+                    .frame(width: width * progress, height: height) // ✅ 使用 progress 计算属性
                     .shadow(color: .accentGlow, radius: 4)
             }
             .overlay(
@@ -343,7 +343,7 @@ struct ControlSectionView: View {
     }
     
     private var progress: CGFloat {
-        let time = isSeekingManually ? manualSeekValue : currentTime
+        let time = isSeekingManually ? manualSeekValue : playbackProgressState.currentTime
         let total = max(duration, 0.1)
         return CGFloat(min(max(time / total, 0), 1))
     }
@@ -352,7 +352,6 @@ struct ControlSectionView: View {
 #Preview {
     ControlSectionView(
         currentTrack: nil,
-        currentTime: 130,
         duration: 240,
         isPlaying: true,
         canGoPrevious: true,

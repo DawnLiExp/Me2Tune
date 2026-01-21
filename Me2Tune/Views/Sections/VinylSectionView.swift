@@ -35,12 +35,12 @@ struct VinylSectionView: View {
     let artwork: NSImage?
     let isPlaying: Bool
     let isRotationEnabled: Bool
-    let currentTime: TimeInterval
     let duration: TimeInterval
     let isWindowVisible: Bool
 
     @State private var rotationAngle: Double = 0
     @State private var rotationTimer: Timer?
+    @EnvironmentObject private var playbackProgressState: PlaybackProgressState
 
     private let vinylSize: CGFloat = 280
 
@@ -84,7 +84,7 @@ struct VinylSectionView: View {
 
     private var timeOverlay: some View {
         HStack {
-            timeLabel(timeString(from: currentTime))
+            timeLabel(timeString(from: playbackProgressState.currentTime))
             Spacer()
             timeLabel(timeString(from: duration))
         }
@@ -258,7 +258,6 @@ struct RotatingVinyl: View {
         artwork: nil,
         isPlaying: true,
         isRotationEnabled: true,
-        currentTime: 128,
         duration: 240,
         isWindowVisible: true
     )

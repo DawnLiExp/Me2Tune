@@ -50,6 +50,7 @@
 		FC8528122F014FAA00B53540 /* Logger+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8528112F014FA900B53540 /* Logger+Extensions.swift */; };
 		FC8C88722F06263500ABC82E /* WindowStateMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8C88712F06263100ABC82E /* WindowStateMonitor.swift */; };
 		FC9596682F1D23CE00ED7FB7 /* LyricsCacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC9596672F1D23CE00ED7FB7 /* LyricsCacheService.swift */; };
+		FC9698EA2F20BF1A002FFD53 /* PlaybackProgressState.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC9698E92F20BF18002FFD53 /* PlaybackProgressState.swift */; };
 		FCAE83FF2F18C07A00BBEC0B /* MiniWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCAE83FE2F18C07800BBEC0B /* MiniWindowController.swift */; };
 		FCAE84012F18C09F00BBEC0B /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCAE84002F18C09D00BBEC0B /* AppDelegate.swift */; };
 		FCB9B9662F1C0AB400CA7866 /* Lyrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB9B9652F1C0AB400CA7866 /* Lyrics.swift */; };
@@ -113,6 +114,7 @@
 		FC8528112F014FA900B53540 /* Logger+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Logger+Extensions.swift"; sourceTree = "<group>"; };
 		FC8C88712F06263100ABC82E /* WindowStateMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowStateMonitor.swift; sourceTree = "<group>"; };
 		FC9596672F1D23CE00ED7FB7 /* LyricsCacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsCacheService.swift; sourceTree = "<group>"; };
+		FC9698E92F20BF18002FFD53 /* PlaybackProgressState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackProgressState.swift; sourceTree = "<group>"; };
 		FCAE83FE2F18C07800BBEC0B /* MiniWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniWindowController.swift; sourceTree = "<group>"; };
 		FCAE84002F18C09D00BBEC0B /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		FCB9B9652F1C0AB400CA7866 /* Lyrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lyrics.swift; sourceTree = "<group>"; };
@@ -306,6 +308,7 @@
 				FC0A173F2EF262600090B22C /* Album.swift */,
 				FC480EC32EF152A2000D8393 /* AudioTrack.swift */,
 				FCB9B9652F1C0AB400CA7866 /* Lyrics.swift */,
+				FC9698E92F20BF18002FFD53 /* PlaybackProgressState.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -527,6 +530,7 @@
 				FC50C7462F0658E600597B19 /* VinylSectionView.swift in Sources */,
 				FCB9B96C2F1C0AE900CA7866 /* LyricsView.swift in Sources */,
 				FCDDF5B02F14DAE0003AFB85 /* SlateBlueTheme.swift in Sources */,
+				FC9698EA2F20BF1A002FFD53 /* PlaybackProgressState.swift in Sources */,
 				FC49D3B22F0AC30000628C1B /* SearchOverlayView.swift in Sources */,
 				FC9596682F1D23CE00ED7FB7 /* LyricsCacheService.swift in Sources */,
 				FCB9B9682F1C0ACB00CA7866 /* LyricsService.swift in Sources */,

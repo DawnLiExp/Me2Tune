@@ -13,6 +13,7 @@ struct ContentView: View {
     @EnvironmentObject private var playerViewModel: PlayerViewModel
     @EnvironmentObject private var collectionManager: CollectionManager
     @EnvironmentObject private var windowStateMonitor: WindowStateMonitor
+    @EnvironmentObject private var playbackProgressState: PlaybackProgressState
     @ObservedObject private var themeManager = ThemeManager.shared
     
     @State private var albumGlowColor = Color.defaultAlbumGlow
@@ -91,7 +92,6 @@ struct ContentView: View {
                 artwork: playerViewModel.currentArtwork,
                 isPlaying: playerViewModel.isPlaying,
                 isRotationEnabled: isRotationEnabled,
-                currentTime: playerViewModel.currentTime,
                 duration: playerViewModel.duration,
                 isWindowVisible: windowStateMonitor.isWindowVisible
             )
@@ -100,7 +100,6 @@ struct ContentView: View {
             
             ControlSectionView(
                 currentTrack: playerViewModel.currentTrack,
-                currentTime: playerViewModel.currentTime,
                 duration: playerViewModel.duration,
                 isPlaying: playerViewModel.isPlaying,
                 canGoPrevious: playerViewModel.canGoPrevious,
@@ -111,7 +110,7 @@ struct ContentView: View {
                 onNext: playerViewModel.next,
                 onSeek: playerViewModel.seek,
                 onToggleRepeat: playerViewModel.toggleRepeatMode,
-                volume: $playerViewModel.volume // 新增
+                volume: $playerViewModel.volume
             )
             .fixedSize(horizontal: false, vertical: true)
 
