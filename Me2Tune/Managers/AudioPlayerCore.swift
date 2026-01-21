@@ -32,13 +32,7 @@ final class AudioPlayerCore: NSObject {
     weak var delegate: AudioPlayerCoreDelegate?
     
     private var player: AudioPlayer?
-    
-    // ✅ 并发安全说明：
-    // timer使用nonisolated(unsafe)是安全的，因为：
-    // 1. 所有timer操作(startTimer/stopTimer)都在MainActor上执行
-    // 2. deinit时对象已进入销毁阶段，不会有并发访问
-    // 3. Timer.scheduledTimer本身是线程安全的
-    private nonisolated(unsafe) var timer: Timer?
+    private var timer: DispatchSourceTimer?
     
     private(set) var isPlaying = false
     private(set) var currentTime: TimeInterval = 0
@@ -66,8 +60,8 @@ final class AudioPlayerCore: NSObject {
     }
     
     nonisolated deinit {
-        // ✅ 安全：deinit时对象已在销毁，无并发风险
-        timer?.invalidate()
+        // DispatchSourceTimer.cancel() 是线程安全的
+        timer?.cancel()
         timer = nil
     }
     
@@ -238,30 +232,48 @@ final class AudioPlayerCore: NSObject {
     }
     
     private func startTimer() {
-        // ✅ 严格清理旧timer，避免重复创建
         stopTimer()
         
         let interval = visibilityState.updateInterval
         
-        logger.debug("⏱️ Creating timer with interval: \(String(format: "%.1f", interval))s (state: \(self.visibilityState.description))")
-        
-        // ✅ 显式使用MainActor上下文
-        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self, let player = self.player else { return }
-                
-                self.currentTime = player.currentTime ?? 0
-                self.duration = player.totalTime ?? 0
-                self.delegate?.playerCore(self, didUpdateTime: self.currentTime, duration: self.duration)
-            }
+        let leeway: DispatchTimeInterval
+        switch visibilityState {
+        case .activeFocused:
+            leeway = .milliseconds(200)
+        case .inactive:
+            leeway = .milliseconds(300)
+        case .hidden, .miniHidden:
+            leeway = .milliseconds(1000)
+        case .miniVisible:
+            leeway = .milliseconds(200)
         }
+        
+        logger.debug("⏱️ Creating timer for \(self.visibilityState.description), interval: \(String(format: "%.1f", interval))s")
+        
+        let newTimer = DispatchSource.makeTimerSource(queue: .main)
+        newTimer.schedule(
+            deadline: .now() + interval,
+            repeating: interval,
+            leeway: leeway
+        )
+        
+        newTimer.setEventHandler { [weak self] in
+            guard let self, let player = self.player else { return }
+            
+            self.currentTime = player.currentTime ?? 0
+            self.duration = player.totalTime ?? 0
+            self.delegate?.playerCore(self, didUpdateTime: self.currentTime, duration: self.duration)
+        }
+        
+        newTimer.resume()
+        timer = newTimer
     }
-    
+
     private func stopTimer() {
         if timer != nil {
             logger.debug("⏱️ Stopping timer")
         }
-        timer?.invalidate()
+        timer?.cancel()
         timer = nil
     }
     
