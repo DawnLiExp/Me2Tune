@@ -47,18 +47,11 @@ final class PlayerViewModel: ObservableObject {
     private let playerCore: AudioPlayerCore
     private let persistenceService = PersistenceService()
     
-    // ✅ 并发安全说明：
-    // cancellables使用nonisolated(unsafe)是安全的，因为：
-    // 1. Set.removeAll()是线程安全的
-    // 2. deinit时对象已在销毁，不会有并发访问
-    private nonisolated(unsafe) var cancellables = Set<AnyCancellable>()
+    private var cancellables = Set<AnyCancellable>()
     
-    // ✅ 并发安全说明：
-    // nowPlayingUpdateTimer使用nonisolated(unsafe)是安全的，因为：
-    // 1. 所有timer操作都在MainActor上执行
-    // 2. Timer.invalidate()本身是线程安全的
-    // 3. deinit时可以安全地直接调用invalidate()
-    private nonisolated(unsafe) var nowPlayingUpdateTimer: Timer?
+    // ✅ 单独保存 Timer 订阅，便于精确控制
+    private var nowPlayingTimerCancellable: AnyCancellable?
+    
     private var isWindowVisible = true
     
     // MARK: - Computed Properties
@@ -113,27 +106,18 @@ final class PlayerViewModel: ObservableObject {
         logger.debug("PlayerViewModel initialized")
     }
     
-    // ✅ 并发安全说明：
-    // 1. Timer.invalidate()和Set.removeAll()都是线程安全的
-    // 2. deinit时对象已进入销毁阶段，不会有并发访问
-    // 3. 清理操作必须同步完成，不能使用Task包装（会导致清理不执行）
-    nonisolated deinit {
-        nowPlayingUpdateTimer?.invalidate()
-        cancellables.removeAll()
-        
-        // RemoteCommandController是单例，调用disable()安全
-        Task { @MainActor in
-            RemoteCommandController.shared.disable()
-        }
+    deinit {
+        // ✅ AnyCancellable 自动清理
+        // RemoteCommandController 的 weak 引用自动置 nil
+        // 系统资源清理由 AppDelegate.applicationWillTerminate 统一处理
     }
     
     private func setupBindings() {
+        // ✅ 移除冗余的 Task 包装，直接在 MainActor 上下文执行
         $repeatMode
             .sink { [weak self] newValue in
                 guard let self else { return }
-                Task { @MainActor in
-                    self.playerCore.repeatMode = AudioPlayerCore.RepeatMode(from: newValue)
-                }
+                self.playerCore.repeatMode = AudioPlayerCore.RepeatMode(from: newValue)
             }
             .store(in: &cancellables)
         
@@ -141,10 +125,8 @@ final class PlayerViewModel: ObservableObject {
             .debounce(for: .milliseconds(500), scheduler: RunLoop.main)
             .sink { [weak self] newValue in
                 guard let self else { return }
-                Task { @MainActor in
-                    self.playerCore.setVolume(newValue)
-                    self.saveVolume(newValue)
-                }
+                self.playerCore.setVolume(newValue)
+                self.saveVolume(newValue)
             }
             .store(in: &cancellables)
         
@@ -248,6 +230,9 @@ final class PlayerViewModel: ObservableObject {
     
     func updateWindowVisibility(_ state: WindowStateMonitor.WindowVisibilityState) {
         playerCore.updateVisibilityState(state)
+        
+        // ✅ 确保状态正确更新
+        isWindowVisible = (state == .activeFocused || state == .inactive)
         
         if playerCore.isPlaying {
             if state == .activeFocused {
@@ -394,22 +379,26 @@ final class PlayerViewModel: ObservableObject {
         )
     }
     
+    // ✅ 使用 Combine Timer Publisher，单独保存引用便于精确停止
     private func startNowPlayingUpdateTimer() {
+        // 先停止旧的 Timer
         stopNowPlayingUpdateTimer()
         
         guard isWindowVisible else { return }
         
-        nowPlayingUpdateTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
+        // 创建新的 Timer 订阅并保存
+        nowPlayingTimerCancellable = Timer.publish(every: 5.0, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
                 guard let self, self.isPlaying else { return }
                 NowPlayingService.shared.updatePlaybackTime(currentTime: self.currentTime)
             }
-        }
     }
     
+    // ✅ 停止定时器：取消订阅并释放引用
     private func stopNowPlayingUpdateTimer() {
-        nowPlayingUpdateTimer?.invalidate()
-        nowPlayingUpdateTimer = nil
+        nowPlayingTimerCancellable?.cancel()
+        nowPlayingTimerCancellable = nil
     }
     
     // MARK: - Volume Persistence

@@ -40,6 +40,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationWillTerminate(_ notification: Notification) {
+        // ✅ App 退出时清理媒体命令
+        RemoteCommandController.shared.disable()
+        
         cleanup()
     }
     
