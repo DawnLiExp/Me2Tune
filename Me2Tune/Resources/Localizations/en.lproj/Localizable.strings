@@ -64,8 +64,8 @@
 
 // MARK: - Settings
 "settings_menu" = "Settings...";
-"settings_general" = "General";
-"settings_advanced" = "Advanced";
+"settings_features" = "Features";
+"settings_appearance" = "Appearance";
 "settings_about" = "About";
 
 // MARK: - Settings - Language

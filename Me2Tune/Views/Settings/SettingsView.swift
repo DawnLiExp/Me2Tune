@@ -2,7 +2,7 @@
 //  SettingsView.swift
 //  Me2Tune
 //
-//  设置界面 - 语言/主题/简洁模式/缓存设置
+//  设置界面 - 功能/外观/关于
 //
 
 import SwiftUI
@@ -79,8 +79,8 @@ struct SettingsView: View {
     
     private var customTabBar: some View {
         HStack(spacing: 0) {
-            tabButton(index: 0, title: String(localized: "settings_general"), icon: "gearshape")
-            tabButton(index: 1, title: String(localized: "settings_advanced"), icon: "slider.horizontal.3")
+            tabButton(index: 0, title: String(localized: "settings_features"), icon: "slider.horizontal.3")
+            tabButton(index: 1, title: String(localized: "settings_appearance"), icon: "paintpalette")
             tabButton(index: 2, title: String(localized: "settings_about"), icon: "info.circle")
         }
         .padding(.horizontal, 20)
@@ -120,69 +120,22 @@ struct SettingsView: View {
             VStack(spacing: 24) {
                 switch selectedTab {
                 case 0:
-                    generalSettings
+                    featuresSettings
                 case 1:
-                    advancedSettings
+                    appearanceSettings
                 case 2:
                     aboutSettings
                 default:
-                    generalSettings
+                    featuresSettings
                 }
             }
             .padding(24)
         }
     }
     
-    // MARK: - General Settings
+    // MARK: - Features Settings
     
-    private var generalSettings: some View {
-        VStack(spacing: 16) {
-            // 语言设置
-            settingRow(icon: "globe", label: "settings_language_label") {
-                Picker("", selection: Binding(
-                    get: { languageManager.currentLanguage },
-                    set: { newLanguage in
-                        guard newLanguage != languageManager.currentLanguage else { return }
-                        pendingLanguage = newLanguage
-                        showLanguageChangeAlert = true
-                    }
-                )) {
-                    ForEach(LanguageManager.AppLanguage.allCases) { language in
-                        Text(language.displayName).tag(language)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .frame(width: 140)
-            }
-            
-            Divider()
-                .padding(.leading, 32)
-            
-            // 主题设置
-            settingRow(icon: "paintpalette", label: "settings_theme_label", helpText: "settings_theme_footer") {
-                Picker("", selection: Binding(
-                    get: { themeManager.themeMode },
-                    set: { newMode in
-                        guard newMode != themeManager.themeMode else { return }
-                        pendingTheme = newMode
-                        showThemeChangeAlert = true
-                    }
-                )) {
-                    ForEach(ThemeManager.ThemeMode.allCases) { mode in
-                        Text(mode.displayName).tag(mode)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .frame(width: 140)
-            }
-        }
-    }
-    
-    // MARK: - Advanced Settings
-    
-    private var advancedSettings: some View {
+    private var featuresSettings: some View {
         VStack(spacing: 20) {
             // 缓存设置
             VStack(alignment: .leading, spacing: 12) {
@@ -288,8 +241,6 @@ struct SettingsView: View {
                     .controlSize(.small)
             }
             
-            Divider()
-
             // Now Playing 同步
             settingRow(icon: "music.note.list", label: "now_playing_sync", helpText: "now_playing_sync_footer") {
                 Toggle("", isOn: $nowPlayingEnabled)
@@ -297,10 +248,58 @@ struct SettingsView: View {
                     .labelsHidden()
                     .controlSize(.small)
             }
+        }
+    }
+    
+    // MARK: - Appearance Settings
+    
+    private var appearanceSettings: some View {
+        VStack(spacing: 16) {
+            // 语言设置
+            settingRow(icon: "globe", label: "settings_language_label") {
+                Picker("", selection: Binding(
+                    get: { languageManager.currentLanguage },
+                    set: { newLanguage in
+                        guard newLanguage != languageManager.currentLanguage else { return }
+                        pendingLanguage = newLanguage
+                        showLanguageChangeAlert = true
+                    }
+                )) {
+                    ForEach(LanguageManager.AppLanguage.allCases) { language in
+                        Text(language.displayName).tag(language)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .frame(width: 140)
+            }
             
             Divider()
+                .padding(.leading, 32)
             
-            // 视觉效果
+            // 主题设置
+            settingRow(icon: "paintpalette", label: "settings_theme_label", helpText: "settings_theme_footer") {
+                Picker("", selection: Binding(
+                    get: { themeManager.themeMode },
+                    set: { newMode in
+                        guard newMode != themeManager.themeMode else { return }
+                        pendingTheme = newMode
+                        showThemeChangeAlert = true
+                    }
+                )) {
+                    ForEach(ThemeManager.ThemeMode.allCases) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .frame(width: 140)
+            }
+            
+            Divider()
+                .padding(.leading, 32)
+            
+            // 简洁模式
             settingRow(icon: "sparkles", label: "settings_clean_mode", helpText: "settings_clean_mode_footer") {
                 Toggle("", isOn: $cleanMode)
                     .toggleStyle(.switch)

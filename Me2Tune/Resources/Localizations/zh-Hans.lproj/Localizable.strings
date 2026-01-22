@@ -64,8 +64,8 @@
 
 // MARK: - 设置
 "settings_menu" = "设置...";
-"settings_general" = "通用";
-"settings_advanced" = "高级";
+"settings_features" = "功能";
+"settings_appearance" = "外观";
 "settings_about" = "关于";
 
 // MARK: - 设置 - 语言
