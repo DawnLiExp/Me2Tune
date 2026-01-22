@@ -103,7 +103,7 @@
 
 // MARK: - Settings - Now Playing
 "now_playing_sync" = "Now Playing Sync";
-"now_playing_sync_footer" = "Sync playback info to system media controls and Touch Bar";
+"now_playing_sync_footer" = "When disabled, reduces system overhead by limiting playback progress updates in Control Center. Media keys remain fully supported.";
 
 // MARK: - ControlSection
 "Switch to Mini Mode" = "Switch to Mini Mode";

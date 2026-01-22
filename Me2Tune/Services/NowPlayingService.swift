@@ -27,6 +27,7 @@ final class NowPlayingService {
         duration: TimeInterval,
         isPlaying: Bool
     ) {
+        logger.debug("📻 Updating Now Playing Info")
         var nowPlayingInfo: [String: Any] = [:]
         
         // 基本信息

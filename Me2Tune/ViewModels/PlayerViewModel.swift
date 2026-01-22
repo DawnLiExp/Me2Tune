@@ -243,12 +243,13 @@ final class PlayerViewModel: ObservableObject {
     }
     
     // MARK: - Window Visibility
-    
+
     func updateWindowVisibility(_ state: WindowStateMonitor.WindowVisibilityState) {
         playerCore.updateVisibilityState(state)
         
         isWindowVisible = (state == .activeFocused || state == .inactive)
         
+        // ✅ 定时器只在开关开启时根据窗口状态调整
         if playerCore.isPlaying, nowPlayingEnabled {
             if state == .activeFocused {
                 startNowPlayingUpdateTimer()
@@ -379,9 +380,10 @@ final class PlayerViewModel: ObservableObject {
     }
     
     // MARK: - Now Playing Updates
-    
+
     private func updateNowPlayingInfo() {
-        guard nowPlayingEnabled, let track = currentTrack else {
+        // ✅ 始终更新基本信息（确保媒体键工作）
+        guard let track = currentTrack else {
             return
         }
         
@@ -393,10 +395,11 @@ final class PlayerViewModel: ObservableObject {
             isPlaying: isPlaying
         )
     }
-    
+
     private func startNowPlayingUpdateTimer() {
         stopNowPlayingUpdateTimer()
         
+        // 只在开关开启时启动定时器
         guard nowPlayingEnabled, isWindowVisible else { return }
         
         nowPlayingTimerCancellable = Timer.publish(every: 5.0, on: .main, in: .common)
@@ -406,7 +409,7 @@ final class PlayerViewModel: ObservableObject {
                 NowPlayingService.shared.updatePlaybackTime(currentTime: self.currentTime)
             }
     }
-    
+
     private func stopNowPlayingUpdateTimer() {
         nowPlayingTimerCancellable?.cancel()
         nowPlayingTimerCancellable = nil
@@ -470,9 +473,7 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
     func playerCore(_ core: AudioPlayerCore, didUpdatePlaybackState isPlaying: Bool) {
         self.isPlaying = isPlaying
         
-        if nowPlayingEnabled {
-            NowPlayingService.shared.updatePlaybackState(isPlaying: isPlaying)
-        }
+        NowPlayingService.shared.updatePlaybackState(isPlaying: isPlaying)
         
         if isPlaying {
             if nowPlayingEnabled {
@@ -495,9 +496,7 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
         
         RemoteCommandController.shared.enable()
         
-        if nowPlayingEnabled {
-            updateNowPlayingInfo()
-        }
+        updateNowPlayingInfo()
     }
     
     func playerCore(_ core: AudioPlayerCore, didEncounterError error: Error) {
@@ -525,9 +524,7 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
                 self.currentArtwork = artwork
                 self.duration = track.duration
                 
-                if self.nowPlayingEnabled {
-                    self.updateNowPlayingInfo()
-                }
+                self.updateNowPlayingInfo()
                 self.playerCore.updateDockIcon(artwork)
                 
                 if indexChanged {

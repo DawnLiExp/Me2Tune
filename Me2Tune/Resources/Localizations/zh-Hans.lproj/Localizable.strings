@@ -103,7 +103,7 @@
 
 // MARK: - Settings - Now Playing
 "now_playing_sync" = "Now Playing 同步";
-"now_playing_sync_footer" = "同步播放信息到系统媒体控制和 Touch Bar";
+"now_playing_sync_footer" = "关闭后将降低系统开销，仅在必要时更新控制中心播放进度，媒体键始终可用";
 
 // MARK: - 设置 - 播放控制
 "Switch to Mini Mode" = "切换到迷你模式";
