@@ -32,6 +32,8 @@ final class PlaybackStateManager: ObservableObject {
     private weak var playlistManager: PlaylistManager?
     private weak var collectionManager: CollectionManager?
     
+    private var lastSavedState: PlaybackState?
+    
     // MARK: - Computed Properties
     
     var currentTrack: AudioTrack? {
@@ -187,7 +189,7 @@ final class PlaybackStateManager: ObservableObject {
     
     // MARK: - Persistence
     
-    func saveState() {
+    func saveState(volume: Double? = nil) {
         let sourceData: PlaybackState.PlayingSourceData? = {
             switch playingSource {
             case .playlist:
@@ -205,11 +207,18 @@ final class PlaybackStateManager: ObservableObject {
                 }
                 return nil
             }(),
-            playingSource: sourceData
+            playingSource: sourceData,
+            volume: volume
         )
+        
+        // ✅ 状态去重逻辑
+        if lastSavedState == state {
+            return
+        }
         
         do {
             try persistenceService.savePlaybackState(state)
+            lastSavedState = state
         } catch {
             let appError = AppError.persistenceFailed("save playback state")
             logger.logError(appError, context: "savePlaybackState")
@@ -239,11 +248,14 @@ final class PlaybackStateManager: ObservableObject {
                 
                 logger.info("📋 Restored playlist: track \(savedIndex + 1)/\(playlistManager.count)")
                 
-                return RestoredState(
+                let restored = RestoredState(
                     source: .playlist,
                     trackIndex: savedIndex,
-                    track: playlistManager.tracks[savedIndex]
+                    track: playlistManager.tracks[savedIndex],
+                    volume: state.volume
                 )
+                lastSavedState = state
+                return restored
             }
             
             return nil
@@ -269,11 +281,14 @@ final class PlaybackStateManager: ObservableObject {
             
             logger.info("💿 Restored album: \(album.name) - track \(albumIndex + 1)")
             
-            return RestoredState(
+            let restored = RestoredState(
                 source: .album(albumId),
                 trackIndex: albumIndex,
-                track: album.tracks[albumIndex]
+                track: album.tracks[albumIndex],
+                volume: state.volume
             )
+            lastSavedState = state
+            return restored
         }
     }
     
@@ -289,5 +304,6 @@ final class PlaybackStateManager: ObservableObject {
         let source: PlayingSource
         let trackIndex: Int
         let track: AudioTrack
+        let volume: Double?
     }
 }

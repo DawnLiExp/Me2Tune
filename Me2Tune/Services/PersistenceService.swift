@@ -10,13 +10,13 @@ import OSLog
 
 // MARK: - Playback State
 
-struct PlaybackState: Codable, Sendable {
+struct PlaybackState: Codable, Sendable, Equatable {
     var playlistCurrentIndex: Int?
     var albumCurrentIndex: Int?
     var playingSource: PlayingSourceData?
     var volume: Double?
 
-    enum PlayingSourceData: Codable, Sendable {
+    enum PlayingSourceData: Codable, Sendable, Equatable {
         case playlist
         case album(UUID)
     }

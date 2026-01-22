@@ -21,6 +21,7 @@ final class PlayerViewModel: ObservableObject {
     @Published private(set) var currentArtwork: NSImage?
     @Published private(set) var isPlaylistLoaded = false
     @Published var repeatMode: RepeatMode = .off
+
     // MARK: - Progress State (独立 ObservableObject)
 
     let playbackProgressState = PlaybackProgressState()
@@ -53,6 +54,8 @@ final class PlayerViewModel: ObservableObject {
     
     // ✅ 单独保存 Timer 订阅，便于精确控制
     private var nowPlayingTimerCancellable: AnyCancellable?
+    private var stateSaveTimer: DispatchSourceTimer?
+    private var pendingSaveTask: Task<Void, Never>?
     
     private var isWindowVisible = true
     
@@ -89,6 +92,7 @@ final class PlayerViewModel: ObservableObject {
     var currentTime: TimeInterval {
         playbackProgressState.currentTime
     }
+
     // MARK: - Initialization
     
     init(collectionManager: CollectionManager? = nil) {
@@ -112,13 +116,13 @@ final class PlayerViewModel: ObservableObject {
     }
     
     deinit {
-        // ✅ AnyCancellable 自动清理
-        // RemoteCommandController 的 weak 引用自动置 nil
-        // 系统资源清理由 AppDelegate.applicationWillTerminate 统一处理
+        stateSaveTimer?.cancel()
+        stateSaveTimer = nil
+        pendingSaveTask?.cancel()
+        pendingSaveTask = nil
     }
-    
+
     private func setupBindings() {
-        // ✅ 移除冗余的 Task 包装，直接在 MainActor 上下文执行
         $repeatMode
             .sink { [weak self] newValue in
                 guard let self else { return }
@@ -183,6 +187,7 @@ final class PlayerViewModel: ObservableObject {
     
     func pause() {
         playerCore.pause()
+        scheduleStateSave()
     }
     
     func togglePlayPause() {
@@ -211,6 +216,7 @@ final class PlayerViewModel: ObservableObject {
     
     func seek(to time: TimeInterval) {
         playerCore.seek(to: time)
+        scheduleStateSave()
     }
     
     func toggleRepeatMode() {
@@ -280,7 +286,7 @@ final class PlayerViewModel: ObservableObject {
         playlistManager.removeTrack(at: index)
         playbackStateManager.handlePlaylistTrackRemoved(at: index, wasPlaying: wasPlaying)
         
-        playbackStateManager.saveState()
+        scheduleStateSave()
         
         if playlistManager.isEmpty, playingSource == .playlist {
             RemoteCommandController.shared.disable()
@@ -299,13 +305,13 @@ final class PlayerViewModel: ObservableObject {
             RemoteCommandController.shared.disable()
         }
         
-        playbackStateManager.saveState()
+        scheduleStateSave()
     }
     
     func moveTrackInPlaylist(from source: Int, to destination: Int) {
         playlistManager.moveTrack(from: source, to: destination)
         playbackStateManager.handlePlaylistTrackMoved(from: source, to: destination)
-        playbackStateManager.saveState()
+        scheduleStateSave()
     }
     
     func playPlaylistTrack(at index: Int) {
@@ -341,7 +347,7 @@ final class PlayerViewModel: ObservableObject {
             let track = currentTracks[index]
             await loadTrack(track)
             playerCore.play()
-            playbackStateManager.saveState()
+            scheduleStateSave()
         }
     }
     
@@ -406,34 +412,51 @@ final class PlayerViewModel: ObservableObject {
         nowPlayingTimerCancellable = nil
     }
     
-    // MARK: - Volume Persistence
+    // MARK: - Persistence
     
-    private func saveVolume(_ volume: Double) {
-        do {
-            var state = (try? persistenceService.loadPlaybackState()) ?? PlaybackState(
-                playlistCurrentIndex: nil,
-                albumCurrentIndex: nil,
-                playingSource: nil,
-                volume: volume
-            )
-            state.volume = volume
-            try persistenceService.savePlaybackState(state)
-        } catch {
-            logger.error("Failed to save volume: \(error)")
+    func saveState() {
+        playbackStateManager.saveState(volume: volume)
+    }
+    
+    private func scheduleStateSave() {
+        pendingSaveTask?.cancel()
+        pendingSaveTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(50))
+            guard !Task.isCancelled else { return }
+            saveState()
         }
     }
     
-    // MARK: - Persistence
+    private func saveVolume(_ volume: Double) {}
+    
+    private func startStateSaveTimer() {
+        stopStateSaveTimer()
+        
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+        timer.schedule(deadline: .now() + 5.0, repeating: 5.0, leeway: .seconds(1))
+        timer.setEventHandler { [weak self] in
+            guard let self, self.isPlaying else { return }
+            self.saveState()
+        }
+        timer.resume()
+        stateSaveTimer = timer
+        logger.debug("💾 State save timer started")
+    }
+    
+    private func stopStateSaveTimer() {
+        stateSaveTimer?.cancel()
+        stateSaveTimer = nil
+    }
  
     private func restorePlaybackState() async {
-        if let savedVolume = try? persistenceService.loadPlaybackState().volume {
-            volume = savedVolume
-            logger.debug("🔊 Restored volume: \(String(format: "%.0f", savedVolume * 100))%")
-        }
-        
         guard let restored = await playbackStateManager.restoreState() else {
             isPlaylistLoaded = true
             return
+        }
+        
+        if let savedVolume = restored.volume {
+            volume = savedVolume
+            logger.debug("🔊 Restored volume: \(String(format: "%.0f", savedVolume * 100))%")
         }
         
         await loadTrack(restored.track)
@@ -451,13 +474,15 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
         
         if isPlaying {
             startNowPlayingUpdateTimer()
+            startStateSaveTimer()
         } else {
             stopNowPlayingUpdateTimer()
+            stopStateSaveTimer()
         }
     }
     
     func playerCore(_ core: AudioPlayerCore, didUpdateTime currentTime: TimeInterval, duration: TimeInterval) {
-        playbackProgressState.currentTime = currentTime 
+        playbackProgressState.currentTime = currentTime
         self.duration = duration
     }
     
@@ -497,7 +522,7 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
                 self.playerCore.updateDockIcon(artwork)
                 
                 if indexChanged {
-                    self.playbackStateManager.saveState()
+                    self.scheduleStateSave()
                 }
             }
         } else {
