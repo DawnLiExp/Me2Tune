@@ -97,6 +97,10 @@
 "select_cache_directory_message" = "选择缓存文件存储目录";
 "reveal_in_finder" = "在 Finder 中显示";
 
+// MARK: - Settings - Audio Buffering
+"audio_buffering" = "音频缓冲";
+"audio_buffering_footer" = "启用后会预加载音频数据，提升播放流畅度。本地存储缓冲 1.5 秒，网络存储缓冲 9 秒";
+
 // MARK: - 设置 - 播放控制
 "Switch to Mini Mode" = "切换到迷你模式";
 "Repeat: Off" = "循环模式:关闭";

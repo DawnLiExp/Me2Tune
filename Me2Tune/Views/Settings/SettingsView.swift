@@ -21,6 +21,9 @@ struct SettingsView: View {
     // 简洁模式
     @AppStorage("CleanMode") private var cleanMode = false
     
+    // 音频缓冲
+    @AppStorage("audioBufferingEnabled") private var audioBufferingEnabled = false
+    
     var body: some View {
         VStack(spacing: 0) {
             customTabBar
@@ -275,6 +278,16 @@ struct SettingsView: View {
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
                     .padding(.leading, 32)
+            }
+            
+            Divider()
+            
+            // 音频缓冲
+            settingRow(icon: "waveform.circle", label: "audio_buffering", helpText: "audio_buffering_footer") {
+                Toggle("", isOn: $audioBufferingEnabled)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                    .controlSize(.small)
             }
             
             Divider()

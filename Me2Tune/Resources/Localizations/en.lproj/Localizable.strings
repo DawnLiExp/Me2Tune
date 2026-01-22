@@ -97,6 +97,10 @@
 "select_cache_directory_message" = "Choose a directory to store cache files";
 "reveal_in_finder" = "Reveal in Finder";
 
+// MARK: - Settings - Audio Buffering
+"audio_buffering" = "Audio Buffering";
+"audio_buffering_footer" = "Pre-loads audio data for smoother playback. Local storage: 1.5s buffer, Network storage: 9s buffer";
+
 // MARK: - ControlSection
 "Switch to Mini Mode" = "Switch to Mini Mode";
 "Repeat: Off" = "Repeat: Off";

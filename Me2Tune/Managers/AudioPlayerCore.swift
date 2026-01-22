@@ -41,6 +41,10 @@ final class AudioPlayerCore: NSObject {
     
     private(set) var visibilityState: WindowStateMonitor.WindowVisibilityState = .activeFocused
     
+    private var audioBufferingEnabled: Bool {
+        UserDefaults.standard.bool(forKey: "audioBufferingEnabled")
+    }
+    
     private var shouldTimerRun: Bool {
         return isPlaying
     }
@@ -60,7 +64,6 @@ final class AudioPlayerCore: NSObject {
     }
     
     nonisolated deinit {
-        // DispatchSourceTimer.cancel() 是线程安全的
         timer?.cancel()
         timer = nil
     }
@@ -105,7 +108,32 @@ final class AudioPlayerCore: NSObject {
         logger.info("Loading: \(track.title)")
         
         do {
-            try player.play(track.url)
+            // 检查是否启用缓冲
+            if audioBufferingEnabled {
+                let isNetwork = AudioBufferDetector.isNetworkStorage(url: track.url)
+                
+                if let _ = AudioBufferDetector.calculateBufferSize(track: track, isNetworkStorage: isNetwork) {
+                    logger.info("Using buffered playback (network: \(isNetwork))")
+                    
+                    do {
+                        // 尝试预缓冲播放
+                        let inputSource = try InputSource(for: track.url, flags: .loadFilesInMemory)
+                        let decoder = try AudioDecoder(inputSource: inputSource)
+                        try player.play(decoder)
+                    } catch {
+                        // 预缓冲失败，降级到直接播放
+                        logger.warning("Buffering failed, fallback to direct: \(error.localizedDescription)")
+                        try player.play(track.url)
+                    }
+                } else {
+                    // 文件过大，直接播放
+                    try player.play(track.url)
+                }
+            } else {
+                // 缓冲未启用，直接播放
+                try player.play(track.url)
+            }
+            
             player.pause()
             
             duration = track.duration
@@ -134,9 +162,31 @@ final class AudioPlayerCore: NSObject {
         logger.info("Enqueuing: \(track.title)")
         
         do {
+            // 检查是否启用缓冲
+            if audioBufferingEnabled {
+                let isNetwork = AudioBufferDetector.isNetworkStorage(url: track.url)
+                
+                if let _ = AudioBufferDetector.calculateBufferSize(track: track, isNetworkStorage: isNetwork) {
+                    logger.info("Enqueuing with buffer (network: \(isNetwork))")
+                    
+                    do {
+                        // 尝试预缓冲
+                        let inputSource = try InputSource(for: track.url, flags: .loadFilesInMemory)
+                        let decoder = try AudioDecoder(inputSource: inputSource)
+                        try player.enqueue(decoder)
+                        logger.debug("✓ Enqueued next track (buffered)")
+                        return
+                    } catch {
+                        // 预缓冲失败，降级到直接播放
+                        logger.warning("Buffer enqueue failed, using direct: \(error.localizedDescription)")
+                    }
+                }
+            }
+            
+            // 直接入队
             let decoder = try AudioDecoder(url: track.url)
             try player.enqueue(decoder)
-            logger.debug("✓ Enqueued next track")
+            logger.debug("✓ Enqueued next track (direct)")
         } catch {
             let appError = AppError.audioLoadFailed(track.url)
             logger.logError(appError, context: "enqueueTrack")
