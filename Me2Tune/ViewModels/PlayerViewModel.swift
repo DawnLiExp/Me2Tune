@@ -52,12 +52,17 @@ final class PlayerViewModel: ObservableObject {
     
     private var cancellables = Set<AnyCancellable>()
     
-    // ✅ 单独保存 Timer 订阅，便于精确控制
     private var nowPlayingTimerCancellable: AnyCancellable?
     private var stateSaveTimer: DispatchSourceTimer?
     private var pendingSaveTask: Task<Void, Never>?
     
     private var isWindowVisible = true
+    
+    // MARK: - Now Playing Control
+    
+    private var nowPlayingEnabled: Bool {
+        UserDefaults.standard.object(forKey: "nowPlayingEnabled") as? Bool ?? true
+    }
     
     // MARK: - Computed Properties
     
@@ -166,6 +171,25 @@ final class PlayerViewModel: ObservableObject {
                 self.playerCore.updateVisibilityState(state)
             }
             .store(in: &cancellables)
+        
+        // 监听 Now Playing 设置变化
+        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                let enabled = UserDefaults.standard.object(forKey: "nowPlayingEnabled") as? Bool ?? true
+                
+                if !enabled {
+                    NowPlayingService.shared.clearNowPlayingInfo()
+                    self.stopNowPlayingUpdateTimer()
+                } else if self.isPlaying, let _ = self.currentTrack {
+                    self.updateNowPlayingInfo()
+                    if self.isWindowVisible {
+                        self.startNowPlayingUpdateTimer()
+                    }
+                }
+            }
+            .store(in: &cancellables)
     }
     
     // MARK: - Playback Control
@@ -242,10 +266,9 @@ final class PlayerViewModel: ObservableObject {
     func updateWindowVisibility(_ state: WindowStateMonitor.WindowVisibilityState) {
         playerCore.updateVisibilityState(state)
         
-        // ✅ 确保状态正确更新
         isWindowVisible = (state == .activeFocused || state == .inactive)
         
-        if playerCore.isPlaying {
+        if playerCore.isPlaying, nowPlayingEnabled {
             if state == .activeFocused {
                 startNowPlayingUpdateTimer()
             } else {
@@ -377,7 +400,7 @@ final class PlayerViewModel: ObservableObject {
     // MARK: - Now Playing Updates
     
     private func updateNowPlayingInfo() {
-        guard let track = currentTrack else {
+        guard nowPlayingEnabled, let track = currentTrack else {
             return
         }
         
@@ -390,14 +413,11 @@ final class PlayerViewModel: ObservableObject {
         )
     }
     
-    // ✅ 使用 Combine Timer Publisher，单独保存引用便于精确停止
     private func startNowPlayingUpdateTimer() {
-        // 先停止旧的 Timer
         stopNowPlayingUpdateTimer()
         
-        guard isWindowVisible else { return }
+        guard nowPlayingEnabled, isWindowVisible else { return }
         
-        // 创建新的 Timer 订阅并保存
         nowPlayingTimerCancellable = Timer.publish(every: 5.0, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
@@ -406,7 +426,6 @@ final class PlayerViewModel: ObservableObject {
             }
     }
     
-    // ✅ 停止定时器：取消订阅并释放引用
     private func stopNowPlayingUpdateTimer() {
         nowPlayingTimerCancellable?.cancel()
         nowPlayingTimerCancellable = nil
@@ -470,10 +489,14 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
     func playerCore(_ core: AudioPlayerCore, didUpdatePlaybackState isPlaying: Bool) {
         self.isPlaying = isPlaying
         
-        NowPlayingService.shared.updatePlaybackState(isPlaying: isPlaying)
+        if nowPlayingEnabled {
+            NowPlayingService.shared.updatePlaybackState(isPlaying: isPlaying)
+        }
         
         if isPlaying {
-            startNowPlayingUpdateTimer()
+            if nowPlayingEnabled {
+                startNowPlayingUpdateTimer()
+            }
             startStateSaveTimer()
         } else {
             stopNowPlayingUpdateTimer()
@@ -490,7 +513,10 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
         self.currentArtwork = artwork
         
         RemoteCommandController.shared.enable()
-        updateNowPlayingInfo()
+        
+        if nowPlayingEnabled {
+            updateNowPlayingInfo()
+        }
     }
     
     func playerCore(_ core: AudioPlayerCore, didEncounterError error: Error) {
@@ -518,7 +544,9 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
                 self.currentArtwork = artwork
                 self.duration = track.duration
                 
-                self.updateNowPlayingInfo()
+                if self.nowPlayingEnabled {
+                    self.updateNowPlayingInfo()
+                }
                 self.playerCore.updateDockIcon(artwork)
                 
                 if indexChanged {

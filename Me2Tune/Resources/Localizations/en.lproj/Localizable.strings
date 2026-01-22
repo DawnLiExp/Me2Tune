@@ -101,6 +101,10 @@
 "audio_buffering" = "Audio Buffering";
 "audio_buffering_footer" = "Pre-loads audio data for smoother playback. Local storage: 1.5s buffer, Network storage: 9s buffer";
 
+// MARK: - Settings - Now Playing
+"now_playing_sync" = "Now Playing Sync";
+"now_playing_sync_footer" = "Sync playback info to system media controls and Touch Bar";
+
 // MARK: - ControlSection
 "Switch to Mini Mode" = "Switch to Mini Mode";
 "Repeat: Off" = "Repeat: Off";

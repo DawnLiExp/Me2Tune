@@ -18,10 +18,8 @@ struct SettingsView: View {
     @State private var pendingTheme: ThemeManager.ThemeMode?
     @State private var selectedTab = 0
     
-    // 简洁模式
     @AppStorage("CleanMode") private var cleanMode = false
-    
-    // 音频缓冲
+    @AppStorage("nowPlayingEnabled") private var nowPlayingEnabled = true
     @AppStorage("audioBufferingEnabled") private var audioBufferingEnabled = false
     
     var body: some View {
@@ -285,6 +283,16 @@ struct SettingsView: View {
             // 音频缓冲
             settingRow(icon: "waveform.circle", label: "audio_buffering", helpText: "audio_buffering_footer") {
                 Toggle("", isOn: $audioBufferingEnabled)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                    .controlSize(.small)
+            }
+            
+            Divider()
+
+            // Now Playing 同步
+            settingRow(icon: "music.note.list", label: "now_playing_sync", helpText: "now_playing_sync_footer") {
+                Toggle("", isOn: $nowPlayingEnabled)
                     .toggleStyle(.switch)
                     .labelsHidden()
                     .controlSize(.small)

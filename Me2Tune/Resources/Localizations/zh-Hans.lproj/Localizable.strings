@@ -101,6 +101,10 @@
 "audio_buffering" = "音频缓冲";
 "audio_buffering_footer" = "启用后会预加载音频数据，提升播放流畅度。本地存储缓冲 1.5 秒，网络存储缓冲 9 秒";
 
+// MARK: - Settings - Now Playing
+"now_playing_sync" = "Now Playing 同步";
+"now_playing_sync_footer" = "同步播放信息到系统媒体控制和 Touch Bar";
+
 // MARK: - 设置 - 播放控制
 "Switch to Mini Mode" = "切换到迷你模式";
 "Repeat: Off" = "循环模式:关闭";
