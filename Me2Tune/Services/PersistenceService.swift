@@ -32,28 +32,11 @@ struct CollectionState: Codable, Sendable {
     var albums: [Album]
 }
 
-struct UIState: Codable, Sendable {
-    var isArtworkExpanded: Bool
-    var isPlaylistVisible: Bool
-    var windowHeight: CGFloat
-    var windowX: CGFloat?
-    var windowY: CGFloat?
-
-    static let `default` = UIState(
-        isArtworkExpanded: true,
-        isPlaylistVisible: true,
-        windowHeight: 900,
-        windowX: nil,
-        windowY: nil
-    )
-}
-
 @MainActor
 final class PersistenceService {
     private let playbackStateFileURL: URL
     private let playlistContentFileURL: URL
     private let collectionFileURL: URL
-    private let uiStateFileURL: URL
     private let logger = Logger.persistence
 
     init() {
@@ -68,7 +51,6 @@ final class PersistenceService {
         playbackStateFileURL = appDirectory.appendingPathComponent("playbackState.json")
         playlistContentFileURL = appDirectory.appendingPathComponent("playlistContent.json")
         collectionFileURL = appDirectory.appendingPathComponent("collections.json")
-        uiStateFileURL = appDirectory.appendingPathComponent("uiState.json")
 
         logger.debug("Persistence paths initialized")
     }
@@ -116,20 +98,5 @@ final class PersistenceService {
         let data = try Data(contentsOf: collectionFileURL)
         let decoder = JSONDecoder()
         return try decoder.decode(CollectionState.self, from: data)
-    }
-
-    // MARK: - UI State
-
-    func save(_ state: UIState) throws {
-        let encoder = JSONEncoder()
-        let data = try encoder.encode(state)
-        try data.write(to: uiStateFileURL, options: .atomic)
-        logger.debug("UI state saved: artwork=\(state.isArtworkExpanded), playlist=\(state.isPlaylistVisible), height=\(state.windowHeight), pos=(\(state.windowX ?? 0), \(state.windowY ?? 0))")
-    }
-
-    func loadUIState() throws -> UIState {
-        let data = try Data(contentsOf: uiStateFileURL)
-        let decoder = JSONDecoder()
-        return try decoder.decode(UIState.self, from: data)
     }
 }

@@ -37,6 +37,7 @@ struct Me2TuneApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.automatic)
+        .defaultSize(width: 495, height: 800)
         .commands {
             CommandGroup(replacing: .newItem) {}
             
