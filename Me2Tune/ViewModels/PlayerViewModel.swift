@@ -171,25 +171,6 @@ final class PlayerViewModel: ObservableObject {
                 self.playerCore.updateVisibilityState(state)
             }
             .store(in: &cancellables)
-        
-        // 监听 Now Playing 设置变化
-        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                guard let self else { return }
-                let enabled = UserDefaults.standard.object(forKey: "nowPlayingEnabled") as? Bool ?? true
-                
-                if !enabled {
-                    NowPlayingService.shared.clearNowPlayingInfo()
-                    self.stopNowPlayingUpdateTimer()
-                } else if self.isPlaying, let _ = self.currentTrack {
-                    self.updateNowPlayingInfo()
-                    if self.isWindowVisible {
-                        self.startNowPlayingUpdateTimer()
-                    }
-                }
-            }
-            .store(in: &cancellables)
     }
     
     // MARK: - Playback Control
