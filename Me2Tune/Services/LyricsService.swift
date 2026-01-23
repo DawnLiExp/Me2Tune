@@ -2,7 +2,7 @@
 //  LyricsService.swift
 //  Me2Tune
 //
-//  歌词服务 - LRCLIB API 调用 + 本地 LRC 文件读取 + 缓存集成
+//  歌词服务 - LRCLIB API 调用 + 本地 LRC 文件读取 + 缓存集成 + 智能重试
 //
 
 import Foundation
@@ -45,15 +45,10 @@ actor LyricsService {
             return cached
         }
         
-        // 3. 网络API
+        // 3. 网络API（带智能重试）
         try Task.checkCancellation()
-        logger.info("🌐 Fetching from API: \(track.title)")
-        let lyrics = try await getLyrics(
-            trackName: track.title,
-            artistName: track.artist ?? "Unknown Artist",
-            albumName: track.albumTitle ?? "",
-            duration: Int(track.duration)
-        )
+        logger.info("🌐 Fetching from API with retry: \(track.title)")
+        let lyrics = try await getLyricsWithRetry(track: track)
         
         try Task.checkCancellation()
         
@@ -97,9 +92,107 @@ actor LyricsService {
         )
     }
     
-    // MARK: - Network API
+    // MARK: - Retry Logic
     
-    func getLyrics(
+    private func getLyricsWithRetry(track: AudioTrack) async throws -> Lyrics {
+        let artist = track.artist ?? "Unknown Artist"
+        let album = track.albumTitle ?? ""
+        let duration = Int(track.duration)
+        
+        // 第一次尝试：使用完整信息
+        do {
+            let lyrics = try await getLyrics(
+                trackName: track.title,
+                artistName: artist,
+                albumName: album,
+                duration: duration
+            )
+            logger.info("✅ Exact match success")
+            return lyrics
+        } catch LyricsError.notFound {
+            logger.info("⚠️ Exact match failed (404)")
+        } catch is DecodingError {
+            logger.warning("⚠️ Exact match decode error (invalid response format)")
+        } catch {
+            logger.error("❌ Exact match error: \(error.localizedDescription)")
+            // 仅致命网络错误（超时等）才抛出
+            if let urlError = error as? URLError, urlError.code == .timedOut {
+                throw error
+            }
+        }
+        
+        // 第二次尝试：规范化专辑名
+        if !album.isEmpty {
+            let normalizedAlbum = normalizeAlbumName(album)
+            if normalizedAlbum != album {
+                logger.info("🔄 Retrying with normalized album: '\(normalizedAlbum)' (original: '\(album)')")
+                do {
+                    let lyrics = try await getLyrics(
+                        trackName: track.title,
+                        artistName: artist,
+                        albumName: normalizedAlbum,
+                        duration: duration
+                    )
+                    logger.info("✅ Normalized match success")
+                    return lyrics
+                } catch LyricsError.notFound {
+                    logger.info("⚠️ Normalized match failed (404)")
+                } catch is DecodingError {
+                    logger.warning("⚠️ Normalized match decode error")
+                } catch {
+                    logger.error("❌ Normalized match error: \(error.localizedDescription)")
+                    if let urlError = error as? URLError, urlError.code == .timedOut {
+                        throw error
+                    }
+                }
+            } else {
+                logger.info("ℹ️ Album already normalized, skipping second attempt")
+            }
+        }
+        
+        // 第三次尝试：使用搜索 API
+        logger.info("🔍 Falling back to search API")
+        do {
+            return try await searchLyrics(track: track)
+        } catch {
+            logger.error("❌ Search API failed: \(error.localizedDescription)")
+            throw error
+        }
+    }
+    
+    // MARK: - Album Name Normalization
+    
+    private func normalizeAlbumName(_ albumName: String) -> String {
+        var normalized = albumName
+        
+        // 1. 移除括号及其内容：(Deluxe Version), (Remastered) 等
+        let parenthesesPattern = "\\s*\\([^)]*\\)\\s*"
+        if let regex = try? NSRegularExpression(pattern: parenthesesPattern) {
+            let range = NSRange(normalized.startIndex..., in: normalized)
+            normalized = regex.stringByReplacingMatches(
+                in: normalized,
+                range: range,
+                withTemplate: ""
+            ).trimmingCharacters(in: .whitespaces)
+        }
+        
+        // 2. 移除常见后缀：- EP, - Single, - Deluxe 等
+        let suffixPattern = "\\s*-\\s*(EP|Single|Deluxe|Remastered|Deluxe Edition|Bonus Track Version|Live|Acoustic)\\s*$"
+        if let regex = try? NSRegularExpression(pattern: suffixPattern, options: .caseInsensitive) {
+            let range = NSRange(normalized.startIndex..., in: normalized)
+            normalized = regex.stringByReplacingMatches(
+                in: normalized,
+                range: range,
+                withTemplate: ""
+            ).trimmingCharacters(in: .whitespaces)
+        }
+        
+        return normalized.isEmpty ? albumName : normalized
+    }
+    
+    // MARK: - Network API - Exact Match
+    
+    private func getLyrics(
         trackName: String,
         artistName: String,
         albumName: String,
@@ -127,19 +220,90 @@ actor LyricsService {
             throw LyricsError.invalidResponse
         }
         
+        // 先检查状态码
         switch httpResponse.statusCode {
         case 200:
-            let lyrics = try await decodeLyrics(from: data)
-            logger.info("✅ API success: ID \(lyrics.id)")
-            return lyrics
-            
+            break // 继续解析
         case 404:
             throw LyricsError.notFound
-            
         default:
-            logger.error("API error: \(httpResponse.statusCode)")
+            logger.error("Unexpected API status: \(httpResponse.statusCode)")
+            // 记录响应内容以便调试
+            if let responseText = String(data: data, encoding: .utf8) {
+                logger.debug("Response: \(responseText.prefix(200))")
+            }
             throw LyricsError.apiError(httpResponse.statusCode)
         }
+        
+        // 尝试解码 JSON
+        do {
+            return try await decodeLyrics(from: data)
+        } catch {
+            // 记录无法解析的响应内容
+            if let responseText = String(data: data, encoding: .utf8) {
+                logger.error("Failed to decode response: \(responseText.prefix(200))")
+            }
+            throw error
+        }
+    }
+    
+    // MARK: - Network API - Search Fallback
+    
+    private func searchLyrics(track: AudioTrack) async throws -> Lyrics {
+        try Task.checkCancellation()
+        
+        let artist = track.artist ?? "Unknown Artist"
+        logger.info("🔎 Searching: track='\(track.title)', artist='\(artist)'")
+        
+        var components = URLComponents(string: "\(baseURL)/search")!
+        components.queryItems = [
+            URLQueryItem(name: "track_name", value: track.title),
+            URLQueryItem(name: "artist_name", value: artist)
+        ]
+        
+        guard let url = components.url else {
+            throw LyricsError.invalidURL
+        }
+        
+        let (data, response) = try await session.data(from: url)
+        
+        try Task.checkCancellation()
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw LyricsError.invalidResponse
+        }
+        
+        guard httpResponse.statusCode == 200 else {
+            logger.error("Search API error: HTTP \(httpResponse.statusCode)")
+            throw LyricsError.notFound
+        }
+        
+        // 解析搜索结果数组
+        let decoder = JSONDecoder()
+        let results = try decoder.decode([Lyrics].self, from: data)
+        
+        logger.info("📊 Search returned \(results.count) result(s)")
+        
+        guard !results.isEmpty else {
+            throw LyricsError.notFound
+        }
+        
+        // 选择最匹配的结果（基于时长相似度，±2 秒容差）
+        let targetDuration = Int(track.duration)
+        let matchingResults = results.filter { result in
+            abs(result.duration - targetDuration) <= 2
+        }
+        
+        let bestMatch: Lyrics
+        if let durationMatch = matchingResults.first {
+            bestMatch = durationMatch
+            logger.info("✅ Duration match found: \(durationMatch.trackName) - \(durationMatch.albumName ?? "Unknown") (\(durationMatch.duration)s)")
+        } else {
+            bestMatch = results[0]
+            logger.warning("⚠️ No duration match (target: \(targetDuration)s), using first result: \(bestMatch.trackName) (\(bestMatch.duration)s)")
+        }
+        
+        return bestMatch
     }
 }
 
