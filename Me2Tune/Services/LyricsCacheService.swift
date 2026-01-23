@@ -74,36 +74,65 @@ actor LyricsCacheService {
         
         await updateAccessTime(urlHash: urlHash)
         
-        let lyrics = Lyrics(
-            id: 0,
-            trackName: entry.trackName,
-            artistName: entry.artistName,
-            albumName: nil,
-            duration: 0,
-            instrumental: false,
-            plainLyrics: nil,
-            syncedLyrics: content
-        )
+        // ✅ 智能识别内容类型：检测是否包含 LRC 时间轴格式
+        let hasSyncedFormat = detectSyncedLyrics(content)
+        
+        let lyrics: Lyrics
+        if hasSyncedFormat {
+            // 带时间轴的歌词
+            lyrics = Lyrics(
+                id: 0,
+                trackName: entry.trackName,
+                artistName: entry.artistName,
+                albumName: nil,
+                duration: 0,
+                instrumental: false,
+                plainLyrics: nil,
+                syncedLyrics: content
+            )
+            logger.debug("📄 Loaded synced lyrics from cache")
+        } else {
+            // 纯文本歌词
+            lyrics = Lyrics(
+                id: 0,
+                trackName: entry.trackName,
+                artistName: entry.artistName,
+                albumName: nil,
+                duration: 0,
+                instrumental: false,
+                plainLyrics: content,
+                syncedLyrics: nil
+            )
+            logger.debug("📄 Loaded plain lyrics from cache")
+        }
         
         return lyrics
     }
     
     func saveLyrics(_ lyrics: Lyrics, audioURL: URL) async {
-        guard let syncedLyrics = lyrics.syncedLyrics,
-              !syncedLyrics.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        else {
+        // ✅ 优先使用同步歌词，兜底使用纯文本歌词
+        let lyricsContent: String
+        if let syncedLyrics = lyrics.syncedLyrics,
+           !syncedLyrics.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            lyricsContent = syncedLyrics
+        } else if let plainLyrics = lyrics.plainLyrics,
+                  !plainLyrics.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            lyricsContent = plainLyrics
+            logger.info("ℹ️ Caching plain lyrics (no synced version available)")
+        } else {
+            logger.debug("⏭️ Skipped caching: no lyrics content")
             return
         }
         
         let urlHash = cacheKey(audioURL: audioURL)
         let baseFileName = audioURL.deletingPathExtension().lastPathComponent
         let finalFileName = findAvailableFileName(baseFileName: baseFileName, urlHash: urlHash)
-        let fileURL = cacheDirectory.appendingPathComponent("\(finalFileName).lrc")
+        let cacheFile = cacheDirectory.appendingPathComponent("\(finalFileName).lrc")
         
         do {
-            try syncedLyrics.write(to: fileURL, atomically: true, encoding: .utf8)
+            try lyricsContent.write(to: cacheFile, atomically: true, encoding: .utf8)
             
-            let attributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)
+            let attributes = try FileManager.default.attributesOfItem(atPath: cacheFile.path)
             let fileSize = attributes[.size] as? Int ?? 0
             
             var metadata = loadMetadata()
@@ -222,5 +251,18 @@ actor LyricsCacheService {
         }
         
         try? data.write(to: metadataURL, options: .atomic)
+    }
+    
+    // MARK: - Helper: Detect Synced Lyrics Format
+    
+    private func detectSyncedLyrics(_ content: String) -> Bool {
+        // 检测是否包含 LRC 时间戳格式：[mm:ss.xx] 或 [mm:ss]
+        let pattern = "\\[\\d{2}:\\d{2}[.:]?\\d*\\]"
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            return false
+        }
+        
+        let range = NSRange(content.startIndex..., in: content)
+        return regex.firstMatch(in: content, range: range) != nil
     }
 }

@@ -154,6 +154,9 @@ actor LyricsService {
         logger.info("🔍 Falling back to search API")
         do {
             return try await searchLyrics(track: track)
+        } catch is DecodingError {
+            logger.error("❌ All attempts failed with decode errors - API may be returning truncated data")
+            throw LyricsError.invalidResponse
         } catch {
             logger.error("❌ Search API failed: \(error.localizedDescription)")
             throw error
@@ -228,21 +231,26 @@ actor LyricsService {
             throw LyricsError.notFound
         default:
             logger.error("Unexpected API status: \(httpResponse.statusCode)")
-            // 记录响应内容以便调试
-            if let responseText = String(data: data, encoding: .utf8) {
-                logger.debug("Response: \(responseText.prefix(200))")
-            }
             throw LyricsError.apiError(httpResponse.statusCode)
         }
         
         // 尝试解码 JSON
         do {
             return try await decodeLyrics(from: data)
-        } catch {
-            // 记录无法解析的响应内容
+        } catch let error as DecodingError {
+            // DecodingError 详细诊断
             if let responseText = String(data: data, encoding: .utf8) {
-                logger.error("Failed to decode response: \(responseText.prefix(200))")
+                let snippet = responseText.prefix(500) // 增加到 500 字符
+                logger.error("JSON decode failed: \(snippet)")
+                
+                // 检查是否为明显的截断（以不完整的字符串或对象结尾）
+                let trimmed = responseText.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.hasSuffix("}") && !trimmed.hasSuffix("]") {
+                    logger.warning("⚠️ Response appears truncated (size: \(data.count) bytes)")
+                }
             }
+            throw error
+        } catch {
             throw error
         }
     }
@@ -280,7 +288,23 @@ actor LyricsService {
         
         // 解析搜索结果数组
         let decoder = JSONDecoder()
-        let results = try decoder.decode([Lyrics].self, from: data)
+        let results: [Lyrics]
+        do {
+            results = try decoder.decode([Lyrics].self, from: data)
+        } catch let error as DecodingError {
+            if let responseText = String(data: data, encoding: .utf8) {
+                let snippet = responseText.prefix(500)
+                logger.error("Search JSON decode failed: \(snippet)")
+                
+                let trimmed = responseText.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.hasSuffix("}") && !trimmed.hasSuffix("]") {
+                    logger.warning("⚠️ Search response truncated (size: \(data.count) bytes)")
+                }
+            }
+            throw error
+        } catch {
+            throw error
+        }
         
         logger.info("📊 Search returned \(results.count) result(s)")
         
