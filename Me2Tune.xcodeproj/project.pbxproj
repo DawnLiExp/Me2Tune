@@ -698,7 +698,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 20260121;
+				CURRENT_PROJECT_VERSION = 20260123;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 2XCFSMR77F;
 				ENABLE_APP_SANDBOX = NO;
@@ -709,14 +709,14 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Me2Tune;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSAppDataUsageDescription = "本应用仅用于播放用户选择的本地音频文件，不会收集、存储或上传任何用户数据。";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 Me2";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				LLVM_LTO = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.6.0;
+				MARKETING_VERSION = 0.6.1;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = me2.Me2Tune;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -740,7 +740,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 20260121;
+				CURRENT_PROJECT_VERSION = 20260123;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 2XCFSMR77F;
 				ENABLE_APP_SANDBOX = NO;
@@ -752,14 +752,14 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Me2Tune;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSAppDataUsageDescription = "本应用仅用于播放用户选择的本地音频文件，不会收集、存储或上传任何用户数据。";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 Me2";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				LLVM_LTO = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.6.0;
+				MARKETING_VERSION = 0.6.1;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = me2.Me2Tune;
 				PRODUCT_NAME = "$(TARGET_NAME)";
