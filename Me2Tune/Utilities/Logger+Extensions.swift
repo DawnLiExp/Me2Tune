@@ -24,6 +24,7 @@ nonisolated extension Logger {
     static let language = Logger(subsystem: subsystem, category: "Language")
     static let lyrics = Logger(subsystem: subsystem, category: "Lyrics")
     static let cache = Logger(subsystem: subsystem, category: "Cache")
+    static let vinyl = Logger(subsystem: subsystem, category: "Vinyl")
 }
 
 extension Logger {

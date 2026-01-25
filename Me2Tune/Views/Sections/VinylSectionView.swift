@@ -8,8 +8,6 @@
 import AppKit
 import SwiftUI
 
-// MARK: - VinylSectionView
-
 struct VinylSectionView: View {
     let artwork: NSImage?
     let isPlaying: Bool
@@ -31,13 +29,12 @@ struct VinylSectionView: View {
         .padding(.top, 165)
     }
 
-    // MARK: - Vinyl Disc (GPU加速)
+    // MARK: - Vinyl Disc
 
     private var vinylDisc: some View {
         RotatingVinylLayer(
             artwork: artwork,
-            isRotating: isPlaying && isWindowVisible,
-            isRotationEnabled: isRotationEnabled,
+            shouldRotate: isPlaying && isRotationEnabled && isWindowVisible,
             vinylSize: vinylSize
         )
         .frame(width: vinylSize, height: vinylSize)

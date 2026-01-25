@@ -329,8 +329,8 @@
 		FC50C7372F06582700597B19 /* Sections */ = {
 			isa = PBXGroup;
 			children = (
-				FCF558CD2F261A9300E7DC2A /* RotatingVinylLayer.swift */,
 				FC50C7382F06582F00597B19 /* ControlSectionView.swift */,
+				FCF558CD2F261A9300E7DC2A /* RotatingVinylLayer.swift */,
 				FC50C7432F0658AC00597B19 /* TopBarSectionView.swift */,
 				FC50C7452F0658E400597B19 /* VinylSectionView.swift */,
 			);
