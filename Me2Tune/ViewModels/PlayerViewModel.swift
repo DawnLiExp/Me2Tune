@@ -488,11 +488,12 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
     
     func playerCore(_ core: AudioPlayerCore, didUpdateTime currentTime: TimeInterval, duration: TimeInterval) {
         playbackProgressState.currentTime = currentTime
-        self.duration = duration
+ 
     }
     
     func playerCore(_ core: AudioPlayerCore, didLoadTrack track: AudioTrack, artwork: NSImage?) {
         self.currentArtwork = artwork
+        self.duration = track.duration
         
         RemoteCommandController.shared.enable()
         

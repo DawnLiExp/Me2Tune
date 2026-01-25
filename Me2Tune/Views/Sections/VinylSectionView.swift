@@ -116,10 +116,10 @@ struct VinylSectionView: View {
     private func startRotation() {
         guard rotationTimer == nil else { return }
 
-        // 优化:降低刷新率 0.033 -> 0.05 (从 30fps -> 20fps)
-        rotationTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [self] _ in
+        // 刷新率
+        rotationTimer = Timer.scheduledTimer(withTimeInterval: 0.06, repeats: true) { [self] _ in
             DispatchQueue.main.async { [self] in
-                rotationAngle += 0.5 // 调整旋转步长保持视觉流畅度
+                rotationAngle += 0.54 // 调整旋转步长保持视觉流畅度
                 if rotationAngle >= 360 {
                     rotationAngle -= 360
                 }
