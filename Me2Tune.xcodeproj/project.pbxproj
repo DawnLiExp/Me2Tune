@@ -68,6 +68,7 @@
 		FCDDF5B02F14DAE0003AFB85 /* SlateBlueTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDDF5AF2F14DADE003AFB85 /* SlateBlueTheme.swift */; };
 		FCE6E86F2F053E7C004D5E21 /* NowPlayingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCE6E86E2F053E6F004D5E21 /* NowPlayingService.swift */; };
 		FCE6E8712F053E8E004D5E21 /* RemoteCommandController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCE6E8702F053E8D004D5E21 /* RemoteCommandController.swift */; };
+		FCF558CE2F261A9300E7DC2A /* RotatingVinylLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCF558CD2F261A9300E7DC2A /* RotatingVinylLayer.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -132,6 +133,7 @@
 		FCDDF5AF2F14DADE003AFB85 /* SlateBlueTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlateBlueTheme.swift; sourceTree = "<group>"; };
 		FCE6E86E2F053E6F004D5E21 /* NowPlayingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingService.swift; sourceTree = "<group>"; };
 		FCE6E8702F053E8D004D5E21 /* RemoteCommandController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteCommandController.swift; sourceTree = "<group>"; };
+		FCF558CD2F261A9300E7DC2A /* RotatingVinylLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RotatingVinylLayer.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -327,6 +329,7 @@
 		FC50C7372F06582700597B19 /* Sections */ = {
 			isa = PBXGroup;
 			children = (
+				FCF558CD2F261A9300E7DC2A /* RotatingVinylLayer.swift */,
 				FC50C7382F06582F00597B19 /* ControlSectionView.swift */,
 				FC50C7432F0658AC00597B19 /* TopBarSectionView.swift */,
 				FC50C7452F0658E400597B19 /* VinylSectionView.swift */,
@@ -497,6 +500,7 @@
 				FC32865F2F011243000D8F2A /* AudioPlayerCore.swift in Sources */,
 				FC50C73E2F06587100597B19 /* CollapseButtonView.swift in Sources */,
 				FC50C7442F0658AE00597B19 /* TopBarSectionView.swift in Sources */,
+				FCF558CE2F261A9300E7DC2A /* RotatingVinylLayer.swift in Sources */,
 				FC3E2B042F08BF1700F59E4B /* PlaybackStateManager.swift in Sources */,
 				FC480EC42EF152BC000D8393 /* AudioTrack.swift in Sources */,
 				FC32865D2F010F3D000D8F2A /* PlayerViewModel.swift in Sources */,
