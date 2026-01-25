@@ -9,6 +9,7 @@ import SwiftUI
 
 struct MiniPlayerView: View {
     @EnvironmentObject private var playerViewModel: PlayerViewModel
+    @EnvironmentObject private var playbackProgressState: PlaybackProgressState
     @AppStorage("displayMode") private var displayMode = DisplayMode.full.rawValue
     @AppStorage("miniAlwaysOnTop") private var alwaysOnTop = false
     
@@ -113,7 +114,7 @@ struct MiniPlayerView: View {
     }
     
     private var remainingTimeString: String {
-        let remaining = max(0, playerViewModel.duration - playerViewModel.currentTime)
+        let remaining = max(0, playerViewModel.duration - playbackProgressState.currentTime)
         guard remaining.isFinite, !remaining.isNaN else { return "-0:00" }
         let minutes = Int(remaining) / 60
         let seconds = Int(remaining) % 60

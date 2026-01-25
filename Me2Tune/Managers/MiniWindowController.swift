@@ -49,6 +49,7 @@ final class MiniWindowController {
     private func createPanel() {
         let contentView = MiniPlayerView()
             .environmentObject(playerViewModel)
+            .environmentObject(playerViewModel.playbackProgressState) 
         
         let hostingView = NSHostingView(rootView: contentView)
         hostingView.frame = NSRect(x: 0, y: 0, width: 440, height: 78)
