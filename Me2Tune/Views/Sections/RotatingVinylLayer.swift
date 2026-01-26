@@ -256,7 +256,7 @@ final class VinylHostView: NSView {
             let rotation = CABasicAnimation(keyPath: "transform.rotation.z")
             rotation.fromValue = 0
             rotation.toValue = -Double.pi * 2
-            rotation.duration = 36.0
+            rotation.duration = 39.0
             rotation.repeatCount = .infinity
             rotation.isRemovedOnCompletion = false
             

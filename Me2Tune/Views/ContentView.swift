@@ -13,7 +13,7 @@ struct ContentView: View {
     @EnvironmentObject private var playerViewModel: PlayerViewModel
     @EnvironmentObject private var collectionManager: CollectionManager
     @EnvironmentObject private var windowStateMonitor: WindowStateMonitor
-    @EnvironmentObject private var playbackProgressState: PlaybackProgressState
+    @Environment(\.playbackProgressState) private var playbackProgressState // ✅ 使用 Observation
     @ObservedObject private var themeManager = ThemeManager.shared
     
     @State private var albumGlowColor = Color.defaultAlbumGlow
@@ -155,13 +155,11 @@ struct ContentView: View {
             playerViewModel.playAlbum(album, startAt: trackIndex)
             
         case .openAlbum(let album):
-            // 先切换 tab，等待视图就绪后再设置专辑
             withAnimation(.easeInOut(duration: 0.25)) {
                 selectedTab = .collections
             }
             
             Task {
-                // 延迟确保 CollectionsGridView 已加载
                 try? await Task.sleep(for: .milliseconds(100))
                 await MainActor.run {
                     selectedAlbumId = album.id

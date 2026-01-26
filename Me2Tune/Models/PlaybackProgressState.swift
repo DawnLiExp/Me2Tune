@@ -2,13 +2,14 @@
 //  PlaybackProgressState.swift
 //  Me2Tune
 //
-//  播放进度状态 - 独立的 ObservableObject 避免触发全局刷新
+//  播放进度状态 - Observation 框架版本
 //
 
 import Foundation
-import Combine
+import Observation
 
 @MainActor
-final class PlaybackProgressState: ObservableObject {
-    @Published var currentTime: TimeInterval = 0
+@Observable
+final class PlaybackProgressState {
+    var currentTime: TimeInterval = 0
 }

@@ -28,7 +28,7 @@ struct ControlSectionView: View {
     @State private var isHoveringTrackInfo = false
     @State private var volumeBeforeMute: Double = 0.7
     @State private var hoverDelayTask: Task<Void, Never>?
-    @EnvironmentObject private var playbackProgressState: PlaybackProgressState
+    @Environment(\.playbackProgressState) private var playbackProgressState // ✅ 使用 Observation
     
     var body: some View {
         VStack(spacing: 0) {
@@ -61,7 +61,6 @@ struct ControlSectionView: View {
     
     private var trackInfoSection: some View {
         ZStack(alignment: .leading) {
-            // 歌曲信息（默认显示）
             if !isHoveringTrackInfo || currentTrack == nil {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(currentTrack?.title ?? String(localized: "no_track"))
@@ -78,7 +77,6 @@ struct ControlSectionView: View {
                 .transition(.opacity)
             }
             
-            // 设置控件（hover时显示）
             if isHoveringTrackInfo, currentTrack != nil {
                 settingsControls
                     .transition(.opacity)
@@ -91,7 +89,6 @@ struct ControlSectionView: View {
             hoverDelayTask = nil
             
             if hovering, currentTrack != nil {
-                // 鼠标移入：延迟 0.5 秒后触发
                 hoverDelayTask = Task {
                     do {
                         try await Task.sleep(for: .milliseconds(500))
@@ -108,7 +105,6 @@ struct ControlSectionView: View {
                     }
                 }
             } else {
-                // 鼠标移出
                 withAnimation(.easeInOut(duration: 0.3)) {
                     isHoveringTrackInfo = false
                 }
@@ -297,7 +293,6 @@ struct ControlSectionView: View {
             let width = geometry.size.width
             let height = geometry.size.height
             
-            // 视觉层（保持细条）
             ZStack(alignment: .leading) {
                 Rectangle()
                     .fill(Color.white.opacity(0.12))
@@ -311,11 +306,10 @@ struct ControlSectionView: View {
                             endPoint: .trailing
                         )
                     )
-                    .frame(width: width * progress, height: height) // ✅ 使用 progress 计算属性
+                    .frame(width: width * progress, height: height)
                     .shadow(color: .accentGlow, radius: 4)
             }
             .overlay(
-                // ✅ 交互层：用 NonDraggableView 包裹透明扩大区域
                 NonDraggableView {
                     Color.clear
                         .frame(height: 20)

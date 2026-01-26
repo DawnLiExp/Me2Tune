@@ -41,6 +41,7 @@
 		FC51ACE52F1DD1D4009C47C9 /* CacheConfigManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC51ACE42F1DD1D4009C47C9 /* CacheConfigManager.swift */; };
 		FC62DA392F0372C000DD1509 /* ArtworkCacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC62DA382F0372BA00DD1509 /* ArtworkCacheService.swift */; };
 		FC62DA3B2F0373C800DD1509 /* Array+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC62DA3A2F0373C600DD1509 /* Array+Extensions.swift */; };
+		FC6845602F27063300528840 /* EnvironmentKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC68455F2F27063200528840 /* EnvironmentKeys.swift */; };
 		FC746C302F0E501B008AD5B4 /* AlbumCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC746C2F2F0E5019008AD5B4 /* AlbumCardView.swift */; };
 		FC746C322F0E5043008AD5B4 /* HoverDetectingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC746C312F0E5040008AD5B4 /* HoverDetectingView.swift */; };
 		FC7596862F1BB95100E86C9C /* AlbumTrackRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC7596852F1BB95100E86C9C /* AlbumTrackRowView.swift */; };
@@ -107,6 +108,7 @@
 		FC51ACE42F1DD1D4009C47C9 /* CacheConfigManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheConfigManager.swift; sourceTree = "<group>"; };
 		FC62DA382F0372BA00DD1509 /* ArtworkCacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkCacheService.swift; sourceTree = "<group>"; };
 		FC62DA3A2F0373C600DD1509 /* Array+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Array+Extensions.swift"; sourceTree = "<group>"; };
+		FC68455F2F27063200528840 /* EnvironmentKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvironmentKeys.swift; sourceTree = "<group>"; };
 		FC746C2F2F0E5019008AD5B4 /* AlbumCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumCardView.swift; sourceTree = "<group>"; };
 		FC746C312F0E5040008AD5B4 /* HoverDetectingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverDetectingView.swift; sourceTree = "<group>"; };
 		FC7596852F1BB95100E86C9C /* AlbumTrackRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumTrackRowView.swift; sourceTree = "<group>"; };
@@ -149,6 +151,7 @@
 		FC1377A22EFD0FE300A9CE99 /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
+				FC68455F2F27063200528840 /* EnvironmentKeys.swift */,
 				FC62DA3A2F0373C600DD1509 /* Array+Extensions.swift */,
 				FC1377A32EFD0FE800A9CE99 /* ColorExtensions.swift */,
 			);
@@ -534,6 +537,7 @@
 				FC2032FB2F08E91400D17FEE /* DarkTheme.swift in Sources */,
 				FC2033012F08E96C00D17FEE /* ThemeManager.swift in Sources */,
 				FC480EAC2EF107E8000D8393 /* PersistenceService.swift in Sources */,
+				FC6845602F27063300528840 /* EnvironmentKeys.swift in Sources */,
 				FCDDD8412F17656500295F8C /* NonDraggableView.swift in Sources */,
 				FC50C7462F0658E600597B19 /* VinylSectionView.swift in Sources */,
 				FCB9B96C2F1C0AE900CA7866 /* LyricsView.swift in Sources */,

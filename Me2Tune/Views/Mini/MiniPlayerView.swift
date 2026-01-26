@@ -9,7 +9,7 @@ import SwiftUI
 
 struct MiniPlayerView: View {
     @EnvironmentObject private var playerViewModel: PlayerViewModel
-    @EnvironmentObject private var playbackProgressState: PlaybackProgressState
+    @Environment(\.playbackProgressState) private var playbackProgressState // ✅ 使用 Observation
     @AppStorage("displayMode") private var displayMode = DisplayMode.full.rawValue
     @AppStorage("miniAlwaysOnTop") private var alwaysOnTop = false
     
@@ -22,7 +22,7 @@ struct MiniPlayerView: View {
             
             contentView
         }
-        .frame(width: 440, height: 78) // 🖼️ 窗口尺寸：增加宽度和高度提升呼吸感
+        .frame(width: 440, height: 78)
         .contextMenu {
             Toggle(isOn: $alwaysOnTop) {
                 Label(String(localized: "always_on_top"), systemImage: "pin.fill")
@@ -34,18 +34,16 @@ struct MiniPlayerView: View {
     
     private var contentView: some View {
         HStack(spacing: 0) {
-            // 封面：完全填充左侧
             artworkView
-                .frame(width: 78, height: 78) // 📐 封面区域尺寸（与窗口高度一致）
+                .frame(width: 78, height: 78)
             
-            // 右侧内容区
-            VStack(alignment: .leading, spacing: 10) { // 📏 上下间距 10
+            VStack(alignment: .leading, spacing: 10) {
                 trackInfoRow
                 controlsRow
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 14) // 📏 左右内边距 14
-            .padding(.vertical, 10) // 📏 上下内边距 10
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
         }
     }
     
@@ -82,7 +80,6 @@ struct MiniPlayerView: View {
     
     private var trackInfoRow: some View {
         HStack(spacing: 6) {
-            // 歌曲信息
             HStack(spacing: 6) {
                 Text(playerViewModel.currentTrack?.title ?? String(localized: "no_track"))
                     .font(.system(size: 13, weight: .semibold))
@@ -104,7 +101,6 @@ struct MiniPlayerView: View {
             
             Spacer(minLength: 8)
             
-            // 剩余时间
             if playerViewModel.currentTrack != nil {
                 Text(remainingTimeString)
                     .font(.system(size: 11, design: .monospaced))
@@ -121,43 +117,36 @@ struct MiniPlayerView: View {
         return String(format: "-%d:%02d", minutes, seconds)
     }
     
-    // MARK: - Controls Row (主要调整区域)
+    // MARK: - Controls Row
     
     private var controlsRow: some View {
         HStack(spacing: 0) {
-            // ========== 左侧：主任务组（循环 + 播放控制）==========
-            HStack(spacing: 14) { // 📏 小组间距 14（循环 ↔ 播放组）
-                // 循环按钮（对齐歌名左边缘）
+            HStack(spacing: 14) {
                 repeatButton
                 
-                // 播放控制组（⏮️▶️⏭️）
-                HStack(spacing: 8) { // 📏 播放键组内间距 6（最紧密）
+                HStack(spacing: 8) {
                     controlButton(
                         icon: "backward.end",
-                        size: 24, // 🎛️ 前后按钮尺寸
+                        size: 24,
                         enabled: playerViewModel.canGoPrevious,
                         action: playerViewModel.previous
                     )
                     
-                    playPauseButton // ▶️ 主焦点按钮
+                    playPauseButton
                     
                     controlButton(
                         icon: "forward.end",
-                        size: 24, // 🎛️ 前后按钮尺寸
+                        size: 24,
                         enabled: playerViewModel.canGoNext,
                         action: playerViewModel.next
                     )
                 }
             }
             
-            Spacer(minLength: 24) // 📏 大组间距 24（主任务 ↔ 次任务）
+            Spacer(minLength: 24)
             
-            // ========== 右侧：次任务组（音量 + 模式切换）==========
-            HStack(spacing: 16) { // 📏 小组间距 14（音量 ↔ 切换）
-                // 音量控制
+            HStack(spacing: 16) {
                 volumeControl
-                
-                // 切换按钮（对齐时间右边缘）
                 switchToFullButton
             }
         }
@@ -170,7 +159,7 @@ struct MiniPlayerView: View {
             Image(systemName: repeatIcon)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(repeatColor)
-                .frame(width: 24, height: 24) // 🎛️ 循环按钮尺寸
+                .frame(width: 24, height: 24)
         }
         .buttonStyle(.plain)
     }
@@ -190,13 +179,11 @@ struct MiniPlayerView: View {
             : miniTheme.colors.accent
     }
     
-    // MARK: - Play/Pause Button (主焦点)
+    // MARK: - Play/Pause Button
     
     private var playPauseButton: some View {
         Button(action: playerViewModel.togglePlayPause) {
             ZStack {
-                // 背景凸起效果
-          
                 Image(systemName: playerViewModel.isPlaying ? "pause.fill" : "play.fill")
                     .font(.system(size: 18, weight: .bold))
                     .foregroundColor(miniTheme.colors.primaryText)
@@ -215,14 +202,14 @@ struct MiniPlayerView: View {
                 Image(systemName: volumeIcon)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(miniTheme.colors.controlButtonColor)
-                    .frame(width: 20, height: 20) // 🎛️ 音量图标尺寸
+                    .frame(width: 20, height: 20)
             }
             .buttonStyle(.plain)
             
             MiniVolumeSlider(value: $playerViewModel.volume)
-                .frame(width: 75, height: 20) // 🎚️ 音量滑块尺寸（够用但不抢焦点）
+                .frame(width: 75, height: 20)
         }
-        .frame(height: 24, alignment: .center) // 🎯 整体垂直居中，与喇叭图标对齐
+        .frame(height: 24, alignment: .center)
     }
     
     @State private var volumeBeforeMute: Double = 0.7
@@ -256,7 +243,7 @@ struct MiniPlayerView: View {
             Image(systemName: "arrow.up.left.and.arrow.down.right")
                 .font(.system(size: 10, weight: .medium))
                 .foregroundColor(miniTheme.colors.controlButtonColor.opacity(0.7))
-                .frame(width: 22, height: 22) // 🎛️ 切换按钮尺寸（最小，低频操作）
+                .frame(width: 22, height: 22)
         }
         .buttonStyle(.plain)
     }
@@ -264,7 +251,7 @@ struct MiniPlayerView: View {
     private func controlButton(icon: String, size: CGFloat, enabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: size - 8, weight: .medium)) // 📐 图标比按钮框小 8pt
+                .font(.system(size: size - 8, weight: .medium))
                 .foregroundColor(enabled ? miniTheme.colors.controlButtonColor : miniTheme.colors.controlButtonColor.opacity(0.3))
                 .frame(width: size, height: size)
         }

@@ -28,7 +28,7 @@ struct Me2TuneApp: App {
             ContentView()
                 .frame(minWidth: 495)
                 .environmentObject(playerViewModel)
-                .environmentObject(playerViewModel.playbackProgressState)  
+                .environment(\.playbackProgressState, playerViewModel.playbackProgressState) // ✅ 使用 Observation 注入
                 .environmentObject(collectionManager)
                 .environmentObject(windowStateMonitor)
                 .onAppear {
@@ -40,7 +40,7 @@ struct Me2TuneApp: App {
         .defaultSize(width: 495, height: 800)
         .commands {
             CommandGroup(replacing: .newItem) {}
-            
+
             CommandGroup(after: .windowArrangement) {
                 Button(String(localized: "lyrics_menu_item")) {
                     LyricsWindowController.shared.show()
@@ -58,16 +58,14 @@ struct Me2TuneApp: App {
 
     private func setupAppDelegate() {
         guard let window = NSApp.windows.first else { return }
-        
-        // 传递引用给 AppDelegate
+
         appDelegate.fullModeWindow = window
         appDelegate.playerViewModel = playerViewModel
         appDelegate.collectionManager = collectionManager
         appDelegate.windowStateMonitor = windowStateMonitor
-        
-        // ✅ 新增：初始化歌词窗口控制器
+
         LyricsWindowController.shared.setup(playerViewModel: playerViewModel)
-        
+
         logger.info("🚀 App launched")
     }
-    }
+}
