@@ -11,9 +11,9 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @EnvironmentObject private var playerViewModel: PlayerViewModel
-    @Environment(CollectionManager.self) private var collectionManager // ✅ 改用 @Environment (Observation)
+    @Environment(CollectionManager.self) private var collectionManager
     @Environment(\.playbackProgressState) private var playbackProgressState
-    @ObservedObject private var themeManager = ThemeManager.shared
+    // ✅ 移除 @ObservedObject themeManager（主题切换重启生效，直接用单例）
     
     @State private var albumGlowColor = Color.defaultAlbumGlow
     @State private var previousTrackID: UUID?
@@ -376,5 +376,5 @@ struct AlertsModifier: ViewModifier {
 #Preview {
     ContentView()
         .environmentObject(PlayerViewModel())
-        .environment(CollectionManager()) // ✅ Preview 也使用 .environment()
+        .environment(CollectionManager())
 }

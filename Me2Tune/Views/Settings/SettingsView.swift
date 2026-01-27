@@ -8,8 +8,11 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @ObservedObject private var themeManager = ThemeManager.shared
-    @ObservedObject private var languageManager = LanguageManager.shared
+    // ✅ 改为 @State 存储当前值，移除 @ObservedObject（主题/语言切换需重启）
+    @State private var currentTheme = ThemeManager.shared.themeMode
+    @State private var currentLanguage = LanguageManager.shared.currentLanguage
+    
+    // ✅ CacheConfigManager 保留 @ObservedObject（需要响应路径验证状态）
     @ObservedObject private var cacheManager = CacheConfigManager.shared
     
     @State private var showLanguageChangeAlert = false
@@ -36,14 +39,14 @@ struct SettingsView: View {
         .alert("language_change_title", isPresented: $showLanguageChangeAlert) {
             Button("restart_now") {
                 if let language = pendingLanguage {
-                    languageManager.setLanguage(language)
+                    LanguageManager.shared.setLanguage(language)
                     restartApp()
                 }
                 pendingLanguage = nil
             }
             Button("restart_later") {
                 if let language = pendingLanguage {
-                    languageManager.setLanguage(language)
+                    LanguageManager.shared.setLanguage(language)
                 }
                 pendingLanguage = nil
             }
@@ -56,14 +59,14 @@ struct SettingsView: View {
         .alert("theme_change_title", isPresented: $showThemeChangeAlert) {
             Button("restart_now") {
                 if let theme = pendingTheme {
-                    themeManager.setThemeMode(theme)
+                    ThemeManager.shared.setThemeMode(theme)
                     restartApp()
                 }
                 pendingTheme = nil
             }
             Button("restart_later") {
                 if let theme = pendingTheme {
-                    themeManager.setThemeMode(theme)
+                    ThemeManager.shared.setThemeMode(theme)
                 }
                 pendingTheme = nil
             }
@@ -114,7 +117,6 @@ struct SettingsView: View {
     
     // MARK: - Tab Content
     
-    @ViewBuilder
     private var tabContent: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -257,14 +259,7 @@ struct SettingsView: View {
         VStack(spacing: 16) {
             // 语言设置
             settingRow(icon: "globe", label: "settings_language_label") {
-                Picker("", selection: Binding(
-                    get: { languageManager.currentLanguage },
-                    set: { newLanguage in
-                        guard newLanguage != languageManager.currentLanguage else { return }
-                        pendingLanguage = newLanguage
-                        showLanguageChangeAlert = true
-                    }
-                )) {
+                Picker("", selection: $currentLanguage) {
                     ForEach(LanguageManager.AppLanguage.allCases) { language in
                         Text(language.displayName).tag(language)
                     }
@@ -272,6 +267,13 @@ struct SettingsView: View {
                 .labelsHidden()
                 .pickerStyle(.menu)
                 .frame(width: 140)
+                .onChange(of: currentLanguage) { _, newLanguage in
+                    // ✅ 检测到变化时弹出重启提示
+                    if newLanguage != LanguageManager.shared.currentLanguage {
+                        pendingLanguage = newLanguage
+                        showLanguageChangeAlert = true
+                    }
+                }
             }
             
             Divider()
@@ -279,14 +281,7 @@ struct SettingsView: View {
             
             // 主题设置
             settingRow(icon: "paintpalette", label: "settings_theme_label", helpText: "settings_theme_footer") {
-                Picker("", selection: Binding(
-                    get: { themeManager.themeMode },
-                    set: { newMode in
-                        guard newMode != themeManager.themeMode else { return }
-                        pendingTheme = newMode
-                        showThemeChangeAlert = true
-                    }
-                )) {
+                Picker("", selection: $currentTheme) {
                     ForEach(ThemeManager.ThemeMode.allCases) { mode in
                         Text(mode.displayName).tag(mode)
                     }
@@ -294,6 +289,13 @@ struct SettingsView: View {
                 .labelsHidden()
                 .pickerStyle(.menu)
                 .frame(width: 140)
+                .onChange(of: currentTheme) { _, newMode in
+                    // ✅ 检测到变化时弹出重启提示
+                    if newMode != ThemeManager.shared.themeMode {
+                        pendingTheme = newMode
+                        showThemeChangeAlert = true
+                    }
+                }
             }
             
             Divider()

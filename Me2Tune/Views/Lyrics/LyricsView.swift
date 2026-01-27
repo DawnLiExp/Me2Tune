@@ -2,14 +2,14 @@
 //  LyricsView.swift
 //  Me2Tune
 //
-//  歌词显示视图 - 独立高频刷新，不依赖主窗口状态
+//  歌词显示视图 - 独立高频刷新,不依赖主窗口状态
 //
 
 import SwiftUI
 
 struct LyricsView: View {
     @EnvironmentObject private var playerViewModel: PlayerViewModel
-    @ObservedObject private var themeManager = ThemeManager.shared
+    // ✅ 移除 @ObservedObject themeManager（主题切换重启生效，直接用单例）
     
     @State private var lyrics: Lyrics?
     @State private var lyricLines: [LyricLine] = []
@@ -23,9 +23,14 @@ struct LyricsView: View {
     @State private var updateTimer: Timer?
     @State private var currentPlaybackTime: TimeInterval = 0
     
+    // ✅ 直接访问主题颜色
+    private var themeColors: ThemeColors {
+        ThemeManager.shared.currentTheme.colors
+    }
+    
     var body: some View {
         ZStack {
-            themeManager.currentTheme.colors.mainBackground
+            themeColors.mainBackground
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
@@ -35,7 +40,7 @@ struct LyricsView: View {
                 
                 Divider()
                     .frame(width: 360)
-                    .background(themeManager.currentTheme.colors.borderGradientStart.opacity(0.3))
+                    .background(themeColors.borderGradientStart.opacity(0.3))
                     .padding(.top, 18)
                     .padding(.bottom, 20)
                 
@@ -67,18 +72,18 @@ struct LyricsView: View {
             if let track = playerViewModel.currentTrack {
                 Text(track.title)
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(themeManager.currentTheme.colors.primaryText)
+                    .foregroundColor(themeColors.primaryText)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
                 
                 Text(track.artist ?? String(localized: "unknown_artist"))
                     .font(.system(size: 14))
-                    .foregroundColor(themeManager.currentTheme.colors.secondaryText)
+                    .foregroundColor(themeColors.secondaryText)
                     .lineLimit(1)
             } else {
                 Text(String(localized: "no_track"))
                     .font(.system(size: 16))
-                    .foregroundColor(themeManager.currentTheme.colors.secondaryText)
+                    .foregroundColor(themeColors.secondaryText)
             }
         }
     }
@@ -110,11 +115,11 @@ struct LyricsView: View {
         VStack(spacing: 16) {
             ProgressView()
                 .scaleEffect(1.2)
-                .tint(themeManager.currentTheme.colors.accent)
+                .tint(themeColors.accent)
             
             Text("loading_lyrics")
                 .font(.system(size: 14))
-                .foregroundColor(themeManager.currentTheme.colors.secondaryText)
+                .foregroundColor(themeColors.secondaryText)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -123,11 +128,11 @@ struct LyricsView: View {
         VStack(spacing: 12) {
             Image(systemName: "text.badge.xmark")
                 .font(.system(size: 48))
-                .foregroundColor(themeManager.currentTheme.colors.emptyStateIcon)
+                .foregroundColor(themeColors.emptyStateIcon)
             
             Text(message)
                 .font(.system(size: 14))
-                .foregroundColor(themeManager.currentTheme.colors.secondaryText)
+                .foregroundColor(themeColors.secondaryText)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -138,11 +143,11 @@ struct LyricsView: View {
         VStack(spacing: 12) {
             Image(systemName: "text.alignleft")
                 .font(.system(size: 48))
-                .foregroundColor(themeManager.currentTheme.colors.emptyStateIcon)
+                .foregroundColor(themeColors.emptyStateIcon)
             
             Text("no_lyrics")
                 .font(.system(size: 14))
-                .foregroundColor(themeManager.currentTheme.colors.secondaryText)
+                .foregroundColor(themeColors.secondaryText)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -151,11 +156,11 @@ struct LyricsView: View {
         VStack(spacing: 12) {
             Image(systemName: "music.note")
                 .font(.system(size: 48))
-                .foregroundColor(themeManager.currentTheme.colors.accent.opacity(0.6))
+                .foregroundColor(themeColors.accent.opacity(0.6))
             
             Text("instrumental_track")
                 .font(.system(size: 16))
-                .foregroundColor(themeManager.currentTheme.colors.secondaryText)
+                .foregroundColor(themeColors.secondaryText)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -175,7 +180,7 @@ struct LyricsView: View {
                             line: line,
                             lineIndex: index,
                             currentLineIndex: currentLineIndex,
-                            theme: themeManager.currentTheme.colors
+                            theme: themeColors
                         )
                         .id(index)
                         .padding(.vertical, 8)
@@ -202,7 +207,7 @@ struct LyricsView: View {
         ScrollView(showsIndicators: false) {
             Text(text)
                 .font(.system(size: 15, weight: .regular))
-                .foregroundColor(themeManager.currentTheme.colors.primaryText)
+                .foregroundColor(themeColors.primaryText)
                 .lineSpacing(8)
                 .multilineTextAlignment(.leading)
                 .padding(.horizontal, 20)
