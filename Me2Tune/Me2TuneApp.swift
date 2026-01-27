@@ -12,25 +12,29 @@ private let logger = Logger.app
 
 @main
 struct Me2TuneApp: App {
-    @StateObject private var collectionManager = CollectionManager()
+    // ✅ 阶段2：CollectionManager/PlaylistManager 使用 @State (Observation)
+    @State private var collectionManager = CollectionManager()
     @StateObject private var playerViewModel: PlayerViewModel
     @StateObject private var windowStateMonitor = WindowStateMonitor()
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     init() {
+        // ✅ 单一初始化：CollectionManager 先创建
         let manager = CollectionManager()
-        _collectionManager = StateObject(wrappedValue: manager)
+        _collectionManager = State(wrappedValue: manager)
         _playerViewModel = StateObject(wrappedValue: PlayerViewModel(collectionManager: manager))
+
+        logger.debug("✅ Me2TuneApp initialized - Observation migration stage 2")
     }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .frame(minWidth: 495)
-                .environmentObject(playerViewModel)
-                .environment(\.playbackProgressState, playerViewModel.playbackProgressState) // ✅ 使用 Observation 注入
-                .environmentObject(collectionManager)
-                .environmentObject(windowStateMonitor)
+                .environmentObject(playerViewModel) // ✅ PlayerViewModel 仍用 @StateObject (阶段4迁移)
+                .environment(\.playbackProgressState, playerViewModel.playbackProgressState)
+                .environment(collectionManager) // ✅ 使用 .environment() (Observation)
+                .environmentObject(windowStateMonitor) // ✅ 保留 @StateObject
                 .onAppear {
                     setupAppDelegate()
                 }
@@ -66,6 +70,6 @@ struct Me2TuneApp: App {
 
         LyricsWindowController.shared.setup(playerViewModel: playerViewModel)
 
-        logger.info("🚀 App launched")
+        logger.info("🚀 App launched (Observation stage 2)")
     }
 }
