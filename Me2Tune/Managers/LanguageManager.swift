@@ -5,24 +5,27 @@
 //  语言管理器 - 语言切换 + 持久化
 //
 
-import Combine
 import Foundation
+import Observation
 import OSLog
 import SwiftUI
 
 private let logger = Logger.language
 
 @MainActor
-final class LanguageManager: ObservableObject {
+@Observable
+final class LanguageManager {
     static let shared = LanguageManager()
     
-    @Published private(set) var currentLanguage: AppLanguage
+    private(set) var currentLanguage: AppLanguage
     
     enum AppLanguage: String, CaseIterable, Identifiable {
         case english = "en"
         case simplifiedChinese = "zh-Hans"
         
-        var id: String { rawValue }
+        var id: String {
+            rawValue
+        }
         
         var displayName: String {
             switch self {
