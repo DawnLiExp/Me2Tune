@@ -14,7 +14,7 @@ struct ContentSectionView: View {
     @Binding var selectedAlbumId: UUID?
     
     let playerViewModel: PlayerViewModel
-    let collectionManager: CollectionManager
+    let collectionManager: CollectionManager // ✅ 直接传值，不是 @ObservedObject (Observation 自动追踪)
     
     let onExportPlaylist: () -> Void
     let onClearPlaylist: () -> Void

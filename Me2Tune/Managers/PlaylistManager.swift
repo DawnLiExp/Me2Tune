@@ -7,17 +7,19 @@
 
 import Combine
 import Foundation
+import Observation
 import OSLog
 
 private let logger = Logger.viewModel
 
 @MainActor
-final class PlaylistManager: ObservableObject {
-    // MARK: - Published States
+@Observable
+final class PlaylistManager {
+    // MARK: - Published States (✅ 移除 @Published，Observation 自动追踪)
     
-    @Published private(set) var tracks: [AudioTrack] = []
-    @Published private(set) var isLoading = false
-    @Published private(set) var loadingCount = 0
+    private(set) var tracks: [AudioTrack] = []
+    private(set) var isLoading = false
+    private(set) var loadingCount = 0
     
     // MARK: - Private Properties
     
@@ -37,6 +39,7 @@ final class PlaylistManager: ObservableObject {
     
     init() {
         loadPlaylistContent()
+        logger.debug("✅ PlaylistManager initialized (@Observable)")
     }
     
     // MARK: - Public Methods - Query

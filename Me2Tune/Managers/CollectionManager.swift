@@ -7,25 +7,36 @@
 
 import Combine
 import Foundation
+import Observation
 import OSLog
 
 private let logger = Logger.collection
 
 @MainActor
-final class CollectionManager: ObservableObject {
-    @Published private(set) var albums: [Album] = []
-    @Published private(set) var isLoaded = false
-    @Published private(set) var isLoading = false
+@Observable
+final class CollectionManager {
+    // MARK: - Published States (✅ 移除 @Published，Observation 自动追踪)
+    
+    private(set) var albums: [Album] = []
+    private(set) var isLoaded = false
+    private(set) var isLoading = false
+    
+    // MARK: - Private Properties
     
     private let persistenceService = PersistenceService()
     private var delayedLoadTask: Task<Void, Never>?
+    
+    // MARK: - Initialization
+    
+    init() {
+        logger.debug("✅ CollectionManager initialized (@Observable)")
+    }
     
     // MARK: - Lazy Loading
     
     func scheduleDelayedLoad(delay: TimeInterval = 2.5) {
         guard !isLoaded, delayedLoadTask == nil else { return }
         
-        // ✅ 显式标记MainActor上下文
         delayedLoadTask = Task { @MainActor in
             do {
                 try await Task.sleep(for: .seconds(delay))
@@ -111,9 +122,8 @@ final class CollectionManager: ObservableObject {
             
         let album = Album(name: name, folderURL: URL(fileURLWithPath: "/"), tracks: tracks)
             
-        // ✅ 显式在MainActor上更新Published属性
+        // ✅ Observation 自动追踪，无需手动通知
         self.albums.append(album)
-        self.objectWillChange.send()
             
         logger.info("Album created from playlist: \(name) with \(tracks.count) tracks")
             
@@ -181,10 +191,10 @@ final class CollectionManager: ObservableObject {
             return tracksWithIndex.sorted { $0.0 < $1.0 }.map(\.1)
         }
         
-        // ✅ 显式在MainActor上更新Published属性
+        // ✅ Observation 自动追踪，无需手动通知
         let album = Album(name: albumName, folderURL: url, tracks: tracks)
         self.albums.append(album)
-        self.objectWillChange.send()
+        
         logger.info("Album created: \(albumName) with \(tracks.count) tracks")
         saveCollections()
     }
@@ -268,7 +278,7 @@ final class CollectionManager: ObservableObject {
                 }
             }
             
-            // ✅ 显式在MainActor上更新Published属性
+            // ✅ Observation 自动追踪
             self.albums = migratedAlbums
             logger.info("Loaded \(self.albums.count) albums")
             

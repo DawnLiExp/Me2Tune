@@ -27,8 +27,14 @@ final class PlayerViewModel: ObservableObject {
     let playbackProgressState = PlaybackProgressState()
     @Published var volume: Double = 0.7
     
-    @Published private(set) var isLoadingTracks = false
-    @Published private(set) var loadingTracksCount = 0
+    // ✅ 移除这两个 @Published，改为计算属性直接读取 playlistManager
+    var isLoadingTracks: Bool {
+        playlistManager.isLoading
+    }
+    
+    var loadingTracksCount: Int {
+        playlistManager.loadingCount
+    }
     
     // MARK: - Managers
     
@@ -117,7 +123,7 @@ final class PlayerViewModel: ObservableObject {
         
         setupBindings()
         
-        logger.debug("PlayerViewModel initialized")
+        logger.debug("PlayerViewModel initialized (stage 2)")
     }
     
     deinit {
@@ -144,23 +150,8 @@ final class PlayerViewModel: ObservableObject {
             }
             .store(in: &cancellables)
         
-        playlistManager.$isLoading
-            .receive(on: RunLoop.main)
-            .assign(to: &$isLoadingTracks)
-        
-        playlistManager.$loadingCount
-            .receive(on: RunLoop.main)
-            .assign(to: &$loadingTracksCount)
-        
-        Publishers.Merge(
-            playlistManager.objectWillChange,
-            playbackStateManager.objectWillChange
-        )
-        .receive(on: RunLoop.main)
-        .sink { [weak self] _ in
-            self?.objectWillChange.send()
-        }
-        .store(in: &cancellables)
+        // ✅ 移除 Manager 的 objectWillChange 订阅（Observation 自动追踪）
+        // isLoadingTracks/loadingTracksCount 改为计算属性，无需订阅
         
         NotificationCenter.default.publisher(for: .windowVisibilityDidChange)
             .receive(on: RunLoop.main)
@@ -249,7 +240,6 @@ final class PlayerViewModel: ObservableObject {
         
         isWindowVisible = (state == .activeFocused || state == .inactive)
         
-        // ✅ 定时器只在开关开启时根据窗口状态调整
         if playerCore.isPlaying, nowPlayingEnabled {
             if state == .activeFocused {
                 startNowPlayingUpdateTimer()
@@ -382,7 +372,6 @@ final class PlayerViewModel: ObservableObject {
     // MARK: - Now Playing Updates
 
     private func updateNowPlayingInfo() {
-        // ✅ 始终更新基本信息（确保媒体键工作）
         guard let track = currentTrack else {
             return
         }
@@ -399,7 +388,6 @@ final class PlayerViewModel: ObservableObject {
     private func startNowPlayingUpdateTimer() {
         stopNowPlayingUpdateTimer()
         
-        // 只在开关开启时启动定时器
         guard nowPlayingEnabled, isWindowVisible else { return }
         
         nowPlayingTimerCancellable = Timer.publish(every: 5.0, on: .main, in: .common)
@@ -488,8 +476,7 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
     
     func playerCore(_ core: AudioPlayerCore, didUpdateTime currentTime: TimeInterval, duration: TimeInterval) {
         playbackProgressState.currentTime = currentTime
- 
-    }
+     }
     
     func playerCore(_ core: AudioPlayerCore, didLoadTrack track: AudioTrack, artwork: NSImage?) {
         self.currentArtwork = artwork
@@ -538,7 +525,7 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
     }
     
     func playerCore(_ core: AudioPlayerCore, decodingCompleteFor track: AudioTrack) {
-        logger.debug("🔄 Decoding complete, enqueuing next track")
+        logger.debug("📄 Decoding complete, enqueuing next track")
         enqueueNextTrack()
     }
     

@@ -11,8 +11,7 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @EnvironmentObject private var playerViewModel: PlayerViewModel
-    @EnvironmentObject private var collectionManager: CollectionManager
-    // ✅ 移除 windowStateMonitor 环境对象（PlayerViewModel 已监听通知）
+    @Environment(CollectionManager.self) private var collectionManager // ✅ 改用 @Environment (Observation)
     @Environment(\.playbackProgressState) private var playbackProgressState
     @ObservedObject private var themeManager = ThemeManager.shared
     
@@ -38,7 +37,6 @@ struct ContentView: View {
             .onDrop(of: [.fileURL], isTargeted: $isDragging) { providers in
                 handleDrop(providers: providers)
             }
-            // ✅ 移除冗余的 onChange（PlayerViewModel 内部已监听 Notification）
             .modifier(AlertsModifier(
                 showExportDialog: $showExportDialog,
                 exportAlbumName: $exportAlbumName,
@@ -91,7 +89,7 @@ struct ContentView: View {
                 isPlaying: playerViewModel.isPlaying,
                 isRotationEnabled: isRotationEnabled,
                 duration: playerViewModel.duration,
-                isWindowVisible: true // ✅ 简化，窗口可见性由内部管理
+                isWindowVisible: true
             )
             .frame(height: 160)
             .padding(.horizontal, 12)
@@ -378,5 +376,5 @@ struct AlertsModifier: ViewModifier {
 #Preview {
     ContentView()
         .environmentObject(PlayerViewModel())
-        .environmentObject(CollectionManager())
+        .environment(CollectionManager()) // ✅ Preview 也使用 .environment()
 }
