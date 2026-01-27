@@ -7,17 +7,19 @@
 
 import Combine
 import Foundation
+import Observation
 import OSLog
 
 private let logger = Logger.viewModel
 
 @MainActor
-final class PlaybackStateManager: ObservableObject {
-    // MARK: - Published States
+@Observable
+final class PlaybackStateManager {
+    // MARK: - Published States (✅ 移除 @Published，Observation 自动追踪)
     
-    @Published private(set) var currentTracks: [AudioTrack] = []
-    @Published private(set) var currentTrackIndex: Int?
-    @Published private(set) var playingSource: PlayingSource = .playlist
+    private(set) var currentTracks: [AudioTrack] = []
+    private(set) var currentTrackIndex: Int?
+    private(set) var playingSource: PlayingSource = .playlist
     
     // MARK: - Types
     
@@ -58,6 +60,8 @@ final class PlaybackStateManager: ObservableObject {
     init(playlistManager: PlaylistManager, collectionManager: CollectionManager?) {
         self.playlistManager = playlistManager
         self.collectionManager = collectionManager
+        
+        logger.debug("✅ PlaybackStateManager initialized (@Observable)")
     }
     
     // MARK: - Playback Source Switching

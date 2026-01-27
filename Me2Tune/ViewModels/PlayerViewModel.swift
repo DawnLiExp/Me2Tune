@@ -21,20 +21,11 @@ final class PlayerViewModel: ObservableObject {
     @Published private(set) var currentArtwork: NSImage?
     @Published private(set) var isPlaylistLoaded = false
     @Published var repeatMode: RepeatMode = .off
-
-    // MARK: - Progress State (独立 ObservableObject)
-
-    let playbackProgressState = PlaybackProgressState()
     @Published var volume: Double = 0.7
     
-    // ✅ 移除这两个 @Published，改为计算属性直接读取 playlistManager
-    var isLoadingTracks: Bool {
-        playlistManager.isLoading
-    }
-    
-    var loadingTracksCount: Int {
-        playlistManager.loadingCount
-    }
+    // MARK: - Progress State (独立 @Observable)
+
+    let playbackProgressState = PlaybackProgressState()
     
     // MARK: - Managers
     
@@ -70,7 +61,7 @@ final class PlayerViewModel: ObservableObject {
         UserDefaults.standard.object(forKey: "nowPlayingEnabled") as? Bool ?? true
     }
     
-    // MARK: - Computed Properties
+    // MARK: - Computed Properties (✅ 直接读取 Manager，自动追踪)
     
     var currentFormat: AudioFormat {
         currentTrack?.format ?? .unknown
@@ -103,6 +94,14 @@ final class PlayerViewModel: ObservableObject {
     var currentTime: TimeInterval {
         playbackProgressState.currentTime
     }
+    
+    var isLoadingTracks: Bool {
+        playlistManager.isLoading
+    }
+    
+    var loadingTracksCount: Int {
+        playlistManager.loadingCount
+    }
 
     // MARK: - Initialization
     
@@ -123,7 +122,7 @@ final class PlayerViewModel: ObservableObject {
         
         setupBindings()
         
-        logger.debug("PlayerViewModel initialized (stage 2)")
+        logger.debug("PlayerViewModel initialized (stage 3)")
     }
     
     deinit {
@@ -149,9 +148,6 @@ final class PlayerViewModel: ObservableObject {
                 self.saveVolume(newValue)
             }
             .store(in: &cancellables)
-        
-        // ✅ 移除 Manager 的 objectWillChange 订阅（Observation 自动追踪）
-        // isLoadingTracks/loadingTracksCount 改为计算属性，无需订阅
         
         NotificationCenter.default.publisher(for: .windowVisibilityDidChange)
             .receive(on: RunLoop.main)
@@ -476,7 +472,7 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
     
     func playerCore(_ core: AudioPlayerCore, didUpdateTime currentTime: TimeInterval, duration: TimeInterval) {
         playbackProgressState.currentTime = currentTime
-     }
+    }
     
     func playerCore(_ core: AudioPlayerCore, didLoadTrack track: AudioTrack, artwork: NSImage?) {
         self.currentArtwork = artwork
