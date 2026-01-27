@@ -15,7 +15,7 @@ struct VinylSectionView: View {
     let duration: TimeInterval
     let isWindowVisible: Bool
 
-    @Environment(\.playbackProgressState) private var playbackProgressState // ✅ 使用 Observation
+    @Environment(\.playbackProgressState) private var playbackProgressState
 
     private let vinylSize: CGFloat = 280
 
@@ -26,7 +26,7 @@ struct VinylSectionView: View {
                 .offset(y: -147)
         }
         .frame(height: vinylSize / 2)
-        .padding(.top, 165)
+        .padding(.top, 166)
     }
 
     // MARK: - Vinyl Disc

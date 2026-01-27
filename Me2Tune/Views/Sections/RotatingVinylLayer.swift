@@ -25,17 +25,35 @@ struct RotatingVinylLayer: NSViewRepresentable {
         
         setupVinylLayers(view: view)
         
-        logger.debug("🎨 Vinyl view created")
-        
+        // ✅ 立即初始化封面状态（解决冷启动和无封面问题）
+        context.coordinator.currentArtwork = artwork
+        updateArtwork(layer: view.artworkLayer, artwork: artwork)
+
         return view
     }
     
     func updateNSView(_ nsView: VinylHostView, context: Context) {
         let coordinator = context.coordinator
         
-        if coordinator.currentArtwork !== artwork {
+        // ✅ 明确处理所有封面状态转换
+        let needsUpdate: Bool = switch (coordinator.currentArtwork, artwork) {
+        case (nil, nil):
+            // 都是 nil，不需要更新
+            false
+        case (nil, .some):
+            true
+        case (.some, nil):
+            // 有封面 -> nil（需要显示默认图标）
+            true
+        case (.some(let old), .some(let new)):
+            // 都有封面，比较引用是否相同
+            old !== new
+        }
+        
+        if needsUpdate {
             coordinator.currentArtwork = artwork
             updateArtwork(layer: nsView.artworkLayer, artwork: artwork)
+            logger.debug("🔄 Artwork updated: \(artwork != nil ? "image" : "default icon")")
         }
         
         if coordinator.isRotating != shouldRotate {
@@ -132,7 +150,7 @@ struct RotatingVinylLayer: NSViewRepresentable {
         gradientLayer.type = .radial
         gradientLayer.colors = [
             NSColor(white: 0.16, alpha: 1).cgColor,
-            NSColor(white: 0.08, alpha: 1).cgColor
+            NSColor(white: 0.12, alpha: 1).cgColor
         ]
         gradientLayer.startPoint = CGPoint(x: 0.5, y: 0.5)
         gradientLayer.endPoint = CGPoint(x: 1.0, y: 1.0)
@@ -178,7 +196,7 @@ struct RotatingVinylLayer: NSViewRepresentable {
     }
     
     private func createDefaultMusicIcon() -> NSImage? {
-        let config = NSImage.SymbolConfiguration(pointSize: 50, weight: .regular)
+        let config = NSImage.SymbolConfiguration(pointSize: 70, weight: .regular)
         
         guard let baseImage = NSImage(systemSymbolName: "guitars.fill", accessibilityDescription: nil),
               let configuredImage = baseImage.withSymbolConfiguration(config)
@@ -203,7 +221,7 @@ struct RotatingVinylLayer: NSViewRepresentable {
         outerGradient.type = .radial
         outerGradient.colors = [
             NSColor(white: 0.18, alpha: 1).cgColor,
-            NSColor(white: 0.12, alpha: 1).cgColor
+            NSColor(white: 0.08, alpha: 1).cgColor
         ]
         outerGradient.startPoint = CGPoint(x: 0.5, y: 0.5)
         outerGradient.endPoint = CGPoint(x: 1.0, y: 1.0)
