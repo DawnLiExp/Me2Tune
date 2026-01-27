@@ -50,7 +50,7 @@ final class LyricsWindowController {
     
     private func createWindow(playerViewModel: PlayerViewModel) {
         let contentView = LyricsView()
-            .environmentObject(playerViewModel)
+            .environment(playerViewModel)
         
         let hostingView = NSHostingView(rootView: contentView)
         hostingView.frame = NSRect(x: 0, y: 0, width: 440, height: 800)

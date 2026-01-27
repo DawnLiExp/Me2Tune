@@ -8,8 +8,8 @@
 import SwiftUI
 
 struct MiniPlayerView: View {
-    @EnvironmentObject private var playerViewModel: PlayerViewModel
-    @Environment(\.playbackProgressState) private var playbackProgressState // ✅ 使用 Observation
+    @Environment(PlayerViewModel.self) private var playerViewModel
+    @Environment(\.playbackProgressState) private var playbackProgressState
     @AppStorage("displayMode") private var displayMode = DisplayMode.full.rawValue
     @AppStorage("miniAlwaysOnTop") private var alwaysOnTop = false
     
@@ -39,7 +39,7 @@ struct MiniPlayerView: View {
             
             VStack(alignment: .leading, spacing: 10) {
                 trackInfoRow
-                controlsRow
+                controlsRow // ✅ 直接调用，内部创建 Bindable
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 14)
@@ -120,7 +120,9 @@ struct MiniPlayerView: View {
     // MARK: - Controls Row
     
     private var controlsRow: some View {
-        HStack(spacing: 0) {
+        @Bindable var viewModel = playerViewModel // ✅ 在这里创建 Bindable
+        
+        return HStack(spacing: 0) {
             HStack(spacing: 14) {
                 repeatButton
                 
@@ -146,7 +148,7 @@ struct MiniPlayerView: View {
             Spacer(minLength: 24)
             
             HStack(spacing: 16) {
-                volumeControl
+                volumeControl(volume: $viewModel.volume) // ✅ 传递 Binding
                 switchToFullButton
             }
         }
@@ -196,7 +198,7 @@ struct MiniPlayerView: View {
     
     // MARK: - Volume Control
     
-    private var volumeControl: some View {
+    private func volumeControl(volume: Binding<Double>) -> some View {
         HStack(spacing: 6) {
             Button(action: toggleMute) {
                 Image(systemName: volumeIcon)
@@ -206,7 +208,7 @@ struct MiniPlayerView: View {
             }
             .buttonStyle(.plain)
             
-            MiniVolumeSlider(value: $playerViewModel.volume)
+            MiniVolumeSlider(value: volume) // ✅ 直接使用 Binding
                 .frame(width: 75, height: 20)
         }
         .frame(height: 24, alignment: .center)
@@ -268,5 +270,5 @@ struct MiniPlayerView: View {
 
 #Preview {
     MiniPlayerView()
-        .environmentObject(PlayerViewModel())
+        .environment(PlayerViewModel())
 }

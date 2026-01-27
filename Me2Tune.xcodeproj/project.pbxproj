@@ -151,9 +151,9 @@
 		FC1377A22EFD0FE300A9CE99 /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
-				FC68455F2F27063200528840 /* EnvironmentKeys.swift */,
 				FC62DA3A2F0373C600DD1509 /* Array+Extensions.swift */,
 				FC1377A32EFD0FE800A9CE99 /* ColorExtensions.swift */,
+				FC68455F2F27063200528840 /* EnvironmentKeys.swift */,
 			);
 			path = Extensions;
 			sourceTree = "<group>";

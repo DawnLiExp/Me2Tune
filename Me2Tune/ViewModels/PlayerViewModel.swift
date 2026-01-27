@@ -8,20 +8,31 @@
 import AppKit
 import Combine
 import Foundation
+import Observation
 import OSLog
 
 private let logger = Logger.viewModel
 
 @MainActor
-final class PlayerViewModel: ObservableObject {
+@Observable
+final class PlayerViewModel {
     // MARK: - Published States (UI 绑定状态)
 
-    @Published private(set) var isPlaying = false
-    @Published private(set) var duration: TimeInterval = 0
-    @Published private(set) var currentArtwork: NSImage?
-    @Published private(set) var isPlaylistLoaded = false
-    @Published var repeatMode: RepeatMode = .off
-    @Published var volume: Double = 0.7
+    private(set) var isPlaying = false
+    private(set) var duration: TimeInterval = 0
+    private(set) var currentArtwork: NSImage?
+    private(set) var isPlaylistLoaded = false
+    var repeatMode: RepeatMode = .off {
+        didSet {
+            playerCore.repeatMode = AudioPlayerCore.RepeatMode(from: repeatMode)
+        }
+    }
+
+    var volume: Double = 0.7 {
+        didSet {
+            scheduleVolumeUpdate(volume)
+        }
+    }
     
     // MARK: - Progress State (独立 @Observable)
 
@@ -42,18 +53,18 @@ final class PlayerViewModel: ObservableObject {
         case one
     }
     
-    // MARK: - Private Properties
+    // MARK: - Private Properties (不触发UI更新)
     
-    private let playerCore: AudioPlayerCore
-    private let persistenceService = PersistenceService()
+    @ObservationIgnored private let playerCore: AudioPlayerCore
+    @ObservationIgnored private let persistenceService = PersistenceService()
     
-    private var cancellables = Set<AnyCancellable>()
+    @ObservationIgnored private var cancellables = Set<AnyCancellable>()
+    @ObservationIgnored private var nowPlayingTimerCancellable: AnyCancellable?
+    @ObservationIgnored private var stateSaveTimer: DispatchSourceTimer?
+    @ObservationIgnored private var pendingSaveTask: Task<Void, Never>?
+    @ObservationIgnored private var volumeUpdateTask: Task<Void, Never>?
     
-    private var nowPlayingTimerCancellable: AnyCancellable?
-    private var stateSaveTimer: DispatchSourceTimer?
-    private var pendingSaveTask: Task<Void, Never>?
-    
-    private var isWindowVisible = true
+    @ObservationIgnored private var isWindowVisible = true
     
     // MARK: - Now Playing Control
     
@@ -120,9 +131,9 @@ final class PlayerViewModel: ObservableObject {
             await restorePlaybackState()
         }
         
-        setupBindings()
+        setupNotificationObservers()
         
-        logger.debug("PlayerViewModel initialized (stage 3)")
+        logger.debug("✅ PlayerViewModel initialized (@Observable)")
     }
     
     deinit {
@@ -130,25 +141,13 @@ final class PlayerViewModel: ObservableObject {
         stateSaveTimer = nil
         pendingSaveTask?.cancel()
         pendingSaveTask = nil
+        volumeUpdateTask?.cancel()
+        volumeUpdateTask = nil
     }
 
-    private func setupBindings() {
-        $repeatMode
-            .sink { [weak self] newValue in
-                guard let self else { return }
-                self.playerCore.repeatMode = AudioPlayerCore.RepeatMode(from: newValue)
-            }
-            .store(in: &cancellables)
-        
-        $volume
-            .debounce(for: .milliseconds(500), scheduler: RunLoop.main)
-            .sink { [weak self] newValue in
-                guard let self else { return }
-                self.playerCore.setVolume(newValue)
-                self.saveVolume(newValue)
-            }
-            .store(in: &cancellables)
-        
+    // MARK: - Setup
+    
+    private func setupNotificationObservers() {
         NotificationCenter.default.publisher(for: .windowVisibilityDidChange)
             .receive(on: RunLoop.main)
             .sink { [weak self] notification in
@@ -158,6 +157,16 @@ final class PlayerViewModel: ObservableObject {
                 self.playerCore.updateVisibilityState(state)
             }
             .store(in: &cancellables)
+    }
+    
+    private func scheduleVolumeUpdate(_ newVolume: Double) {
+        volumeUpdateTask?.cancel()
+        volumeUpdateTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            self.playerCore.setVolume(newVolume)
+            self.saveVolume(newVolume)
+        }
     }
     
     // MARK: - Playback Control
@@ -521,7 +530,7 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
     }
     
     func playerCore(_ core: AudioPlayerCore, decodingCompleteFor track: AudioTrack) {
-        logger.debug("📄 Decoding complete, enqueuing next track")
+        logger.debug("🔄 Decoding complete, enqueuing next track")
         enqueueNextTrack()
     }
     

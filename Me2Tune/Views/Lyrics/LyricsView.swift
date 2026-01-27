@@ -8,8 +8,7 @@
 import SwiftUI
 
 struct LyricsView: View {
-    @EnvironmentObject private var playerViewModel: PlayerViewModel
-    // ✅ 移除 @ObservedObject themeManager（主题切换重启生效，直接用单例）
+    @Environment(PlayerViewModel.self) private var playerViewModel
     
     @State private var lyrics: Lyrics?
     @State private var lyricLines: [LyricLine] = []
@@ -392,5 +391,5 @@ struct LyricLineView: View {
 
 #Preview {
     LyricsView()
-        .environmentObject(PlayerViewModel())
+        .environment(PlayerViewModel())
 }

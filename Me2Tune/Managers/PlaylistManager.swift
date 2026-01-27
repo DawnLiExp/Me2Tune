@@ -15,7 +15,7 @@ private let logger = Logger.viewModel
 @MainActor
 @Observable
 final class PlaylistManager {
-    // MARK: - Published States (✅ 移除 @Published，Observation 自动追踪)
+    // MARK: - Published States
     
     private(set) var tracks: [AudioTrack] = []
     private(set) var isLoading = false

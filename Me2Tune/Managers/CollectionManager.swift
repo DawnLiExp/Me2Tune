@@ -15,7 +15,7 @@ private let logger = Logger.collection
 @MainActor
 @Observable
 final class CollectionManager {
-    // MARK: - Published States (✅ 移除 @Published，Observation 自动追踪)
+    // MARK: - Published States
     
     private(set) var albums: [Album] = []
     private(set) var isLoaded = false

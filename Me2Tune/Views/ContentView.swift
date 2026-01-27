@@ -10,10 +10,9 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct ContentView: View {
-    @EnvironmentObject private var playerViewModel: PlayerViewModel
+    @Environment(PlayerViewModel.self) private var playerViewModel
     @Environment(CollectionManager.self) private var collectionManager
     @Environment(\.playbackProgressState) private var playbackProgressState
-    // ✅ 移除 @ObservedObject themeManager（主题切换重启生效，直接用单例）
     
     @State private var albumGlowColor = Color.defaultAlbumGlow
     @State private var previousTrackID: UUID?
@@ -68,7 +67,10 @@ struct ContentView: View {
     }
     
     private var mainContentStack: some View {
-        VStack(spacing: 0) {
+        // ✅ 使用 @Bindable 以支持 Binding
+        @Bindable var viewModel = playerViewModel
+        
+        return VStack(spacing: 0) {
             TopBarSectionView(
                 isRotationEnabled: $isRotationEnabled,
                 audioFormat: playerViewModel.currentFormat,
@@ -106,7 +108,7 @@ struct ContentView: View {
                 onNext: playerViewModel.next,
                 onSeek: playerViewModel.seek,
                 onToggleRepeat: playerViewModel.toggleRepeatMode,
-                volume: $playerViewModel.volume
+                volume: $viewModel.volume
             )
             .fixedSize(horizontal: false, vertical: true)
 
@@ -115,7 +117,7 @@ struct ContentView: View {
                 isInAlbumDetail: $isInAlbumDetail,
                 isPlaylistCollapsed: $isPlaylistCollapsed,
                 selectedAlbumId: $selectedAlbumId,
-                playerViewModel: playerViewModel,
+                playerViewModel: playerViewModel, // ✅ 直接传递引用（避免重复注入）
                 collectionManager: collectionManager,
                 onExportPlaylist: handleExportPlaylist,
                 onClearPlaylist: { showClearPlaylistConfirm = true },
@@ -375,6 +377,6 @@ struct AlertsModifier: ViewModifier {
 
 #Preview {
     ContentView()
-        .environmentObject(PlayerViewModel())
+        .environment(PlayerViewModel())
         .environment(CollectionManager())
 }

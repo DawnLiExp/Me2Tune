@@ -28,7 +28,7 @@ struct ControlSectionView: View {
     @State private var isHoveringTrackInfo = false
     @State private var volumeBeforeMute: Double = 0.7
     @State private var hoverDelayTask: Task<Void, Never>?
-    @Environment(\.playbackProgressState) private var playbackProgressState // ✅ 使用 Observation
+    @Environment(\.playbackProgressState) private var playbackProgressState
     
     var body: some View {
         VStack(spacing: 0) {
