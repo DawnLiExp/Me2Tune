@@ -32,6 +32,7 @@ struct Me2TuneApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .frame(minWidth: 495)
                 .environment(playerViewModel) // ✅ 使用 .environment() (Observation)
                 .environment(\.playbackProgressState, playerViewModel.playbackProgressState)
                 .environment(collectionManager) // ✅ 使用 .environment() (Observation)

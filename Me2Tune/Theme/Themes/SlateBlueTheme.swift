@@ -34,7 +34,7 @@ struct SlateBlueTheme: Theme {
         // MARK: Background Colors
 
         mainBackground: Color(hex: "#16171E"),
-        gradientTop: Color(hex: "#111318"),
+        gradientTop: Color(hex: "#191c24"),
         containerBackground: Color.white.opacity(0.06),
         controlBackground: Color(hex: "#2A2D3A").opacity(0.88),
         infoBackground: Color.white.opacity(0.07),
