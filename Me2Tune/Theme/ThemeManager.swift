@@ -5,19 +5,20 @@
 //  主题管理器 - 启动时应用主题 + 持久化
 //
 
-import Combine
 import Foundation
+import Observation
 import OSLog
 import SwiftUI
 
 private let logger = Logger.theme
 
 @MainActor
-final class ThemeManager: ObservableObject {
+@Observable
+final class ThemeManager {
     static let shared = ThemeManager()
     
-    @Published private(set) var currentTheme: Theme
-    @Published var themeMode: ThemeMode = .auto
+    private(set) var currentTheme: Theme
+    var themeMode: ThemeMode = .auto
     
     enum ThemeMode: String, CaseIterable, Identifiable {
         case auto
@@ -25,7 +26,9 @@ final class ThemeManager: ObservableObject {
         case slateBlue
         case emerald
         
-        var id: String { rawValue }
+        var id: String {
+            rawValue
+        }
         
         var displayName: LocalizedStringKey {
             switch self {
