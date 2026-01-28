@@ -374,9 +374,3 @@ struct AlertsModifier: ViewModifier {
             }
     }
 }
-
-#Preview {
-    ContentView()
-        .environment(PlayerViewModel())
-        .environment(CollectionManager())
-}

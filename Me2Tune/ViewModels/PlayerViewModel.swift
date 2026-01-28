@@ -56,7 +56,7 @@ final class PlayerViewModel {
     // MARK: - Private Properties (不触发UI更新)
     
     @ObservationIgnored private let playerCore: AudioPlayerCore
-    @ObservationIgnored private let persistenceService = PersistenceService()
+    @ObservationIgnored private let persistenceService = PersistenceService.shared
     
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
     @ObservationIgnored private var nowPlayingTimerCancellable: AnyCancellable?

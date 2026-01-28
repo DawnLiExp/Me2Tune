@@ -2,7 +2,7 @@
 //  PersistenceService.swift
 //  Me2Tune
 //
-//  持久化服务 - 分离播放状态和列表内容
+//  持久化服务 - 单例模式 @MainActor
 //
 
 import Foundation
@@ -34,12 +34,15 @@ struct CollectionState: Codable, Sendable {
 
 @MainActor
 final class PersistenceService {
+    // ✅ 单例模式
+    static let shared = PersistenceService()
+    
     private let playbackStateFileURL: URL
     private let playlistContentFileURL: URL
     private let collectionFileURL: URL
     private let logger = Logger.persistence
 
-    init() {
+    private init() {
         let appSupport = FileManager.default.urls(
             for: .applicationSupportDirectory,
             in: .userDomainMask
@@ -52,16 +55,16 @@ final class PersistenceService {
         playlistContentFileURL = appDirectory.appendingPathComponent("playlistContent.json")
         collectionFileURL = appDirectory.appendingPathComponent("collections.json")
 
-        logger.debug("Persistence paths initialized")
+        logger.debug("💾 PersistenceService initialized (singleton)")
     }
 
-    // MARK: - Playback State (轻量级，高频保存)
+    // MARK: - Playback State
 
     func savePlaybackState(_ state: PlaybackState) throws {
         let encoder = JSONEncoder()
         let data = try encoder.encode(state)
         try data.write(to: playbackStateFileURL, options: .atomic)
-        logger.debug("💾 Playback state saved (source: \(String(describing: state.playingSource)))")
+        logger.debug("💾 Playback state saved")
     }
 
     func loadPlaybackState() throws -> PlaybackState {
@@ -70,7 +73,7 @@ final class PersistenceService {
         return try decoder.decode(PlaybackState.self, from: data)
     }
 
-    // MARK: - Playlist Content (重量级，仅内容变化时保存)
+    // MARK: - Playlist Content
 
     func savePlaylistContent(_ content: PlaylistContent) throws {
         let encoder = JSONEncoder()
@@ -91,7 +94,7 @@ final class PersistenceService {
         let encoder = JSONEncoder()
         let data = try encoder.encode(state)
         try data.write(to: collectionFileURL, options: .atomic)
-        logger.debug("Collection state saved with \(state.albums.count) albums")
+        logger.debug("💾 Collection state saved (\(state.albums.count) albums)")
     }
 
     func loadCollections() throws -> CollectionState {

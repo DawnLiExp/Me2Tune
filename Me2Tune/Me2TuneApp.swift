@@ -13,12 +13,13 @@ private let logger = Logger.app
 @main
 struct Me2TuneApp: App {
     // ✅ 使用 @State (Observation)
-    @State private var collectionManager = CollectionManager()
+    @State private var collectionManager: CollectionManager
     @State private var playerViewModel: PlayerViewModel
     @StateObject private var windowStateMonitor = WindowStateMonitor()
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     init() {
+        logger.debug("🚀 Me2TuneApp.init() START") 
         // ✅ 单一初始化路径：先创建 CollectionManager，再创建 PlayerViewModel
         let manager = CollectionManager()
         _collectionManager = State(wrappedValue: manager)

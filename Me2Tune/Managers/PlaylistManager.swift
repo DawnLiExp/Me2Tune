@@ -22,7 +22,7 @@ final class PlaylistManager {
     
     // MARK: - Private Properties
     
-    private let persistenceService = PersistenceService()
+    private let persistenceService = PersistenceService.shared
     
     // MARK: - Computed Properties
     

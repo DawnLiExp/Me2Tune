@@ -22,7 +22,7 @@ final class CollectionManager {
     
     // MARK: - Private Properties
     
-    private let persistenceService = PersistenceService()
+    private let persistenceService = PersistenceService.shared
     private var delayedLoadTask: Task<Void, Never>?
     
     // MARK: - Initialization

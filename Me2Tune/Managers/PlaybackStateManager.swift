@@ -29,7 +29,7 @@ final class PlaybackStateManager {
     
     // MARK: - Private Properties
     
-    private let persistenceService = PersistenceService()
+    private let persistenceService = PersistenceService.shared
     private weak var playlistManager: PlaylistManager?
     private weak var collectionManager: CollectionManager?
     
