@@ -142,10 +142,13 @@ struct PlaylistTabView: View {
         SongRowView(
             track: track,
             index: index,
-            isPlaying: playingSource == .playlist && currentIndex == index,
-            onTap: { onTrackSelected(index) }
+            isPlaying: playingSource == .playlist && currentIndex == index
         )
+        .equatable() // ✅ 启用 Equatable 优化,避免不必要的刷新
         .opacity(draggingIndex == index ? 0.5 : 1.0)
+        .onTapGesture(count: 2) { // ✅ 在外层处理双击,避免闭包捕获
+            onTrackSelected(index)
+        }
         .onDrag {
             draggingIndex = index
             return NSItemProvider(object: "\(index)" as NSString)

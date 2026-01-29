@@ -56,55 +56,75 @@ struct ContentSectionView: View {
     
     @ViewBuilder
     private var contentView: some View {
-        if selectedTab == .playlist {
-            PlaylistTabView(
-                selectedTab: $selectedTab,
-                tracks: playerViewModel.playlistManager.tracks,
-                currentIndex: playerViewModel.currentTrackIndex,
-                playingSource: playerViewModel.playingSource,
-                isLoadingTracks: playerViewModel.playlistManager.isLoading,
-                loadingTracksCount: playerViewModel.playlistManager.loadingCount,
-                onTrackSelected: { playerViewModel.playPlaylistTrack(at: $0) },
-                onTrackRemoved: { playerViewModel.removeTrackFromPlaylist(at: $0) },
-                onTrackMoved: { from, to in
-                    if let sourceIndex = from.first {
-                        playerViewModel.moveTrackInPlaylist(from: sourceIndex, to: to)
+        // ✅ 一次性提取所有需要的状态,减少对 PlayerViewModel 的访问次数
+        @Bindable var viewModel = playerViewModel
+        
+        // ✅ 提前提取状态到局部变量
+        // 注意: 这些值在 body 执行期间是不变的,避免重复读取触发 Observation
+        let playlistTracks = viewModel.playlistManager.tracks
+        let currentIndex = viewModel.currentTrackIndex
+        let playingSource = viewModel.playingSource
+        let isLoadingTracks = viewModel.playlistManager.isLoading
+        let loadingTracksCount = viewModel.playlistManager.loadingCount
+        let collectionsAlbums = collectionManager.albums
+        let collectionsLoaded = collectionManager.isLoaded
+        
+        Group {
+            if selectedTab == .playlist {
+                PlaylistTabView(
+                    selectedTab: $selectedTab,
+                    tracks: playlistTracks, // ✅ 使用局部变量
+                    currentIndex: currentIndex,
+                    playingSource: playingSource,
+                    isLoadingTracks: isLoadingTracks,
+                    loadingTracksCount: loadingTracksCount,
+                    onTrackSelected: { index in
+                        // ✅ 闭包内部直接调用,减少嵌套
+                        viewModel.playPlaylistTrack(at: index)
+                    },
+                    onTrackRemoved: { index in
+                        viewModel.removeTrackFromPlaylist(at: index)
+                    },
+                    onTrackMoved: { from, to in
+                        if let sourceIndex = from.first {
+                            viewModel.moveTrackInPlaylist(from: sourceIndex, to: to)
+                        }
+                    },
+                    onFilesDrop: onPlaylistDrop
+                )
+                .padding(.horizontal, 12)
+                .padding(.top, 16)
+            } else {
+                CollectionsGridView(
+                    selectedTab: $selectedTab,
+                    isInAlbumDetail: $isInAlbumDetail,
+                    selectedAlbumId: $selectedAlbumId,
+                    albums: collectionsAlbums, // ✅ 使用局部变量
+                    isLoaded: collectionsLoaded,
+                    currentIndex: currentIndex,
+                    playingSource: playingSource,
+                    onAlbumPlayAt: { album, index in
+                        viewModel.playAlbum(album, startAt: index)
+                    },
+                    onAlbumRemoved: { albumId in
+                        collectionManager.removeAlbum(id: albumId)
+                    },
+                    onAlbumRenamed: { albumId, newName in
+                        collectionManager.renameAlbum(id: albumId, newName: newName)
+                    },
+                    onAlbumMoved: { from, to in
+                        collectionManager.moveAlbum(from: from, to: to)
+                    },
+                    onTrackAddedToPlaylist: { track in
+                        viewModel.addTracksToPlaylist(urls: [track.url])
+                    },
+                    onEnsureLoaded: {
+                        await collectionManager.ensureLoaded()
                     }
-                },
-                onFilesDrop: onPlaylistDrop
-            )
-            .padding(.horizontal, 12)
-            .padding(.top, 16)
-        } else {
-            CollectionsGridView(
-                selectedTab: $selectedTab,
-                isInAlbumDetail: $isInAlbumDetail,
-                selectedAlbumId: $selectedAlbumId,
-                albums: collectionManager.albums,
-                isLoaded: collectionManager.isLoaded,
-                currentIndex: playerViewModel.currentTrackIndex,
-                playingSource: playerViewModel.playingSource,
-                onAlbumPlayAt: { album, index in
-                    playerViewModel.playAlbum(album, startAt: index)
-                },
-                onAlbumRemoved: { albumId in
-                    collectionManager.removeAlbum(id: albumId)
-                },
-                onAlbumRenamed: { albumId, newName in
-                    collectionManager.renameAlbum(id: albumId, newName: newName)
-                },
-                onAlbumMoved: { from, to in
-                    collectionManager.moveAlbum(from: from, to: to)
-                },
-                onTrackAddedToPlaylist: { track in
-                    playerViewModel.addTracksToPlaylist(urls: [track.url])
-                },
-                onEnsureLoaded: {
-                    await collectionManager.ensureLoaded()
-                }
-            )
-            .padding(.horizontal, 12)
-            .padding(.top, 16)
+                )
+                .padding(.horizontal, 12)
+                .padding(.top, 16)
+            }
         }
     }
     

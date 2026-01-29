@@ -149,11 +149,11 @@ struct RotatingVinylLayer: NSViewRepresentable {
         gradientLayer.frame = bounds
         gradientLayer.type = .radial
         gradientLayer.colors = [
-            NSColor(white: 0.26, alpha: 1).cgColor,
-            NSColor(white: 0.12, alpha: 1).cgColor
+            NSColor(white: 0.20, alpha: 1).cgColor,
+            NSColor(white: 0.10, alpha: 1).cgColor
         ]
         gradientLayer.startPoint = CGPoint(x: 0.5, y: 0.5)
-            gradientLayer.endPoint = CGPoint(x: 1.0, y: 1.0)
+        gradientLayer.endPoint = CGPoint(x: 1.0, y: 1.0)
         gradientLayer.configureCircularMask(bounds: bounds)
         
         return gradientLayer
@@ -220,7 +220,7 @@ struct RotatingVinylLayer: NSViewRepresentable {
         )
         outerGradient.type = .radial
         outerGradient.colors = [
-            NSColor(white: 0.28, alpha: 1).cgColor,
+            NSColor(white: 0.26, alpha: 1).cgColor,
             NSColor(white: 0.08, alpha: 1).cgColor
         ]
         outerGradient.startPoint = CGPoint(x: 0.5, y: 0.5)
