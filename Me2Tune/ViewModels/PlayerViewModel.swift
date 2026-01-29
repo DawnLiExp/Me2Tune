@@ -35,8 +35,9 @@ final class PlayerViewModel {
     }
     
     // MARK: - Progress State (独立 @Observable)
-
-    let playbackProgressState = PlaybackProgressState()
+    
+    // ✅ 防止 playbackProgressState 更新触发 PlayerViewModel 的观察者刷新
+    @ObservationIgnored let playbackProgressState = PlaybackProgressState()
     
     // MARK: - Managers
     
@@ -72,7 +73,7 @@ final class PlayerViewModel {
         UserDefaults.standard.object(forKey: "nowPlayingEnabled") as? Bool ?? true
     }
     
-    // MARK: - Computed Properties (✅ 直接读取 Manager，自动追踪)
+    // MARK: - Computed Properties (✅ 直接读取 Manager,自动追踪)
     
     var currentFormat: AudioFormat {
         currentTrack?.format ?? .unknown
@@ -100,10 +101,6 @@ final class PlayerViewModel {
     
     var canGoNext: Bool {
         playbackStateManager.canGoNext
-    }
-    
-    var currentTime: TimeInterval {
-        playbackProgressState.currentTime
     }
     
     var isLoadingTracks: Bool {
@@ -384,7 +381,7 @@ final class PlayerViewModel {
         NowPlayingService.shared.updateNowPlayingInfo(
             track: track,
             artwork: currentArtwork,
-            currentTime: currentTime,
+            currentTime: playbackProgressState.currentTime,
             duration: duration,
             isPlaying: isPlaying
         )
@@ -399,7 +396,7 @@ final class PlayerViewModel {
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self, self.isPlaying else { return }
-                NowPlayingService.shared.updatePlaybackTime(currentTime: self.currentTime)
+                NowPlayingService.shared.updatePlaybackTime(currentTime: self.playbackProgressState.currentTime)
             }
     }
 

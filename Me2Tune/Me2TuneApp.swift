@@ -15,11 +15,10 @@ struct Me2TuneApp: App {
     // ✅ 使用 @State (Observation)
     @State private var collectionManager: CollectionManager
     @State private var playerViewModel: PlayerViewModel
-    @StateObject private var windowStateMonitor = WindowStateMonitor()
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     init() {
-        logger.debug("🚀 Me2TuneApp.init() START") 
+        logger.debug("🚀 Me2TuneApp.init() START")
         // ✅ 单一初始化路径：先创建 CollectionManager，再创建 PlayerViewModel
         let manager = CollectionManager()
         _collectionManager = State(wrappedValue: manager)
@@ -34,10 +33,9 @@ struct Me2TuneApp: App {
         WindowGroup {
             ContentView()
                 .frame(minWidth: 495)
-                .environment(playerViewModel) // ✅ 使用 .environment() (Observation)
+                .environment(playerViewModel)
                 .environment(\.playbackProgressState, playerViewModel.playbackProgressState)
-                .environment(collectionManager) // ✅ 使用 .environment() (Observation)
-                .environmentObject(windowStateMonitor) // ✅ 保留 @StateObject
+                .environment(collectionManager)
                 .onAppear {
                     setupAppDelegate()
                 }
@@ -69,7 +67,11 @@ struct Me2TuneApp: App {
         appDelegate.fullModeWindow = window
         appDelegate.playerViewModel = playerViewModel
         appDelegate.collectionManager = collectionManager
-        appDelegate.windowStateMonitor = windowStateMonitor
+        
+        // 在 AppDelegate 中创建并管理 WindowStateMonitor
+        let monitor = WindowStateMonitor()
+        appDelegate.windowStateMonitor = monitor
+        monitor.startMonitoring(window: window)
 
         LyricsWindowController.shared.setup(playerViewModel: playerViewModel)
 

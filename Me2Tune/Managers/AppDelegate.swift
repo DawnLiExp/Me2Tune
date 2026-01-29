@@ -23,7 +23,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     weak var fullModeWindow: NSWindow?
     weak var playerViewModel: PlayerViewModel?
     weak var collectionManager: CollectionManager?
-    weak var windowStateMonitor: WindowStateMonitor?
+    
+    // ✅ 关键优化：WindowStateMonitor 不再是 weak（AppDelegate 持有它）
+    var windowStateMonitor: WindowStateMonitor?
     
     private var currentDisplayMode: DisplayMode = .full
     
@@ -147,7 +149,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.isMovableByWindowBackground = true
         window.tabbingMode = .disallowed
         
-        windowStateMonitor?.startMonitoring(window: window)
+        // ✅ 注意：WindowStateMonitor 的 startMonitoring 在 Me2TuneApp 中调用
         
         Task { @MainActor [weak collectionManager] in
             collectionManager?.scheduleDelayedLoad(delay: 1.5)

@@ -66,14 +66,24 @@ struct ContentView: View {
         }
     }
     
+    // ✅ 关键优化：提前提取状态到局部变量，减少对 playerViewModel 的直接访问
     private var mainContentStack: some View {
-        // ✅ 使用 @Bindable 以支持 Binding
         @Bindable var viewModel = playerViewModel
+        
+        // 提前提取所有需要的状态，避免在子视图构建时重复触发 Observation
+        let currentTrack = viewModel.currentTrack
+        let currentArtwork = viewModel.currentArtwork
+        let currentFormat = viewModel.currentFormat
+        let isPlaying = viewModel.isPlaying
+        let duration = viewModel.duration
+        let canGoPrevious = viewModel.canGoPrevious
+        let canGoNext = viewModel.canGoNext
+        let repeatMode = viewModel.repeatMode
         
         return VStack(spacing: 0) {
             TopBarSectionView(
                 isRotationEnabled: $isRotationEnabled,
-                audioFormat: playerViewModel.currentFormat,
+                audioFormat: currentFormat,
                 onSearchTapped: {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         showSearchOverlay = true
@@ -87,27 +97,27 @@ struct ContentView: View {
                 .frame(height: 18)
             
             VinylSectionView(
-                artwork: playerViewModel.currentArtwork,
-                isPlaying: playerViewModel.isPlaying,
+                artwork: currentArtwork,
+                isPlaying: isPlaying,
                 isRotationEnabled: isRotationEnabled,
-                duration: playerViewModel.duration,
+                duration: duration,
                 isWindowVisible: true
             )
             .frame(height: 160)
             .padding(.horizontal, 12)
             
             ControlSectionView(
-                currentTrack: playerViewModel.currentTrack,
-                duration: playerViewModel.duration,
-                isPlaying: playerViewModel.isPlaying,
-                canGoPrevious: playerViewModel.canGoPrevious,
-                canGoNext: playerViewModel.canGoNext,
-                repeatMode: playerViewModel.repeatMode,
-                onPlayPause: playerViewModel.togglePlayPause,
-                onPrevious: playerViewModel.previous,
-                onNext: playerViewModel.next,
-                onSeek: playerViewModel.seek,
-                onToggleRepeat: playerViewModel.toggleRepeatMode,
+                currentTrack: currentTrack,
+                duration: duration,
+                isPlaying: isPlaying,
+                canGoPrevious: canGoPrevious,
+                canGoNext: canGoNext,
+                repeatMode: repeatMode,
+                onPlayPause: viewModel.togglePlayPause,
+                onPrevious: viewModel.previous,
+                onNext: viewModel.next,
+                onSeek: viewModel.seek,
+                onToggleRepeat: viewModel.toggleRepeatMode,
                 volume: $viewModel.volume
             )
             .fixedSize(horizontal: false, vertical: true)
@@ -117,7 +127,7 @@ struct ContentView: View {
                 isInAlbumDetail: $isInAlbumDetail,
                 isPlaylistCollapsed: $isPlaylistCollapsed,
                 selectedAlbumId: $selectedAlbumId,
-                playerViewModel: playerViewModel, // ✅ 直接传递引用（避免重复注入）
+                playerViewModel: playerViewModel,
                 collectionManager: collectionManager,
                 onExportPlaylist: handleExportPlaylist,
                 onClearPlaylist: { showClearPlaylistConfirm = true },

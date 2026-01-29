@@ -32,6 +32,7 @@ struct SongRowView: View {
     }
     
     var body: some View {
+        let _ = Self._printChanges() // 🔍 诊断：打印触发刷新的属性
         contentView
             // 简洁模式下跳过 hover 检测
             .background(cleanMode ? AnyView(Color.clear) : AnyView(HoverDetector(isHovered: $isHovered)))
@@ -68,6 +69,7 @@ struct SongRowView: View {
         .padding(.vertical, 10)
         .padding(.horizontal, 10)
         .background(backgroundView) // 独立背景视图
+        .background(PerformanceCounter()) // 🔍 添加性能计数器
         .contentShape(Rectangle())
     }
     
@@ -181,5 +183,17 @@ private struct HoverDetector: NSViewRepresentable {
             super.viewDidMoveToWindow()
             updateHoverState()
         }
+    }
+}
+// MARK: - 性能计数器（临时测试用）
+struct PerformanceCounter: View {
+    @State private var refreshCount = 0
+    
+    var body: some View {
+        Color.clear
+            .onAppear {
+                refreshCount += 1
+                print("🔄 SongRowView refreshed \(refreshCount) times")
+            }
     }
 }
