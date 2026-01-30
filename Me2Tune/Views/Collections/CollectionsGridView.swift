@@ -2,7 +2,7 @@
 //  CollectionsGridView.swift
 //  Me2Tune
 //
-//  专辑收藏视图: 专辑卡片展示 + 拖拽排序
+//  专辑收藏视图: 专辑卡片展示 + 拖拽排序 + 滚动位置保持
 //
 
 import AppKit
@@ -38,6 +38,7 @@ struct CollectionsGridView: View {
     
     @State private var draggingAlbumId: UUID?
     @State private var dropTargetIndex: Int?
+    @State private var lastViewedAlbumId: UUID?
     
     private let cardSize: CGFloat = 135
     private let spacing: CGFloat = 14
@@ -141,54 +142,67 @@ struct CollectionsGridView: View {
                     }
                 } else {
                     GeometryReader { geometry in
-                        ScrollView(showsIndicators: false) {
-                            LazyVGrid(columns: columns, spacing: spacing) {
-                                ForEach(Array(albums.enumerated()), id: \.element.id) { _, album in
-                                    AlbumCardView(
-                                        album: album,
-                                        artwork: artworkCache[album.id],
-                                        isDragging: draggingAlbumId == album.id,
-                                        onTap: {
-                                            withAnimation(.easeInOut(duration: 0.25)) {
-                                                selectedAlbum = album
+                        ScrollViewReader { proxy in
+                            ScrollView(showsIndicators: false) {
+                                LazyVGrid(columns: columns, spacing: spacing) {
+                                    ForEach(Array(albums.enumerated()), id: \.element.id) { _, album in
+                                        AlbumCardView(
+                                            album: album,
+                                            artwork: artworkCache[album.id],
+                                            isDragging: draggingAlbumId == album.id,
+                                            onTap: {
+                                                lastViewedAlbumId = album.id
+                                                withAnimation(.easeInOut(duration: 0.25)) {
+                                                    selectedAlbum = album
+                                                }
+                                            },
+                                            onRename: {
+                                                renamingAlbumId = album.id
+                                                renameText = album.name
+                                            },
+                                            onRemove: {
+                                                albumToDelete = album
                                             }
-                                        },
-                                        onRename: {
-                                            renamingAlbumId = album.id
-                                            renameText = album.name
-                                        },
-                                        onRemove: {
-                                            albumToDelete = album
+                                        )
+                                        .id(album.id) // ✅ 设置ID以支持 scrollTo
+                                        .task {
+                                            await loadArtwork(for: album)
                                         }
-                                    )
-                                    .task {
-                                        await loadArtwork(for: album)
-                                    }
-                                    .onAppear {
-                                        preloadNearbyArtworks(for: album)
-                                    }
-                                    .onDrag {
-                                        draggingAlbumId = album.id
-                                        return NSItemProvider(object: album.id.uuidString as NSString)
-                                    }
-                                    .onDrop(of: [.text], delegate: AlbumDropDelegate(
-                                        albumId: album.id,
-                                        albums: albums,
-                                        draggingAlbumId: $draggingAlbumId,
-                                        dropTargetIndex: $dropTargetIndex,
-                                        onDrop: { sourceIndex, targetIndex in
-                                            onAlbumMoved(sourceIndex, targetIndex)
+                                        .onAppear {
+                                            preloadNearbyArtworks(for: album)
                                         }
-                                    ))
+                                        .onDrag {
+                                            draggingAlbumId = album.id
+                                            return NSItemProvider(object: album.id.uuidString as NSString)
+                                        }
+                                        .onDrop(of: [.text], delegate: AlbumDropDelegate(
+                                            albumId: album.id,
+                                            albums: albums,
+                                            draggingAlbumId: $draggingAlbumId,
+                                            dropTargetIndex: $dropTargetIndex,
+                                            onDrop: { sourceIndex, targetIndex in
+                                                onAlbumMoved(sourceIndex, targetIndex)
+                                            }
+                                        ))
+                                    }
+                                }
+                                .padding(.vertical, 8)
+                            }
+                            .onAppear {
+                                updateColumns(for: geometry.size.width)
+                            }
+                            .onChange(of: geometry.size.width) { _, newWidth in
+                                updateColumns(for: newWidth)
+                            }
+                            // ✅ 监听详情页关闭，恢复滚动位置
+                            .task(id: isInAlbumDetail) {
+                                if !isInAlbumDetail, let targetId = lastViewedAlbumId {
+                                    try? await Task.sleep(for: .milliseconds(200))
+                                    await MainActor.run {
+                                        proxy.scrollTo(targetId, anchor: .center)
+                                    }
                                 }
                             }
-                            .padding(.vertical, 8)
-                        }
-                        .onAppear {
-                            updateColumns(for: geometry.size.width)
-                        }
-                        .onChange(of: geometry.size.width) { _, newWidth in
-                            updateColumns(for: newWidth)
                         }
                     }
                 }
