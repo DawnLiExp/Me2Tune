@@ -52,6 +52,88 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         cleanup()
     }
     
+    // MARK: - File Opening
+    
+    func application(_ sender: NSApplication, openFile filename: String) -> Bool {
+        let url = URL(fileURLWithPath: filename)
+        handleOpenFiles([url])
+        return true
+    }
+    
+    func application(_ application: NSApplication, open urls: [URL]) {
+        handleOpenFiles(urls)
+    }
+    
+    private func handleOpenFiles(_ urls: [URL]) {
+        guard let playerViewModel else {
+            logger.error("PlayerViewModel not available for file opening")
+            return
+        }
+        
+        let supportedExtensions = ["mp3", "m4a", "aac", "wav", "aiff", "aif", "flac", "ape", "wv", "tta", "mpc"]
+        
+        // 过滤出支持的音频文件
+        let audioFiles = urls.filter { url in
+            supportedExtensions.contains(url.pathExtension.lowercased())
+        }
+        
+        guard !audioFiles.isEmpty else {
+            logger.warning("No supported audio files in selection")
+            return
+        }
+        
+        logger.info("📂 Opening \(audioFiles.count) file(s)")
+        
+        // 切换到全屏模式(如果在 Mini 模式)
+        if currentDisplayMode == .mini {
+            UserDefaults.standard.set(DisplayMode.full.rawValue, forKey: "displayMode")
+            // 等待模式切换完成
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+                self?.activateMainWindow()
+            }
+        } else {
+            activateMainWindow()
+        }
+        
+        // 批量添加到播放列表并播放第一首
+        Task { @MainActor in
+            let startIndex = playerViewModel.playlistManager.tracks.count
+            
+            playerViewModel.addTracksToPlaylist(urls: audioFiles)
+            
+            // 等待加载完成后播放第一首新添加的曲目
+            try? await Task.sleep(for: .milliseconds(500))
+            
+            if playerViewModel.playlistManager.tracks.indices.contains(startIndex) {
+                playerViewModel.playPlaylistTrack(at: startIndex)
+            }
+        }
+    }
+    
+    // MARK: - Window Activation Helper
+    
+    private func activateMainWindow() {
+        // 查找主窗口（非 Mini 模式的窗口）
+        if let mainWindow = NSApp.windows.first(where: { window in
+            !(window is NSPanel) && window.identifier?.rawValue == "main"
+        }) {
+            mainWindow.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            logger.debug("🎯 Activated existing main window")
+        } else if let window = fullModeWindow {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            logger.debug("🎯 Activated full mode window")
+        } else {
+            // 备用方案：激活第一个非 Panel 窗口
+            if let firstWindow = NSApp.windows.first(where: { !($0 is NSPanel) }) {
+                firstWindow.makeKeyAndOrderFront(nil)
+                NSApp.activate(ignoringOtherApps: true)
+                logger.debug("🎯 Activated first available window")
+            }
+        }
+    }
+    
     // MARK: - Cleanup
     
     private func cleanup() {

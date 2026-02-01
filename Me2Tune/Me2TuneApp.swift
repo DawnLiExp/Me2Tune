@@ -30,7 +30,7 @@ struct Me2TuneApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        Window("Me2Tune", id: "main") {
             ContentView()
                 .frame(minWidth: 495)
                 .environment(playerViewModel)
@@ -43,6 +43,7 @@ struct Me2TuneApp: App {
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.automatic)
         .defaultSize(width: 495, height: 800)
+        .defaultPosition(.center)
         .commands {
             CommandGroup(replacing: .newItem) {}
 
@@ -64,10 +65,13 @@ struct Me2TuneApp: App {
     private func setupAppDelegate() {
         guard let window = NSApp.windows.first else { return }
 
+        // 设置窗口标识符，用于后续查找
+        window.identifier = NSUserInterfaceItemIdentifier("main")
+
         appDelegate.fullModeWindow = window
         appDelegate.playerViewModel = playerViewModel
         appDelegate.collectionManager = collectionManager
-        
+
         // 在 AppDelegate 中创建并管理 WindowStateMonitor
         let monitor = WindowStateMonitor()
         appDelegate.windowStateMonitor = monitor

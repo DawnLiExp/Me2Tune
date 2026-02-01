@@ -4,31 +4,71 @@
 <dict>
 	<key>CFBundleName</key>
 	<string>Me2Tune</string>
+	
 	<key>CFBundleDisplayName</key>
 	<string>Me2Tune</string>
+	
 	<key>CFBundleIdentifier</key>
 	<string>me2.Me2Tune</string>
+	
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
+	
 	<key>LSMinimumSystemVersion</key>
 	<string>15.0</string>
+	
+	<key>LSMultipleInstancesProhibited</key>
+	<true/>
+	
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleTypeName</key>
 			<string>Audio Files</string>
+			
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
+			
 			<key>LSItemContentTypes</key>
 			<array>
+				<string>public.audio</string>
 				<string>public.mp3</string>
 				<string>public.mpeg-4-audio</string>
-				<string>public.aac-audio</string>
-				<string>public.audio</string>
+				<string>com.apple.m4a-audio</string>
 				<string>public.aifc-audio</string>
 				<string>public.aiff-audio</string>
+				<string>public.audiovisual-content</string>
+			</array>
+			
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>mp3</string>
+				<string>m4a</string>
+				<string>aac</string>
+				<string>wav</string>
+				<string>aiff</string>
+				<string>aif</string>
+				<string>flac</string>
+				<string>ape</string>
+				<string>wv</string>
+				<string>tta</string>
+				<string>mpc</string>
+			</array>
+			
+			<key>CFBundleTypeMIMETypes</key>
+			<array>
+				<string>audio/mpeg</string>
+				<string>audio/mp4</string>
+				<string>audio/aac</string>
+				<string>audio/x-wav</string>
+				<string>audio/x-aiff</string>
+				<string>audio/flac</string>
 			</array>
 		</dict>
 	</array>
