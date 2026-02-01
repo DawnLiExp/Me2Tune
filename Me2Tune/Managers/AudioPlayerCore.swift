@@ -22,7 +22,7 @@ protocol AudioPlayerCoreDelegate: AnyObject {
     func playerCore(_ core: AudioPlayerCore, didEncounterError error: Error)
     func playerCoreDidReachEnd(_ core: AudioPlayerCore)
     func playerCore(_ core: AudioPlayerCore, decodingCompleteFor track: AudioTrack)
-    func playerCore(_ core: AudioPlayerCore, nowPlayingChangedTo url: URL?)
+    func playerCore(_ core: AudioPlayerCore, nowPlayingChangedTo track: AudioTrack?)
 }
 
 // MARK: - Audio Player Core
@@ -38,6 +38,7 @@ final class AudioPlayerCore: NSObject {
     private(set) var currentTime: TimeInterval = 0
     private(set) var duration: TimeInterval = 0
     private(set) var currentTrack: AudioTrack?
+    private var queuedTracks: [AudioTrack] = []
     
     private(set) var visibilityState: WindowStateMonitor.WindowVisibilityState = .activeFocused
     
@@ -140,6 +141,7 @@ final class AudioPlayerCore: NSObject {
             currentTime = 0
             isPlaying = false
             currentTrack = track
+            queuedTracks.removeAll()
             
             let artwork = await ArtworkCacheService.shared.artwork(for: track.url)
             
@@ -174,6 +176,7 @@ final class AudioPlayerCore: NSObject {
                         let inputSource = try InputSource(for: track.url, flags: .loadFilesInMemory)
                         let decoder = try AudioDecoder(inputSource: inputSource)
                         try player.enqueue(decoder)
+                        queuedTracks.append(track)
                         logger.debug("✓ Enqueued next track (buffered)")
                         return
                     } catch {
@@ -186,6 +189,7 @@ final class AudioPlayerCore: NSObject {
             // 直接入队
             let decoder = try AudioDecoder(url: track.url)
             try player.enqueue(decoder)
+            queuedTracks.append(track)
             logger.debug("✓ Enqueued next track (direct)")
         } catch {
             let appError = AppError.audioLoadFailed(track.url)
@@ -366,10 +370,14 @@ extension AudioPlayerCore: AudioPlayer.Delegate {
     }
     
     nonisolated func audioPlayer(_ audioPlayer: AudioPlayer, nowPlayingChanged nowPlaying: PCMDecoding?, previouslyPlaying: PCMDecoding?) {
-        let url = nowPlaying?.inputSource.url
         Task { @MainActor in
-            logger.debug("🔄 Now playing changed to: \(url?.lastPathComponent ?? "nil")")
-            self.delegate?.playerCore(self, nowPlayingChangedTo: url)
+            if let nextTrack = self.queuedTracks.first {
+                self.currentTrack = nextTrack
+                self.queuedTracks.removeFirst()
+            }
+            
+            logger.debug("🔄 Now playing changed to: \(self.currentTrack?.title ?? "nil")")
+            self.delegate?.playerCore(self, nowPlayingChangedTo: self.currentTrack)
         }
     }
     

@@ -493,22 +493,22 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
         logger.logError(error, context: "PlayerCore")
     }
     
-    func playerCore(_ core: AudioPlayerCore, nowPlayingChangedTo url: URL?) {
-        guard let url else {
+    func playerCore(_ core: AudioPlayerCore, nowPlayingChangedTo track: AudioTrack?) {
+        guard let track else {
             logger.debug("Now playing changed to nil")
             return
         }
         
-        if let index = currentTracks.firstIndex(where: { $0.url == url }) {
+        // 优先通过 ID 匹配,解决重复歌曲 URL 相同的问题
+        if let index = currentTracks.firstIndex(where: { $0.id == track.id }) {
             let indexChanged = (currentTrackIndex != index)
             
             if indexChanged {
-                logger.info("🔄 Auto switched to track \(index + 1): \(self.currentTracks[index].title)")
+                logger.info("🔄 Auto switched to track \(index + 1): \(track.title)")
                 playbackStateManager.setCurrentIndex(index)
             }
             
             Task { @MainActor in
-                let track = currentTracks[index]
                 let artwork = await ArtworkCacheService.shared.artwork(for: track.url)
                 
                 self.currentArtwork = artwork
@@ -522,7 +522,7 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
                 }
             }
         } else {
-            logger.warning("Track not found in current tracks: \(url.lastPathComponent)")
+            logger.warning("Track not found in current tracks: \(track.title)")
         }
     }
     
