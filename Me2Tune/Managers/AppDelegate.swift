@@ -69,7 +69,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         handleOpenFiles(urls)
     }
     
-    /// ✅ 优化：简化文件处理逻辑，避免复杂的异步时序
+    /// ✅ 优化：Mini模式下保持Mini界面，不强制切换
     private func handleOpenFiles(_ urls: [URL]) {
         guard let playerViewModel else {
             logger.error("❌ PlayerViewModel not available for file opening")
@@ -90,17 +90,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         
         logger.info("✅ Processing \(audioFiles.count) audio file(s)")
         
-        // ✅ 第一步：同步切换到Full模式（如果需要）
+        // ✅ 根据当前模式决定窗口行为
         if currentDisplayMode == .mini {
-            logger.debug("🔄 Switching from Mini to Full mode for file opening")
-            UserDefaults.standard.set(DisplayMode.full.rawValue, forKey: "displayMode")
-            // displayModeObserver会自动处理切换，无需手动延迟
+            // Mini模式：保持界面，确保窗口可见
+            logger.debug("📱 Keeping Mini mode for file opening")
+            miniWindowController?.show()
+        } else {
+            // Full模式：激活主窗口
+            activateMainWindow()
         }
         
-        // ✅ 第二步：激活主窗口（同步操作，避免闪烁）
-        activateMainWindow()
-        
-        // ✅ 第三步：异步添加文件并播放
+        // ✅ 异步添加文件并播放
         Task { @MainActor in
             let startIndex = playerViewModel.playlistManager.tracks.count
             
@@ -120,7 +120,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     
     // MARK: - Window Activation
     
-    /// ✅ 优化：更健壮的窗口激活逻辑
+    /// ✅ 健壮的窗口激活逻辑
     private func activateMainWindow() {
         // 优先级：fullModeWindow > 标识符匹配 > 第一个非Panel窗口
         let targetWindow: NSWindow? = {
@@ -187,7 +187,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
     }
     
-    /// ✅ 优化：改进模式切换逻辑，避免重复切换
+    /// ✅ 改进模式切换逻辑，避免重复切换
     private func handleDisplayModeChange() {
         let modeString = UserDefaults.standard.string(forKey: "displayMode") ?? DisplayMode.full.rawValue
         guard let mode = DisplayMode(rawValue: modeString) else { return }
@@ -241,7 +241,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
     
-    /// ✅ 优化：改进窗口初始化顺序
+    /// ✅ 改进窗口初始化顺序
     private func configureFullModeWindow() {
         guard let window = fullModeWindow else {
             logger.error("❌ Full mode window not set")
@@ -264,51 +264,51 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     
     // MARK: - Command+W Handler
     
+    /// ✅ 优化：更简洁的 Command+W 处理逻辑
     private func setupCommandWHandler() {
         commandWMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self else { return event }
+            guard let self = self, event.modifierFlags.contains(.command) else { return event }
             
-            if event.modifierFlags.contains(.command), event.charactersIgnoringModifiers == "w" {
-                let mouseLocation = NSEvent.mouseLocation
-                
-                // 检测鼠标位置对应的窗口
-                for window in NSApp.windows where window.isVisible {
-                    let windowFrame = window.frame
-                    
-                    if windowFrame.contains(mouseLocation) {
-                        self.handleCommandW(for: window, reason: "mouse inside")
-                        return nil
-                    }
-                }
-                
-                // 降级到 keyWindow
-                if let window = NSApp.keyWindow {
-                    self.handleCommandW(for: window, reason: "fallback to keyWindow")
-                }
-                
+            // 只处理 Command+W 组合 (keyCode 13 = 'w')
+            guard event.keyCode == 13 || event.charactersIgnoringModifiers == "w" else { return event }
+            
+            // 优先处理鼠标位置所在的窗口
+            let mouseLocation = NSEvent.mouseLocation
+            for window in NSApp.windows where window.isVisible && window.frame.contains(mouseLocation) {
+                self.handleCommandW(for: window)
                 return nil
             }
+            
+            // 回退到当前关键窗口
+            if let keyWindow = NSApp.keyWindow {
+                self.handleCommandW(for: keyWindow)
+                return nil
+            }
+            
             return event
         }
         
         logger.debug("✅ Command+W handler installed")
     }
 
-    private func handleCommandW(for window: NSWindow, reason: String) {
-        if window is NSPanel {
+    /// ✅ 优化：使用 switch 语句，更清晰的窗口类型判断
+    private func handleCommandW(for window: NSWindow) {
+        switch window {
+        case let panel as NSPanel where panel.title.contains("歌词") || panel.title.contains("Lyrics"):
+            // 歌词窗口：隐藏而不是最小化（NSPanel 最小化不显示在 Dock）
             window.orderOut(nil)
-            logger.debug("⌘+W → Hide Mini window (\(reason))")
-            return
-        }
-        
-        if window.title.contains("歌词") || window.title.contains("Lyrics") {
+            logger.debug("⌘+W → Hide Lyrics window")
+            
+        case is NSPanel:
+            // Mini 播放器窗口：隐藏
+            window.orderOut(nil)
+            logger.debug("⌘+W → Hide Mini window")
+            
+        default:
+            // 主窗口或其他窗口：最小化
             window.miniaturize(nil)
-            logger.debug("⌘+W → Minimize Lyrics window (\(reason))")
-            return
+            logger.debug("⌘+W → Minimize window")
         }
-        
-        window.miniaturize(nil)
-        logger.debug("⌘+W → Minimize Full window (\(reason))")
     }
 }
 
