@@ -2,7 +2,7 @@
 //  AppDelegate.swift
 //  Me2Tune
 //
-//  应用代理 - 管理窗口模式切换 + Command+W 支持
+//  应用代理 - 管理窗口模式切换 + 文件打开处理
 //
 
 import AppKit
@@ -24,17 +24,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     weak var playerViewModel: PlayerViewModel?
     weak var collectionManager: CollectionManager?
     
-    // ✅ 关键优化：WindowStateMonitor 不再是 weak（AppDelegate 持有它）
+    // ✅ WindowStateMonitor 由 AppDelegate 持有，确保生命周期稳定
     var windowStateMonitor: WindowStateMonitor?
     
     private var currentDisplayMode: DisplayMode = .full
     
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // ✅ 确保启动时总是Full模式
         UserDefaults.standard.set(DisplayMode.full.rawValue, forKey: "displayMode")
         
         setupCommandWHandler()
         configureFullModeWindow()
         setupDisplayModeObserver()
+        
+        logger.info("🚀 Application launched successfully")
     }
     
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -55,83 +58,95 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - File Opening
     
     func application(_ sender: NSApplication, openFile filename: String) -> Bool {
+        logger.debug("📂 Open single file: \(filename)")
         let url = URL(fileURLWithPath: filename)
         handleOpenFiles([url])
         return true
     }
     
     func application(_ application: NSApplication, open urls: [URL]) {
+        logger.info("📂 Open \(urls.count) file(s) from system")
         handleOpenFiles(urls)
     }
     
+    /// ✅ 优化：简化文件处理逻辑，避免复杂的异步时序
     private func handleOpenFiles(_ urls: [URL]) {
         guard let playerViewModel else {
-            logger.error("PlayerViewModel not available for file opening")
+            logger.error("❌ PlayerViewModel not available for file opening")
             return
         }
         
         let supportedExtensions = ["mp3", "m4a", "aac", "wav", "aiff", "aif", "flac", "ape", "wv", "tta", "mpc"]
         
-        // 过滤出支持的音频文件
+        // 过滤音频文件
         let audioFiles = urls.filter { url in
             supportedExtensions.contains(url.pathExtension.lowercased())
         }
         
         guard !audioFiles.isEmpty else {
-            logger.warning("No supported audio files in selection")
+            logger.warning("⚠️ No supported audio files in selection")
             return
         }
         
-        logger.info("📂 Opening \(audioFiles.count) file(s)")
+        logger.info("✅ Processing \(audioFiles.count) audio file(s)")
         
-        // 切换到全屏模式(如果在 Mini 模式)
+        // ✅ 第一步：同步切换到Full模式（如果需要）
         if currentDisplayMode == .mini {
+            logger.debug("🔄 Switching from Mini to Full mode for file opening")
             UserDefaults.standard.set(DisplayMode.full.rawValue, forKey: "displayMode")
-            // 等待模式切换完成
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
-                self?.activateMainWindow()
-            }
-        } else {
-            activateMainWindow()
+            // displayModeObserver会自动处理切换，无需手动延迟
         }
         
-        // 批量添加到播放列表并播放第一首
+        // ✅ 第二步：激活主窗口（同步操作，避免闪烁）
+        activateMainWindow()
+        
+        // ✅ 第三步：异步添加文件并播放
         Task { @MainActor in
             let startIndex = playerViewModel.playlistManager.tracks.count
             
+            // 批量添加到播放列表
             playerViewModel.addTracksToPlaylist(urls: audioFiles)
             
-            // 等待加载完成后播放第一首新添加的曲目
-            try? await Task.sleep(for: .milliseconds(500))
+            // 等待列表更新完成
+            try? await Task.sleep(for: .milliseconds(300))
             
+            // 播放第一首新添加的曲目
             if playerViewModel.playlistManager.tracks.indices.contains(startIndex) {
                 playerViewModel.playPlaylistTrack(at: startIndex)
+                logger.info("▶️ Started playing from index \(startIndex)")
             }
         }
     }
     
-    // MARK: - Window Activation Helper
+    // MARK: - Window Activation
     
+    /// ✅ 优化：更健壮的窗口激活逻辑
     private func activateMainWindow() {
-        // 查找主窗口（非 Mini 模式的窗口）
-        if let mainWindow = NSApp.windows.first(where: { window in
-            !(window is NSPanel) && window.identifier?.rawValue == "main"
-        }) {
-            mainWindow.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-            logger.debug("🎯 Activated existing main window")
-        } else if let window = fullModeWindow {
-            window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-            logger.debug("🎯 Activated full mode window")
-        } else {
-            // 备用方案：激活第一个非 Panel 窗口
-            if let firstWindow = NSApp.windows.first(where: { !($0 is NSPanel) }) {
-                firstWindow.makeKeyAndOrderFront(nil)
-                NSApp.activate(ignoringOtherApps: true)
-                logger.debug("🎯 Activated first available window")
+        // 优先级：fullModeWindow > 标识符匹配 > 第一个非Panel窗口
+        let targetWindow: NSWindow? = {
+            if let window = fullModeWindow {
+                return window
             }
+            
+            if let window = NSApp.windows.first(where: { window in
+                !(window is NSPanel) && window.identifier?.rawValue == "main"
+            }) {
+                return window
+            }
+            
+            return NSApp.windows.first { !($0 is NSPanel) }
+        }()
+        
+        guard let window = targetWindow else {
+            logger.error("❌ No suitable window found for activation")
+            return
         }
+        
+        // ✅ 确保窗口可见且激活
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        
+        logger.debug("🎯 Activated window: \(window.title.isEmpty ? "Untitled" : window.title)")
     }
     
     // MARK: - Cleanup
@@ -145,7 +160,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             commandWMonitor = nil
         }
         
-        logger.debug("AppDelegate resources cleaned up")
+        logger.debug("🧹 AppDelegate resources cleaned up")
     }
     
     // MARK: - Dock Icon Click Handler
@@ -162,7 +177,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return false
     }
     
-    // MARK: - Mode Management
+    // MARK: - Display Mode Management
     
     private func setupDisplayModeObserver() {
         displayModeCancellable = NotificationCenter.default
@@ -172,12 +187,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
     }
     
+    /// ✅ 优化：改进模式切换逻辑，避免重复切换
     private func handleDisplayModeChange() {
         let modeString = UserDefaults.standard.string(forKey: "displayMode") ?? DisplayMode.full.rawValue
         guard let mode = DisplayMode(rawValue: modeString) else { return }
         
         guard mode != currentDisplayMode else { return }
+        
+        let oldMode = currentDisplayMode
         currentDisplayMode = mode
+        
+        logger.info("🔄 Display mode change: \(oldMode.rawValue) → \(mode.rawValue)")
         
         if mode == .mini {
             switchToMiniMode()
@@ -188,7 +208,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     
     private func switchToMiniMode() {
         guard let playerViewModel else {
-            logger.error("PlayerViewModel not available")
+            logger.error("❌ PlayerViewModel not available for Mini mode")
             return
         }
         
@@ -214,28 +234,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         
         if let window = fullModeWindow {
             window.makeKeyAndOrderFront(nil)
-            
             windowStateMonitor?.forceSetState(.activeFocused)
-            
             logger.info("🖥️ Switched to Full mode")
         } else {
-            logger.error("Full mode window not available")
+            logger.error("❌ Full mode window not available")
         }
     }
     
+    /// ✅ 优化：改进窗口初始化顺序
     private func configureFullModeWindow() {
-        guard let window = fullModeWindow else { return }
+        guard let window = fullModeWindow else {
+            logger.error("❌ Full mode window not set")
+            return
+        }
         
         windowDelegate = WindowInterceptor()
         window.delegate = windowDelegate
         window.isMovableByWindowBackground = true
         window.tabbingMode = .disallowed
         
-        // ✅ 注意：WindowStateMonitor 的 startMonitoring 在 Me2TuneApp 中调用
-        
+        // ✅ WindowStateMonitor 的 startMonitoring 在 Me2TuneApp 中调用
+        // 延迟加载专辑收藏
         Task { @MainActor [weak collectionManager] in
             collectionManager?.scheduleDelayedLoad(delay: 1.5)
         }
+        
+        logger.debug("✅ Full mode window configured")
     }
     
     // MARK: - Command+W Handler
@@ -247,6 +271,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if event.modifierFlags.contains(.command), event.charactersIgnoringModifiers == "w" {
                 let mouseLocation = NSEvent.mouseLocation
                 
+                // 检测鼠标位置对应的窗口
                 for window in NSApp.windows where window.isVisible {
                     let windowFrame = window.frame
                     
@@ -256,6 +281,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     }
                 }
                 
+                // 降级到 keyWindow
                 if let window = NSApp.keyWindow {
                     self.handleCommandW(for: window, reason: "fallback to keyWindow")
                 }
@@ -264,6 +290,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return event
         }
+        
+        logger.debug("✅ Command+W handler installed")
     }
 
     private func handleCommandW(for window: NSWindow, reason: String) {

@@ -119,7 +119,6 @@
 		FC8C88712F06263100ABC82E /* WindowStateMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowStateMonitor.swift; sourceTree = "<group>"; };
 		FC9596672F1D23CE00ED7FB7 /* LyricsCacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsCacheService.swift; sourceTree = "<group>"; };
 		FC9698E92F20BF18002FFD53 /* PlaybackProgressState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackProgressState.swift; sourceTree = "<group>"; };
-		FC9DF4F62F2F32C200F9242E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		FCA502342F21F36A003C6543 /* AudioBufferDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioBufferDetector.swift; sourceTree = "<group>"; };
 		FCAE83FE2F18C07800BBEC0B /* MiniWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniWindowController.swift; sourceTree = "<group>"; };
 		FCAE84002F18C09D00BBEC0B /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -216,9 +215,8 @@
 		FC480EA62EF107E8000D8393 /* Me2Tune */ = {
 			isa = PBXGroup;
 			children = (
-				FC9DF4F62F2F32C200F9242E /* Info.plist */,
-				FC480EB22EF136E7000D8393 /* Resources */,
 				FC480EA12EF107E8000D8393 /* info.plist */,
+				FC480EB22EF136E7000D8393 /* Resources */,
 				FC1377A22EFD0FE300A9CE99 /* Extensions */,
 				FC480EC02EF13937000D8393 /* Managers */,
 				FC480EC22EF15296000D8393 /* Models */,
