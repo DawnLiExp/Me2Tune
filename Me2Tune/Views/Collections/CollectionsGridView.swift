@@ -75,10 +75,24 @@ struct CollectionsGridView: View {
         .task {
             await onEnsureLoaded()
         }
-        .onChange(of: selectedAlbum) { _, newValue in
-            isInAlbumDetail = (newValue != nil)
-            selectedAlbumId = newValue?.id
+    
+        .task(id: selectedAlbumId) {
+            if let id = selectedAlbumId,
+               selectedAlbum == nil,
+               let album = albums.first(where: { $0.id == id })
+            {
+                selectedAlbum = album
+                await loadArtwork(for: album)
+            }
         }
+        
+        .onChange(of: selectedAlbum) { _, newValue in
+            if newValue != nil || selectedAlbumId == nil {
+                isInAlbumDetail = (newValue != nil)
+                selectedAlbumId = newValue?.id
+            }
+        }
+        
         .onChange(of: selectedAlbumId) { _, newId in
             if let newId, selectedAlbum?.id != newId {
                 if let album = albums.first(where: { $0.id == newId }) {
