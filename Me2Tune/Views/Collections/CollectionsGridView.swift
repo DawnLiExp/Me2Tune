@@ -75,24 +75,15 @@ struct CollectionsGridView: View {
         .task {
             await onEnsureLoaded()
         }
-    
-        .task(id: selectedAlbumId) {
-            if let id = selectedAlbumId,
-               selectedAlbum == nil,
-               let album = albums.first(where: { $0.id == id })
-            {
-                selectedAlbum = album
-                await loadArtwork(for: album)
-            }
-        }
+
+        // MARK: - State Synchronization and Restoration
         
         .onChange(of: selectedAlbum) { _, newValue in
-            if newValue != nil || selectedAlbumId == nil {
-                isInAlbumDetail = (newValue != nil)
-                selectedAlbumId = newValue?.id
-            }
+            isInAlbumDetail = (newValue != nil)
+            selectedAlbumId = newValue?.id
         }
         
+        // When selectedAlbumId is updated externally (e.g., by search), sync selectedAlbum
         .onChange(of: selectedAlbumId) { _, newId in
             if let newId, selectedAlbum?.id != newId {
                 if let album = albums.first(where: { $0.id == newId }) {
@@ -105,6 +96,20 @@ struct CollectionsGridView: View {
                 selectedAlbum = nil
             }
         }
+        
+        // Fallback: Actively restore state when view reconstruction causes inconsistency
+        .task(id: selectedAlbumId) {
+            if let id = selectedAlbumId,
+               selectedAlbum == nil,
+               let album = albums.first(where: { $0.id == id })
+            {
+                selectedAlbum = album
+                await loadArtwork(for: album)
+            }
+        }
+        
+        // MARK: - Alerts
+        
         .alert("rename_album", isPresented: Binding(
             get: { renamingAlbumId != nil },
             set: { if !$0 { renamingAlbumId = nil } }
@@ -178,7 +183,7 @@ struct CollectionsGridView: View {
                                                 albumToDelete = album
                                             }
                                         )
-                                        .id(album.id) // ✅ 设置ID以支持 scrollTo
+                                        .id(album.id)
                                         .task {
                                             await loadArtwork(for: album)
                                         }
@@ -208,7 +213,6 @@ struct CollectionsGridView: View {
                             .onChange(of: geometry.size.width) { _, newWidth in
                                 updateColumns(for: newWidth)
                             }
-                            // ✅ 监听详情页关闭，恢复滚动位置
                             .task(id: isInAlbumDetail) {
                                 if !isInAlbumDetail, let targetId = lastViewedAlbumId {
                                     try? await Task.sleep(for: .milliseconds(200))
