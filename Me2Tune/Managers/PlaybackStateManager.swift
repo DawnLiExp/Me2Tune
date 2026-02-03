@@ -2,7 +2,7 @@
 //  PlaybackStateManager.swift
 //  Me2Tune
 //
-//  播放状态管理 - 播放源切换 + 状态持久化
+//  播放状态管理 - 播放源切换 + 状态持久化 + 索引计算
 //
 
 import Foundation
@@ -25,6 +25,12 @@ final class PlaybackStateManager {
     enum PlayingSource: Equatable {
         case playlist
         case album(UUID)
+    }
+    
+    enum RepeatMode {
+        case off
+        case all
+        case one
     }
     
     // MARK: - Private Properties
@@ -109,25 +115,30 @@ final class PlaybackStateManager {
         return previousIndex
     }
     
-    func calculateNextIndex(repeatMode: RepeatMode) -> Int? {
-        guard let currentIndex = currentTrackIndex else { return nil }
-        
+    /// ✅ 计算下一首索引（不改变当前索引）
+    func calculateNextIndex(at index: Int, repeatMode: RepeatMode) -> Int? {
         switch repeatMode {
         case .one:
-            return currentIndex
+            return index
         case .all:
-            if currentIndex < currentTracks.count - 1 {
-                return currentIndex + 1
+            if index < currentTracks.count - 1 {
+                return index + 1
             } else {
                 return 0
             }
         case .off:
-            if currentIndex < currentTracks.count - 1 {
-                return currentIndex + 1
+            if index < currentTracks.count - 1 {
+                return index + 1
             } else {
                 return nil
             }
         }
+    }
+    
+    /// ⚠️ 兼容旧方法（使用当前索引）
+    func calculateNextIndex(repeatMode: RepeatMode) -> Int? {
+        guard let currentIndex = currentTrackIndex else { return nil }
+        return calculateNextIndex(at: currentIndex, repeatMode: repeatMode)
     }
     
     // MARK: - Playlist Updates Handling
@@ -296,12 +307,6 @@ final class PlaybackStateManager {
     }
     
     // MARK: - Types
-    
-    enum RepeatMode {
-        case off
-        case all
-        case one
-    }
     
     struct RestoredState {
         let source: PlayingSource

@@ -2,7 +2,7 @@
 //  PlaylistTabView.swift
 //  Me2Tune
 //
-//  播放列表视图 - 歌曲列表 + 拖拽排序 + 文件拖拽添加（优化悬浮性能）
+//  播放列表视图 - 歌曲列表 + 拖拽排序 + 文件拖拽添加 + 失败标记
 //
 
 import SwiftUI
@@ -22,6 +22,9 @@ struct PlaylistTabView: View {
     
     @State private var draggingIndex: Int?
     @State private var dropTargetIndex: Int?
+    
+    // ✅ 新增：从 environment 获取 PlayerViewModel
+    @Environment(PlayerViewModel.self) private var playerViewModel
     
     var body: some View {
         Group {
@@ -142,11 +145,12 @@ struct PlaylistTabView: View {
         SongRowView(
             track: track,
             index: index,
-            isPlaying: playingSource == .playlist && currentIndex == index
+            isPlaying: playingSource == .playlist && currentIndex == index,
+            isFailed: playerViewModel.isTrackFailed(track.id) // ✅ 新增失败检查
         )
-        .equatable() // ✅ 启用 Equatable 优化,避免不必要的刷新
+        .equatable()
         .opacity(draggingIndex == index ? 0.5 : 1.0)
-        .onTapGesture(count: 2) { // ✅ 在外层处理双击,避免闭包捕获
+        .onTapGesture(count: 2) {
             onTrackSelected(index)
         }
         .onDrag {

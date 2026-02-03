@@ -2,7 +2,7 @@
 //  SongRowView.swift
 //  Me2Tune
 //
-//  播放列表歌曲行组件 - (Equatable + 无闭包依赖)
+//  播放列表歌曲行组件 - (Equatable + 失败标记)
 //
 
 import SwiftUI
@@ -11,58 +11,57 @@ struct SongRowView: View {
     let track: AudioTrack
     let index: Int
     let isPlaying: Bool
-    // ✅ 移除 onTap 闭包参数,避免闭包重建导致的刷新
+    let isFailed: Bool // ✅ 新增：失败标记
     
     @State private var isHovered = false
     @AppStorage("CleanMode") private var cleanMode = false
     
-    // ✅ 预计算不变内容,避免重复格式化
     private let timeString: String
     private let artistString: String
     
-    init(track: AudioTrack, index: Int, isPlaying: Bool) {
+    init(track: AudioTrack, index: Int, isPlaying: Bool, isFailed: Bool = false) {
         self.track = track
         self.index = index
         self.isPlaying = isPlaying
+        self.isFailed = isFailed
         self.timeString = Self.formatTime(track.duration)
         self.artistString = track.artist ?? String(localized: "unknown_artist")
     }
     
     var body: some View {
         contentView
-            .background(hoverDetector) // ✅ 稳定的 hover 检测
-            .contentShape(Rectangle()) // ✅ 交互区域由外层的 onTapGesture 处理
+            .background(hoverDetector)
+            .contentShape(Rectangle())
     }
     
     // MARK: - Content View
     
     private var contentView: some View {
         HStack(spacing: 12) {
-            indexOrWaveform
+            indexOrIndicator
                 .frame(width: 24)
             
             Text(track.title)
                 .font(.system(size: 14, weight: isPlaying ? .semibold : .regular))
-                .foregroundColor(isPlaying ? .primaryText : .primaryText.opacity(0.8))
+                .foregroundColor(textColor)
                 .lineLimit(1)
             
             Spacer(minLength: 0)
             
             Text(artistString)
                 .font(.system(size: 13))
-                .foregroundColor(.secondaryText)
+                .foregroundColor(.secondaryText.opacity(isFailed ? 0.5 : 1.0))
                 .lineLimit(1)
                 .frame(maxWidth: 120, alignment: .trailing)
             
             Text(timeString)
                 .font(.system(size: 13, design: .monospaced))
-                .foregroundColor(.secondaryText)
+                .foregroundColor(.secondaryText.opacity(isFailed ? 0.5 : 1.0))
                 .frame(width: 48, alignment: .trailing)
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 10)
         .background {
-            // ✅ 内联 background,避免计算属性重建
             ZStack {
                 RoundedRectangle(cornerRadius: 14)
                     .fill(Color.accentLight)
@@ -85,16 +84,20 @@ struct SongRowView: View {
         if cleanMode {
             Color.clear
         } else {
-            // ✅ 条件分支稳定,避免 AnyView
             HoverDetectingView(isHovered: $isHovered)
         }
     }
     
-    // MARK: - Index or Waveform
+    // MARK: - Index or Indicator
     
     @ViewBuilder
-    private var indexOrWaveform: some View {
-        if isPlaying {
+    private var indexOrIndicator: some View {
+        if isFailed {
+            // ✅ 失败标记：警告图标
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.orange.opacity(0.8))
+                .font(.system(size: 12, weight: .semibold))
+        } else if isPlaying {
             Image(systemName: "waveform")
                 .foregroundColor(.accent)
                 .font(.system(size: 13, weight: .semibold))
@@ -102,6 +105,18 @@ struct SongRowView: View {
             Text("\(index + 1)")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundColor(.secondaryText)
+        }
+    }
+    
+    // MARK: - Text Color
+    
+    private var textColor: Color {
+        if isFailed {
+            return .primaryText.opacity(0.4)
+        } else if isPlaying {
+            return .primaryText
+        } else {
+            return .primaryText.opacity(0.8)
         }
     }
     
@@ -119,10 +134,9 @@ struct SongRowView: View {
 
 extension SongRowView: Equatable {
     static func == (lhs: SongRowView, rhs: SongRowView) -> Bool {
-        // ✅ 只在真正影响显示的属性变化时才认为需要更新
         lhs.track.id == rhs.track.id &&
             lhs.index == rhs.index &&
-            lhs.isPlaying == rhs.isPlaying
-        // 注意: isHovered 和 cleanMode 是 @State/@AppStorage,由 SwiftUI 自动处理
+            lhs.isPlaying == rhs.isPlaying &&
+            lhs.isFailed == rhs.isFailed // ✅ 新增比较
     }
 }

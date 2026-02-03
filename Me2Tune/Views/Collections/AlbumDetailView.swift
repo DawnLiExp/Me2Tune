@@ -2,7 +2,7 @@
 //  AlbumDetailView.swift
 //  Me2Tune
 //
-//  专辑详情视图 - 头部 + 歌曲列表
+//  专辑详情视图 - 头部 + 歌曲列表 + 失败标记
 //
 
 import AppKit
@@ -18,6 +18,9 @@ struct AlbumDetailView: View {
     let onTrackTap: (Int) -> Void
     let onShowInFinder: (AudioTrack) -> Void
     let onAddToPlaylist: (AudioTrack) -> Void
+    
+    // ✅ 新增：从 environment 获取 PlayerViewModel
+    @Environment(PlayerViewModel.self) private var playerViewModel
     
     var body: some View {
         VStack(spacing: 5) {
@@ -35,6 +38,7 @@ struct AlbumDetailView: View {
                                 }
                                 return false
                             }(),
+                            isFailed: playerViewModel.isTrackFailed(track.id), // ✅ 新增失败检查
                             onTap: { onTrackTap(index) },
                             onShowInFinder: { onShowInFinder(track) },
                             onAddToPlaylist: { onAddToPlaylist(track) }

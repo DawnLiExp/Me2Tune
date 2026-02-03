@@ -2,7 +2,7 @@
 //  AudioPlayerCore.swift
 //  Me2Tune
 //
-//  音频播放核心 - 纯播放逻辑（三档自适应刷新频率）
+//  音频播放核心 - 纯播放逻辑（三档自适应刷新频率）+ 加载状态返回
 //
 
 import AppKit
@@ -95,10 +95,11 @@ final class AudioPlayerCore: NSObject {
     
     // MARK: - Playback Control
     
-    func loadTrack(_ track: AudioTrack) async {
+    // ✅ 返回 Bool 表示是否成功
+    func loadTrack(_ track: AudioTrack) async -> Bool {
         let startTime = CFAbsoluteTimeGetCurrent()
         ensurePlayerInitialized()
-        guard let player else { return }
+        guard let player else { return false }
         
         if isPlaying {
             player.pause()
@@ -117,21 +118,17 @@ final class AudioPlayerCore: NSObject {
                     logger.info("Using buffered playback (network: \(isNetwork))")
                     
                     do {
-                        // 尝试预缓冲播放
                         let inputSource = try InputSource(for: track.url, flags: .loadFilesInMemory)
                         let decoder = try AudioDecoder(inputSource: inputSource)
                         try player.play(decoder)
                     } catch {
-                        // 预缓冲失败，降级到直接播放
                         logger.warning("Buffering failed, fallback to direct: \(error.localizedDescription)")
                         try player.play(track.url)
                     }
                 } else {
-                    // 文件过大，直接播放
                     try player.play(track.url)
                 }
             } else {
-                // 缓冲未启用，直接播放
                 try player.play(track.url)
             }
             
@@ -150,21 +147,24 @@ final class AudioPlayerCore: NSObject {
             
             let elapsed = CFAbsoluteTimeGetCurrent() - startTime
             logger.logPerformance("Track load", duration: elapsed)
+            
+            return true // ✅ 成功
         } catch {
             let appError = AppError.audioLoadFailed(track.url)
             logger.logError(appError, context: "loadTrack")
             delegate?.playerCore(self, didEncounterError: appError)
+            return false // ❌ 失败
         }
     }
     
-    func enqueueTrack(_ track: AudioTrack) async {
+    // ✅ 返回 Bool 表示是否成功
+    func enqueueTrack(_ track: AudioTrack) async -> Bool {
         ensurePlayerInitialized()
-        guard let player else { return }
+        guard let player else { return false }
         
         logger.info("Enqueuing: \(track.title)")
         
         do {
-            // 检查是否启用缓冲
             if audioBufferingEnabled {
                 let isNetwork = AudioBufferDetector.isNetworkStorage(url: track.url)
                 
@@ -172,29 +172,28 @@ final class AudioPlayerCore: NSObject {
                     logger.info("Enqueuing with buffer (network: \(isNetwork))")
                     
                     do {
-                        // 尝试预缓冲
                         let inputSource = try InputSource(for: track.url, flags: .loadFilesInMemory)
                         let decoder = try AudioDecoder(inputSource: inputSource)
                         try player.enqueue(decoder)
                         queuedTracks.append(track)
                         logger.debug("✓ Enqueued next track (buffered)")
-                        return
+                        return true
                     } catch {
-                        // 预缓冲失败，降级到直接播放
                         logger.warning("Buffer enqueue failed, using direct: \(error.localizedDescription)")
                     }
                 }
             }
             
-            // 直接入队
             let decoder = try AudioDecoder(url: track.url)
             try player.enqueue(decoder)
             queuedTracks.append(track)
             logger.debug("✓ Enqueued next track (direct)")
+            return true
         } catch {
             let appError = AppError.audioLoadFailed(track.url)
             logger.logError(appError, context: "enqueueTrack")
             delegate?.playerCore(self, didEncounterError: appError)
+            return false
         }
     }
     
@@ -290,16 +289,15 @@ final class AudioPlayerCore: NSObject {
         
         let interval = visibilityState.updateInterval
         
-        let leeway: DispatchTimeInterval
-        switch visibilityState {
+        let leeway: DispatchTimeInterval = switch visibilityState {
         case .activeFocused:
-            leeway = .milliseconds(200)
+            .milliseconds(200)
         case .inactive:
-            leeway = .milliseconds(300)
+            .milliseconds(300)
         case .hidden, .miniHidden:
-            leeway = .milliseconds(1000)
+            .milliseconds(1000)
         case .miniVisible:
-            leeway = .milliseconds(200)
+            .milliseconds(200)
         }
         
         logger.debug("⏱️ Creating timer for \(self.visibilityState.description), interval: \(String(format: "%.1f", interval))s")
