@@ -2,7 +2,7 @@
 //  PlayerViewModel.swift
 //  Me2Tune
 //
-//  播放器视图模型 - 协调播放控制、播放列表、状态管理 + 失败歌曲处理
+//  播放器视图模型 - 协调播放控制、播放列表、状态管理
 //
 
 import AppKit
@@ -53,34 +53,21 @@ final class PlayerViewModel {
         case one
     }
     
-    // MARK: - Invalid Track Handling
-    
-    @ObservationIgnored private var failedTrackIDs = Set<UUID>() // 会话级别标记
-    
-    // ✅ 公开方法：UI 检查歌曲是否失败
-    func isTrackFailed(_ trackID: UUID) -> Bool {
-        return failedTrackIDs.contains(trackID)
-    }
-    
     // MARK: - Private Properties (不触发UI更新)
     
     @ObservationIgnored private let playerCore: AudioPlayerCore
     @ObservationIgnored private let persistenceService = PersistenceService.shared
     
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
-    @ObservationIgnored private var nowPlayingTimerCancellable: AnyCancellable?
     @ObservationIgnored private var stateSaveTimer: DispatchSourceTimer?
     @ObservationIgnored private var pendingSaveTask: Task<Void, Never>?
     @ObservationIgnored private var volumeUpdateTask: Task<Void, Never>?
     
     @ObservationIgnored private var isWindowVisible = true
-    
-    // MARK: - Now Playing Control
-    
-    private var nowPlayingEnabled: Bool {
-        UserDefaults.standard.object(forKey: "nowPlayingEnabled") as? Bool ?? true
+    @ObservationIgnored private lazy var progressTimeProvider: () -> TimeInterval = { [weak self] in
+        self?.playbackProgressState.currentTime ?? 0
     }
-    
+
     // MARK: - Computed Properties
     
     var currentFormat: AudioFormat {
@@ -207,7 +194,6 @@ final class PlayerViewModel {
     func previous() {
         guard let currentIndex = currentTrackIndex else { return }
         
-        // ✅ 查找上一首有效歌曲
         if let previousIndex = findPreviousValidTrack(from: currentIndex) {
             loadAndPlay(at: previousIndex)
         } else {
@@ -253,13 +239,10 @@ final class PlayerViewModel {
         
         isWindowVisible = (state == .activeFocused || state == .inactive)
         
-        if playerCore.isPlaying, nowPlayingEnabled {
-            if state == .activeFocused {
-                startNowPlayingUpdateTimer()
-            } else {
-                stopNowPlayingUpdateTimer()
-            }
-        }
+        NowPlayingService.shared.handleWindowVisibilityChange(
+            isVisible: state == .activeFocused,
+            isPlaying: isPlaying
+        )
         
         logger.debug("ViewModel visibility: \(state.description)")
     }
@@ -288,8 +271,7 @@ final class PlayerViewModel {
         let wasPlaying = (playingSource == .playlist && currentTrackIndex == index)
         let removedTrack = playlistManager.tracks[index]
         
-        // ✅ 清除失败标记
-        failedTrackIDs.remove(removedTrack.id)
+        clearFailedMark(for: removedTrack.id)
         
         if wasPlaying {
             pause()
@@ -310,9 +292,7 @@ final class PlayerViewModel {
             pause()
         }
         
-        // ✅ 清除所有 playlist 相关的失败标记
-        let playlistTrackIDs = Set(playlistManager.tracks.map(\.id))
-        failedTrackIDs.subtract(playlistTrackIDs)
+        clearFailedMarksForPlaylist()
         
         playlistManager.clearAll()
         playbackStateManager.handlePlaylistCleared()
@@ -336,12 +316,7 @@ final class PlayerViewModel {
         playbackStateManager.switchToPlaylist()
         
         let track = playlistManager.tracks[index]
-        
-        // ✅ 用户手动点击：清除失败标记并重试
-        if failedTrackIDs.contains(track.id) {
-            logger.info("🔄 Retry failed track: \(track.title)")
-            failedTrackIDs.remove(track.id)
-        }
+        retryIfFailed(track)
         
         loadAndPlay(at: index)
     }
@@ -357,12 +332,7 @@ final class PlayerViewModel {
         playbackStateManager.switchToAlbum(album)
         
         let track = album.tracks[index]
-        
-        // ✅ 用户手动点击：清除失败标记并重试
-        if failedTrackIDs.contains(track.id) {
-            logger.info("🔄 Retry failed track: \(track.title)")
-            failedTrackIDs.remove(track.id)
-        }
+        retryIfFailed(track)
         
         loadAndPlay(at: index)
     }
@@ -379,7 +349,6 @@ final class PlayerViewModel {
             return
         }
         
-        // ✅ 循环保护：最多尝试 10 首
         guard attempt < 10 else {
             logger.error("❌ Max retry attempts reached, stopping playback")
             pause()
@@ -388,50 +357,51 @@ final class PlayerViewModel {
         
         let track = currentTracks[index]
         
-        // ✅ 如果歌曲已标记失败，直接跳过
-        if failedTrackIDs.contains(track.id) {
+        // 已标记失败的歌曲直接跳过
+        if isTrackFailed(track.id) {
             logger.debug("⏭️ Skipping known failed track: \(track.title)")
-            
-            // 尝试下一首
-            if let nextIndex = playbackStateManager.calculateNextIndex(at: index, repeatMode: convertRepeatMode()) {
-                loadAndPlay(at: nextIndex, attempt: attempt + 1)
-            } else {
-                logger.debug("No more tracks to play")
-            }
+            skipToNextTrack(from: index, attempt: attempt)
             return
         }
         
         Task { @MainActor in
-            // ✅ 先尝试加载
             let success = await loadTrack(track)
             
             if !success {
-                // ❌ 加载失败：标记并尝试下一首
-                logger.warning("⚠️ Track load failed: \(track.title)")
-                failedTrackIDs.insert(track.id)
-                
-                // 单曲循环模式下：停止播放
-                if repeatMode == .one {
-                    logger.info("🛑 Single repeat on failed track, stopping")
-                    pause()
-                    return
-                }
-                
-                // 尝试下一首
-                if let nextIndex = playbackStateManager.calculateNextIndex(at: index, repeatMode: convertRepeatMode()) {
-                    logger.info("⏭️ Auto-skipping to next track after failure")
-                    loadAndPlay(at: nextIndex, attempt: attempt + 1)
-                } else {
-                    logger.debug("No next track available after failure")
-                    pause()
-                }
+                handleLoadFailure(track: track, index: index, attempt: attempt)
                 return
             }
             
-            // ✅ 加载成功：设置索引并播放
+            // 加载成功：设置索引并播放
             playbackStateManager.setCurrentIndex(index)
             playerCore.play()
             scheduleStateSave()
+        }
+    }
+    
+    /// 处理加载失败
+    private func handleLoadFailure(track: AudioTrack, index: Int, attempt: Int) {
+        logger.warning("⚠️ Track load failed: \(track.title)")
+        markTrackFailed(track.id)
+        
+        // 单曲循环模式下：停止播放
+        if repeatMode == .one {
+            logger.info("🛑 Single repeat on failed track, stopping")
+            pause()
+            return
+        }
+        
+        skipToNextTrack(from: index, attempt: attempt)
+    }
+    
+    /// 跳到下一首（失败后或跳过已失败歌曲时调用）
+    private func skipToNextTrack(from index: Int, attempt: Int) {
+        if let nextIndex = playbackStateManager.calculateNextIndex(at: index, repeatMode: convertRepeatMode()) {
+            logger.info("⏭️ Auto-skipping to next track")
+            loadAndPlay(at: nextIndex, attempt: attempt + 1)
+        } else {
+            logger.debug("No next track available")
+            pause()
         }
     }
     
@@ -447,8 +417,8 @@ final class PlayerViewModel {
         
         let nextTrack = currentTracks[nextIndex]
         
-        // ✅ 不预加载已知失败的歌曲
-        if failedTrackIDs.contains(nextTrack.id) {
+        // 不预加载已知失败的歌曲
+        if isTrackFailed(nextTrack.id) {
             logger.debug("Skip enqueuing known failed track: \(nextTrack.title)")
             return
         }
@@ -456,24 +426,55 @@ final class PlayerViewModel {
         Task { @MainActor in
             let success = await playerCore.enqueueTrack(nextTrack)
             
-            // ✅ 预加载失败：只标记，不跳转
+            // 预加载失败：只标记，不跳转
             if !success {
                 logger.warning("⚠️ Enqueue failed, marking track: \(nextTrack.title)")
-                failedTrackIDs.insert(nextTrack.id)
+                markTrackFailed(nextTrack.id)
             }
         }
     }
     
-    // MARK: - Invalid Track Handling
+    // MARK: - Failed Track Handling
     
-    /// ✅ 查找上一首有效歌曲
+    @ObservationIgnored private var failedTrackIDs = Set<UUID>()
+    
+    /// 检查歌曲是否已标记为失败
+    func isTrackFailed(_ trackID: UUID) -> Bool {
+        failedTrackIDs.contains(trackID)
+    }
+    
+    /// 标记歌曲为失败
+    private func markTrackFailed(_ trackID: UUID) {
+        failedTrackIDs.insert(trackID)
+    }
+    
+    /// 清除单个歌曲的失败标记
+    private func clearFailedMark(for trackID: UUID) {
+        failedTrackIDs.remove(trackID)
+    }
+    
+    /// 清除播放列表所有歌曲的失败标记
+    private func clearFailedMarksForPlaylist() {
+        let playlistTrackIDs = Set(playlistManager.tracks.map(\.id))
+        failedTrackIDs.subtract(playlistTrackIDs)
+    }
+    
+    /// 用户手动点击时：清除失败标记并重试
+    private func retryIfFailed(_ track: AudioTrack) {
+        if failedTrackIDs.contains(track.id) {
+            logger.info("🔄 Retry failed track: \(track.title)")
+            failedTrackIDs.remove(track.id)
+        }
+    }
+    
+    /// 查找上一首有效歌曲（跳过已失败的）
     private func findPreviousValidTrack(from currentIndex: Int) -> Int? {
         var testIndex = currentIndex - 1
         var attempts = 0
         
         while testIndex >= 0, attempts < currentTracks.count {
             let track = currentTracks[testIndex]
-            if !failedTrackIDs.contains(track.id) {
+            if !isTrackFailed(track.id) {
                 return testIndex
             }
             testIndex -= 1
@@ -483,7 +484,8 @@ final class PlayerViewModel {
         return nil
     }
     
-    /// ✅ 转换 RepeatMode
+    // MARK: - Private Helpers
+    
     private func convertRepeatMode() -> PlaybackStateManager.RepeatMode {
         switch repeatMode {
         case .off: return .off
@@ -491,13 +493,9 @@ final class PlayerViewModel {
         case .one: return .one
         }
     }
-    
-    // MARK: - Now Playing Updates
 
     private func updateNowPlayingInfo() {
-        guard let track = currentTrack else {
-            return
-        }
+        guard let track = currentTrack else { return }
         
         NowPlayingService.shared.updateNowPlayingInfo(
             track: track,
@@ -506,24 +504,6 @@ final class PlayerViewModel {
             duration: duration,
             isPlaying: isPlaying
         )
-    }
-
-    private func startNowPlayingUpdateTimer() {
-        stopNowPlayingUpdateTimer()
-        
-        guard nowPlayingEnabled, isWindowVisible else { return }
-        
-        nowPlayingTimerCancellable = Timer.publish(every: 5.0, on: .main, in: .common)
-            .autoconnect()
-            .sink { [weak self] _ in
-                guard let self, self.isPlaying else { return }
-                NowPlayingService.shared.updatePlaybackTime(currentTime: self.playbackProgressState.currentTime)
-            }
-    }
-
-    private func stopNowPlayingUpdateTimer() {
-        nowPlayingTimerCancellable?.cancel()
-        nowPlayingTimerCancellable = nil
     }
     
     // MARK: - Persistence
@@ -585,14 +565,15 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
         self.isPlaying = isPlaying
         
         NowPlayingService.shared.updatePlaybackState(isPlaying: isPlaying)
-        
+        NowPlayingService.shared.handlePlaybackStateChange(
+            isPlaying: isPlaying,
+            isWindowVisible: isWindowVisible,
+            currentTimeProvider: progressTimeProvider
+        )
+                
         if isPlaying {
-            if nowPlayingEnabled {
-                startNowPlayingUpdateTimer()
-            }
             startStateSaveTimer()
         } else {
-            stopNowPlayingUpdateTimer()
             stopStateSaveTimer()
         }
     }
@@ -606,12 +587,10 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
         self.duration = track.duration
         
         RemoteCommandController.shared.enable()
-        
         updateNowPlayingInfo()
     }
     
     func playerCore(_ core: AudioPlayerCore, didEncounterError error: Error) {
-        // ✅ 仅记录错误，不处理（加载失败已在 loadAndPlay 中处理）
         logger.logError(error, context: "PlayerCore")
     }
     
@@ -653,11 +632,11 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
     }
     
     func playerCoreDidReachEnd(_ core: AudioPlayerCore) {
-        // ✅ 单曲循环：重新播放
+        // 单曲循环：重新播放
         if repeatMode == .one, let index = currentTrackIndex {
             let track = currentTracks[index]
             
-            if failedTrackIDs.contains(track.id) {
+            if isTrackFailed(track.id) {
                 logger.info("🛑 Single repeat on failed track, stopping")
                 pause()
             } else {
@@ -666,7 +645,7 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
             return
         }
         
-        // ✅ 其他模式：尝试播放下一首（处理预加载失败的情况）
+        // 其他模式：尝试播放下一首
         guard let currentIndex = currentTrackIndex else { return }
         
         if let nextIndex = playbackStateManager.calculateNextIndex(at: currentIndex, repeatMode: convertRepeatMode()) {

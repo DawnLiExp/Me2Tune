@@ -2,10 +2,11 @@
 //  NowPlayingService.swift
 //  Me2Tune
 //
-//  Now Playing 信息管理 - 更新系统媒体控制中心
+//  Now Playing 信息管理 - 更新系统媒体控制中心 + 定时器管理
 //
 
 import AppKit
+import Combine
 import Foundation
 import MediaPlayer
 import OSLog
@@ -15,6 +16,15 @@ private let logger = Logger.nowPlaying
 @MainActor
 final class NowPlayingService {
     static let shared = NowPlayingService()
+    
+    // MARK: - Private Properties
+    
+    private var updateTimerCancellable: AnyCancellable?
+    private var currentTimeProvider: (() -> TimeInterval)?
+    
+    private var isEnabled: Bool {
+        UserDefaults.standard.object(forKey: "nowPlayingEnabled") as? Bool ?? true
+    }
     
     private init() {}
     
@@ -27,6 +37,8 @@ final class NowPlayingService {
         duration: TimeInterval,
         isPlaying: Bool
     ) {
+        guard isEnabled else { return }
+        
         logger.debug("📻 Updating Now Playing Info")
         var nowPlayingInfo: [String: Any] = [:]
         
@@ -83,5 +95,53 @@ final class NowPlayingService {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
    
         logger.debug("🧹 Cleared Now Playing info")
+    }
+    
+    // MARK: - Timer Management
+    
+    /// 处理播放状态变化，自动管理定时器
+    func handlePlaybackStateChange(
+        isPlaying: Bool,
+        isWindowVisible: Bool,
+        currentTimeProvider: @escaping () -> TimeInterval
+    ) {
+        self.currentTimeProvider = currentTimeProvider
+        
+        if isPlaying, isWindowVisible, isEnabled {
+            startUpdateTimer()
+        } else {
+            stopUpdateTimer()
+        }
+    }
+    
+    /// 窗口可见性变化时调用
+    func handleWindowVisibilityChange(isVisible: Bool, isPlaying: Bool) {
+        guard isEnabled else { return }
+        
+        if isPlaying, isVisible {
+            startUpdateTimer()
+        } else {
+            stopUpdateTimer()
+        }
+    }
+    
+    func stopUpdateTimer() {
+        updateTimerCancellable?.cancel()
+        updateTimerCancellable = nil
+    }
+    
+    // MARK: - Private Methods
+    
+    private func startUpdateTimer() {
+        stopUpdateTimer()
+        
+        updateTimerCancellable = Timer.publish(every: 5.0, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                guard let self,
+                      let provider = self.currentTimeProvider
+                else { return }
+                self.updatePlaybackTime(currentTime: provider())
+            }
     }
 }
