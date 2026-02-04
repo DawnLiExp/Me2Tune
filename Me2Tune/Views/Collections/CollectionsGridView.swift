@@ -209,15 +209,23 @@ struct CollectionsGridView: View {
                             }
                             .onAppear {
                                 updateColumns(for: geometry.size.width)
+                    
+                                if lastViewedAlbumId == nil, let id = selectedAlbumId {
+                                    lastViewedAlbumId = id
+                                }
                             }
                             .onChange(of: geometry.size.width) { _, newWidth in
                                 updateColumns(for: newWidth)
                             }
                             .task(id: isInAlbumDetail) {
-                                if !isInAlbumDetail, let targetId = lastViewedAlbumId {
-                                    try? await Task.sleep(for: .milliseconds(200))
-                                    await MainActor.run {
-                                        proxy.scrollTo(targetId, anchor: .center)
+                                if !isInAlbumDetail {
+                                    let targetId = lastViewedAlbumId ?? selectedAlbumId
+                                    
+                                    if let targetId {
+                                        try? await Task.sleep(for: .milliseconds(200))
+                                        await MainActor.run {
+                                            proxy.scrollTo(targetId, anchor: .center)
+                                        }
                                     }
                                 }
                             }
