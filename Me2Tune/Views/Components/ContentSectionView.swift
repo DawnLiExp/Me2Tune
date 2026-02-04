@@ -14,7 +14,7 @@ struct ContentSectionView: View {
     @Binding var selectedAlbumId: UUID?
     
     let playerViewModel: PlayerViewModel
-    let collectionManager: CollectionManager // ✅ 直接传值，不是 @ObservedObject (Observation 自动追踪)
+    let collectionManager: CollectionManager
     
     let onExportPlaylist: () -> Void
     let onClearPlaylist: () -> Void
@@ -56,10 +56,9 @@ struct ContentSectionView: View {
     
     @ViewBuilder
     private var contentView: some View {
-        // ✅ 一次性提取所有需要的状态,减少对 PlayerViewModel 的访问次数
+        // 一次性提取所有需要的状态,减少对 PlayerViewModel 的访问次数
         @Bindable var viewModel = playerViewModel
-        
-        // ✅ 提前提取状态到局部变量
+        // 提前提取状态到局部变量
         // 注意: 这些值在 body 执行期间是不变的,避免重复读取触发 Observation
         let playlistTracks = viewModel.playlistManager.tracks
         let currentIndex = viewModel.currentTrackIndex
@@ -69,63 +68,72 @@ struct ContentSectionView: View {
         let collectionsAlbums = collectionManager.albums
         let collectionsLoaded = collectionManager.isLoaded
         
-        Group {
-            if selectedTab == .playlist {
-                PlaylistTabView(
-                    selectedTab: $selectedTab,
-                    tracks: playlistTracks, // ✅ 使用局部变量
-                    currentIndex: currentIndex,
-                    playingSource: playingSource,
-                    isLoadingTracks: isLoadingTracks,
-                    loadingTracksCount: loadingTracksCount,
-                    onTrackSelected: { index in
-                        // ✅ 闭包内部直接调用,减少嵌套
-                        viewModel.playPlaylistTrack(at: index)
-                    },
-                    onTrackRemoved: { index in
-                        viewModel.removeTrackFromPlaylist(at: index)
-                    },
-                    onTrackMoved: { from, to in
-                        if let sourceIndex = from.first {
-                            viewModel.moveTrackInPlaylist(from: sourceIndex, to: to)
-                        }
-                    },
-                    onFilesDrop: onPlaylistDrop
-                )
-                .padding(.horizontal, 12)
-                .padding(.top, 16)
-            } else {
-                CollectionsGridView(
-                    selectedTab: $selectedTab,
-                    isInAlbumDetail: $isInAlbumDetail,
-                    selectedAlbumId: $selectedAlbumId,
-                    albums: collectionsAlbums, // ✅ 使用局部变量
-                    isLoaded: collectionsLoaded,
-                    currentIndex: currentIndex,
-                    playingSource: playingSource,
-                    onAlbumPlayAt: { album, index in
-                        viewModel.playAlbum(album, startAt: index)
-                    },
-                    onAlbumRemoved: { albumId in
-                        collectionManager.removeAlbum(id: albumId)
-                    },
-                    onAlbumRenamed: { albumId, newName in
-                        collectionManager.renameAlbum(id: albumId, newName: newName)
-                    },
-                    onAlbumMoved: { from, to in
-                        collectionManager.moveAlbum(from: from, to: to)
-                    },
-                    onTrackAddedToPlaylist: { track in
-                        viewModel.addTracksToPlaylist(urls: [track.url])
-                    },
-                    onEnsureLoaded: {
-                        await collectionManager.ensureLoaded()
+        // DO NOT replace ZStack with if/else or Group - it will break state persistence!
+        // Both views must stay in memory to preserve scroll position and detail view state.
+        ZStack {
+            PlaylistTabView(
+                selectedTab: $selectedTab,
+                tracks: playlistTracks,
+                currentIndex: currentIndex,
+                playingSource: playingSource,
+                isLoadingTracks: isLoadingTracks,
+                loadingTracksCount: loadingTracksCount,
+                onTrackSelected: { index in
+                    viewModel.playPlaylistTrack(at: index)
+                },
+                onTrackRemoved: { index in
+                    viewModel.removeTrackFromPlaylist(at: index)
+                },
+                onTrackMoved: { from, to in
+                    if let sourceIndex = from.first {
+                        viewModel.moveTrackInPlaylist(from: sourceIndex, to: to)
                     }
-                )
-                .padding(.horizontal, 12)
-                .padding(.top, 16)
-            }
+                },
+                onFilesDrop: onPlaylistDrop
+            )
+            .padding(.horizontal, 12)
+            .padding(.top, 16)
+            .opacity(selectedTab == .playlist ? 1 : 0)
+            .offset(x: selectedTab == .playlist ? 0 : -15)
+            .allowsHitTesting(selectedTab == .playlist)
+            .zIndex(selectedTab == .playlist ? 1 : 0)
+            
+            CollectionsGridView(
+                selectedTab: $selectedTab,
+                isInAlbumDetail: $isInAlbumDetail,
+                selectedAlbumId: $selectedAlbumId,
+                albums: collectionsAlbums,
+                isLoaded: collectionsLoaded,
+                currentIndex: currentIndex,
+                playingSource: playingSource,
+                onAlbumPlayAt: { album, index in
+                    viewModel.playAlbum(album, startAt: index)
+                },
+                onAlbumRemoved: { albumId in
+                    collectionManager.removeAlbum(id: albumId)
+                },
+                onAlbumRenamed: { albumId, newName in
+                    collectionManager.renameAlbum(id: albumId, newName: newName)
+                },
+                onAlbumMoved: { from, to in
+                    collectionManager.moveAlbum(from: from, to: to)
+                },
+                onTrackAddedToPlaylist: { track in
+                    viewModel.addTracksToPlaylist(urls: [track.url])
+                },
+                onEnsureLoaded: {
+                    await collectionManager.ensureLoaded()
+                }
+            )
+            .padding(.horizontal, 12)
+            .padding(.top, 16)
+            .opacity(selectedTab == .collections ? 1 : 0)
+            .offset(x: selectedTab == .collections ? 0 : 25)
+            .allowsHitTesting(selectedTab == .collections)
+            .zIndex(selectedTab == .collections ? 1 : 0)
         }
+      
+        .animation(.easeInOut(duration: 0.25), value: selectedTab)
     }
     
     // MARK: - Container Background
