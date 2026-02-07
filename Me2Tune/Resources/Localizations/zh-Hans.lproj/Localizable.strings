@@ -105,6 +105,12 @@
 "now_playing_sync" = "Now Playing 同步";
 "now_playing_sync_footer" = "关闭后将降低系统开销，仅在必要时更新控制中心播放进度，媒体键始终可用";
 
+// MARK: - Settings - Dynamic Glow Options
+"settings_glow_mode" = "背景光晕";
+"settings_glow_mode_footer" = "选择背景光晕的视觉风格";
+"glow_mode_legacy" = "经典";
+"glow_mode_mesh" = "动态 (macOS 15+)";
+
 // MARK: - 设置 - 播放控制
 "Switch to Mini Mode" = "切换到迷你模式";
 "Repeat: Off" = "循环模式:关闭";

@@ -105,6 +105,12 @@
 "now_playing_sync" = "Now Playing Sync";
 "now_playing_sync_footer" = "When disabled, reduces system overhead by limiting playback progress updates in Control Center. Media keys remain fully supported.";
 
+// MARK: - Settings - Dynamic Glow Options
+"settings_glow_mode" = "Background Glow";
+"settings_glow_mode_footer" = "Choose visual style for background lighting effects";
+"glow_mode_legacy" = "Classic";
+"glow_mode_mesh" = "Dynamic (macOS 15+)";
+
 // MARK: - ControlSection
 "Switch to Mini Mode" = "Switch to Mini Mode";
 "Repeat: Off" = "Repeat: Off";

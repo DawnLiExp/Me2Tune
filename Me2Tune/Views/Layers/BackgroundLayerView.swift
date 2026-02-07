@@ -2,7 +2,7 @@
 //  BackgroundLayerView.swift
 //  Me2Tune
 //
-//  背景光晕层 - 唱片和播放列表光晕效果
+//  背景光晕层 - 支持传统光晕和 MeshGradient 模式切换
 //
 
 import SwiftUI
@@ -11,6 +11,7 @@ struct BackgroundLayerView: View {
     let albumGlowColor: Color
     
     @AppStorage("CleanMode") private var cleanMode = false
+    @AppStorage("backgroundGlowMode") private var glowMode = BackgroundGlowMode.legacy.rawValue
     
     var body: some View {
         ZStack {
@@ -22,12 +23,63 @@ struct BackgroundLayerView: View {
             
             // 简洁模式下隐藏光晕
             if !cleanMode {
-                Group {
-                    vinylGlowLayer
-                    playlistGlowLayer
-                }
-                .drawingGroup()
+                glowView
+                    .drawingGroup()
             }
+        }
+    }
+    
+    // MARK: - Glow View
+    
+    @ViewBuilder
+    private var glowView: some View {
+        if let mode = BackgroundGlowMode(rawValue: glowMode) {
+            switch mode {
+            case .legacy:
+                LegacyGlowView(albumGlowColor: albumGlowColor)
+            case .meshGradient:
+                if #available(macOS 15.0, *) {
+                    MeshGradientGlowView(albumGlowColor: albumGlowColor)
+                } else {
+                    // Fallback to legacy for macOS < 15
+                    LegacyGlowView(albumGlowColor: albumGlowColor)
+                }
+            }
+        } else {
+            LegacyGlowView(albumGlowColor: albumGlowColor)
+        }
+    }
+}
+
+// MARK: - Background Glow Mode
+
+enum BackgroundGlowMode: String, CaseIterable, Identifiable {
+    case legacy
+    case meshGradient
+    
+    var id: String {
+        rawValue
+    }
+    
+    var displayName: LocalizedStringKey {
+        switch self {
+        case .legacy:
+            return "glow_mode_legacy"
+        case .meshGradient:
+            return "glow_mode_mesh"
+        }
+    }
+}
+
+// MARK: - Legacy Glow View
+
+private struct LegacyGlowView: View {
+    let albumGlowColor: Color
+    
+    var body: some View {
+        Group {
+            vinylGlowLayer
+            playlistGlowLayer
         }
     }
     
@@ -85,4 +137,139 @@ struct BackgroundLayerView: View {
         }
         .allowsHitTesting(false)
     }
+}
+
+// MARK: - MeshGradient Glow View (macOS 15+)
+
+@available(macOS 15.0, *)
+private struct MeshGradientGlowView: View {
+    let albumGlowColor: Color
+    
+    @State private var phase: Double = 0
+    @State private var intensity: Double = 0.8
+    
+    var body: some View {
+        vinylGlowMesh
+            .allowsHitTesting(false)
+            .task {
+                await startBreathingEffect()
+            }
+    }
+    
+    // MARK: - Vinyl Glow Mesh
+    
+    private var vinylGlowMesh: some View {
+        MeshGradient(
+            width: 5,
+            height: 5,
+            points: meshPoints,
+            colors: meshColors
+        )
+        .opacity(intensity)
+    }
+    
+    // MARK: - Animation Logic
+    
+    @MainActor
+    private func startBreathingEffect() async {
+        let startTime = Date()
+        let sleepMs = 150
+        
+        while !Task.isCancelled {
+            let elapsed = Date().timeIntervalSince(startTime)
+            
+            let frequency = 0.785
+            let rawSin = sin(elapsed * frequency)
+            let smoothPhase = pow((rawSin + 1.0) / 2.0, 2.5) * 2.0 - 1.0
+            let subtleWave = sin(elapsed * 2.0) * 0.05
+            
+            let newIntensity = 0.72 + (0.12 * (smoothPhase * 0.9 + subtleWave * 0.1))
+            
+            if abs(intensity - newIntensity) > 0.005 || abs(phase - smoothPhase) > 0.01 {
+                phase = smoothPhase
+                intensity = newIntensity
+            }
+            
+            try? await Task.sleep(for: .milliseconds(sleepMs))
+        }
+    }
+    
+    // MARK: - Mesh Definition
+    
+    private var meshPoints: [SIMD2<Float>] {
+        let offset = Float(phase) * 0.012
+        
+        return [
+            // Row 0 - 顶部边缘
+            SIMD2(0.0, 0.0), SIMD2(0.25, 0.0), SIMD2(0.5, 0.0), SIMD2(0.75, 0.0), SIMD2(1.0, 0.0),
+            
+            // Row 1 - 唱片上方区域
+            SIMD2(0.0, 0.1525),
+            SIMD2(0.25, 0.1225 + offset),
+            SIMD2(0.5, 0.1025 + offset * 1.2),
+            SIMD2(0.75, 0.1225 + offset),
+            SIMD2(1.0, 0.1525),
+            
+            // Row 2 - 唱片中心区域
+            SIMD2(0.0, 0.3025),
+            SIMD2(0.25, 0.2825 + offset * 0.4),
+            SIMD2(0.5, 0.2625 + offset * 0.8),
+            SIMD2(0.75, 0.2825 + offset * 0.4),
+            SIMD2(1.0, 0.3025),
+            
+            // Row 3 - 播放控件区域
+            SIMD2(0.0, 0.50), SIMD2(0.25, 0.50), SIMD2(0.5, 0.50), SIMD2(0.75, 0.50), SIMD2(1.0, 0.50),
+            
+            // Row 4 - 底部区域
+            SIMD2(0.0, 1.0), SIMD2(0.25, 1.0), SIMD2(0.5, 1.0), SIMD2(0.75, 1.0), SIMD2(1.0, 1.0)
+        ]
+    }
+    
+    private var meshColors: [Color] {
+        let normalizedPhase = (phase + 1.0) / 2.0
+        let pulse = normalizedPhase * 0.12
+        
+        return [
+            // Row 0
+            .gradientTop.opacity(0.3),
+            .gradientTop.opacity(0.5),
+            .gradientTop.opacity(0.6),
+            .gradientTop.opacity(0.5),
+            .gradientTop.opacity(0.3),
+            
+            // Row 1
+            albumGlowColor.opacity(0.06 + pulse * 0.4),
+            albumGlowColor.opacity(0.26 + pulse * 1.1),
+            albumGlowColor.opacity(0.44 + pulse),
+            albumGlowColor.opacity(0.26 + pulse * 1.1),
+            albumGlowColor.opacity(0.06 + pulse * 0.4),
+            
+            // Row 2
+            albumGlowColor.opacity(0.12 + pulse * 0.4),
+            albumGlowColor.opacity(0.52 + pulse * 0.8),
+            albumGlowColor.opacity(0.62 + pulse),
+            albumGlowColor.opacity(0.52 + pulse * 0.8),
+            albumGlowColor.opacity(0.12 + pulse * 0.4),
+            
+            // Row 3
+            .mainBackground.opacity(0.2),
+            albumGlowColor.opacity(0.10 + pulse * 0.2),
+            albumGlowColor.opacity(0.22 + pulse * 0.4),
+            albumGlowColor.opacity(0.10 + pulse * 0.2),
+            .mainBackground.opacity(0.2),
+            
+            // Row 4
+            .mainBackground,
+            .mainBackground,
+            .mainBackground,
+            .mainBackground,
+            .mainBackground
+        ]
+    }
+}
+
+#Preview {
+    BackgroundLayerView(albumGlowColor: .green)
+        .ignoresSafeArea()
+        .frame(width: 495, height: 800)
 }

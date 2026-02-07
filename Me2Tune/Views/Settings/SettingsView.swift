@@ -24,7 +24,8 @@ struct SettingsView: View {
     @AppStorage("CleanMode") private var cleanMode = false
     @AppStorage("nowPlayingEnabled") private var nowPlayingEnabled = true
     @AppStorage("audioBufferingEnabled") private var audioBufferingEnabled = false
-    
+    @AppStorage("backgroundGlowMode") private var backgroundGlowMode = BackgroundGlowMode.legacy.rawValue
+
     var body: some View {
         VStack(spacing: 0) {
             customTabBar
@@ -254,7 +255,7 @@ struct SettingsView: View {
     }
     
     // MARK: - Appearance Settings
-    
+
     private var appearanceSettings: some View {
         VStack(spacing: 16) {
             // 语言设置
@@ -268,7 +269,6 @@ struct SettingsView: View {
                 .pickerStyle(.menu)
                 .frame(width: 140)
                 .onChange(of: currentLanguage) { _, newLanguage in
-                    // ✅ 检测到变化时弹出重启提示
                     if newLanguage != LanguageManager.shared.currentLanguage {
                         pendingLanguage = newLanguage
                         showLanguageChangeAlert = true
@@ -290,12 +290,26 @@ struct SettingsView: View {
                 .pickerStyle(.menu)
                 .frame(width: 140)
                 .onChange(of: currentTheme) { _, newMode in
-                    // ✅ 检测到变化时弹出重启提示
                     if newMode != ThemeManager.shared.themeMode {
                         pendingTheme = newMode
                         showThemeChangeAlert = true
                     }
                 }
+            }
+            
+            Divider()
+                .padding(.leading, 32)
+            
+            // 光晕模式
+            settingRow(icon: "wand.and.stars", label: "settings_glow_mode", helpText: "settings_glow_mode_footer") {
+                Picker("", selection: $backgroundGlowMode) {
+                    ForEach(BackgroundGlowMode.allCases) { mode in
+                        Text(mode.displayName).tag(mode.rawValue)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .frame(width: 140)
             }
             
             Divider()
