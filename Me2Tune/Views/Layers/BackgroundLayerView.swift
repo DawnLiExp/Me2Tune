@@ -225,7 +225,6 @@ private struct LegacyGlowView: View {
 private struct MeshGradientGlowView: View {
     let albumGlowColor: Color
     
-    // 直接从 AppStorage 读取，确保实时生效
     @AppStorage("glowBreathingRate") private var breathingRateRaw = GlowBreathingRate.medium.rawValue
     @AppStorage("glowBreathingIntensity") private var breathingIntensityRaw = GlowBreathingIntensity.medium.rawValue
     
@@ -239,6 +238,8 @@ private struct MeshGradientGlowView: View {
     
     @State private var phase: Double = 0
     @State private var intensity: Double = 0.8
+    @State private var accumulatedPhase: Double = 0
+    @State private var lastUpdateTime: Date = .init()
     
     var body: some View {
         vinylGlowMesh
@@ -264,24 +265,28 @@ private struct MeshGradientGlowView: View {
     
     @MainActor
     private func startBreathingEffect() async {
-        let startTime = Date()
-        let sleepMs = 150
+        lastUpdateTime = Date()
+        let sleepMs = 120
         
         while !Task.isCancelled {
-            let elapsed = Date().timeIntervalSince(startTime)
+            let now = Date()
+            let delta = now.timeIntervalSince(lastUpdateTime)
+            lastUpdateTime = now
             
-            // 使用用户设置的频率
             let frequency = breathingRate.frequency
-            let rawSin = sin(elapsed * frequency)
+            accumulatedPhase += delta * frequency
+            
+            let rawSin = sin(accumulatedPhase)
             let smoothPhase = pow((rawSin + 1.0) / 2.0, 2.5) * 2.0 - 1.0
-            let subtleWave = sin(elapsed * 2.0) * 0.05
+   
+            let subtleWave = sin(accumulatedPhase * 2.5) * 0.05
             
             // 使用用户设置的强度
             let amplitude = breathingIntensity.amplitude
             let baseOpacity = breathingIntensity.baseOpacity
             let newIntensity = baseOpacity + (amplitude * (smoothPhase * 0.9 + subtleWave * 0.1))
             
-            if abs(intensity - newIntensity) > 0.005 || abs(phase - smoothPhase) > 0.01 {
+            if abs(intensity - newIntensity) > 0.002 || abs(phase - smoothPhase) > 0.005 {
                 phase = smoothPhase
                 intensity = newIntensity
             }
