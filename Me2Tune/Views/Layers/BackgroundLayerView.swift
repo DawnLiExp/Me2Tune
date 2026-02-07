@@ -41,11 +41,7 @@ struct BackgroundLayerView: View {
                 LegacyGlowView(albumGlowColor: albumGlowColor)
             case .meshGradient:
                 if #available(macOS 15.0, *) {
-                    MeshGradientGlowView(
-                        albumGlowColor: albumGlowColor,
-                        breathingRate: GlowBreathingRate(rawValue: breathingRate) ?? .medium,
-                        breathingIntensity: GlowBreathingIntensity(rawValue: breathingIntensity) ?? .medium
-                    )
+                    MeshGradientGlowView(albumGlowColor: albumGlowColor)
                 } else {
                     // Fallback to legacy for macOS < 15
                     LegacyGlowView(albumGlowColor: albumGlowColor)
@@ -228,8 +224,18 @@ private struct LegacyGlowView: View {
 @available(macOS 15.0, *)
 private struct MeshGradientGlowView: View {
     let albumGlowColor: Color
-    let breathingRate: GlowBreathingRate
-    let breathingIntensity: GlowBreathingIntensity
+    
+    // 直接从 AppStorage 读取，确保实时生效
+    @AppStorage("glowBreathingRate") private var breathingRateRaw = GlowBreathingRate.medium.rawValue
+    @AppStorage("glowBreathingIntensity") private var breathingIntensityRaw = GlowBreathingIntensity.medium.rawValue
+    
+    private var breathingRate: GlowBreathingRate {
+        GlowBreathingRate(rawValue: breathingRateRaw) ?? .medium
+    }
+    
+    private var breathingIntensity: GlowBreathingIntensity {
+        GlowBreathingIntensity(rawValue: breathingIntensityRaw) ?? .medium
+    }
     
     @State private var phase: Double = 0
     @State private var intensity: Double = 0.8
@@ -237,7 +243,7 @@ private struct MeshGradientGlowView: View {
     var body: some View {
         vinylGlowMesh
             .allowsHitTesting(false)
-            .task {
+            .task(id: "\(breathingRateRaw)-\(breathingIntensityRaw)") {
                 await startBreathingEffect()
             }
     }
