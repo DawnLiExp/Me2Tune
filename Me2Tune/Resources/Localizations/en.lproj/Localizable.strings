@@ -111,6 +111,19 @@
 "glow_mode_legacy" = "Classic";
 "glow_mode_mesh" = "Dynamic (macOS 15+)";
 
+// MARK: - Settings - Dynamic Glow Parameters
+"glow_breathing_rate" = "Breathing Rate";
+"glow_breathing_intensity" = "Breathing Intensity";
+"glow_rate_very_slow" = "Very Slow";
+"glow_rate_slow" = "Slow";
+"glow_rate_medium" = "Medium";
+"glow_rate_fast" = "Fast";
+"glow_rate_very_fast" = "Very Fast";
+"glow_intensity_gentle" = "Gentle";
+"glow_intensity_medium" = "Medium";
+"glow_intensity_strong" = "Strong";
+"glow_params_footer" = "Adjust the speed and intensity of the dynamic glow animation (macOS 15+ only)";
+
 // MARK: - ControlSection
 "Switch to Mini Mode" = "Switch to Mini Mode";
 "Repeat: Off" = "Repeat: Off";

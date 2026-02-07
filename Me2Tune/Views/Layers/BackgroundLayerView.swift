@@ -12,6 +12,8 @@ struct BackgroundLayerView: View {
     
     @AppStorage("CleanMode") private var cleanMode = false
     @AppStorage("backgroundGlowMode") private var glowMode = BackgroundGlowMode.legacy.rawValue
+    @AppStorage("glowBreathingRate") private var breathingRate = GlowBreathingRate.medium.rawValue
+    @AppStorage("glowBreathingIntensity") private var breathingIntensity = GlowBreathingIntensity.medium.rawValue
     
     var body: some View {
         ZStack {
@@ -39,7 +41,11 @@ struct BackgroundLayerView: View {
                 LegacyGlowView(albumGlowColor: albumGlowColor)
             case .meshGradient:
                 if #available(macOS 15.0, *) {
-                    MeshGradientGlowView(albumGlowColor: albumGlowColor)
+                    MeshGradientGlowView(
+                        albumGlowColor: albumGlowColor,
+                        breathingRate: GlowBreathingRate(rawValue: breathingRate) ?? .medium,
+                        breathingIntensity: GlowBreathingIntensity(rawValue: breathingIntensity) ?? .medium
+                    )
                 } else {
                     // Fallback to legacy for macOS < 15
                     LegacyGlowView(albumGlowColor: albumGlowColor)
@@ -67,6 +73,84 @@ enum BackgroundGlowMode: String, CaseIterable, Identifiable {
             return "glow_mode_legacy"
         case .meshGradient:
             return "glow_mode_mesh"
+        }
+    }
+}
+
+// MARK: - Glow Breathing Rate
+
+enum GlowBreathingRate: String, CaseIterable, Identifiable {
+    case verySlow
+    case slow
+    case medium
+    case fast
+    case veryFast
+    
+    var id: String {
+        rawValue
+    }
+    
+    var displayName: LocalizedStringKey {
+        switch self {
+        case .verySlow:
+            return "glow_rate_very_slow"
+        case .slow:
+            return "glow_rate_slow"
+        case .medium:
+            return "glow_rate_medium"
+        case .fast:
+            return "glow_rate_fast"
+        case .veryFast:
+            return "glow_rate_very_fast"
+        }
+    }
+    
+    var frequency: Double {
+        switch self {
+        case .verySlow: return 0.4
+        case .slow: return 0.6
+        case .medium: return 0.785
+        case .fast: return 1.0
+        case .veryFast: return 1.3
+        }
+    }
+}
+
+// MARK: - Glow Breathing Intensity
+
+enum GlowBreathingIntensity: String, CaseIterable, Identifiable {
+    case gentle
+    case medium
+    case strong
+    
+    var id: String {
+        rawValue
+    }
+    
+    var displayName: LocalizedStringKey {
+        switch self {
+        case .gentle:
+            return "glow_intensity_gentle"
+        case .medium:
+            return "glow_intensity_medium"
+        case .strong:
+            return "glow_intensity_strong"
+        }
+    }
+    
+    var amplitude: Double {
+        switch self {
+        case .gentle: return 0.06
+        case .medium: return 0.12
+        case .strong: return 0.20
+        }
+    }
+    
+    var baseOpacity: Double {
+        switch self {
+        case .gentle: return 0.75
+        case .medium: return 0.72
+        case .strong: return 0.70
         }
     }
 }
@@ -144,6 +228,8 @@ private struct LegacyGlowView: View {
 @available(macOS 15.0, *)
 private struct MeshGradientGlowView: View {
     let albumGlowColor: Color
+    let breathingRate: GlowBreathingRate
+    let breathingIntensity: GlowBreathingIntensity
     
     @State private var phase: Double = 0
     @State private var intensity: Double = 0.8
@@ -178,12 +264,16 @@ private struct MeshGradientGlowView: View {
         while !Task.isCancelled {
             let elapsed = Date().timeIntervalSince(startTime)
             
-            let frequency = 0.785
+            // 使用用户设置的频率
+            let frequency = breathingRate.frequency
             let rawSin = sin(elapsed * frequency)
             let smoothPhase = pow((rawSin + 1.0) / 2.0, 2.5) * 2.0 - 1.0
             let subtleWave = sin(elapsed * 2.0) * 0.05
             
-            let newIntensity = 0.72 + (0.12 * (smoothPhase * 0.9 + subtleWave * 0.1))
+            // 使用用户设置的强度
+            let amplitude = breathingIntensity.amplitude
+            let baseOpacity = breathingIntensity.baseOpacity
+            let newIntensity = baseOpacity + (amplitude * (smoothPhase * 0.9 + subtleWave * 0.1))
             
             if abs(intensity - newIntensity) > 0.005 || abs(phase - smoothPhase) > 0.01 {
                 phase = smoothPhase
@@ -227,7 +317,7 @@ private struct MeshGradientGlowView: View {
     
     private var meshColors: [Color] {
         let normalizedPhase = (phase + 1.0) / 2.0
-        let pulse = normalizedPhase * 0.12
+        let pulse = normalizedPhase * breathingIntensity.amplitude
         
         return [
             // Row 0

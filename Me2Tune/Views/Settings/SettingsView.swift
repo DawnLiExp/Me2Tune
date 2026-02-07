@@ -8,11 +8,10 @@
 import SwiftUI
 
 struct SettingsView: View {
-    // ✅ 改为 @State 存储当前值，移除 @ObservedObject（主题/语言切换需重启）
     @State private var currentTheme = ThemeManager.shared.themeMode
     @State private var currentLanguage = LanguageManager.shared.currentLanguage
     
-    // ✅ CacheConfigManager 保留 @ObservedObject（需要响应路径验证状态）
+    // CacheConfigManager 保留 @ObservedObject(需要响应路径验证状态)
     @ObservedObject private var cacheManager = CacheConfigManager.shared
     
     @State private var showLanguageChangeAlert = false
@@ -25,6 +24,8 @@ struct SettingsView: View {
     @AppStorage("nowPlayingEnabled") private var nowPlayingEnabled = true
     @AppStorage("audioBufferingEnabled") private var audioBufferingEnabled = false
     @AppStorage("backgroundGlowMode") private var backgroundGlowMode = BackgroundGlowMode.legacy.rawValue
+    @AppStorage("glowBreathingRate") private var glowBreathingRate = GlowBreathingRate.medium.rawValue
+    @AppStorage("glowBreathingIntensity") private var glowBreathingIntensity = GlowBreathingIntensity.medium.rawValue
 
     var body: some View {
         VStack(spacing: 0) {
@@ -310,6 +311,65 @@ struct SettingsView: View {
                 .labelsHidden()
                 .pickerStyle(.menu)
                 .frame(width: 140)
+            }
+            
+            // 动态光晕参数(仅在 meshGradient 模式下显示)
+            if backgroundGlowMode == BackgroundGlowMode.meshGradient.rawValue {
+                Divider()
+                    .padding(.leading, 32)
+                
+                // 呼吸节奏
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "speedometer")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                            .frame(width: 20)
+                        
+                        Text("glow_breathing_rate")
+                            .font(.system(size: 13))
+                        
+                        Spacer()
+                    }
+                    
+                    Picker("", selection: $glowBreathingRate) {
+                        ForEach(GlowBreathingRate.allCases) { rate in
+                            Text(rate.displayName).tag(rate.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .padding(.leading, 32)
+                }
+                
+                // 呼吸强度
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "waveform")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                            .frame(width: 20)
+                        
+                        Text("glow_breathing_intensity")
+                            .font(.system(size: 13))
+                        
+                        Spacer()
+                    }
+                    
+                    Picker("", selection: $glowBreathingIntensity) {
+                        ForEach(GlowBreathingIntensity.allCases) { intensity in
+                            Text(intensity.displayName).tag(intensity.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .padding(.leading, 32)
+                }
+                
+                Text("glow_params_footer")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .padding(.leading, 32)
             }
             
             Divider()
