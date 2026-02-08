@@ -37,8 +37,6 @@ final class NowPlayingService {
         duration: TimeInterval,
         isPlaying: Bool
     ) {
-        guard isEnabled else { return }
-        
         logger.debug("📻 Updating Now Playing Info")
         var nowPlayingInfo: [String: Any] = [:]
         

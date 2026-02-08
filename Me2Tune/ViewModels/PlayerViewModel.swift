@@ -587,7 +587,6 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
         self.duration = track.duration
         
         RemoteCommandController.shared.enable()
-        updateNowPlayingInfo()
     }
     
     func playerCore(_ core: AudioPlayerCore, didEncounterError error: Error) {
