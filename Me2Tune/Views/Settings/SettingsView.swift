@@ -36,7 +36,7 @@ struct SettingsView: View {
             tabContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(width: 500, height: 350)
+        .frame(width: 500, height: 340)
         .background(Color(NSColor.windowBackgroundColor))
         .alert("language_change_title", isPresented: $showLanguageChangeAlert) {
             Button("restart_now") {
@@ -140,17 +140,17 @@ struct SettingsView: View {
     // MARK: - Features Settings
     
     private var featuresSettings: some View {
-        VStack(spacing: 20) {
-            // 缓存设置
+        VStack(spacing: 24) {
+            // 缓存设置组
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
                     Image(systemName: "folder.badge.gearshape")
-                        .font(.system(size: 14))
+                        .font(.system(size: 13))
                         .foregroundColor(.secondary)
                         .frame(width: 20)
                     
                     Text("cache_location")
-                        .font(.system(size: 13))
+                        .font(.system(size: 12))
                     
                     Spacer()
                 }
@@ -190,7 +190,7 @@ struct SettingsView: View {
                         Button(action: selectCacheDirectory) {
                             HStack(spacing: 6) {
                                 Image(systemName: "folder.badge.plus")
-                                    .font(.system(size: 11))
+                                    .font(.system(size: 12))
                                 Text("select_directory")
                                     .font(.system(size: 12))
                             }
@@ -215,7 +215,7 @@ struct SettingsView: View {
                                     Image(systemName: "arrow.counterclockwise")
                                         .font(.system(size: 11))
                                     Text("reset_default")
-                                        .font(.system(size: 12))
+                                        .font(.system(size: 11))
                                 }
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
@@ -237,20 +237,23 @@ struct SettingsView: View {
             
             Divider()
             
-            // 音频缓冲
-            settingRow(icon: "waveform.circle", label: "audio_buffering", helpText: "audio_buffering_footer") {
-                Toggle("", isOn: $audioBufferingEnabled)
-                    .toggleStyle(.switch)
-                    .labelsHidden()
-                    .controlSize(.small)
-            }
-            
-            // Now Playing 同步
-            settingRow(icon: "music.note.list", label: "now_playing_sync", helpText: "now_playing_sync_footer") {
-                Toggle("", isOn: $nowPlayingEnabled)
-                    .toggleStyle(.switch)
-                    .labelsHidden()
-                    .controlSize(.small)
+            // 播放功能设置组
+            VStack(spacing: 16) {
+                // 音频缓冲
+                settingRow(icon: "waveform.circle", label: "audio_buffering", helpText: "audio_buffering_footer") {
+                    Toggle("", isOn: $audioBufferingEnabled)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                        .controlSize(.small)
+                }
+                
+                // Now Playing 同步
+                settingRow(icon: "music.note.list", label: "now_playing_sync", helpText: "now_playing_sync_footer") {
+                    Toggle("", isOn: $nowPlayingEnabled)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                        .controlSize(.small)
+                }
             }
         }
     }
@@ -258,97 +261,90 @@ struct SettingsView: View {
     // MARK: - Appearance Settings
 
     private var appearanceSettings: some View {
-        VStack(spacing: 16) {
-            // 语言设置
-            settingRow(icon: "globe", label: "settings_language_label") {
-                Picker("", selection: $currentLanguage) {
-                    ForEach(LanguageManager.AppLanguage.allCases) { language in
-                        Text(language.displayName).tag(language)
+        VStack(spacing: 24) {
+            // 🅰️ 组：语言 + 主题
+            VStack(spacing: 16) {
+                // 语言设置
+                settingRow(icon: "globe", label: "settings_language_label") {
+                    Picker("", selection: $currentLanguage) {
+                        ForEach(LanguageManager.AppLanguage.allCases) { language in
+                            Text(language.displayName).tag(language)
+                        }
                     }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .frame(width: 140)
-                .onChange(of: currentLanguage) { _, newLanguage in
-                    if newLanguage != LanguageManager.shared.currentLanguage {
-                        pendingLanguage = newLanguage
-                        showLanguageChangeAlert = true
-                    }
-                }
-            }
-            
-            Divider()
-                .padding(.leading, 32)
-            
-            // 主题设置
-            settingRow(icon: "paintpalette", label: "settings_theme_label", helpText: "settings_theme_footer") {
-                Picker("", selection: $currentTheme) {
-                    ForEach(ThemeManager.ThemeMode.allCases) { mode in
-                        Text(mode.displayName).tag(mode)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .frame(width: 140)
-                .onChange(of: currentTheme) { _, newMode in
-                    if newMode != ThemeManager.shared.themeMode {
-                        pendingTheme = newMode
-                        showThemeChangeAlert = true
-                    }
-                }
-            }
-            
-            Divider()
-                .padding(.leading, 32)
-            
-            // 光晕模式
-            settingRow(icon: "wand.and.stars", label: "settings_glow_mode", helpText: "settings_glow_mode_footer") {
-                Picker("", selection: $backgroundGlowMode) {
-                    ForEach(BackgroundGlowMode.allCases) { mode in
-                        Text(mode.displayName).tag(mode.rawValue)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .frame(width: 140)
-            }
-            
-            // 动态光晕参数(仅在 meshGradient 模式下显示)
-            if backgroundGlowMode == BackgroundGlowMode.meshGradient.rawValue {
-                Divider()
-                    .padding(.leading, 32)
-                
-                // 呼吸节奏
-                settingRow(icon: "speedometer", label: "glow_breathing_rate") {
-                    TickedSlider<GlowBreathingRate>(
-                        selection: $glowBreathingRate,
-                        leftLabel: "glow_rate_slow_short",
-                        rightLabel: "glow_rate_fast_short"
-                    )
-                }
-                
-                Divider()
-                    .padding(.leading, 32)
-                
-                // 呼吸强度
-                settingRow(icon: "waveform", label: "glow_breathing_intensity") {
-                    TickedSlider<GlowBreathingIntensity>(
-                        selection: $glowBreathingIntensity,
-                        leftLabel: "glow_intensity_weak_short",
-                        rightLabel: "glow_intensity_strong_short"
-                    )
-                }
-            }
-            
-            Divider()
-                .padding(.leading, 32)
-            
-            // 简洁模式
-            settingRow(icon: "sparkles", label: "settings_clean_mode", helpText: "settings_clean_mode_footer") {
-                Toggle("", isOn: $cleanMode)
-                    .toggleStyle(.switch)
                     .labelsHidden()
-                    .controlSize(.small)
+                    .pickerStyle(.menu)
+                    .frame(width: 140)
+                    .onChange(of: currentLanguage) { _, newLanguage in
+                        if newLanguage != LanguageManager.shared.currentLanguage {
+                            pendingLanguage = newLanguage
+                            showLanguageChangeAlert = true
+                        }
+                    }
+                }
+                
+                // 主题设置
+                settingRow(icon: "paintpalette", label: "settings_theme_label", helpText: "settings_theme_footer") {
+                    Picker("", selection: $currentTheme) {
+                        ForEach(ThemeManager.ThemeMode.allCases) { mode in
+                            Text(mode.displayName).tag(mode)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .frame(width: 140)
+                    .onChange(of: currentTheme) { _, newMode in
+                        if newMode != ThemeManager.shared.themeMode {
+                            pendingTheme = newMode
+                            showThemeChangeAlert = true
+                        }
+                    }
+                }
+            }
+            
+            Divider()
+            
+            // 🅱️ 组：光晕设置
+            VStack(spacing: 16) {
+                // 光晕模式
+                settingRow(icon: "wand.and.stars", label: "settings_glow_mode", helpText: "settings_glow_mode_footer") {
+                    Picker("", selection: $backgroundGlowMode) {
+                        ForEach(BackgroundGlowMode.allCases) { mode in
+                            Text(mode.displayName).tag(mode.rawValue)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .frame(width: 140)
+                }
+                
+                // 动态光晕参数(仅在 meshGradient 模式下显示)
+                if backgroundGlowMode == BackgroundGlowMode.meshGradient.rawValue {
+                    // 呼吸节奏
+                    settingRow(icon: "speedometer", label: "glow_breathing_rate") {
+                        TickedSlider<GlowBreathingRate>(
+                            selection: $glowBreathingRate,
+                            leftLabel: "glow_rate_slow_short",
+                            rightLabel: "glow_rate_fast_short"
+                        )
+                    }
+                    
+                    // 呼吸强度
+                    settingRow(icon: "waveform", label: "glow_breathing_intensity") {
+                        TickedSlider<GlowBreathingIntensity>(
+                            selection: $glowBreathingIntensity,
+                            leftLabel: "glow_intensity_weak_short",
+                            rightLabel: "glow_intensity_strong_short"
+                        )
+                    }
+                }
+                
+                // 简洁模式
+                settingRow(icon: "sparkles", label: "settings_clean_mode", helpText: "settings_clean_mode_footer") {
+                    Toggle("", isOn: $cleanMode)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                        .controlSize(.small)
+                }
             }
         }
     }
@@ -429,9 +425,9 @@ struct SettingsView: View {
             
             HStack(spacing: 4) {
                 Text(label)
-                    .font(.system(size: 12)) // Reduced font size (Point 4)
-                    .lineLimit(1) // Prevent wrapping (Point 2)
-                    .fixedSize(horizontal: true, vertical: false) // Ensure it doesn't truncate early (Point 1)
+                    .font(.system(size: 13))
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
                 
                 if let helpText {
                     Image(systemName: "questionmark.circle")
@@ -440,9 +436,9 @@ struct SettingsView: View {
                         .help(Text(helpText))
                 }
             }
-            .layoutPriority(1) // Give label priority over Spacer
+            .layoutPriority(1)
             
-            Spacer(minLength: 20) // Ensure a minimum gap (Point 3)
+            Spacer(minLength: 20)
             
             content()
         }
