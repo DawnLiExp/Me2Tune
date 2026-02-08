@@ -114,15 +114,11 @@
 // MARK: - Settings - Dynamic Glow Parameters
 "glow_breathing_rate" = "呼吸节奏";
 "glow_breathing_intensity" = "呼吸强度";
-"glow_rate_very_slow" = "很慢";
-"glow_rate_slow" = "稍慢";
-"glow_rate_medium" = "适中";
-"glow_rate_fast" = "稍快";
-"glow_rate_very_fast" = "很快";
-"glow_intensity_gentle" = "轻柔";
-"glow_intensity_medium" = "适中";
-"glow_intensity_strong" = "强烈";
-"glow_params_footer" = "调整动态光晕动画的速度和强度(仅 macOS 15+)";
+"glow_rate_slow_short" = "慢";
+"glow_rate_fast_short" = "快";
+"glow_intensity_weak_short" = "弱";
+"glow_intensity_strong_short" = "强";
+
 
 // MARK: - 设置 - 播放控制
 "Switch to Mini Mode" = "切换到迷你模式";

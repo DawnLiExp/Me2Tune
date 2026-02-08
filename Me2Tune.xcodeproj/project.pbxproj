@@ -17,6 +17,7 @@
 		FC2032F72F08E8F700D17FEE /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC2032F62F08E8F500D17FEE /* Theme.swift */; };
 		FC2032FB2F08E91400D17FEE /* DarkTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC2032FA2F08E91300D17FEE /* DarkTheme.swift */; };
 		FC2033012F08E96C00D17FEE /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC2033002F08E96A00D17FEE /* ThemeManager.swift */; };
+		FC2BD7592F385AD800ABBBC1 /* TickedSlider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC2BD7582F385AD800ABBBC1 /* TickedSlider.swift */; };
 		FC31BA492F08323A00786380 /* PlaylistManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC31BA482F08323800786380 /* PlaylistManager.swift */; };
 		FC32865D2F010F3D000D8F2A /* PlayerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC32865C2F010F3B000D8F2A /* PlayerViewModel.swift */; };
 		FC32865F2F011243000D8F2A /* AudioPlayerCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC32865E2F011242000D8F2A /* AudioPlayerCore.swift */; };
@@ -84,6 +85,7 @@
 		FC2032F62F08E8F500D17FEE /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		FC2032FA2F08E91300D17FEE /* DarkTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DarkTheme.swift; sourceTree = "<group>"; };
 		FC2033002F08E96A00D17FEE /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
+		FC2BD7582F385AD800ABBBC1 /* TickedSlider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TickedSlider.swift; sourceTree = "<group>"; };
 		FC31BA482F08323800786380 /* PlaylistManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistManager.swift; sourceTree = "<group>"; };
 		FC32865C2F010F3B000D8F2A /* PlayerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerViewModel.swift; sourceTree = "<group>"; };
 		FC32865E2F011242000D8F2A /* AudioPlayerCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerCore.swift; sourceTree = "<group>"; };
@@ -202,6 +204,14 @@
 				FCDDF5AF2F14DADE003AFB85 /* SlateBlueTheme.swift */,
 			);
 			path = Themes;
+			sourceTree = "<group>";
+		};
+		FC2BD75A2F385B1A00ABBBC1 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				FC2BD7582F385AD800ABBBC1 /* TickedSlider.swift */,
+			);
+			path = Components;
 			sourceTree = "<group>";
 		};
 		FC32865B2F010F0F000D8F2A /* ViewModels */ = {
@@ -412,6 +422,7 @@
 		FCCAAFBB2F1284BA00DF5D71 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				FC2BD75A2F385B1A00ABBBC1 /* Components */,
 				FCCAAFBC2F1284C500DF5D71 /* SettingsView.swift */,
 			);
 			path = Settings;
@@ -504,6 +515,7 @@
 				FC50C73E2F06587100597B19 /* CollapseButtonView.swift in Sources */,
 				FC50C7442F0658AE00597B19 /* TopBarSectionView.swift in Sources */,
 				FCF558CE2F261A9300E7DC2A /* RotatingVinylLayer.swift in Sources */,
+				FC2BD7592F385AD800ABBBC1 /* TickedSlider.swift in Sources */,
 				FC3E2B042F08BF1700F59E4B /* PlaybackStateManager.swift in Sources */,
 				FC480EC42EF152BC000D8393 /* AudioTrack.swift in Sources */,
 				FC32865D2F010F3D000D8F2A /* PlayerViewModel.swift in Sources */,

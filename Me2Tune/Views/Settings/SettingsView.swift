@@ -319,57 +319,25 @@ struct SettingsView: View {
                     .padding(.leading, 32)
                 
                 // 呼吸节奏
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "speedometer")
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
-                            .frame(width: 20)
-                        
-                        Text("glow_breathing_rate")
-                            .font(.system(size: 13))
-                        
-                        Spacer()
-                    }
-                    
-                    Picker("", selection: $glowBreathingRate) {
-                        ForEach(GlowBreathingRate.allCases) { rate in
-                            Text(rate.displayName).tag(rate.rawValue)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .padding(.leading, 32)
+                settingRow(icon: "speedometer", label: "glow_breathing_rate") {
+                    TickedSlider<GlowBreathingRate>(
+                        selection: $glowBreathingRate,
+                        leftLabel: "glow_rate_slow_short",
+                        rightLabel: "glow_rate_fast_short"
+                    )
                 }
+                
+                Divider()
+                    .padding(.leading, 32)
                 
                 // 呼吸强度
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "waveform")
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
-                            .frame(width: 20)
-                        
-                        Text("glow_breathing_intensity")
-                            .font(.system(size: 13))
-                        
-                        Spacer()
-                    }
-                    
-                    Picker("", selection: $glowBreathingIntensity) {
-                        ForEach(GlowBreathingIntensity.allCases) { intensity in
-                            Text(intensity.displayName).tag(intensity.rawValue)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .padding(.leading, 32)
+                settingRow(icon: "waveform", label: "glow_breathing_intensity") {
+                    TickedSlider<GlowBreathingIntensity>(
+                        selection: $glowBreathingIntensity,
+                        leftLabel: "glow_intensity_weak_short",
+                        rightLabel: "glow_intensity_strong_short"
+                    )
                 }
-                
-                Text("glow_params_footer")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-                    .padding(.leading, 32)
             }
             
             Divider()
@@ -461,7 +429,9 @@ struct SettingsView: View {
             
             HStack(spacing: 4) {
                 Text(label)
-                    .font(.system(size: 13))
+                    .font(.system(size: 12)) // Reduced font size (Point 4)
+                    .lineLimit(1) // Prevent wrapping (Point 2)
+                    .fixedSize(horizontal: true, vertical: false) // Ensure it doesn't truncate early (Point 1)
                 
                 if let helpText {
                     Image(systemName: "questionmark.circle")
@@ -470,8 +440,9 @@ struct SettingsView: View {
                         .help(Text(helpText))
                 }
             }
+            .layoutPriority(1) // Give label priority over Spacer
             
-            Spacer()
+            Spacer(minLength: 20) // Ensure a minimum gap (Point 3)
             
             content()
         }
