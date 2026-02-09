@@ -6,7 +6,7 @@
 //
 
 import AppKit
-import Combine
+
 import Foundation
 import MediaPlayer
 import OSLog
@@ -19,7 +19,7 @@ final class NowPlayingService {
     
     // MARK: - Private Properties
     
-    private var updateTimerCancellable: AnyCancellable?
+    private var updateTimerTask: Task<Void, Never>?
     private var currentTimeProvider: (() -> TimeInterval)?
     
     private var isEnabled: Bool {
@@ -124,8 +124,8 @@ final class NowPlayingService {
     }
     
     func stopUpdateTimer() {
-        updateTimerCancellable?.cancel()
-        updateTimerCancellable = nil
+        updateTimerTask?.cancel()
+        updateTimerTask = nil
     }
     
     // MARK: - Private Methods
@@ -133,13 +133,15 @@ final class NowPlayingService {
     private func startUpdateTimer() {
         stopUpdateTimer()
         
-        updateTimerCancellable = Timer.publish(every: 5.0, on: .main, in: .common)
-            .autoconnect()
-            .sink { [weak self] _ in
-                guard let self,
-                      let provider = self.currentTimeProvider
-                else { return }
-                self.updatePlaybackTime(currentTime: provider())
+        updateTimerTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(5), clock: .continuous)
+                if Task.isCancelled { break }
+                
+                if let self, let provider = self.currentTimeProvider {
+                    self.updatePlaybackTime(currentTime: provider())
+                }
             }
+        }
     }
 }

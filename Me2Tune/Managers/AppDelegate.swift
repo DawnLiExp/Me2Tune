@@ -6,7 +6,7 @@
 //
 
 import AppKit
-import Combine
+
 import OSLog
 import SwiftUI
 
@@ -17,7 +17,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var windowDelegate: WindowInterceptor?
     private var miniWindowController: MiniWindowController?
     
-    private var displayModeCancellable: AnyCancellable?
     private var commandWMonitor: Any?
     
     weak var fullModeWindow: NSWindow?
@@ -152,8 +151,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Cleanup
     
     private func cleanup() {
-        displayModeCancellable?.cancel()
-        displayModeCancellable = nil
+        displayModeTask?.cancel()
+        displayModeTask = nil
         
         if let monitor = commandWMonitor {
             NSEvent.removeMonitor(monitor)
@@ -179,12 +178,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     
     // MARK: - Display Mode Management
     
+    private var displayModeTask: Task<Void, Never>?
+    
     private func setupDisplayModeObserver() {
-        displayModeCancellable = NotificationCenter.default
-            .publisher(for: UserDefaults.didChangeNotification)
-            .sink { [weak self] _ in
+        displayModeTask?.cancel()
+        displayModeTask = Task { @MainActor [weak self] in
+            for await _ in NotificationCenter.default.notifications(named: UserDefaults.didChangeNotification) {
                 self?.handleDisplayModeChange()
             }
+        }
     }
     
     /// ✅ 改进模式切换逻辑，避免重复切换
@@ -267,7 +269,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// ✅ 优化：更简洁的 Command+W 处理逻辑
     private func setupCommandWHandler() {
         commandWMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self = self, event.modifierFlags.contains(.command) else { return event }
+            guard let self, event.modifierFlags.contains(.command) else { return event }
             
             // 只处理 Command+W 组合 (keyCode 13 = 'w')
             guard event.keyCode == 13 || event.charactersIgnoringModifiers == "w" else { return event }

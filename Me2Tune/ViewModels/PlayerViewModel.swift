@@ -6,7 +6,7 @@
 //
 
 import AppKit
-import Combine
+
 import Foundation
 import Observation
 import OSLog
@@ -58,8 +58,8 @@ final class PlayerViewModel {
     @ObservationIgnored private let playerCore: AudioPlayerCore
     @ObservationIgnored private let persistenceService = PersistenceService.shared
     
-    @ObservationIgnored private var cancellables = Set<AnyCancellable>()
-    @ObservationIgnored private var stateSaveTimer: DispatchSourceTimer?
+    @ObservationIgnored private var observerTask: Task<Void, Never>?
+    @ObservationIgnored private var stateSaveTask: Task<Void, Never>?
     @ObservationIgnored private var pendingSaveTask: Task<Void, Never>?
     @ObservationIgnored private var volumeUpdateTask: Task<Void, Never>?
     
@@ -129,26 +129,26 @@ final class PlayerViewModel {
     }
     
     deinit {
-        stateSaveTimer?.cancel()
-        stateSaveTimer = nil
+        stateSaveTask?.cancel()
+        observerTask?.cancel()
         pendingSaveTask?.cancel()
-        pendingSaveTask = nil
         volumeUpdateTask?.cancel()
-        volumeUpdateTask = nil
     }
 
     // MARK: - Setup
     
+    // MARK: - Setup
+    
     private func setupNotificationObservers() {
-        NotificationCenter.default.publisher(for: .windowVisibilityDidChange)
-            .receive(on: RunLoop.main)
-            .sink { [weak self] notification in
+        observerTask?.cancel()
+        observerTask = Task { [weak self] in
+            for await notification in NotificationCenter.default.notifications(named: .windowVisibilityDidChange) {
                 guard let self,
                       let state = notification.object as? WindowStateMonitor.WindowVisibilityState
-                else { return }
+                else { continue }
                 self.playerCore.updateVisibilityState(state)
             }
-            .store(in: &cancellables)
+        }
     }
     
     private func scheduleVolumeUpdate(_ newVolume: Double) {
@@ -526,20 +526,21 @@ final class PlayerViewModel {
     private func startStateSaveTimer() {
         stopStateSaveTimer()
         
-        let timer = DispatchSource.makeTimerSource(queue: .main)
-        timer.schedule(deadline: .now() + 5.0, repeating: 5.0, leeway: .seconds(1))
-        timer.setEventHandler { [weak self] in
-            guard let self, self.isPlaying else { return }
-            self.saveState()
+        stateSaveTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(5), clock: .continuous)
+                if Task.isCancelled { break }
+                
+                guard let self, self.isPlaying else { break }
+                self.saveState()
+            }
         }
-        timer.resume()
-        stateSaveTimer = timer
         logger.debug("💾 State save timer started")
     }
     
     private func stopStateSaveTimer() {
-        stateSaveTimer?.cancel()
-        stateSaveTimer = nil
+        stateSaveTask?.cancel()
+        stateSaveTask = nil
     }
  
     private func restorePlaybackState() async {
