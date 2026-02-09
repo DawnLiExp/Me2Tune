@@ -157,7 +157,7 @@ final class PlayerViewModel {
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
             self.playerCore.setVolume(newVolume)
-            self.saveVolume(newVolume)
+            self.scheduleStateSave()
         }
     }
     
@@ -521,8 +521,6 @@ final class PlayerViewModel {
         }
     }
     
-    private func saveVolume(_ volume: Double) {}
-    
     private func startStateSaveTimer() {
         stopStateSaveTimer()
         
@@ -551,6 +549,7 @@ final class PlayerViewModel {
         
         if let savedVolume = restored.volume {
             volume = savedVolume
+            playerCore.setVolume(savedVolume)
             logger.debug("🔊 Restored volume: \(String(format: "%.0f", savedVolume * 100))%")
         }
         
