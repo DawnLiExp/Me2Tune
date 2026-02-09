@@ -12,7 +12,7 @@ struct Lyrics: Codable, Sendable {
     let trackName: String
     let artistName: String
     let albumName: String?
-    let duration: Int
+    let duration: Double
     let instrumental: Bool
     let plainLyrics: String?
     let syncedLyrics: String?

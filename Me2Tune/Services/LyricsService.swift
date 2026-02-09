@@ -150,12 +150,33 @@ actor LyricsService {
             }
         }
         
-        // 第三次尝试：使用搜索 API
+        // 第三次尝试：忽略专辑名
+        if !album.isEmpty {
+            logger.info("🔄 Retrying without album name")
+            do {
+                let lyrics = try await getLyrics(
+                    trackName: track.title,
+                    artistName: artist,
+                    albumName: "",
+                    duration: duration
+                )
+                logger.info("✅ No-album match success")
+                return lyrics
+            } catch LyricsError.notFound {
+                logger.info("⚠️ No-album match failed (404)")
+            } catch is DecodingError {
+                logger.warning("⚠️ No-album match decode error")
+            } catch {
+                logger.error("❌ No-album match error: \(error.localizedDescription)")
+            }
+        }
+        
+        // 第四次尝试：使用搜索 API
         logger.info("🔍 Falling back to search API")
         do {
             return try await searchLyrics(track: track)
         } catch is DecodingError {
-            logger.error("❌ All attempts failed with decode errors - API may be returning truncated data")
+            logger.error("❌ All attempts failed with decode errors - API may be returning problematic data")
             throw LyricsError.invalidResponse
         } catch {
             logger.error("❌ Search API failed: \(error.localizedDescription)")
@@ -180,7 +201,7 @@ actor LyricsService {
         }
         
         // 2. 移除常见后缀：- EP, - Single, - Deluxe 等
-        let suffixPattern = "\\s*-\\s*(EP|Single|Deluxe|Remastered|Deluxe Edition|Bonus Track Version|Live|Acoustic)\\s*$"
+        let suffixPattern = "\\s*-\\s*(EP|Single|Deluxe|Remastered|Deluxe Edition|Bonus Track Version|Live|Acoustic|CD \\d+)\\s*$"
         if let regex = try? NSRegularExpression(pattern: suffixPattern, options: .caseInsensitive) {
             let range = NSRange(normalized.startIndex..., in: normalized)
             normalized = regex.stringByReplacingMatches(
@@ -204,12 +225,17 @@ actor LyricsService {
         try Task.checkCancellation()
         
         var components = URLComponents(string: "\(baseURL)/get")!
-        components.queryItems = [
+        var queryItems = [
             URLQueryItem(name: "track_name", value: trackName),
             URLQueryItem(name: "artist_name", value: artistName),
-            URLQueryItem(name: "album_name", value: albumName),
             URLQueryItem(name: "duration", value: String(duration))
         ]
+        
+        if !albumName.isEmpty {
+            queryItems.append(URLQueryItem(name: "album_name", value: albumName))
+        }
+        
+        components.queryItems = queryItems
         
         guard let url = components.url else {
             throw LyricsError.invalidURL
@@ -240,12 +266,12 @@ actor LyricsService {
         } catch let error as DecodingError {
             // DecodingError 详细诊断
             if let responseText = String(data: data, encoding: .utf8) {
-                let snippet = responseText.prefix(500) // 增加到 500 字符
-                logger.error("JSON decode failed: \(snippet)")
+                let snippet = responseText.prefix(2000)
+                logger.error("JSON decode failed: \(error.localizedDescription). Data snippet: \(snippet)")
                 
-                // 检查是否为明显的截断（以不完整的字符串或对象结尾）
+                // 检查是否为明显的截断
                 let trimmed = responseText.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !trimmed.hasSuffix("}") && !trimmed.hasSuffix("]") {
+                if !trimmed.hasSuffix("}"), !trimmed.hasSuffix("]") {
                     logger.warning("⚠️ Response appears truncated (size: \(data.count) bytes)")
                 }
             }
@@ -287,17 +313,20 @@ actor LyricsService {
         }
         
         // 解析搜索结果数组
-        let decoder = JSONDecoder()
+        let targetDuration = Int(track.duration)
         let results: [Lyrics]
         do {
-            results = try decoder.decode([Lyrics].self, from: data)
+            results = try await MainActor.run {
+                let decoder = JSONDecoder()
+                return try decoder.decode([Lyrics].self, from: data)
+            }
         } catch let error as DecodingError {
             if let responseText = String(data: data, encoding: .utf8) {
-                let snippet = responseText.prefix(500)
-                logger.error("Search JSON decode failed: \(snippet)")
+                let snippet = responseText.prefix(2000)
+                logger.error("Search JSON decode failed: \(error.localizedDescription). Data snippet: \(snippet)")
                 
                 let trimmed = responseText.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !trimmed.hasSuffix("}") && !trimmed.hasSuffix("]") {
+                if !trimmed.hasSuffix("}"), !trimmed.hasSuffix("]") {
                     logger.warning("⚠️ Search response truncated (size: \(data.count) bytes)")
                 }
             }
@@ -312,30 +341,44 @@ actor LyricsService {
             throw LyricsError.notFound
         }
         
-        // 选择最匹配的结果（基于时长相似度，±2 秒容差）
-        let targetDuration = Int(track.duration)
-        let matchingResults = results.filter { result in
-            abs(result.duration - targetDuration) <= 2
+        // 排序逻辑：
+        // 优先选择：时长最接近的结果。
+        // 如果时长一样，优先选择：艺术家完全正确（忽略大小写）的结果。
+        let sortedResults = results.sorted { a, b in
+            let diffA = abs(a.duration - Double(targetDuration))
+            let diffB = abs(b.duration - Double(targetDuration))
+            
+            if abs(diffA - diffB) < 0.1 {
+                // 如果时长差异极小，检查艺术家匹配度
+                let artistMatchA = a.artistName.lowercased() == artist.lowercased()
+                let artistMatchB = b.artistName.lowercased() == artist.lowercased()
+                if artistMatchA != artistMatchB {
+                    return artistMatchA
+                }
+            }
+            return diffA < diffB
         }
         
-        let bestMatch: Lyrics
-        if let durationMatch = matchingResults.first {
-            bestMatch = durationMatch
-            logger.info("✅ Duration match found: \(durationMatch.trackName) - \(durationMatch.albumName ?? "Unknown") (\(durationMatch.duration)s)")
+        let bestMatch = sortedResults[0]
+        let bestMatchDiff = abs(bestMatch.duration - Double(targetDuration))
+        
+        if bestMatchDiff <= 4 { // 允许 4 秒误差
+            logger.info("✅ Best match found: \(bestMatch.trackName) - \(bestMatch.albumName ?? "Unknown") (\(bestMatch.duration)s, diff: \(bestMatchDiff)s)")
+            return bestMatch
         } else {
-            bestMatch = results[0]
-            logger.warning("⚠️ No duration match (target: \(targetDuration)s), using first result: \(bestMatch.trackName) (\(bestMatch.duration)s)")
+            logger.warning("⚠️ No close duration match (target: \(targetDuration)s, best: \(bestMatch.duration)s), using most similar.")
+            return bestMatch
         }
-        
-        return bestMatch
     }
-}
 
-// MARK: - Decoding Helper
+    // MARK: - Decoding Helper
 
-private func decodeLyrics(from data: Data) throws -> Lyrics {
-    let decoder = JSONDecoder()
-    return try decoder.decode(Lyrics.self, from: data)
+    private func decodeLyrics(from data: Data) async throws -> Lyrics {
+        try await MainActor.run {
+            let decoder = JSONDecoder()
+            return try decoder.decode(Lyrics.self, from: data)
+        }
+    }
 }
 
 // MARK: - Error Types
