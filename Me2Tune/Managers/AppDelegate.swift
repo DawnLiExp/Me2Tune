@@ -21,7 +21,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     
     weak var fullModeWindow: NSWindow?
     weak var playerViewModel: PlayerViewModel?
-    weak var collectionManager: CollectionManager?
+    weak var collectionManager: CollectionManager? {
+        didSet {
+            if let manager = collectionManager {
+                // Ensure delayed load starts ONLY after manager is injected to prevent nil crashes
+                logger.debug("📥 CollectionManager injected, scheduling delayed load")
+                manager.scheduleDelayedLoad(delay: 1.5)
+            }
+        }
+    }
     
     // ✅ WindowStateMonitor 由 AppDelegate 持有，确保生命周期稳定
     var windowStateMonitor: WindowStateMonitor?
@@ -256,10 +264,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.tabbingMode = .disallowed
         
         // ✅ WindowStateMonitor 的 startMonitoring 在 Me2TuneApp 中调用
-        // 延迟加载专辑收藏
-        Task { @MainActor [weak collectionManager] in
-            collectionManager?.scheduleDelayedLoad(delay: 1.5)
-        }
         
         logger.debug("✅ Full mode window configured")
     }

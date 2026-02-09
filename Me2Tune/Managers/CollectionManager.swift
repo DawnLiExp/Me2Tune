@@ -33,9 +33,13 @@ final class CollectionManager {
     
     // MARK: - Lazy Loading
     
-    func scheduleDelayedLoad(delay: TimeInterval = 2.5) {
-        guard !isLoaded, delayedLoadTask == nil else { return }
+    func scheduleDelayedLoad(delay: TimeInterval = 1.5) {
+        guard !isLoaded, delayedLoadTask == nil else {
+            logger.debug("⏭️ scheduleDelayedLoad skipped: isLoaded=\(self.isLoaded), taskExists=\(self.delayedLoadTask != nil)")
+            return
+        }
         
+        logger.debug("⏱️ scheduleDelayedLoad called with delay: \(delay)s. Trigger: App launch/background.")
         delayedLoadTask = Task { @MainActor in
             do {
                 try await Task.sleep(for: .seconds(delay))
@@ -44,11 +48,11 @@ final class CollectionManager {
             }
             
             guard !Task.isCancelled else {
-                logger.debug("Delayed load cancelled")
+                logger.debug("⏰ Delayed load cancelled")
                 return
             }
             
-            logger.info("⏰ Starting delayed collection load")
+            logger.info("⏰ Starting delayed collection load after \(delay)s sleep")
             await loadCollections()
             
             self.isLoaded = true
@@ -56,13 +60,26 @@ final class CollectionManager {
         }
     }
     
+    /// Preload a single album without marking full load completion
+    func populateWithSingleAlbum(_ album: Album) {
+        guard !isLoaded else { return }
+        
+        if !albums.contains(where: { $0.id == album.id }) {
+            self.albums = [album]
+            logger.debug("📥 Pre-populated with single album: \(album.name)")
+        }
+    }
+    
     func ensureLoaded() async {
         guard !isLoaded else { return }
         
+        logger.info("⚡ ensureLoaded() called")
+        
         if let task = delayedLoadTask {
+            // Priority shift: Cancel pending delayed task when immediate load is requested (e.g. tab switch)
             task.cancel()
             delayedLoadTask = nil
-            logger.info("👆 User triggered, loading immediately")
+            logger.info("👆 User triggered (or visible), cancelling delayed task and loading immediately")
         }
         
         isLoading = true

@@ -293,6 +293,8 @@ final class PlaybackStateManager {
             currentTracks = album.tracks
             currentTrackIndex = albumIndex
             
+            collectionManager?.populateWithSingleAlbum(album)
+            
             logger.info("💿 Restored album: \(album.name) - track \(albumIndex + 1)")
             
             let restored = RestoredState(

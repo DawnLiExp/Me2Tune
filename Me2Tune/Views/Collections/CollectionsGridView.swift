@@ -73,7 +73,15 @@ struct CollectionsGridView: View {
             }
         }
         .task {
-            await onEnsureLoaded()
+            // Prevent background ZStack view from triggering load before user selects this tab
+            if selectedTab == .collections {
+                await onEnsureLoaded()
+            }
+        }
+        .onChange(of: selectedTab) { _, newValue in
+            if newValue == .collections {
+                Task { await onEnsureLoaded() }
+            }
         }
 
         // MARK: - State Synchronization and Restoration
