@@ -6,14 +6,15 @@
 //
 
 import AppKit
-import Combine
 import Foundation
+import Observation
 import OSLog
 
 private let logger = Logger.cache
 
 @MainActor
-final class CacheConfigManager: ObservableObject {
+@Observable
+final class CacheConfigManager {
     static let shared = CacheConfigManager()
     
     // MARK: - Constants
@@ -22,10 +23,10 @@ final class CacheConfigManager: ObservableObject {
     
     private nonisolated static let customPathKey = "CustomCachePath"
     
-    // MARK: - Published Properties
+    // MARK: - Properties
     
-    @Published private(set) var customCachePath: URL?
-    @Published private(set) var isCustomPathWritable: Bool = true
+    private(set) var customCachePath: URL?
+    private(set) var isCustomPathWritable: Bool = true
     
     // MARK: - Computed Properties
     

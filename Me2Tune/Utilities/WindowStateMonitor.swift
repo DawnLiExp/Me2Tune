@@ -6,8 +6,8 @@
 //
 
 import AppKit
-import Combine
 import Foundation
+import Observation
 import OSLog
 
 private let logger = Logger.app
@@ -21,8 +21,9 @@ extension Notification.Name {
 // MARK: - Window State Monitor
 
 @MainActor
-final class WindowStateMonitor: ObservableObject {
-    @Published private(set) var visibilityState: WindowVisibilityState = .activeFocused
+@Observable
+final class WindowStateMonitor {
+    private(set) var visibilityState: WindowVisibilityState = .activeFocused
     
     // MARK: - Types
     
@@ -72,8 +73,8 @@ final class WindowStateMonitor: ObservableObject {
     
     // MARK: - Private Properties
     
-    private var cancellables = Set<AnyCancellable>()
     private weak var window: NSWindow?
+    private var monitoringTasks: [Task<Void, Never>] = []
     
     private var isAppActive = true
     private var isWindowKey = true
@@ -92,49 +93,15 @@ final class WindowStateMonitor: ObservableObject {
         isWindowMinimized = window.isMiniaturized
         updateVisibilityState()
         
-        NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
-            .sink { [weak self] _ in
-                self?.isAppActive = true
-                self?.updateVisibilityState()
-            }
-            .store(in: &cancellables)
-        
-        NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)
-            .sink { [weak self] _ in
-                self?.isAppActive = false
-                self?.updateVisibilityState()
-            }
-            .store(in: &cancellables)
-        
-        NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification, object: window)
-            .sink { [weak self] _ in
-                self?.isWindowKey = true
-                self?.updateVisibilityState()
-            }
-            .store(in: &cancellables)
-        
-        NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification, object: window)
-            .sink { [weak self] _ in
-                self?.isWindowKey = false
-                self?.updateVisibilityState()
-            }
-            .store(in: &cancellables)
-        
-        NotificationCenter.default.publisher(for: NSWindow.didMiniaturizeNotification, object: window)
-            .sink { [weak self] _ in
-                self?.isWindowMinimized = true
-                self?.updateVisibilityState()
-            }
-            .store(in: &cancellables)
-        
-        NotificationCenter.default.publisher(for: NSWindow.didDeminiaturizeNotification, object: window)
-            .sink { [weak self] _ in
-                self?.isWindowMinimized = false
-                self?.updateVisibilityState()
-            }
-            .store(in: &cancellables)
+        startNotificationMonitoring()
         
         logger.info("🔍 Window state monitoring started")
+    }
+    
+    func stopMonitoring() {
+        monitoringTasks.forEach { $0.cancel() }
+        monitoringTasks.removeAll()
+        logger.info("🛑 Window state monitoring stopped")
     }
     
     func forceSetState(_ state: WindowVisibilityState) {
@@ -167,6 +134,70 @@ final class WindowStateMonitor: ObservableObject {
     }
     
     // MARK: - Private Methods
+    
+    private func startNotificationMonitoring() {
+        stopMonitoring()
+        
+        let center = NotificationCenter.default
+        
+        // App Active
+        monitoringTasks.append(Task { [weak self] in
+            for await _ in center.notifications(named: NSApplication.didBecomeActiveNotification) {
+                self?.handleAppActive(true)
+            }
+        })
+        
+        // App Inactive
+        monitoringTasks.append(Task { [weak self] in
+            for await _ in center.notifications(named: NSApplication.didResignActiveNotification) {
+                self?.handleAppActive(false)
+            }
+        })
+        
+        // Window Observers
+        if let window {
+            // Window Key
+            monitoringTasks.append(Task { [weak self] in
+                for await _ in center.notifications(named: NSWindow.didBecomeKeyNotification, object: window) {
+                    self?.handleWindowKey(true)
+                }
+            })
+            
+            monitoringTasks.append(Task { [weak self] in
+                for await _ in center.notifications(named: NSWindow.didResignKeyNotification, object: window) {
+                    self?.handleWindowKey(false)
+                }
+            })
+            
+            // Window Miniaturize
+            monitoringTasks.append(Task { [weak self] in
+                for await _ in center.notifications(named: NSWindow.didMiniaturizeNotification, object: window) {
+                    self?.handleWindowMinimized(true)
+                }
+            })
+            
+            monitoringTasks.append(Task { [weak self] in
+                for await _ in center.notifications(named: NSWindow.didDeminiaturizeNotification, object: window) {
+                    self?.handleWindowMinimized(false)
+                }
+            })
+        }
+    }
+    
+    private func handleAppActive(_ isActive: Bool) {
+        isAppActive = isActive
+        updateVisibilityState()
+    }
+    
+    private func handleWindowKey(_ isKey: Bool) {
+        isWindowKey = isKey
+        updateVisibilityState()
+    }
+    
+    private func handleWindowMinimized(_ isMinimized: Bool) {
+        isWindowMinimized = isMinimized
+        updateVisibilityState()
+    }
     
     private func updateVisibilityState() {
         guard isMonitoringFullWindow else {

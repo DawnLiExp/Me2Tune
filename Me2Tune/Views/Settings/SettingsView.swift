@@ -11,8 +11,8 @@ struct SettingsView: View {
     @State private var currentTheme = ThemeManager.shared.themeMode
     @State private var currentLanguage = LanguageManager.shared.currentLanguage
     
-    // CacheConfigManager 保留 @ObservedObject(需要响应路径验证状态)
-    @ObservedObject private var cacheManager = CacheConfigManager.shared
+    // CacheConfigManager
+    private let cacheManager = CacheConfigManager.shared
     
     @State private var showLanguageChangeAlert = false
     @State private var showThemeChangeAlert = false
