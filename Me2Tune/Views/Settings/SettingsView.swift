@@ -317,8 +317,8 @@ struct SettingsView: View {
                     .frame(width: 140)
                 }
                 
-                // 动态光晕参数(仅在 meshGradient 模式下显示)
-                if backgroundGlowMode == BackgroundGlowMode.meshGradient.rawValue {
+                // 动态光晕参数
+                Group {
                     // 呼吸节奏
                     settingRow(icon: "speedometer", label: "glow_breathing_rate") {
                         TickedSlider<GlowBreathingRate>(
@@ -337,7 +337,9 @@ struct SettingsView: View {
                         )
                     }
                 }
-                
+                .disabled(backgroundGlowMode != BackgroundGlowMode.meshGradient.rawValue)
+                .opacity(backgroundGlowMode == BackgroundGlowMode.meshGradient.rawValue ? 1 : 0.4)
+
                 // 简洁模式
                 settingRow(icon: "sparkles", label: "settings_clean_mode", helpText: "settings_clean_mode_footer") {
                     Toggle("", isOn: $cleanMode)

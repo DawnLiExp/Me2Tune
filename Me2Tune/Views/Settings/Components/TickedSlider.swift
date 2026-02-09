@@ -67,23 +67,20 @@ struct TickedSlider<T: RawRepresentable & CaseIterable & Equatable & Identifiabl
                                 .stroke(Color.gray.opacity(0.2), lineWidth: 0.5)
                         )
                         .offset(x: CGFloat(currentIndex) * step - 7)
-                        .gesture(
-                            DragGesture(minimumDistance: 0)
-                                .onChanged { value in
-                                    let newIndex = Int(round(max(0, min(width, value.location.x)) / step))
-                                    if newIndex >= 0, newIndex < tickCount {
-                                        selection = allCases[newIndex].rawValue
-                                    }
-                                }
-                        )
+                        .animation(.spring(duration: 0.2), value: selection)
                 }
                 .contentShape(Rectangle())
-                .onTapGesture { location in
-                    let newIndex = Int(round(max(0, min(width, location.x)) / step))
-                    if newIndex >= 0, newIndex < tickCount {
-                        selection = allCases[newIndex].rawValue
-                    }
-                }
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            guard step > 0 else { return }
+                            let newIndex = Int(round(max(0, min(width, value.location.x)) / step))
+                            if newIndex >= 0, newIndex < tickCount {
+                                selection = allCases[newIndex].rawValue
+                            }
+                        }
+                )
+
                 .frame(maxHeight: .infinity)
             }
             .frame(width: 140, height: 20)
