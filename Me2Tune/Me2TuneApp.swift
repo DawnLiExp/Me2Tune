@@ -6,6 +6,7 @@
 //
 
 import OSLog
+import SwiftData
 import SwiftUI
 
 private let logger = Logger.app
@@ -51,6 +52,7 @@ struct Me2TuneApp: App {
         .windowResizability(.automatic)
         .defaultSize(width: 495, height: 800)
         .defaultPosition(.center)
+        .modelContainer(DataService.shared.modelContainer)
         .commands {
             CommandGroup(replacing: .newItem) {}
 

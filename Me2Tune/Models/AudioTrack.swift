@@ -2,7 +2,7 @@
 //  AudioTrack.swift
 //  Me2Tune
 //
-//  音频曲目模型 + 格式信息
+//  音频曲目模型 + 格式信息 - DTO，用于视图层数据传递
 //
 
 import Foundation
@@ -13,7 +13,7 @@ private let logger = Logger.audio
 
 // MARK: - Audio Format
 
-struct AudioFormat: Codable, Sendable {
+struct AudioFormat: Sendable {
     let codec: String?
     let bitrate: Int?
     let sampleRate: Double?
@@ -59,7 +59,7 @@ struct AudioFormat: Codable, Sendable {
 
 // MARK: - Audio Track
 
-struct AudioTrack: Identifiable, Equatable, Codable, Sendable {
+struct AudioTrack: Identifiable, Equatable, Sendable {
     let id: UUID
     let url: URL
     let title: String
@@ -68,10 +68,6 @@ struct AudioTrack: Identifiable, Equatable, Codable, Sendable {
     let duration: TimeInterval
     let format: AudioFormat
     let bookmark: Data?
-    
-    private enum CodingKeys: String, CodingKey {
-        case id, url, title, artist, albumTitle, duration, format, bookmark
-    }
     
     init(url: URL) async {
         self.id = UUID()
@@ -129,19 +125,7 @@ struct AudioTrack: Identifiable, Equatable, Codable, Sendable {
         }
     }
     
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
-        url = try container.decode(URL.self, forKey: .url)
-        title = try container.decode(String.self, forKey: .title)
-        artist = try container.decodeIfPresent(String.self, forKey: .artist)
-        albumTitle = try container.decodeIfPresent(String.self, forKey: .albumTitle)
-        duration = try container.decode(TimeInterval.self, forKey: .duration)
-        format = try container.decodeIfPresent(AudioFormat.self, forKey: .format) ?? .unknown
-        bookmark = try container.decodeIfPresent(Data.self, forKey: .bookmark)
-    }
-    
-    // MARK: - Internal Initializer (for testing/preview)
+    // MARK: - Internal Initializer (for DTO conversion / testing / preview)
 
     init(
         id: UUID,

@@ -56,8 +56,6 @@ final class PlayerViewModel {
     // MARK: - Private Properties (不触发UI更新)
     
     @ObservationIgnored private let playerCore: AudioPlayerCore
-    @ObservationIgnored private let persistenceService = PersistenceService.shared
-    
     @ObservationIgnored private var observerTask: Task<Void, Never>?
     @ObservationIgnored private var stateSaveTask: Task<Void, Never>?
     @ObservationIgnored private var pendingSaveTask: Task<Void, Never>?
