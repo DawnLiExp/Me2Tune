@@ -6,10 +6,10 @@
 //
 
 import AppKit
-
 import Foundation
 import Observation
 import OSLog
+import SwiftUI
 
 private let logger = Logger.viewModel
 
@@ -33,6 +33,9 @@ final class PlayerViewModel {
             scheduleVolumeUpdate(volume)
         }
     }
+
+    /// 播放列表滚动到的记录 ID，用于在 Tab 切换时保持位置
+    var lastScrollTrackId: UUID?
     
     // MARK: - Progress State (独立 @Observable)
     

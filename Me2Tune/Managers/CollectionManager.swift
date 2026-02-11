@@ -5,9 +5,11 @@
 //  专辑收藏管理 - SwiftData 版本 + 延迟加载优化 + 拖拽排序
 //
 
+import AppKit
 import Foundation
 import Observation
 import OSLog
+import SwiftUI
 
 private let logger = Logger.collection
 
@@ -19,6 +21,9 @@ final class CollectionManager {
     private(set) var albums: [Album] = []
     private(set) var isLoaded = false
     private(set) var isLoading = false
+
+    /// 专辑收藏滚动到的记录 ID，用于在 Tab 切换时保持位置
+    var lastScrollAlbumId: UUID?
 
     // MARK: - Private Properties
 

@@ -10,6 +10,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct CollectionsGridView: View {
+    @Environment(CollectionManager.self) private var collectionManager
     @Binding var selectedTab: PlaylistTab
     @Binding var isInAlbumDetail: Bool
     @Binding var selectedAlbumId: UUID?
@@ -169,6 +170,7 @@ struct CollectionsGridView: View {
                     }
                 } else {
                     GeometryReader { geometry in
+                        @Bindable var manager = collectionManager
                         ScrollViewReader { proxy in
                             ScrollView(showsIndicators: false) {
                                 LazyVGrid(columns: columns, spacing: spacing) {
@@ -214,7 +216,9 @@ struct CollectionsGridView: View {
                                     }
                                 }
                                 .padding(.vertical, 8)
+                                .scrollTargetLayout()
                             }
+                            .scrollPosition(id: $manager.lastScrollAlbumId)
                             .onAppear {
                                 updateColumns(for: geometry.size.width)
                     
@@ -227,10 +231,11 @@ struct CollectionsGridView: View {
                             }
                             .task(id: isInAlbumDetail) {
                                 if !isInAlbumDetail {
-                                    let targetId = lastViewedAlbumId ?? selectedAlbumId
+                                    // 优先使用 manager 中持久化的滚动 ID
+                                    let targetId = manager.lastScrollAlbumId ?? lastViewedAlbumId ?? selectedAlbumId
                                     
                                     if let targetId {
-                                        try? await Task.sleep(for: .milliseconds(200))
+                                        try? await Task.sleep(for: .milliseconds(100))
                                         await MainActor.run {
                                             proxy.scrollTo(targetId, anchor: .center)
                                         }

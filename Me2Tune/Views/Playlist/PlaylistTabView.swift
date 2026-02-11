@@ -32,6 +32,7 @@ struct PlaylistTabView: View {
                 emptyStateView
             } else {
                 ZStack {
+                    @Bindable var viewModel = playerViewModel
                     ScrollView(showsIndicators: false) {
                         LazyVStack(spacing: 0) {
                             ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
@@ -65,7 +66,9 @@ struct PlaylistTabView: View {
                                 }
                             }
                         }
+                        .scrollTargetLayout()
                     }
+                    .scrollPosition(id: $viewModel.lastScrollTrackId)
                     .frame(maxHeight: .infinity)
                     
                     if isLoadingTracks {
