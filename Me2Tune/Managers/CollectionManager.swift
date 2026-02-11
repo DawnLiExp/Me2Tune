@@ -22,7 +22,6 @@ final class CollectionManager {
     private(set) var isLoaded = false
     private(set) var isLoading = false
 
-    /// 专辑收藏滚动到的记录 ID，用于在 Tab 切换时保持位置
     var lastScrollAlbumId: UUID?
 
     // MARK: - Private Properties
@@ -30,7 +29,7 @@ final class CollectionManager {
     private let dataService = DataService.shared
     private var delayedLoadTask: Task<Void, Never>?
 
-    /// 新增：ID → SDAlbum 内存索引，避免重复 fetch
+    // In-memory index: UUID → SDAlbum for fast lookup during drag operations
     private var albumIndex: [UUID: SDAlbum] = [:]
 
     // MARK: - Computed Properties
@@ -69,7 +68,6 @@ final class CollectionManager {
         }
     }
 
-    /// Preload a single album without marking full load completion
     func populateWithSingleAlbum(_ album: Album) {
         guard !isLoaded else { return }
 
@@ -95,28 +93,20 @@ final class CollectionManager {
     // MARK: - Single Album Loading
 
     func loadSingleAlbum(id: UUID) async -> Album? {
-        // 先查内存缓存
         if let cached = albums.first(where: { $0.id == id }) {
             return cached
         }
 
-        // 使用索引直接查找
         if let sdAlbum = albumIndex[id] {
             return sdAlbum.toAlbum()
         }
 
-        // 从 SwiftData 查找
-        do {
-            let sdAlbums = try dataService.fetchAlbums()
-            for sdAlbum in sdAlbums {
-                if sdAlbum.stableId == id {
-                    albumIndex[id] = sdAlbum // 缓存
-                    return sdAlbum.toAlbum()
-                }
-            }
-        } catch {
-            logger.warning("Failed to load single album: \(error.localizedDescription)")
+        // Precise query by stableId, avoid full scan
+        if let sdAlbum = dataService.findAlbum(byStableId: id) {
+            updateAlbumIndex(sdAlbum)
+            return sdAlbum.toAlbum()
         }
+
         return nil
     }
 
@@ -141,7 +131,6 @@ final class CollectionManager {
         )
         dataService.insert(sdAlbum)
 
-        // 创建 track entries
         for (order, dto) in tracks.enumerated() {
             let sdTrack: SDTrack
             if let existing = dataService.findTrack(byURL: dto.url.absoluteString) {
@@ -157,10 +146,15 @@ final class CollectionManager {
 
         try? dataService.save()
 
-        // 缓存到索引
-        albumIndex[albumId] = sdAlbum
+        updateAlbumIndex(sdAlbum)
 
-        let album = sdAlbum.toAlbum()
+        // Build Album DTO directly from existing data, avoid re-conversion
+        let album = Album(
+            id: albumId,
+            name: name,
+            folderURL: nil,
+            tracks: tracks
+        )
         albums.append(album)
 
         logger.info("📀 Created album from playlist: \(name) (\(tracks.count) tracks)")
@@ -174,7 +168,6 @@ final class CollectionManager {
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
               isDirectory.boolValue
         else {
-            // 单文件拖拽 - 扫描父目录
             let parentURL = url.deletingLastPathComponent()
             let audioFiles = scanFolderOnly(parentURL)
             if !audioFiles.isEmpty {
@@ -204,12 +197,11 @@ final class CollectionManager {
     }
 
     private func createAlbum(from url: URL, audioURLs: [URL]) async {
-        // 检查是否已存在同路径专辑
         if dataService.findAlbum(byFolderURL: url.absoluteString) != nil {
             logger.debug("Album already exists for path: \(url.path)")
             return
         }
-        // 也检查内存缓存
+
         if albums.contains(where: { $0.folderURL?.path == url.path }) {
             logger.debug("Album already exists in memory: \(url.path)")
             return
@@ -226,7 +218,6 @@ final class CollectionManager {
         )
         dataService.insert(sdAlbum)
 
-        // 并发加载元数据
         let trackDTOs = await loadTracksFromURLs(audioURLs)
 
         for (order, dto) in trackDTOs.enumerated() {
@@ -244,26 +235,29 @@ final class CollectionManager {
 
         try? dataService.save()
 
-        // ✅ 缓存到索引
-        albumIndex[albumId] = sdAlbum
+        updateAlbumIndex(sdAlbum)
 
-        let album = sdAlbum.toAlbum()
+        // Build Album DTO directly from existing data
+        let album = Album(
+            id: albumId,
+            name: url.lastPathComponent,
+            folderURL: url,
+            tracks: trackDTOs
+        )
         albums.append(album)
 
         logger.info("📀 Added album: \(album.name) (\(trackDTOs.count) tracks)")
     }
 
     func removeAlbum(id: UUID) {
-        // 使用索引直接获取
         if let sdAlbum = albumIndex[id] {
-            // 清理孤立 track
             for entry in sdAlbum.trackEntries {
                 if let track = entry.track, !track.isInPlaylist, track.albumEntries.count <= 1 {
                     dataService.delete(track)
                 }
             }
             dataService.delete(sdAlbum)
-            albumIndex.removeValue(forKey: id)
+            removeAlbumIndex(for: id)
             try? dataService.save()
         }
 
@@ -277,7 +271,6 @@ final class CollectionManager {
         let oldName = albums[index].name
         albums[index].name = newName
 
-        // 使用索引直接更新
         if let sdAlbum = albumIndex[id] {
             sdAlbum.name = newName
             try? dataService.save()
@@ -286,7 +279,6 @@ final class CollectionManager {
         logger.info("Album renamed: \(oldName) → \(newName)")
     }
 
-    // 拖拽排序
     func moveAlbum(from source: Int, to destination: Int) {
         guard albums.indices.contains(source),
               albums.indices.contains(destination),
@@ -298,7 +290,6 @@ final class CollectionManager {
         let movedAlbum = albums.remove(at: source)
         albums.insert(movedAlbum, at: destination)
 
-        // 范围更新而非全量重索引
         reindexAlbumOrdersOptimized(source: source, destination: destination)
 
         try? dataService.save()
@@ -308,7 +299,6 @@ final class CollectionManager {
         do {
             let sdAlbums = try dataService.fetchAlbums()
             for sdAlbum in sdAlbums {
-                // 清理只属于该专辑的 track
                 for entry in sdAlbum.trackEntries {
                     if let track = entry.track, !track.isInPlaylist, track.albumEntries.count <= 1 {
                         dataService.delete(track)
@@ -323,8 +313,29 @@ final class CollectionManager {
 
         let count = albums.count
         albums.removeAll()
-        albumIndex.removeAll()
+        clearAlbumIndex()
         logger.info("Cleared all \(count) albums")
+    }
+
+    // MARK: - Index Management
+
+    private func updateAlbumIndex(_ sdAlbum: SDAlbum) {
+        albumIndex[sdAlbum.stableId] = sdAlbum
+    }
+
+    private func removeAlbumIndex(for id: UUID) {
+        albumIndex.removeValue(forKey: id)
+    }
+
+    private func rebuildAlbumIndex(from sdAlbums: [SDAlbum]) {
+        albumIndex.removeAll(keepingCapacity: true)
+        for sdAlbum in sdAlbums {
+            albumIndex[sdAlbum.stableId] = sdAlbum
+        }
+    }
+
+    private func clearAlbumIndex() {
+        albumIndex.removeAll()
     }
 
     // MARK: - Private Methods
@@ -332,13 +343,7 @@ final class CollectionManager {
     private func loadCollections() async {
         do {
             let sdAlbums = try dataService.fetchAlbums()
-
-            // 建立索引
-            albumIndex.removeAll()
-            for sdAlbum in sdAlbums {
-                albumIndex[sdAlbum.stableId] = sdAlbum
-            }
-
+            rebuildAlbumIndex(from: sdAlbums)
             self.albums = sdAlbums.map { $0.toAlbum() }
             logger.info("Loaded \(self.albums.count) albums")
         } catch {
@@ -346,12 +351,11 @@ final class CollectionManager {
         }
     }
 
-    /// 关键优化：只更新受影响的范围，避免全量转换
+    // Only update affected range during drag, avoid full re-conversion
     private func reindexAlbumOrdersOptimized(source: Int, destination: Int) {
         let start = min(source, destination)
         let end = max(source, destination)
 
-        // 只更新受影响范围内的专辑
         for i in start ... end {
             let albumId = albums[i].id
             if let sdAlbum = albumIndex[albumId] {

@@ -72,7 +72,6 @@ final class DataService {
 
     // MARK: - Track Operations
 
-    /// 根据 URL 查找已存在的 SDTrack
     func findTrack(byURL urlString: String) -> SDTrack? {
         var descriptor = FetchDescriptor<SDTrack>(
             predicate: #Predicate { $0.urlString == urlString }
@@ -81,7 +80,14 @@ final class DataService {
         return try? modelContext.fetch(descriptor).first
     }
 
-    /// 获取 Playlist 中的所有歌曲，按 playlistOrder 排序
+    func findTrack(byStableId id: UUID) -> SDTrack? {
+        var descriptor = FetchDescriptor<SDTrack>(
+            predicate: #Predicate { $0.stableId == id }
+        )
+        descriptor.fetchLimit = 1
+        return try? modelContext.fetch(descriptor).first
+    }
+
     func fetchPlaylistTracks() throws -> [SDTrack] {
         var descriptor = FetchDescriptor<SDTrack>(
             predicate: #Predicate { $0.isInPlaylist == true },
@@ -91,7 +97,6 @@ final class DataService {
         return try modelContext.fetch(descriptor)
     }
 
-    /// 获取 Playlist 歌曲数
     func playlistTrackCount() throws -> Int {
         let descriptor = FetchDescriptor<SDTrack>(
             predicate: #Predicate { $0.isInPlaylist == true }
@@ -101,7 +106,6 @@ final class DataService {
 
     // MARK: - Album Operations
 
-    /// 获取所有专辑，按 displayOrder 排序
     func fetchAlbums() throws -> [SDAlbum] {
         let descriptor = FetchDescriptor<SDAlbum>(
             sortBy: [SortDescriptor(\.displayOrder)]
@@ -109,7 +113,6 @@ final class DataService {
         return try modelContext.fetch(descriptor)
     }
 
-    /// 根据 folderURLString 查找专辑
     func findAlbum(byFolderURL urlString: String) -> SDAlbum? {
         var descriptor = FetchDescriptor<SDAlbum>(
             predicate: #Predicate { $0.folderURLString == urlString }
@@ -118,7 +121,14 @@ final class DataService {
         return try? modelContext.fetch(descriptor).first
     }
 
-    /// 获取专辑数量
+    func findAlbum(byStableId id: UUID) -> SDAlbum? {
+        var descriptor = FetchDescriptor<SDAlbum>(
+            predicate: #Predicate { $0.stableId == id }
+        )
+        descriptor.fetchLimit = 1
+        return try? modelContext.fetch(descriptor).first
+    }
+
     func albumCount() throws -> Int {
         let descriptor = FetchDescriptor<SDAlbum>(predicate: nil as Predicate<SDAlbum>?)
         return try modelContext.fetchCount(descriptor)
@@ -126,7 +136,6 @@ final class DataService {
 
     // MARK: - Playback State Operations
 
-    /// 获取或创建播放状态单例
     func getOrCreatePlaybackState() -> SDPlaybackState {
         let descriptor = FetchDescriptor<SDPlaybackState>()
         if let existing = try? modelContext.fetch(descriptor).first {

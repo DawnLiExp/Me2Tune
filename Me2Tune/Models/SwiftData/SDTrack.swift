@@ -22,11 +22,10 @@ final class SDTrack {
 
     var bookmark: Data?
 
-    /// 稳定的唯一标识符，避免拖拽时频繁查询
     @Attribute(.unique)
     var stableId: UUID
 
-    // MARK: - Audio Format (Embedded)
+    // MARK: - Audio Format
 
     var codec: String?
     var bitrate: Int?
@@ -78,7 +77,6 @@ final class SDTrack {
 // MARK: - DTO Conversion
 
 extension SDTrack {
-    /// 从 AudioTrack DTO 创建 SDTrack
     convenience init(from track: AudioTrack) {
         self.init(
             title: track.title,
@@ -92,11 +90,10 @@ extension SDTrack {
             sampleRate: track.format.sampleRate,
             bitDepth: track.format.bitDepth,
             channels: track.format.channels,
-            stableId: track.id // 使用 AudioTrack 的 ID
+            stableId: track.id
         )
     }
 
-    /// 转换为 AudioTrack DTO
     @MainActor
     func toAudioTrack() -> AudioTrack {
         let url = URL(string: urlString) ?? URL(fileURLWithPath: urlString)
@@ -108,7 +105,7 @@ extension SDTrack {
             channels: channels
         )
         return AudioTrack(
-            id: stableId, // 直接使用 stableId
+            id: stableId,
             url: url,
             title: title,
             artist: artist,

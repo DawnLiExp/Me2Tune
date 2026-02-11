@@ -24,7 +24,7 @@ final class PlaylistManager {
 
     private let dataService = DataService.shared
 
-    /// 新增：ID → SDTrack 内存索引，避免重复查询
+    // In-memory index: UUID → SDTrack for fast lookup during drag operations
     private var trackIndex: [UUID: SDTrack] = [:]
 
     // MARK: - Computed Properties
@@ -74,13 +74,9 @@ final class PlaylistManager {
 
         logger.info("Adding \(sortedURLs.count) tracks")
 
-        // 读取元数据
         let newDTOTracks = await loadTracksFromURLs(sortedURLs)
-
-        // 当前最大 playlistOrder
         let maxOrder = tracks.count
 
-        // 插入/更新 SwiftData
         for (offset, dto) in newDTOTracks.enumerated() {
             let sdTrack: SDTrack
             if let existing = dataService.findTrack(byURL: dto.url.absoluteString) {
@@ -92,14 +88,13 @@ final class PlaylistManager {
             sdTrack.isInPlaylist = true
             sdTrack.playlistOrder = maxOrder + offset
 
-            // 缓存到索引
-            trackIndex[sdTrack.stableId] = sdTrack
+            updateTrackIndex(sdTrack)
         }
 
         try? dataService.save()
 
-        // 重新加载
-        loadPlaylistContent()
+        // Directly append to memory, avoid full reload
+        tracks.append(contentsOf: newDTOTracks)
 
         isLoading = false
         loadingCount = 0
@@ -113,25 +108,21 @@ final class PlaylistManager {
     func removeTrack(at index: Int) {
         guard tracks.indices.contains(index) else { return }
 
-        let track = tracks[index]
+        let track = tracks.remove(at: index)
 
-        // 使用索引直接获取
         if let sdTrack = trackIndex[track.id] ?? dataService.findTrack(byURL: track.url.absoluteString) {
             sdTrack.isInPlaylist = false
             sdTrack.playlistOrder = nil
 
-            // 如果不属于任何专辑，删除 SDTrack
             if sdTrack.albumEntries.isEmpty {
                 dataService.delete(sdTrack)
-                trackIndex.removeValue(forKey: track.id)
+                removeTrackIndex(for: track.id)
             }
         }
 
-        // 范围重索引
         reindexPlaylistOrdersOptimized(removedAt: index)
 
         try? dataService.save()
-        loadPlaylistContent()
     }
 
     func clearAll() {
@@ -140,7 +131,6 @@ final class PlaylistManager {
             for sdTrack in sdTracks {
                 sdTrack.isInPlaylist = false
                 sdTrack.playlistOrder = nil
-                // 如果不属于任何专辑，删除
                 if sdTrack.albumEntries.isEmpty {
                     dataService.delete(sdTrack)
                 }
@@ -151,7 +141,7 @@ final class PlaylistManager {
         }
 
         tracks.removeAll()
-        trackIndex.removeAll()
+        clearTrackIndex()
         logger.info("🗑️ Cleared playlist")
     }
 
@@ -165,15 +155,34 @@ final class PlaylistManager {
             return
         }
 
-        // 内存中移动
         let movedTrack = tracks.remove(at: source)
         tracks.insert(movedTrack, at: destination)
 
-        // 范围更新而非全量重索引
         reindexPlaylistOrdersOptimized(movedFrom: source, to: destination)
 
         try? dataService.save()
         logger.debug("Moved track from \(source) to \(destination)")
+    }
+
+    // MARK: - Index Management
+
+    private func updateTrackIndex(_ sdTrack: SDTrack) {
+        trackIndex[sdTrack.stableId] = sdTrack
+    }
+
+    private func removeTrackIndex(for id: UUID) {
+        trackIndex.removeValue(forKey: id)
+    }
+
+    private func rebuildTrackIndex(from sdTracks: [SDTrack]) {
+        trackIndex.removeAll(keepingCapacity: true)
+        for sdTrack in sdTracks {
+            trackIndex[sdTrack.stableId] = sdTrack
+        }
+    }
+
+    private func clearTrackIndex() {
+        trackIndex.removeAll()
     }
 
     // MARK: - Private Methods - Persistence
@@ -181,13 +190,7 @@ final class PlaylistManager {
     private func loadPlaylistContent() {
         do {
             let sdTracks = try dataService.fetchPlaylistTracks()
-
-            // 建立索引
-            trackIndex.removeAll()
-            for sdTrack in sdTracks {
-                trackIndex[sdTrack.stableId] = sdTrack
-            }
-
+            rebuildTrackIndex(from: sdTracks)
             tracks = sdTracks.map { $0.toAudioTrack() }
             logger.info("📋 Loaded \(sdTracks.count) playlist tracks")
         } catch {
@@ -195,9 +198,8 @@ final class PlaylistManager {
         }
     }
 
-    /// 删除后只更新受影响的范围
+    // Only update affected range after deletion
     private func reindexPlaylistOrdersOptimized(removedAt removedIndex: Int) {
-        // 只更新删除位置之后的歌曲
         for i in removedIndex ..< tracks.count {
             let trackId = tracks[i].id
             if let sdTrack = trackIndex[trackId] {
@@ -206,12 +208,11 @@ final class PlaylistManager {
         }
     }
 
-    /// 拖拽时只更新受影响的范围
+    // Only update affected range during drag
     private func reindexPlaylistOrdersOptimized(movedFrom source: Int, to destination: Int) {
         let start = min(source, destination)
         let end = max(source, destination)
 
-        // 只更新受影响范围内的歌曲
         for i in start ... end {
             let trackId = tracks[i].id
             if let sdTrack = trackIndex[trackId] {

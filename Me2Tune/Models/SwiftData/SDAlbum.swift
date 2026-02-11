@@ -16,7 +16,6 @@ final class SDAlbum {
     var folderURLString: String?
     var displayOrder: Int
 
-    /// 稳定的唯一标识符，避免拖拽时频繁调用 toAlbum() 匹配
     @Attribute(.unique)
     var stableId: UUID
 
@@ -36,7 +35,6 @@ final class SDAlbum {
 
     // MARK: - Computed Properties
 
-    /// 按 trackOrder 排序的歌曲列表
     var sortedTracks: [SDTrack] {
         trackEntries
             .sorted { $0.trackOrder < $1.trackOrder }
@@ -47,7 +45,6 @@ final class SDAlbum {
 // MARK: - DTO Conversion
 
 extension SDAlbum {
-    /// 转换为 Album DTO
     @MainActor
     func toAlbum() -> Album {
         let folderURL: URL? = if let folderURLString {
@@ -57,7 +54,7 @@ extension SDAlbum {
         }
         let tracks = sortedTracks.map { $0.toAudioTrack() }
         return Album(
-            id: stableId, // 直接使用 stableId，不再计算
+            id: stableId,
             name: name,
             folderURL: folderURL,
             tracks: tracks
