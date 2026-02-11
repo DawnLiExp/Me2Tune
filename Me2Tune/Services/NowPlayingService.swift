@@ -6,7 +6,6 @@
 //
 
 import AppKit
-
 import Foundation
 import MediaPlayer
 import OSLog
@@ -126,6 +125,16 @@ final class NowPlayingService {
     func stopUpdateTimer() {
         updateTimerTask?.cancel()
         updateTimerTask = nil
+    }
+    
+    /// 重启更新定时器（用于 seek 后避免立即冲突）
+    func restartUpdateTimer() {
+        guard currentTimeProvider != nil else { return }
+        
+        // 只在定时器正在运行时重启
+        if updateTimerTask != nil {
+            startUpdateTimer()
+        }
     }
     
     // MARK: - Private Methods

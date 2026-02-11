@@ -212,6 +212,10 @@ final class PlayerViewModel {
     
     func seek(to time: TimeInterval) {
         playerCore.seek(to: time)
+        
+        NowPlayingService.shared.updatePlaybackTime(currentTime: time)
+        NowPlayingService.shared.restartUpdateTimer()
+        
         scheduleStateSave()
     }
     
