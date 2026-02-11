@@ -30,6 +30,9 @@ final class CollectionManager {
     private let dataService = DataService.shared
     private var delayedLoadTask: Task<Void, Never>?
 
+    /// 新增：ID → SDAlbum 内存索引，避免重复 fetch
+    private var albumIndex: [UUID: SDAlbum] = [:]
+
     // MARK: - Computed Properties
 
     var albumCount: Int {
@@ -97,13 +100,18 @@ final class CollectionManager {
             return cached
         }
 
-        // 从 SwiftData 查找 - 通过遍历所有专辑匹配稳定 UUID
+        // 使用索引直接查找
+        if let sdAlbum = albumIndex[id] {
+            return sdAlbum.toAlbum()
+        }
+
+        // 从 SwiftData 查找
         do {
             let sdAlbums = try dataService.fetchAlbums()
             for sdAlbum in sdAlbums {
-                let dto = sdAlbum.toAlbum()
-                if dto.id == id {
-                    return dto
+                if sdAlbum.stableId == id {
+                    albumIndex[id] = sdAlbum // 缓存
+                    return sdAlbum.toAlbum()
                 }
             }
         } catch {
@@ -123,11 +131,13 @@ final class CollectionManager {
         }
 
         let currentMaxOrder = albums.count
+        let albumId = UUID()
 
         let sdAlbum = SDAlbum(
             name: name,
             folderURLString: nil,
-            displayOrder: currentMaxOrder
+            displayOrder: currentMaxOrder,
+            stableId: albumId
         )
         dataService.insert(sdAlbum)
 
@@ -146,6 +156,9 @@ final class CollectionManager {
         }
 
         try? dataService.save()
+
+        // 缓存到索引
+        albumIndex[albumId] = sdAlbum
 
         let album = sdAlbum.toAlbum()
         albums.append(album)
@@ -203,11 +216,13 @@ final class CollectionManager {
         }
 
         let currentMaxOrder = albums.count
+        let albumId = UUID()
 
         let sdAlbum = SDAlbum(
             name: url.lastPathComponent,
             folderURLString: url.absoluteString,
-            displayOrder: currentMaxOrder
+            displayOrder: currentMaxOrder,
+            stableId: albumId
         )
         dataService.insert(sdAlbum)
 
@@ -229,6 +244,9 @@ final class CollectionManager {
 
         try? dataService.save()
 
+        // ✅ 缓存到索引
+        albumIndex[albumId] = sdAlbum
+
         let album = sdAlbum.toAlbum()
         albums.append(album)
 
@@ -236,24 +254,17 @@ final class CollectionManager {
     }
 
     func removeAlbum(id: UUID) {
-        // 从 SwiftData 删除
-        do {
-            let sdAlbums = try dataService.fetchAlbums()
-            for sdAlbum in sdAlbums {
-                if sdAlbum.toAlbum().id == id {
-                    // 清理孤立 track
-                    for entry in sdAlbum.trackEntries {
-                        if let track = entry.track, !track.isInPlaylist, track.albumEntries.count <= 1 {
-                            dataService.delete(track)
-                        }
-                    }
-                    dataService.delete(sdAlbum)
-                    break
+        // 使用索引直接获取
+        if let sdAlbum = albumIndex[id] {
+            // 清理孤立 track
+            for entry in sdAlbum.trackEntries {
+                if let track = entry.track, !track.isInPlaylist, track.albumEntries.count <= 1 {
+                    dataService.delete(track)
                 }
             }
-            try dataService.save()
-        } catch {
-            logger.warning("Failed to delete album from SwiftData: \(error.localizedDescription)")
+            dataService.delete(sdAlbum)
+            albumIndex.removeValue(forKey: id)
+            try? dataService.save()
         }
 
         albums.removeAll { $0.id == id }
@@ -266,23 +277,16 @@ final class CollectionManager {
         let oldName = albums[index].name
         albums[index].name = newName
 
-        // 更新 SwiftData
-        do {
-            let sdAlbums = try dataService.fetchAlbums()
-            for sdAlbum in sdAlbums {
-                if sdAlbum.toAlbum().id == id {
-                    sdAlbum.name = newName
-                    break
-                }
-            }
-            try dataService.save()
-        } catch {
-            logger.warning("Failed to rename album in SwiftData")
+        // 使用索引直接更新
+        if let sdAlbum = albumIndex[id] {
+            sdAlbum.name = newName
+            try? dataService.save()
         }
 
         logger.info("Album renamed: \(oldName) → \(newName)")
     }
 
+    // 拖拽排序
     func moveAlbum(from source: Int, to destination: Int) {
         guard albums.indices.contains(source),
               albums.indices.contains(destination),
@@ -294,8 +298,9 @@ final class CollectionManager {
         let movedAlbum = albums.remove(at: source)
         albums.insert(movedAlbum, at: destination)
 
-        // 更新所有 displayOrder
-        reindexAlbumOrders()
+        // 范围更新而非全量重索引
+        reindexAlbumOrdersOptimized(source: source, destination: destination)
+
         try? dataService.save()
     }
 
@@ -318,6 +323,7 @@ final class CollectionManager {
 
         let count = albums.count
         albums.removeAll()
+        albumIndex.removeAll()
         logger.info("Cleared all \(count) albums")
     }
 
@@ -326,6 +332,13 @@ final class CollectionManager {
     private func loadCollections() async {
         do {
             let sdAlbums = try dataService.fetchAlbums()
+
+            // 建立索引
+            albumIndex.removeAll()
+            for sdAlbum in sdAlbums {
+                albumIndex[sdAlbum.stableId] = sdAlbum
+            }
+
             self.albums = sdAlbums.map { $0.toAlbum() }
             logger.info("Loaded \(self.albums.count) albums")
         } catch {
@@ -333,20 +346,17 @@ final class CollectionManager {
         }
     }
 
-    private func reindexAlbumOrders() {
-        do {
-            let sdAlbums = try dataService.fetchAlbums()
-            // 按当前内存中的顺序匹配更新
-            for (newOrder, album) in albums.enumerated() {
-                for sdAlbum in sdAlbums {
-                    if sdAlbum.toAlbum().id == album.id {
-                        sdAlbum.displayOrder = newOrder
-                        break
-                    }
-                }
+    /// 关键优化：只更新受影响的范围，避免全量转换
+    private func reindexAlbumOrdersOptimized(source: Int, destination: Int) {
+        let start = min(source, destination)
+        let end = max(source, destination)
+
+        // 只更新受影响范围内的专辑
+        for i in start ... end {
+            let albumId = albums[i].id
+            if let sdAlbum = albumIndex[albumId] {
+                sdAlbum.displayOrder = i
             }
-        } catch {
-            logger.warning("Failed to reindex album orders")
         }
     }
 

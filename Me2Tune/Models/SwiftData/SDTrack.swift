@@ -22,6 +22,10 @@ final class SDTrack {
 
     var bookmark: Data?
 
+    /// 稳定的唯一标识符，避免拖拽时频繁查询
+    @Attribute(.unique)
+    var stableId: UUID
+
     // MARK: - Audio Format (Embedded)
 
     var codec: String?
@@ -53,7 +57,8 @@ final class SDTrack {
         bitrate: Int?,
         sampleRate: Double?,
         bitDepth: Int?,
-        channels: Int?
+        channels: Int?,
+        stableId: UUID = UUID()
     ) {
         self.title = title
         self.artist = artist
@@ -66,6 +71,7 @@ final class SDTrack {
         self.sampleRate = sampleRate
         self.bitDepth = bitDepth
         self.channels = channels
+        self.stableId = stableId
     }
 }
 
@@ -85,7 +91,8 @@ extension SDTrack {
             bitrate: track.format.bitrate,
             sampleRate: track.format.sampleRate,
             bitDepth: track.format.bitDepth,
-            channels: track.format.channels
+            channels: track.format.channels,
+            stableId: track.id // 使用 AudioTrack 的 ID
         )
     }
 
@@ -101,7 +108,7 @@ extension SDTrack {
             channels: channels
         )
         return AudioTrack(
-            id: persistentModelID.hashValue != 0 ? stableUUID : UUID(),
+            id: stableId, // 直接使用 stableId
             url: url,
             title: title,
             artist: artist,
@@ -110,13 +117,5 @@ extension SDTrack {
             format: format,
             bookmark: bookmark
         )
-    }
-
-    /// 基于 urlString 生成稳定的 UUID（确保同一 SDTrack 每次转出的 UUID 一致）
-    private var stableUUID: UUID {
-        UUID(uuidString: String(urlString.hashValue, radix: 16).padding(toLength: 32, withPad: "0", startingAt: 0)
-            .enumerated().map { offset, char in
-                [8, 12, 16, 20].contains(offset) ? "-\(char)" : String(char)
-            }.joined()) ?? UUID()
     }
 }

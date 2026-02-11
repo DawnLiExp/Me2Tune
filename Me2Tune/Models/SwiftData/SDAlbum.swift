@@ -16,6 +16,10 @@ final class SDAlbum {
     var folderURLString: String?
     var displayOrder: Int
 
+    /// 稳定的唯一标识符，避免拖拽时频繁调用 toAlbum() 匹配
+    @Attribute(.unique)
+    var stableId: UUID
+
     // MARK: - Relationships
 
     @Relationship(deleteRule: .cascade, inverse: \SDAlbumTrackEntry.album)
@@ -23,10 +27,11 @@ final class SDAlbum {
 
     // MARK: - Initialization
 
-    init(name: String, folderURLString: String?, displayOrder: Int) {
+    init(name: String, folderURLString: String?, displayOrder: Int, stableId: UUID = UUID()) {
         self.name = name
         self.folderURLString = folderURLString
         self.displayOrder = displayOrder
+        self.stableId = stableId
     }
 
     // MARK: - Computed Properties
@@ -52,20 +57,10 @@ extension SDAlbum {
         }
         let tracks = sortedTracks.map { $0.toAudioTrack() }
         return Album(
-            id: stableUUID,
+            id: stableId, // 直接使用 stableId，不再计算
             name: name,
             folderURL: folderURL,
             tracks: tracks
         )
-    }
-
-    /// 基于 name + displayOrder 生成稳定 UUID
-    private var stableUUID: UUID {
-        let seed = "\(name)-\(displayOrder)"
-        let hash = seed.hashValue
-        return UUID(uuidString: String(abs(hash), radix: 16).padding(toLength: 32, withPad: "0", startingAt: 0)
-            .enumerated().map { offset, char in
-                [8, 12, 16, 20].contains(offset) ? "-\(char)" : String(char)
-            }.joined()) ?? UUID()
     }
 }

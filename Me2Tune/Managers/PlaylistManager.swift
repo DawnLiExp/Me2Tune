@@ -24,6 +24,9 @@ final class PlaylistManager {
 
     private let dataService = DataService.shared
 
+    /// 新增：ID → SDTrack 内存索引，避免重复查询
+    private var trackIndex: [UUID: SDTrack] = [:]
+
     // MARK: - Computed Properties
 
     var isEmpty: Bool {
@@ -88,6 +91,9 @@ final class PlaylistManager {
             }
             sdTrack.isInPlaylist = true
             sdTrack.playlistOrder = maxOrder + offset
+
+            // 缓存到索引
+            trackIndex[sdTrack.stableId] = sdTrack
         }
 
         try? dataService.save()
@@ -108,18 +114,21 @@ final class PlaylistManager {
         guard tracks.indices.contains(index) else { return }
 
         let track = tracks[index]
-        if let sdTrack = dataService.findTrack(byURL: track.url.absoluteString) {
+
+        // 使用索引直接获取
+        if let sdTrack = trackIndex[track.id] ?? dataService.findTrack(byURL: track.url.absoluteString) {
             sdTrack.isInPlaylist = false
             sdTrack.playlistOrder = nil
 
             // 如果不属于任何专辑，删除 SDTrack
             if sdTrack.albumEntries.isEmpty {
                 dataService.delete(sdTrack)
+                trackIndex.removeValue(forKey: track.id)
             }
         }
 
-        // 重建 playlistOrder
-        reindexPlaylistOrders(removedAt: index)
+        // 范围重索引
+        reindexPlaylistOrdersOptimized(removedAt: index)
 
         try? dataService.save()
         loadPlaylistContent()
@@ -142,7 +151,8 @@ final class PlaylistManager {
         }
 
         tracks.removeAll()
-        logger.info("🗑 Cleared playlist")
+        trackIndex.removeAll()
+        logger.info("🗑️ Cleared playlist")
     }
 
     // MARK: - Public Methods - Reorder
@@ -159,8 +169,8 @@ final class PlaylistManager {
         let movedTrack = tracks.remove(at: source)
         tracks.insert(movedTrack, at: destination)
 
-        // 更新所有 playlistOrder
-        reindexAllPlaylistOrders()
+        // 范围更新而非全量重索引
+        reindexPlaylistOrdersOptimized(movedFrom: source, to: destination)
 
         try? dataService.save()
         logger.debug("Moved track from \(source) to \(destination)")
@@ -171,6 +181,13 @@ final class PlaylistManager {
     private func loadPlaylistContent() {
         do {
             let sdTracks = try dataService.fetchPlaylistTracks()
+
+            // 建立索引
+            trackIndex.removeAll()
+            for sdTrack in sdTracks {
+                trackIndex[sdTrack.stableId] = sdTrack
+            }
+
             tracks = sdTracks.map { $0.toAudioTrack() }
             logger.info("📋 Loaded \(sdTracks.count) playlist tracks")
         } catch {
@@ -178,21 +195,27 @@ final class PlaylistManager {
         }
     }
 
-    private func reindexPlaylistOrders(removedAt removedIndex: Int) {
-        do {
-            let sdTracks = try dataService.fetchPlaylistTracks()
-            for (newOrder, sdTrack) in sdTracks.enumerated() {
-                sdTrack.playlistOrder = newOrder
+    /// 删除后只更新受影响的范围
+    private func reindexPlaylistOrdersOptimized(removedAt removedIndex: Int) {
+        // 只更新删除位置之后的歌曲
+        for i in removedIndex ..< tracks.count {
+            let trackId = tracks[i].id
+            if let sdTrack = trackIndex[trackId] {
+                sdTrack.playlistOrder = i
             }
-        } catch {
-            logger.warning("Failed to reindex playlist orders")
         }
     }
 
-    private func reindexAllPlaylistOrders() {
-        for (newOrder, track) in tracks.enumerated() {
-            if let sdTrack = dataService.findTrack(byURL: track.url.absoluteString) {
-                sdTrack.playlistOrder = newOrder
+    /// 拖拽时只更新受影响的范围
+    private func reindexPlaylistOrdersOptimized(movedFrom source: Int, to destination: Int) {
+        let start = min(source, destination)
+        let end = max(source, destination)
+
+        // 只更新受影响范围内的歌曲
+        for i in start ... end {
+            let trackId = tracks[i].id
+            if let sdTrack = trackIndex[trackId] {
+                sdTrack.playlistOrder = i
             }
         }
     }
