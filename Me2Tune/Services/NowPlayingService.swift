@@ -36,17 +36,24 @@ final class NowPlayingService {
         duration: TimeInterval,
         isPlaying: Bool
     ) {
+        if !isEnabled {
+            var minimalInfo: [String: Any] = [:]
+            minimalInfo[MPMediaItemPropertyTitle] = track.title
+            minimalInfo[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = minimalInfo
+            logger.debug("🔑 Now Playing disabled, set minimal info for media keys")
+            return
+        }
+        
         logger.debug("📻 Updating Now Playing Info")
         var nowPlayingInfo: [String: Any] = [:]
         
-        // 基本信息
         nowPlayingInfo[MPMediaItemPropertyTitle] = track.title
         nowPlayingInfo[MPMediaItemPropertyArtist] = track.artist ?? String(localized: "unknown_artist")
         if let albumTitle = track.albumTitle {
             nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = albumTitle
         }
         
-        // 封面图片
         if let artwork,
            let artworkData = artwork.tiffRepresentation
         {
@@ -58,11 +65,9 @@ final class NowPlayingService {
             nowPlayingInfo[MPMediaItemPropertyArtwork] = mediaArtwork
         }
         
-        // 时长和进度
         nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = duration
         nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentTime
         
-        // 播放速率（0.0 = 暂停，1.0 = 播放）
         nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
         
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
@@ -80,6 +85,8 @@ final class NowPlayingService {
     }
     
     func updatePlaybackTime(currentTime: TimeInterval) {
+        guard isEnabled else { return }
+        
         guard var nowPlayingInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo else {
             return
         }
@@ -92,6 +99,16 @@ final class NowPlayingService {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
    
         logger.debug("🧹 Cleared Now Playing info")
+    }
+    
+    func setPlaceholderInfo() {
+        let currentRate = MPNowPlayingInfoCenter.default().nowPlayingInfo?[MPNowPlayingInfoPropertyPlaybackRate] as? Double ?? 0.0
+        
+        var placeholderInfo: [String: Any] = [:]
+        placeholderInfo[MPMediaItemPropertyTitle] = "Me2Tune"
+        placeholderInfo[MPNowPlayingInfoPropertyPlaybackRate] = currentRate
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = placeholderInfo
+        logger.debug("🔑 Set placeholder info for media keys (rate: \(currentRate))")
     }
     
     // MARK: - Timer Management

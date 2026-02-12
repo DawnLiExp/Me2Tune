@@ -253,6 +253,12 @@ struct SettingsView: View {
                         .toggleStyle(.switch)
                         .labelsHidden()
                         .controlSize(.small)
+                        .onChange(of: nowPlayingEnabled) { _, newValue in
+                            if !newValue {
+                                // 🔑 开关关闭时设置占位信息以保持媒体键工作
+                                NowPlayingService.shared.setPlaceholderInfo()
+                            }
+                         }
                 }
             }
         }
@@ -262,9 +268,7 @@ struct SettingsView: View {
 
     private var appearanceSettings: some View {
         VStack(spacing: 24) {
-            // 🅰️ 组：语言 + 主题
             VStack(spacing: 16) {
-                // 语言设置
                 settingRow(icon: "globe", label: "settings_language_label") {
                     Picker("", selection: $currentLanguage) {
                         ForEach(LanguageManager.AppLanguage.allCases) { language in
@@ -282,7 +286,6 @@ struct SettingsView: View {
                     }
                 }
                 
-                // 主题设置
                 settingRow(icon: "paintpalette", label: "settings_theme_label", helpText: "settings_theme_footer") {
                     Picker("", selection: $currentTheme) {
                         ForEach(ThemeManager.ThemeMode.allCases) { mode in
@@ -303,7 +306,6 @@ struct SettingsView: View {
             
             Divider()
             
-            // 🅱️ 组：光晕设置
             VStack(spacing: 16) {
                 // 光晕模式
                 settingRow(icon: "wand.and.stars", label: "settings_glow_mode", helpText: "settings_glow_mode_footer") {
@@ -319,7 +321,6 @@ struct SettingsView: View {
                 
                 // 动态光晕参数
                 Group {
-                    // 呼吸节奏
                     settingRow(icon: "speedometer", label: "glow_breathing_rate") {
                         TickedSlider<GlowBreathingRate>(
                             selection: $glowBreathingRate,
@@ -328,7 +329,6 @@ struct SettingsView: View {
                         )
                     }
                     
-                    // 呼吸强度
                     settingRow(icon: "waveform", label: "glow_breathing_intensity") {
                         TickedSlider<GlowBreathingIntensity>(
                             selection: $glowBreathingIntensity,
