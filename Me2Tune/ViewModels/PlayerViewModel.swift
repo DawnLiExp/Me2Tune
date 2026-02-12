@@ -69,6 +69,9 @@ final class PlayerViewModel {
     @ObservationIgnored private var hasMarkedPlayCount = false
     @ObservationIgnored private var currentStatTrackId: UUID?
     
+    /// Threshold to mark a track as played for statistics (80%)
+    private let playCountThreshold: Double = 0.8
+    
     @ObservationIgnored private var isWindowVisible = true
     @ObservationIgnored private lazy var progressTimeProvider: () -> TimeInterval = { [weak self] in
         self?.playbackProgressState.currentTime ?? 0
@@ -605,10 +608,10 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
             hasMarkedPlayCount = false
         }
         
-        if !hasMarkedPlayCount && currentTime >= duration * 0.8 {
+        if !hasMarkedPlayCount && currentTime >= duration * playCountThreshold {
             hasMarkedPlayCount = true
             Task { @MainActor in
-                StatisticsManager.shared.incrementTodayPlayCount()
+                await StatisticsManager.shared.incrementTodayPlayCount()
             }
         }
     }

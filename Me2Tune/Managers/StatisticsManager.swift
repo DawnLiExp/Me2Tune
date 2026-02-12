@@ -55,7 +55,7 @@ final class StatisticsManager {
     
     // MARK: - Actions
     
-    func incrementTodayPlayCount() {
+    func incrementTodayPlayCount() async {
         let now = Date()
         let today = Self.dateFormatter.string(from: now)
         
@@ -73,7 +73,6 @@ final class StatisticsManager {
                 logger.debug("📈 Created new statistics record for \(today)")
             }
             
-            // Trigger background cleanup check daily
             checkAndCleanupIfNeeded(today: today)
         } catch {
             logger.error("❌ Failed to increment play count: \(error)")
