@@ -17,11 +17,13 @@ private let logger = Logger.application
 final class StatisticsViewModel {
     // MARK: - Properties
     
-    private(set) var dailyStats: [DailyStatItem] = []
+    private(set) var stats: [DailyStatItem] = []
     private(set) var totalTracks: Int = 0
     private(set) var totalAlbums: Int = 0
     private(set) var uniqueArtists: Int = 0
     private(set) var isLoading: Bool = false
+    
+    var selectedPeriod: StatPeriod = .daily
     
     private let dataService = DataService.shared
     private let statisticsManager = StatisticsManager.shared
@@ -42,24 +44,18 @@ final class StatisticsViewModel {
         isLoading = true
         defer { isLoading = false }
         
-        // Optimizing with parallel queries
+        // Parallel queries for overview counts and aggregated stats
         async let trackCount = fetchTotalTracks()
         async let albumCount = fetchTotalAlbums()
         async let artistCount = fetchUniqueArtists()
-        async let stats = statisticsManager.fetchRecentStatistics(days: 30)
+        async let aggregatedStats = statisticsManager.fetchAggregatedStats(period: selectedPeriod)
         
-        // Wait for all results
-        let (tCount, aCount, rCount, sData) = await (trackCount, albumCount, artistCount, stats)
+        let (tCount, aCount, rCount, sData) = await (trackCount, albumCount, artistCount, aggregatedStats)
         
         self.totalTracks = tCount
         self.totalAlbums = aCount
         self.uniqueArtists = rCount
-        self.dailyStats = sData
-        
-        // Trigger background cleanup once per load
-        Task.detached { @MainActor in
-            StatisticsManager.shared.cleanupOldData(keepDays: 30)
-        }
+        self.stats = sData
     }
     
     // MARK: - Private Helpers
@@ -75,7 +71,7 @@ final class StatisticsViewModel {
     }
     
     private func fetchUniqueArtists() async -> Int {
-        // Optimized: only fetch the 'artist' property to reduce memory footprint
+        // Performance: fetch only 'artist' property
         var descriptor = FetchDescriptor<SDTrack>(
             predicate: #Predicate<SDTrack> { $0.artist != nil }
         )

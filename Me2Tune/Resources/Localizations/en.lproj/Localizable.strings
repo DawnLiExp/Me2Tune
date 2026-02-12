@@ -121,12 +121,15 @@
 
 // MARK: - Settings - Statistics
 "settings_statistics" = "Statistics";
-"statistics_chart_title" = "30-Day Playback Trends";
-"statistics_empty_title" = "No Playback History";
-"statistics_empty_subtitle" = "Start listening to fill your music journey";
-"statistics_tracks" = "Tracks";
-"statistics_albums" = "Albums";
-"statistics_artists" = "Artists";
+"stat_period_daily" = "Daily";
+"stat_period_weekly" = "Weekly";
+"stat_period_monthly" = "Monthly";
+"stat_tracks" = "Total Tracks";
+"stat_albums" = "Total Albums";
+"stat_artists" = "Unique Artists";
+"stat_empty_title" = "No Records";
+"stat_empty_subtitle" = "Start listening to fill your music footprint";
+"statistics_chart_title" = "30-Day Playback Trends"; // Legacy compatibility
 
 // MARK: - ControlSection
 "Switch to Mini Mode" = "Switch to Mini Mode";

@@ -10,12 +10,12 @@ import SwiftUI
 
 struct StatisticsChartView: View {
     let data: [DailyStatItem]
+    let period: StatPeriod
 
     var body: some View {
         Chart(data) { item in
             BarMark(
-                x: .value("Date", item.date, unit: .day),
-                // Ensure visibility even if count is 0 by using a minimum height of 1
+                x: .value("Date", item.date, unit: xAxisUnit),
                 y: .value("Plays", max(item.playCount, 1))
             )
             .foregroundStyle(
@@ -30,20 +30,43 @@ struct StatisticsChartView: View {
                         endPoint: .bottom
                     ))
             )
-            .cornerRadius(4)
+            .cornerRadius(period == .monthly ? 6 : 4)
         }
         .chartXAxis {
-            AxisMarks(values: .stride(by: .day, count: 5)) { _ in
-                AxisValueLabel(format: .dateTime.month().day())
+            AxisMarks(values: .stride(by: xAxisUnit, count: xAxisStride)) { _ in
+                if period == .daily {
+                    AxisValueLabel(format: .dateTime.month().day())
+                } else if period == .weekly {
+                    AxisValueLabel(format: .dateTime.month().day())
+                } else {
+                    AxisValueLabel(format: .dateTime.month())
+                }
             }
         }
         .chartYAxis {
             AxisMarks(position: .leading)
         }
-        // Force-provide a range to satisfy SwiftUI ScaleDomain requirements
         .chartYScale(domain: 0...max(10, data.map(\.playCount).max() ?? 10))
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
+    }
+
+    // MARK: - Helpers
+
+    private var xAxisUnit: Calendar.Component {
+        switch period {
+        case .daily: return .day
+        case .weekly: return .weekOfYear
+        case .monthly: return .month
+        }
+    }
+
+    private var xAxisStride: Int {
+        switch period {
+        case .daily: return 5
+        case .weekly: return 2
+        case .monthly: return 1
+        }
     }
 }
 
@@ -55,6 +78,6 @@ struct StatisticsChartView: View {
         return DailyStatItem(id: "\(i)", date: date, playCount: i % 7 == 0 ? 0 : Int.random(in: 1...20))
     }.reversed()
 
-    return StatisticsChartView(data: data)
+    return StatisticsChartView(data: data, period: .daily)
         .frame(height: 240)
 }

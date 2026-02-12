@@ -12,16 +12,29 @@ struct StatisticsView: View {
     
     var body: some View {
         VStack(spacing: 0) {
+            // MARK: - Period Picker
+            
+            Picker("", selection: $viewModel.selectedPeriod) {
+                ForEach(StatPeriod.allCases, id: \.self) { period in
+                    Text(LocalizedStringResource(stringLiteral: period.rawValue))
+                        .tag(period)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 24)
+            .padding(.top, 16)
+            .padding(.bottom, 8)
+            
             // MARK: - Chart Section
             
             ZStack {
                 if viewModel.isLoading {
                     ProgressView()
-                } else if viewModel.dailyStats.isEmpty || viewModel.dailyStats.allSatisfy({ $0.playCount == 0 }) {
+                } else if viewModel.stats.isEmpty || viewModel.stats.allSatisfy({ $0.playCount == 0 }) {
                     EmptyStateView()
                         .transition(.opacity)
                 } else {
-                    StatisticsChartView(data: viewModel.dailyStats)
+                    StatisticsChartView(data: viewModel.stats, period: viewModel.selectedPeriod)
                         .transition(.asymmetric(
                             insertion: .opacity.combined(with: .scale(scale: 0.95)),
                             removal: .opacity
@@ -30,7 +43,8 @@ struct StatisticsView: View {
             }
             .frame(height: 240)
             .animation(.easeOut(duration: 0.3), value: viewModel.isLoading)
-            .animation(.easeOut(duration: 0.3), value: viewModel.dailyStats.isEmpty)
+            .animation(.easeOut(duration: 0.3), value: viewModel.stats.isEmpty)
+            .animation(.easeOut(duration: 0.3), value: viewModel.selectedPeriod)
             
             Divider()
             
@@ -59,10 +73,15 @@ struct StatisticsView: View {
         .task {
             await viewModel.loadStatistics()
         }
+        .onChange(of: viewModel.selectedPeriod) { _, _ in
+            Task {
+                await viewModel.loadStatistics()
+            }
+        }
     }
 }
 
 #Preview {
     StatisticsView()
-        .frame(width: 500, height: 340)
+        .frame(width: 550, height: 400)
 }
