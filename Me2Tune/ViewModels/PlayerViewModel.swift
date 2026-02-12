@@ -64,6 +64,11 @@ final class PlayerViewModel {
     @ObservationIgnored private var pendingSaveTask: Task<Void, Never>?
     @ObservationIgnored private var volumeUpdateTask: Task<Void, Never>?
     
+    // MARK: - Statistics Tracking
+    
+    @ObservationIgnored private var hasMarkedPlayCount = false
+    @ObservationIgnored private var currentStatTrackId: UUID?
+    
     @ObservationIgnored private var isWindowVisible = true
     @ObservationIgnored private lazy var progressTimeProvider: () -> TimeInterval = { [weak self] in
         self?.playbackProgressState.currentTime ?? 0
@@ -362,6 +367,12 @@ final class PlayerViewModel {
         
         let track = currentTracks[index]
         
+        // ✅ Statistics Marker Reset
+        if currentStatTrackId != track.id {
+            currentStatTrackId = track.id
+            hasMarkedPlayCount = false
+        }
+        
         // 已标记失败的歌曲直接跳过
         if isTrackFailed(track.id) {
             logger.debug("⏭️ Skipping known failed track: \(track.title)")
@@ -585,6 +596,21 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
     
     func playerCore(_ core: AudioPlayerCore, didUpdateTime currentTime: TimeInterval, duration: TimeInterval) {
         playbackProgressState.currentTime = currentTime
+        
+        // Statistics Tracking: 播放进度达到 80% 计入统计
+        guard duration > 0 else { return }
+        
+        // 处理单曲循环：如果进度条回到起点，重置标记
+        if hasMarkedPlayCount && currentTime < 1.0 {
+            hasMarkedPlayCount = false
+        }
+        
+        if !hasMarkedPlayCount && currentTime >= duration * 0.8 {
+            hasMarkedPlayCount = true
+            Task { @MainActor in
+                StatisticsManager.shared.incrementTodayPlayCount()
+            }
+        }
     }
     
     func playerCore(_ core: AudioPlayerCore, didLoadTrack track: AudioTrack, artwork: NSImage?) {

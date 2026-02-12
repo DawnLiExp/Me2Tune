@@ -12,18 +12,19 @@ nonisolated extension Logger {
     private static let subsystem = "me2.Me2Tune"
 
     static let app = Logger(subsystem: subsystem, category: "App")
-    static let player = Logger(subsystem: subsystem, category: "Player")
-    static let viewModel = Logger(subsystem: subsystem, category: "ViewModel")
-    static let collection = Logger(subsystem: subsystem, category: "Collection")
-    static let persistence = Logger(subsystem: subsystem, category: "Persistence")
+    static let application = Logger(subsystem: subsystem, category: "Application")
     static let artwork = Logger(subsystem: subsystem, category: "Artwork")
     static let audio = Logger(subsystem: subsystem, category: "Audio")
-    static let nowPlaying = Logger(subsystem: subsystem, category: "NowPlaying")
-    static let remoteCommand = Logger(subsystem: subsystem, category: "RemoteCommand")
-    static let theme = Logger(subsystem: subsystem, category: "Theme")
+    static let cache = Logger(subsystem: subsystem, category: "Cache")
+    static let collection = Logger(subsystem: subsystem, category: "Collection")
     static let language = Logger(subsystem: subsystem, category: "Language")
     static let lyrics = Logger(subsystem: subsystem, category: "Lyrics")
-    static let cache = Logger(subsystem: subsystem, category: "Cache")
+    static let nowPlaying = Logger(subsystem: subsystem, category: "NowPlaying")
+    static let persistence = Logger(subsystem: subsystem, category: "Persistence")
+    static let player = Logger(subsystem: subsystem, category: "Player")
+    static let remoteCommand = Logger(subsystem: subsystem, category: "RemoteCommand")
+    static let theme = Logger(subsystem: subsystem, category: "Theme")
+    static let viewModel = Logger(subsystem: subsystem, category: "ViewModel")
     static let vinyl = Logger(subsystem: subsystem, category: "Vinyl")
 }
 

@@ -86,7 +86,8 @@ struct SettingsView: View {
         HStack(spacing: 0) {
             tabButton(index: 0, title: String(localized: "settings_features"), icon: "slider.horizontal.3")
             tabButton(index: 1, title: String(localized: "settings_appearance"), icon: "paintpalette")
-            tabButton(index: 2, title: String(localized: "settings_about"), icon: "info.circle")
+            tabButton(index: 2, title: String(localized: "settings_statistics", defaultValue: "统计"), icon: "chart.bar")
+            tabButton(index: 3, title: String(localized: "settings_about"), icon: "info.circle")
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
@@ -128,6 +129,8 @@ struct SettingsView: View {
                 case 1:
                     appearanceSettings
                 case 2:
+                    StatisticsView()
+                case 3:
                     aboutSettings
                 default:
                     featuresSettings

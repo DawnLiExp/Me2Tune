@@ -119,6 +119,14 @@
 "glow_intensity_weak_short" = "Weak";
 "glow_intensity_strong_short" = "Strong";
 
+// MARK: - Settings - Statistics
+"settings_statistics" = "Statistics";
+"statistics_chart_title" = "30-Day Playback Trends";
+"statistics_empty_title" = "No Playback History";
+"statistics_empty_subtitle" = "Start listening to fill your music journey";
+"statistics_tracks" = "Tracks";
+"statistics_albums" = "Albums";
+"statistics_artists" = "Artists";
 
 // MARK: - ControlSection
 "Switch to Mini Mode" = "Switch to Mini Mode";

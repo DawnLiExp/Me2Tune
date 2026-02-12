@@ -32,6 +32,7 @@ final class DataService {
             SDAlbum.self,
             SDAlbumTrackEntry.self,
             SDPlaybackState.self,
+            SDStatistics.self,
         ])
 
         let config = ModelConfiguration(

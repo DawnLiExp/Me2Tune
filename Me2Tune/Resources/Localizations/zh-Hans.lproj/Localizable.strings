@@ -119,6 +119,14 @@
 "glow_intensity_weak_short" = "弱";
 "glow_intensity_strong_short" = "强";
 
+// MARK: - 设置 - 统计
+"settings_statistics" = "统计";
+"statistics_chart_title" = "30 天播放趋势";
+"statistics_empty_title" = "暂无播放记录";
+"statistics_empty_subtitle" = "开始听歌来填充你的音乐足迹";
+"statistics_tracks" = "歌曲";
+"statistics_albums" = "专辑";
+"statistics_artists" = "艺术家";
 
 // MARK: - 设置 - 播放控制
 "Switch to Mini Mode" = "切换到迷你模式";

@@ -46,6 +46,13 @@
 		FC746C322F0E5043008AD5B4 /* HoverDetectingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC746C312F0E5040008AD5B4 /* HoverDetectingView.swift */; };
 		FC7596862F1BB95100E86C9C /* AlbumTrackRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC7596852F1BB95100E86C9C /* AlbumTrackRowView.swift */; };
 		FC7596882F1BB95A00E86C9C /* AlbumDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC7596872F1BB95A00E86C9C /* AlbumDetailView.swift */; };
+		FC7A0BE52F3E061900C29400 /* StatisticsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC7A0BE42F3E061900C29400 /* StatisticsManager.swift */; };
+		FC7A0BE72F3E062500C29400 /* SDStatistics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC7A0BE62F3E062500C29400 /* SDStatistics.swift */; };
+		FC7A0BE92F3E063600C29400 /* StatisticsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC7A0BE82F3E063600C29400 /* StatisticsViewModel.swift */; };
+		FC7A0BED2F3E064900C29400 /* StatCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC7A0BEB2F3E064900C29400 /* StatCard.swift */; };
+		FC7A0BEE2F3E064900C29400 /* StatisticsChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC7A0BEC2F3E064900C29400 /* StatisticsChartView.swift */; };
+		FC7A0BEF2F3E064900C29400 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC7A0BEA2F3E064900C29400 /* EmptyStateView.swift */; };
+		FC7A0BF12F3E065800C29400 /* StatisticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC7A0BF02F3E065800C29400 /* StatisticsView.swift */; };
 		FC8528082F01486100B53540 /* ContentSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8528072F01485D00B53540 /* ContentSectionView.swift */; };
 		FC8528102F014F7C00B53540 /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC85280F2F014F7A00B53540 /* AppError.swift */; };
 		FC8528122F014FAA00B53540 /* Logger+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8528112F014FA900B53540 /* Logger+Extensions.swift */; };
@@ -118,6 +125,13 @@
 		FC746C312F0E5040008AD5B4 /* HoverDetectingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverDetectingView.swift; sourceTree = "<group>"; };
 		FC7596852F1BB95100E86C9C /* AlbumTrackRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumTrackRowView.swift; sourceTree = "<group>"; };
 		FC7596872F1BB95A00E86C9C /* AlbumDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumDetailView.swift; sourceTree = "<group>"; };
+		FC7A0BE42F3E061900C29400 /* StatisticsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsManager.swift; sourceTree = "<group>"; };
+		FC7A0BE62F3E062500C29400 /* SDStatistics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDStatistics.swift; sourceTree = "<group>"; };
+		FC7A0BE82F3E063600C29400 /* StatisticsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsViewModel.swift; sourceTree = "<group>"; };
+		FC7A0BEA2F3E064900C29400 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
+		FC7A0BEB2F3E064900C29400 /* StatCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatCard.swift; sourceTree = "<group>"; };
+		FC7A0BEC2F3E064900C29400 /* StatisticsChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsChartView.swift; sourceTree = "<group>"; };
+		FC7A0BF02F3E065800C29400 /* StatisticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsView.swift; sourceTree = "<group>"; };
 		FC8528072F01485D00B53540 /* ContentSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentSectionView.swift; sourceTree = "<group>"; };
 		FC85280F2F014F7A00B53540 /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
 		FC8528112F014FA900B53540 /* Logger+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Logger+Extensions.swift"; sourceTree = "<group>"; };
@@ -217,6 +231,9 @@
 		FC2BD75A2F385B1A00ABBBC1 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				FC7A0BEA2F3E064900C29400 /* EmptyStateView.swift */,
+				FC7A0BEB2F3E064900C29400 /* StatCard.swift */,
+				FC7A0BEC2F3E064900C29400 /* StatisticsChartView.swift */,
 				FC2BD7582F385AD800ABBBC1 /* TickedSlider.swift */,
 			);
 			path = Components;
@@ -226,6 +243,7 @@
 			isa = PBXGroup;
 			children = (
 				FC32865C2F010F3B000D8F2A /* PlayerViewModel.swift */,
+				FC7A0BE82F3E063600C29400 /* StatisticsViewModel.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -310,6 +328,7 @@
 				FCAE83FE2F18C07800BBEC0B /* MiniWindowController.swift */,
 				FC3E2B032F08BF1400F59E4B /* PlaybackStateManager.swift */,
 				FC31BA482F08323800786380 /* PlaylistManager.swift */,
+				FC7A0BE42F3E061900C29400 /* StatisticsManager.swift */,
 			);
 			path = Managers;
 			sourceTree = "<group>";
@@ -425,6 +444,7 @@
 				FC9C89E52F3B06AD004A59AC /* SDAlbum.swift */,
 				FC9C89E62F3B06AD004A59AC /* SDAlbumTrackEntry.swift */,
 				FC9C89E72F3B06AD004A59AC /* SDPlaybackState.swift */,
+				FC7A0BE62F3E062500C29400 /* SDStatistics.swift */,
 				FC9C89E82F3B06AD004A59AC /* SDTrack.swift */,
 			);
 			path = SwiftData;
@@ -444,6 +464,7 @@
 			children = (
 				FC2BD75A2F385B1A00ABBBC1 /* Components */,
 				FCCAAFBC2F1284C500DF5D71 /* SettingsView.swift */,
+				FC7A0BF02F3E065800C29400 /* StatisticsView.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -547,9 +568,14 @@
 				FCDDD83F2F17625F00295F8C /* MiniVolumeSliderStyle.swift in Sources */,
 				FC50C7402F06588700597B19 /* ToolbarButtonView.swift in Sources */,
 				FCB9B9662F1C0AB400CA7866 /* Lyrics.swift in Sources */,
+				FC7A0BED2F3E064900C29400 /* StatCard.swift in Sources */,
+				FC7A0BEE2F3E064900C29400 /* StatisticsChartView.swift in Sources */,
+				FC7A0BEF2F3E064900C29400 /* EmptyStateView.swift in Sources */,
+				FC7A0BE52F3E061900C29400 /* StatisticsManager.swift in Sources */,
 				FC62DA3B2F0373C800DD1509 /* Array+Extensions.swift in Sources */,
 				FC7596862F1BB95100E86C9C /* AlbumTrackRowView.swift in Sources */,
 				FCD1A6A42F16ABED00EC88E2 /* DisplayMode.swift in Sources */,
+				FC7A0BF12F3E065800C29400 /* StatisticsView.swift in Sources */,
 				FC13779D2EFCF9CC00A9CE99 /* PlaylistTabView.swift in Sources */,
 				FC746C322F0E5043008AD5B4 /* HoverDetectingView.swift in Sources */,
 				FC480EAA2EF107E8000D8393 /* ContentView.swift in Sources */,
@@ -558,6 +584,7 @@
 				FCAE84012F18C09F00BBEC0B /* AppDelegate.swift in Sources */,
 				FC50C73C2F06585700597B19 /* BackgroundLayerView.swift in Sources */,
 				FC8C88722F06263500ABC82E /* WindowStateMonitor.swift in Sources */,
+				FC7A0BE72F3E062500C29400 /* SDStatistics.swift in Sources */,
 				FC49D3B02F0AC2F000628C1B /* SearchResultRowView.swift in Sources */,
 				FC9C89EE2F3B083D004A59AC /* DataService.swift in Sources */,
 				FC13779B2EFCF9AD00A9CE99 /* CollectionsGridView.swift in Sources */,
@@ -580,6 +607,7 @@
 				FCDDF5B02F14DAE0003AFB85 /* SlateBlueTheme.swift in Sources */,
 				FC9698EA2F20BF1A002FFD53 /* PlaybackProgressState.swift in Sources */,
 				FC49D3B22F0AC30000628C1B /* SearchOverlayView.swift in Sources */,
+				FC7A0BE92F3E063600C29400 /* StatisticsViewModel.swift in Sources */,
 				FC9596682F1D23CE00ED7FB7 /* LyricsCacheService.swift in Sources */,
 				FCB9B9682F1C0ACB00CA7866 /* LyricsService.swift in Sources */,
 				FC50C7422F06589800597B19 /* SongRowView.swift in Sources */,
