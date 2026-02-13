@@ -49,6 +49,8 @@ struct StatisticsChartView: View {
         .chartYScale(domain: 0...max(10, data.map(\.playCount).max() ?? 10))
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
+        .animation(nil, value: data)
+        .animation(nil, value: period)
     }
 
     // MARK: - Helpers
@@ -75,7 +77,7 @@ struct StatisticsChartView: View {
     let today = calendar.startOfDay(for: Date())
     let data: [DailyStatItem] = (0 ..< 30).map { i in
         let date = calendar.date(byAdding: .day, value: -i, to: today)!
-        return DailyStatItem(id: "\(i)", date: date, playCount: i % 7 == 0 ? 0 : Int.random(in: 1...20))
+        return DailyStatItem(id: "\(i)", date: date, playCount: i % 7 == 0 ? 0 : Int.random(in: 1...50))
     }.reversed()
 
     return StatisticsChartView(data: data, period: .daily)

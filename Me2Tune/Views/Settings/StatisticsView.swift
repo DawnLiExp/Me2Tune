@@ -35,17 +35,14 @@ struct StatisticsView: View {
                         .transition(.opacity)
                 } else {
                     StatisticsChartView(data: viewModel.stats, period: viewModel.selectedPeriod)
-                        .transition(.asymmetric(
-                            insertion: .opacity.combined(with: .scale(scale: 0.95)),
-                            removal: .opacity
-                        ))
+                        .id(viewModel.selectedPeriod)
+                        .transition(.opacity)
                 }
             }
             .frame(height: 240)
-            .animation(.easeOut(duration: 0.3), value: viewModel.isLoading)
-            .animation(.easeOut(duration: 0.3), value: viewModel.stats.isEmpty)
-            .animation(.easeOut(duration: 0.3), value: viewModel.selectedPeriod)
-            
+            .animation(.easeOut(duration: 0.25), value: viewModel.isLoading)
+            .animation(.easeOut(duration: 0.25), value: viewModel.stats.isEmpty)
+       
             Divider()
             
             // MARK: - Overview Cards
