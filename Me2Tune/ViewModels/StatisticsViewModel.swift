@@ -23,7 +23,13 @@ final class StatisticsViewModel {
     private(set) var uniqueArtists: Int = 0
     private(set) var isLoading: Bool = false
     
-    var selectedPeriod: StatPeriod = .daily
+    var selectedPeriod: StatPeriod = .daily {
+        didSet {
+            if let cachedData = statsCache[selectedPeriod] {
+                stats = cachedData
+            }
+        }
+    }
     
     private let dataService = DataService.shared
     private let statisticsManager = StatisticsManager.shared
@@ -32,33 +38,77 @@ final class StatisticsViewModel {
         dataService.modelContext
     }
     
+    // MARK: - Cache
+    
+    private var statsCache: [StatPeriod: [DailyStatItem]] = [:]
+    private var overviewLoaded = false
+    
     // MARK: - Initialization
     
     init() {}
     
     // MARK: - Actions
     
-    func loadStatistics() async {
+    func preloadAll() async {
+        guard !isLoading else { return }
+        
+        isLoading = true
+        defer { isLoading = false }
+    
+        if !overviewLoaded {
+            async let trackCount = fetchTotalTracks()
+            async let albumCount = fetchTotalAlbums()
+            async let artistCount = fetchUniqueArtists()
+            
+            let (tCount, aCount, rCount) = await (trackCount, albumCount, artistCount)
+            
+            self.totalTracks = tCount
+            self.totalAlbums = aCount
+            self.uniqueArtists = rCount
+            self.overviewLoaded = true
+        }
+        
+        await loadAllPeriods()
+        
+        if let cachedData = statsCache[selectedPeriod] {
+            stats = cachedData
+        }
+    }
+
+    func loadCurrentPeriodIfNeeded() async {
+        guard statsCache[selectedPeriod] == nil else {
+            if let cachedData = statsCache[selectedPeriod] {
+                stats = cachedData
+            }
+            return
+        }
+        
         guard !isLoading else { return }
         
         isLoading = true
         defer { isLoading = false }
         
-        // Parallel queries for overview counts and aggregated stats
-        async let trackCount = fetchTotalTracks()
-        async let albumCount = fetchTotalAlbums()
-        async let artistCount = fetchUniqueArtists()
-        async let aggregatedStats = statisticsManager.fetchAggregatedStats(period: selectedPeriod)
-        
-        let (tCount, aCount, rCount, sData) = await (trackCount, albumCount, artistCount, aggregatedStats)
-        
-        self.totalTracks = tCount
-        self.totalAlbums = aCount
-        self.uniqueArtists = rCount
-        self.stats = sData
+        let sData = await statisticsManager.fetchAggregatedStats(period: selectedPeriod)
+        statsCache[selectedPeriod] = sData
+        stats = sData
     }
     
     // MARK: - Private Helpers
+    
+    private func loadAllPeriods() async {
+        await withTaskGroup(of: (StatPeriod, [DailyStatItem]).self) { group in
+            for period in StatPeriod.allCases {
+                group.addTask {
+                    let data = await self.statisticsManager.fetchAggregatedStats(period: period)
+                    return (period, data)
+                }
+            }
+            
+            for await (period, data) in group {
+                statsCache[period] = data
+            }
+        }
+    }
     
     private func fetchTotalTracks() async -> Int {
         let descriptor = FetchDescriptor<SDTrack>()

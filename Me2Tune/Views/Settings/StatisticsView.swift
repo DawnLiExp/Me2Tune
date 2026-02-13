@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct StatisticsView: View {
-    @State private var viewModel = StatisticsViewModel()
+    @Bindable var viewModel: StatisticsViewModel
     
     var body: some View {
         VStack(spacing: 0) {
@@ -70,18 +70,10 @@ struct StatisticsView: View {
             .padding(.horizontal, 24)
             .padding(.vertical, 16)
         }
-        .task {
-            await viewModel.loadStatistics()
-        }
-        .onChange(of: viewModel.selectedPeriod) { _, _ in
-            Task {
-                await viewModel.loadStatistics()
-            }
-        }
     }
 }
 
 #Preview {
-    StatisticsView()
+    StatisticsView(viewModel: StatisticsViewModel())
         .frame(width: 550, height: 400)
 }

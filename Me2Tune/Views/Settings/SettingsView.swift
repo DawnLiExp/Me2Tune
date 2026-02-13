@@ -2,7 +2,7 @@
 //  SettingsView.swift
 //  Me2Tune
 //
-//  设置界面 - 功能/外观/关于
+//  Settings interface - Features/Appearance/Statistics/About
 //
 
 import SwiftUI
@@ -19,6 +19,8 @@ struct SettingsView: View {
     @State private var pendingLanguage: LanguageManager.AppLanguage?
     @State private var pendingTheme: ThemeManager.ThemeMode?
     @State private var selectedTab = 0
+    
+    @State private var statisticsViewModel = StatisticsViewModel()
     
     @AppStorage("CleanMode") private var cleanMode = false
     @AppStorage("nowPlayingEnabled") private var nowPlayingEnabled = true
@@ -52,6 +54,10 @@ struct SettingsView: View {
         }
         .onAppear {
             adjustWindowHeight(for: selectedTab)
+            
+            Task {
+                await statisticsViewModel.preloadAll()
+            }
         }
         .alert("language_change_title", isPresented: $showLanguageChangeAlert) {
             Button("restart_now") {
@@ -101,7 +107,7 @@ struct SettingsView: View {
         HStack(spacing: 0) {
             tabButton(index: 0, title: String(localized: "settings_features"), icon: "slider.horizontal.3")
             tabButton(index: 1, title: String(localized: "settings_appearance"), icon: "paintpalette")
-            tabButton(index: 2, title: String(localized: "settings_statistics", defaultValue: "统计"), icon: "chart.bar")
+            tabButton(index: 2, title: String(localized: "settings_statistics"), icon: "chart.bar")
             tabButton(index: 3, title: String(localized: "settings_about"), icon: "info.circle")
         }
         .padding(.horizontal, 20)
@@ -142,7 +148,7 @@ struct SettingsView: View {
                 case 1:
                     appearanceSettings
                 case 2:
-                    StatisticsView()
+                    StatisticsView(viewModel: statisticsViewModel)
                 case 3:
                     aboutSettings
                 default:
