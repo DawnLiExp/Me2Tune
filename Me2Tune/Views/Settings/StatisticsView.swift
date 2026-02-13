@@ -32,7 +32,7 @@ struct StatisticsView: View {
                     ProgressView()
                 } else if viewModel.stats.isEmpty || viewModel.stats.allSatisfy({ $0.playCount == 0 }) {
                     EmptyStateView()
-                        .transition(.opacity)
+                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
                 } else {
                     StatisticsChartView(data: viewModel.stats, period: viewModel.selectedPeriod)
                         .id(viewModel.selectedPeriod)
@@ -40,8 +40,9 @@ struct StatisticsView: View {
                 }
             }
             .frame(height: 240)
-            .animation(.easeOut(duration: 0.25), value: viewModel.isLoading)
-            .animation(.easeOut(duration: 0.25), value: viewModel.stats.isEmpty)
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.isLoading)
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.stats.isEmpty)
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.selectedPeriod)
        
             Divider()
             
