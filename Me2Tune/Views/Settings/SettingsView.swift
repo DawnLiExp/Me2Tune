@@ -26,6 +26,15 @@ struct SettingsView: View {
     @AppStorage("backgroundGlowMode") private var backgroundGlowMode = BackgroundGlowMode.legacy.rawValue
     @AppStorage("glowBreathingRate") private var glowBreathingRate = GlowBreathingRate.medium.rawValue
     @AppStorage("glowBreathingIntensity") private var glowBreathingIntensity = GlowBreathingIntensity.medium.rawValue
+    
+    // MARK: - Tab Heights
+    
+    private let tabHeights: [Int: CGFloat] = [
+        0: 340, // Features
+        1: 340, // Appearance
+        2: 530, // Statistics
+        3: 340 // About
+    ]
 
     var body: some View {
         VStack(spacing: 0) {
@@ -36,8 +45,14 @@ struct SettingsView: View {
             tabContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(width: 500, height: 340)
+        .frame(width: 500, height: tabHeights[selectedTab] ?? 340)
         .background(Color(NSColor.windowBackgroundColor))
+        .onChange(of: selectedTab) { _, newTab in
+            adjustWindowHeight(for: newTab)
+        }
+        .onAppear {
+            adjustWindowHeight(for: selectedTab)
+        }
         .alert("language_change_title", isPresented: $showLanguageChangeAlert) {
             Button("restart_now") {
                 if let language = pendingLanguage {
@@ -144,7 +159,6 @@ struct SettingsView: View {
     
     private var featuresSettings: some View {
         VStack(spacing: 24) {
-            // 缓存设置组
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
                     Image(systemName: "folder.badge.gearshape")
@@ -240,9 +254,7 @@ struct SettingsView: View {
             
             Divider()
             
-            // 播放功能设置组
             VStack(spacing: 16) {
-                // 音频缓冲
                 settingRow(icon: "waveform.circle", label: "audio_buffering", helpText: "audio_buffering_footer") {
                     Toggle("", isOn: $audioBufferingEnabled)
                         .toggleStyle(.switch)
@@ -250,7 +262,6 @@ struct SettingsView: View {
                         .controlSize(.small)
                 }
                 
-                // Now Playing 同步
                 settingRow(icon: "music.note.list", label: "now_playing_sync", helpText: "now_playing_sync_footer") {
                     Toggle("", isOn: $nowPlayingEnabled)
                         .toggleStyle(.switch)
@@ -261,7 +272,7 @@ struct SettingsView: View {
                                 // 🔑 开关关闭时设置占位信息以保持媒体键工作
                                 NowPlayingService.shared.setPlaceholderInfo()
                             }
-                         }
+                        }
                 }
             }
         }
@@ -310,7 +321,6 @@ struct SettingsView: View {
             Divider()
             
             VStack(spacing: 16) {
-                // 光晕模式
                 settingRow(icon: "wand.and.stars", label: "settings_glow_mode", helpText: "settings_glow_mode_footer") {
                     Picker("", selection: $backgroundGlowMode) {
                         ForEach(BackgroundGlowMode.allCases) { mode in
@@ -322,7 +332,6 @@ struct SettingsView: View {
                     .frame(width: 140)
                 }
                 
-                // 动态光晕参数
                 Group {
                     settingRow(icon: "speedometer", label: "glow_breathing_rate") {
                         TickedSlider<GlowBreathingRate>(
@@ -343,7 +352,6 @@ struct SettingsView: View {
                 .disabled(backgroundGlowMode != BackgroundGlowMode.meshGradient.rawValue)
                 .opacity(backgroundGlowMode == BackgroundGlowMode.meshGradient.rawValue ? 1 : 0.4)
 
-                // 简洁模式
                 settingRow(icon: "sparkles", label: "settings_clean_mode", helpText: "settings_clean_mode_footer") {
                     Toggle("", isOn: $cleanMode)
                         .toggleStyle(.switch)
@@ -482,6 +490,25 @@ struct SettingsView: View {
         task.launch()
         
         NSApp.terminate(nil)
+    }
+    
+    private func adjustWindowHeight(for tab: Int) {
+        guard let window = NSApp.keyWindow ?? NSApp.windows.first(where: { $0.isKeyWindow }) else {
+            return
+        }
+        
+        let targetHeight = tabHeights[tab] ?? 340
+        var frame = window.frame
+        let heightDifference = targetHeight - frame.height
+        
+        frame.origin.y -= heightDifference
+        frame.size.height = targetHeight
+        
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.3
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            window.animator().setFrame(frame, display: true)
+        }
     }
 }
 
