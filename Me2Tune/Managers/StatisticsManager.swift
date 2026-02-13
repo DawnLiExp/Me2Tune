@@ -31,6 +31,10 @@ enum StatPeriod: String, CaseIterable {
         case .monthly: return 365
         }
     }
+    
+    var displayName: String {
+        NSLocalizedString(rawValue, comment: "Statistics period display name")
+    }
 }
 
 // MARK: - Manager

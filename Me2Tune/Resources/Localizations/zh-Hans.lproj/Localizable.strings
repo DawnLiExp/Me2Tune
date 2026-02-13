@@ -129,7 +129,6 @@
 "stat_artists" = "艺术家总数";
 "stat_empty_title" = "暂无播放记录";
 "stat_empty_subtitle" = "开始听歌来填充你的音乐足迹";
-"statistics_chart_title" = "30 天播放趋势"; // 保持兼容性
 
 // MARK: - 设置 - 播放控制
 "Switch to Mini Mode" = "切换到迷你模式";

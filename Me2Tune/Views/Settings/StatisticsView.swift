@@ -16,7 +16,7 @@ struct StatisticsView: View {
             
             Picker("", selection: $viewModel.selectedPeriod) {
                 ForEach(StatPeriod.allCases, id: \.self) { period in
-                    Text(LocalizedStringResource(stringLiteral: period.rawValue))
+                    Text(period.displayName)
                         .tag(period)
                 }
             }

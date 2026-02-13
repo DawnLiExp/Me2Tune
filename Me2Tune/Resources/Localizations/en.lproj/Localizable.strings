@@ -129,7 +129,6 @@
 "stat_artists" = "Unique Artists";
 "stat_empty_title" = "No Records";
 "stat_empty_subtitle" = "Start listening to fill your music footprint";
-"statistics_chart_title" = "30-Day Playback Trends"; // Legacy compatibility
 
 // MARK: - ControlSection
 "Switch to Mini Mode" = "Switch to Mini Mode";
