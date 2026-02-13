@@ -111,9 +111,7 @@ struct SettingsView: View {
     
     private func tabButton(index: Int, title: String, icon: String) -> some View {
         Button(action: {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                selectedTab = index
-            }
+            selectedTab = index
         }) {
             HStack(spacing: 6) {
                 Image(systemName: icon)
@@ -269,7 +267,6 @@ struct SettingsView: View {
                         .controlSize(.small)
                         .onChange(of: nowPlayingEnabled) { _, newValue in
                             if !newValue {
-                                // 🔑 开关关闭时设置占位信息以保持媒体键工作
                                 NowPlayingService.shared.setPlaceholderInfo()
                             }
                         }
@@ -503,12 +500,8 @@ struct SettingsView: View {
         
         frame.origin.y -= heightDifference
         frame.size.height = targetHeight
-        
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.3
-            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            window.animator().setFrame(frame, display: true)
-        }
+   
+        window.setFrame(frame, display: true)
     }
 }
 
