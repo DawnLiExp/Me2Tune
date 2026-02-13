@@ -124,6 +124,12 @@
 "stat_period_daily" = "日视图";
 "stat_period_weekly" = "周视图";
 "stat_period_monthly" = "月视图";
+"stat_period_daily" = "日";
+"stat_period_weekly" = "周";
+"stat_period_monthly" = "月";
+"stat_today" = "播放量";
+"stat_this_week" = "本周播放量";
+"stat_weeks_ago_format" = "%d周前";
 "stat_tracks" = "歌曲总数";
 "stat_albums" = "专辑总数";
 "stat_artists" = "艺术家总数";

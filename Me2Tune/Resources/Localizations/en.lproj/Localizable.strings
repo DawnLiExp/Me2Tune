@@ -124,6 +124,12 @@
 "stat_period_daily" = "Daily";
 "stat_period_weekly" = "Weekly";
 "stat_period_monthly" = "Monthly";
+"stat_period_daily" = "Daily";
+"stat_period_weekly" = "Weekly";
+"stat_period_monthly" = "Monthly";
+"stat_today" = "Today";
+"stat_this_week" = "This Week";
+"stat_weeks_ago_format" = "%d Weeks Ago";
 "stat_tracks" = "Total Tracks";
 "stat_albums" = "Total Albums";
 "stat_artists" = "Unique Artists";
