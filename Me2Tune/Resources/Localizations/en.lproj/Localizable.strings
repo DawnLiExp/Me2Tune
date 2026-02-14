@@ -135,6 +135,8 @@
 "stat_artists" = "Unique Artists";
 "stat_empty_title" = "No Records";
 "stat_empty_subtitle" = "Start listening to fill your music footprint";
+"stat_plays_count" = "Plays";
+"stat_count_unit" = ""; // Empty for English, unit is not used
 
 // MARK: - ControlSection
 "Switch to Mini Mode" = "Switch to Mini Mode";
