@@ -135,7 +135,7 @@
 "stat_artists" = "艺术家总数";
 "stat_empty_title" = "暂无播放记录";
 "stat_empty_subtitle" = "开始听歌来填充你的音乐足迹";
-"stat_plays_count" = "播放歌曲";
+"stat_plays_count" = "当日聆听";
 "stat_count_unit" = "首";
 
 // MARK: - 设置 - 播放控制

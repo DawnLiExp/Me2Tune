@@ -56,15 +56,15 @@ struct StatisticsChartView: View {
         {
             VStack(alignment: .leading, spacing: 4) {
                 Text(tooltipDateText(for: item))
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 11.5, weight: .medium))
                     .foregroundStyle(.primary)
 
                 HStack(spacing: 4) {
                     Text(String(localized: "stat_plays_count", defaultValue: "Plays"))
-                        .font(.system(size: 10))
+                        .font(.system(size: 11.5))
                         .foregroundStyle(.secondary)
                     Text(tooltipCountText(for: item.playCount))
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: 12.5, weight: .semibold))
                         .foregroundStyle(Color.accentColor)
                 }
             }
@@ -113,37 +113,29 @@ struct StatisticsChartView: View {
 
         switch period {
         case .daily:
-            // Format: "2月13日 星期五" / "Feb 13, Friday"
             let formatter = DateFormatter()
             formatter.dateFormat = DateFormatter.dateFormat(fromTemplate: "MMMdEEEE", options: 0, locale: Locale.current)
             return formatter.string(from: item.date)
 
         case .weekly:
-            // Format: "2月9日 - 2月15日" / "Feb 9 - Feb 15"
-            guard let weekStart = calendar.dateInterval(of: .weekOfYear, for: item.date)?.start else {
-                return item.date.formatted(date: .abbreviated, time: .omitted)
-            }
-            guard let weekEnd = calendar.date(byAdding: .day, value: 6, to: weekStart) else {
+            guard let weekInterval = calendar.dateInterval(of: .weekOfYear, for: item.date) else {
                 return item.date.formatted(date: .abbreviated, time: .omitted)
             }
 
-            let startFormat = weekStart.formatted(.dateTime.month().day())
+            let weekEnd = calendar.date(byAdding: .second, value: -1, to: weekInterval.end)!
+
+            let startFormat = weekInterval.start.formatted(.dateTime.month().day())
             let endFormat = weekEnd.formatted(.dateTime.month().day())
             return "\(startFormat) - \(endFormat)"
 
         case .monthly:
-            // Format: "2025年2月" / "February 2025"
             return item.date.formatted(.dateTime.year().month(.wide))
         }
     }
 
     private func tooltipCountText(for count: Int) -> String {
-        // For Chinese, add unit "首"; for English, just the number
-        if Locale.current.language.languageCode?.identifier == "zh" {
-            return "\(count) \(String(localized: "stat_count_unit", defaultValue: "首"))"
-        } else {
-            return "\(count)"
-        }
+        let unit = String(localized: "stat_count_unit", defaultValue: "")
+        return unit.isEmpty ? "\(count)" : "\(count) \(unit)"
     }
 
     // MARK: - Helpers
