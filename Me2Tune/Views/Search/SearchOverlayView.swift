@@ -56,19 +56,18 @@ struct SearchOverlayView: View {
         }
     }
     
-    private let maxSongResults = 10
+    private let maxTotalSongResults = 20
     private let maxAlbumResults = 10
+    private let maxPerSourceSongs = 20
     
     var body: some View {
         ZStack(alignment: .top) {
-            // 背景蒙层（保持通用半透明黑色）
             Color.black.opacity(0.6 * animationProgress)
                 .ignoresSafeArea()
                 .onTapGesture {
                     closeSearch()
                 }
             
-            // 搜索卡片
             searchCard
                 .opacity(animationProgress)
                 .offset(y: (1 - animationProgress) * 20)
@@ -247,11 +246,17 @@ struct SearchOverlayView: View {
         let albumResults = searchAlbums(query: query)
         let albumTrackResults = searchAlbumTracks(query: query)
         
-        allResults.append(contentsOf: playlistResults)
-        allResults.append(contentsOf: albumResults)
-        allResults.append(contentsOf: albumTrackResults)
+        var songResults = playlistResults + albumTrackResults
+        songResults.sort { $0.relevance > $1.relevance }
         
-        return allResults.sorted { $0.relevance > $1.relevance }
+        if songResults.count > maxTotalSongResults {
+            songResults = Array(songResults.prefix(maxTotalSongResults))
+        }
+        
+        allResults.append(contentsOf: albumResults)
+        allResults.append(contentsOf: songResults)
+        
+        return allResults
     }
     
     // MARK: - Search Helpers
@@ -260,7 +265,7 @@ struct SearchOverlayView: View {
         var results: [SearchResult] = []
         
         for (index, track) in searchData.playlist.enumerated() {
-            guard results.count < maxSongResults else { break }
+            guard results.count < maxPerSourceSongs else { break }
             
             let titleMatch = track.title.lowercased().contains(query)
             let artistMatch = track.artist?.lowercased().contains(query) ?? false
@@ -329,9 +334,9 @@ struct SearchOverlayView: View {
     private func searchAlbumTracks(query: String) -> [SearchResult] {
         var results: [SearchResult] = []
         
-        for album in searchData.albums {
+        albumLoop: for album in searchData.albums {
             for (index, track) in album.tracks.enumerated() {
-                guard results.count < maxSongResults else { break }
+                guard results.count < maxPerSourceSongs else { break albumLoop }
                 
                 let titleMatch = track.title.lowercased().contains(query)
                 let artistMatch = track.artist?.lowercased().contains(query) ?? false
@@ -370,7 +375,6 @@ struct SearchOverlayView: View {
             animationProgress = 0
         }
         
-        // 延迟关闭，等动画完成
         Task {
             try? await Task.sleep(for: .milliseconds(200))
             await MainActor.run {
