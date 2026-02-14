@@ -16,7 +16,30 @@ private let logger = Logger.viewModel
 @MainActor
 @Observable
 final class PlayerViewModel {
-    // MARK: - Published States (UI 绑定状态)
+    // MARK: - Nested Types
+    
+    @MainActor
+    private final class FailedTrackHandler {
+        private var failedIDs = Set<UUID>()
+        
+        func mark(_ id: UUID) {
+            failedIDs.insert(id)
+        }
+        
+        func isMarked(_ id: UUID) -> Bool {
+            failedIDs.contains(id)
+        }
+        
+        func clear(_ id: UUID) {
+            failedIDs.remove(id)
+        }
+        
+        func clearForPlaylist(_ trackIDs: Set<UUID>) {
+            failedIDs.subtract(trackIDs)
+        }
+    }
+
+    // MARK: - Published States
 
     private(set) var isPlaying = false
     private(set) var duration: TimeInterval = 0
@@ -34,10 +57,9 @@ final class PlayerViewModel {
         }
     }
 
-    /// 播放列表滚动到的记录 ID，用于在 Tab 切换时保持位置
-    var lastScrollTrackId: UUID?
+    var lastScrollTrackId: UUID? // Scroll anchor for playlist tab
     
-    // MARK: - Progress State (独立 @Observable)
+    // MARK: - Progress State
     
     @ObservationIgnored let playbackProgressState = PlaybackProgressState()
     
@@ -45,6 +67,7 @@ final class PlayerViewModel {
     
     let playlistManager: PlaylistManager
     let playbackStateManager: PlaybackStateManager
+    private let failedTrackHandler = FailedTrackHandler()
     
     // MARK: - Types
     
@@ -56,7 +79,7 @@ final class PlayerViewModel {
         case one
     }
     
-    // MARK: - Private Properties (不触发UI更新)
+    // MARK: - Private Properties
     
     @ObservationIgnored private let playerCore: AudioPlayerCore
     @ObservationIgnored private var observerTask: Task<Void, Never>?
@@ -64,13 +87,12 @@ final class PlayerViewModel {
     @ObservationIgnored private var pendingSaveTask: Task<Void, Never>?
     @ObservationIgnored private var volumeUpdateTask: Task<Void, Never>?
     
-    // MARK: - Statistics Tracking
+    // MARK: - Statistics
     
     @ObservationIgnored private var hasMarkedPlayCount = false
     @ObservationIgnored private var currentStatTrackId: UUID?
     
-    /// Threshold to mark a track as played for statistics (80%)
-    private let playCountThreshold: Double = 0.8
+    private let playCountThreshold: Double = 0.8 // 80% threshold for play count
     
     @ObservationIgnored private var isWindowVisible = true
     @ObservationIgnored private lazy var progressTimeProvider: () -> TimeInterval = { [weak self] in
@@ -124,6 +146,7 @@ final class PlayerViewModel {
             collectionManager: collectionManager
         )
         self.playerCore = AudioPlayerCore()
+        
         self.playerCore.delegate = self
         
         RemoteCommandController.shared.setup(viewModel: self)
@@ -144,8 +167,6 @@ final class PlayerViewModel {
         volumeUpdateTask?.cancel()
     }
 
-    // MARK: - Setup
-    
     // MARK: - Setup
     
     private func setupNotificationObservers() {
@@ -284,7 +305,7 @@ final class PlayerViewModel {
         let wasPlaying = (playingSource == .playlist && currentTrackIndex == index)
         let removedTrack = playlistManager.tracks[index]
         
-        clearFailedMark(for: removedTrack.id)
+        failedTrackHandler.clear(removedTrack.id)
         
         if wasPlaying {
             pause()
@@ -305,7 +326,7 @@ final class PlayerViewModel {
             pause()
         }
         
-        clearFailedMarksForPlaylist()
+        failedTrackHandler.clearForPlaylist(Set(playlistManager.tracks.map(\.id)))
         
         playlistManager.clearAll()
         playbackStateManager.handlePlaylistCleared()
@@ -370,14 +391,14 @@ final class PlayerViewModel {
         
         let track = currentTracks[index]
         
-        // ✅ Statistics Marker Reset
+        // Reset stats marker
         if currentStatTrackId != track.id {
             currentStatTrackId = track.id
             hasMarkedPlayCount = false
         }
         
-        // 已标记失败的歌曲直接跳过
-        if isTrackFailed(track.id) {
+        // Skip tracks marked as failed
+        if failedTrackHandler.isMarked(track.id) {
             logger.debug("⏭️ Skipping known failed track: \(track.title)")
             skipToNextTrack(from: index, attempt: attempt)
             return
@@ -391,19 +412,19 @@ final class PlayerViewModel {
                 return
             }
             
-            // 加载成功：设置索引并播放
+            // Load success: set index and play
             playbackStateManager.setCurrentIndex(index)
             playerCore.play()
             scheduleStateSave()
         }
     }
     
-    /// 处理加载失败
+    /// Handle load failure
     private func handleLoadFailure(track: AudioTrack, index: Int, attempt: Int) {
         logger.warning("⚠️ Track load failed: \(track.title)")
-        markTrackFailed(track.id)
+        failedTrackHandler.mark(track.id)
         
-        // 单曲循环模式下：停止播放
+        // Stop if single loop mode
         if repeatMode == .one {
             logger.info("🛑 Single repeat on failed track, stopping")
             pause()
@@ -413,7 +434,7 @@ final class PlayerViewModel {
         skipToNextTrack(from: index, attempt: attempt)
     }
     
-    /// 跳到下一首（失败后或跳过已失败歌曲时调用）
+    /// Skip to next track
     private func skipToNextTrack(from index: Int, attempt: Int) {
         if let nextIndex = playbackStateManager.calculateNextIndex(at: index, repeatMode: convertRepeatMode()) {
             logger.info("⏭️ Auto-skipping to next track")
@@ -436,8 +457,8 @@ final class PlayerViewModel {
         
         let nextTrack = currentTracks[nextIndex]
         
-        // 不预加载已知失败的歌曲
-        if isTrackFailed(nextTrack.id) {
+        // Do not preload failed tracks
+        if failedTrackHandler.isMarked(nextTrack.id) {
             logger.debug("Skip enqueuing known failed track: \(nextTrack.title)")
             return
         }
@@ -445,55 +466,30 @@ final class PlayerViewModel {
         Task { @MainActor in
             let success = await playerCore.enqueueTrack(nextTrack)
             
-            // 预加载失败：只标记，不跳转
+            // Preload failed: mark only
             if !success {
                 logger.warning("⚠️ Enqueue failed, marking track: \(nextTrack.title)")
-                markTrackFailed(nextTrack.id)
+                failedTrackHandler.mark(nextTrack.id)
             }
         }
     }
     
-    // MARK: - Failed Track Handling
-    
-    @ObservationIgnored private var failedTrackIDs = Set<UUID>()
-    
-    /// 检查歌曲是否已标记为失败
-    func isTrackFailed(_ trackID: UUID) -> Bool {
-        failedTrackIDs.contains(trackID)
-    }
-    
-    /// 标记歌曲为失败
-    private func markTrackFailed(_ trackID: UUID) {
-        failedTrackIDs.insert(trackID)
-    }
-    
-    /// 清除单个歌曲的失败标记
-    private func clearFailedMark(for trackID: UUID) {
-        failedTrackIDs.remove(trackID)
-    }
-    
-    /// 清除播放列表所有歌曲的失败标记
-    private func clearFailedMarksForPlaylist() {
-        let playlistTrackIDs = Set(playlistManager.tracks.map(\.id))
-        failedTrackIDs.subtract(playlistTrackIDs)
-    }
-    
-    /// 用户手动点击时：清除失败标记并重试
+    /// Clear failure mark on manual retry
     private func retryIfFailed(_ track: AudioTrack) {
-        if failedTrackIDs.contains(track.id) {
+        if failedTrackHandler.isMarked(track.id) {
             logger.info("🔄 Retry failed track: \(track.title)")
-            failedTrackIDs.remove(track.id)
+            failedTrackHandler.clear(track.id)
         }
     }
     
-    /// 查找上一首有效歌曲（跳过已失败的）
+    /// Find previous valid track
     private func findPreviousValidTrack(from currentIndex: Int) -> Int? {
         var testIndex = currentIndex - 1
         var attempts = 0
         
         while testIndex >= 0, attempts < currentTracks.count {
             let track = currentTracks[testIndex]
-            if !isTrackFailed(track.id) {
+            if !failedTrackHandler.isMarked(track.id) {
                 return testIndex
             }
             testIndex -= 1
@@ -503,6 +499,13 @@ final class PlayerViewModel {
         return nil
     }
     
+    // MARK: - Failed Track Public Access
+    
+    /// Check if a track is marked as failed
+    func isTrackFailed(_ trackID: UUID) -> Bool {
+        failedTrackHandler.isMarked(trackID)
+    }
+
     // MARK: - Private Helpers
     
     private func convertRepeatMode() -> PlaybackStateManager.RepeatMode {
@@ -600,15 +603,15 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
     func playerCore(_ core: AudioPlayerCore, didUpdateTime currentTime: TimeInterval, duration: TimeInterval) {
         playbackProgressState.currentTime = currentTime
         
-        // Statistics Tracking: 播放进度达到 80% 计入统计
+        // Statistics: Mark as played at 80%
         guard duration > 0 else { return }
         
-        // 处理单曲循环：如果进度条回到起点，重置标记
-        if hasMarkedPlayCount && currentTime < 1.0 {
+        // Reset play count mark on loop
+        if hasMarkedPlayCount, currentTime < 1.0 {
             hasMarkedPlayCount = false
         }
         
-        if !hasMarkedPlayCount && currentTime >= duration * playCountThreshold {
+        if !hasMarkedPlayCount, currentTime >= duration * playCountThreshold {
             hasMarkedPlayCount = true
             Task { @MainActor in
                 await StatisticsManager.shared.incrementTodayPlayCount()
@@ -665,11 +668,11 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
     }
     
     func playerCoreDidReachEnd(_ core: AudioPlayerCore) {
-        // 单曲循环：重新播放
+        // Single loop: replay
         if repeatMode == .one, let index = currentTrackIndex {
             let track = currentTracks[index]
             
-            if isTrackFailed(track.id) {
+            if failedTrackHandler.isMarked(track.id) {
                 logger.info("🛑 Single repeat on failed track, stopping")
                 pause()
             } else {
@@ -678,7 +681,7 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
             return
         }
         
-        // 其他模式：尝试播放下一首
+        // Other modes: try next
         guard let currentIndex = currentTrackIndex else { return }
         
         if let nextIndex = playbackStateManager.calculateNextIndex(at: currentIndex, repeatMode: convertRepeatMode()) {
