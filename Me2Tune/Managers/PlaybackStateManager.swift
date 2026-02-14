@@ -39,7 +39,6 @@ final class PlaybackStateManager {
     private weak var playlistManager: PlaylistManager?
     private weak var collectionManager: CollectionManager?
 
-    /// 状态去重：记录上次保存的关键值
     private var lastSavedSourceType: String?
     private var lastSavedIndex: Int?
     private var lastSavedVolume: Double?
@@ -118,7 +117,7 @@ final class PlaybackStateManager {
         return previousIndex
     }
 
-    /// ✅ 计算下一首索引（不改变当前索引）
+    /// Calculate next index without mutating current index.
     func calculateNextIndex(at index: Int, repeatMode: RepeatMode) -> Int? {
         switch repeatMode {
         case .one:
@@ -138,7 +137,7 @@ final class PlaybackStateManager {
         }
     }
 
-    /// ⚠️ 兼容旧方法（使用当前索引）
+    /// Compatibility method using current index.
     func calculateNextIndex(repeatMode: RepeatMode) -> Int? {
         guard let currentIndex = currentTrackIndex else { return nil }
         return calculateNextIndex(at: currentIndex, repeatMode: repeatMode)
@@ -147,7 +146,6 @@ final class PlaybackStateManager {
     // MARK: - Playlist Updates Handling
 
     func handlePlaylistTrackRemoved(at index: Int, wasPlaying: Bool) {
-        // 仅在播放列表模式下处理
         guard playingSource == .playlist else {
             return
         }
@@ -160,7 +158,6 @@ final class PlaybackStateManager {
             }
         }
 
-        // 同步最新的播放列表数据
         if let playlistManager {
             currentTracks = playlistManager.tracks
         }
@@ -198,7 +195,6 @@ final class PlaybackStateManager {
             currentTracks = playlistManager.tracks
         }
 
-        // 如果之前没有曲目,自动设置第一首
         if currentTrackIndex == nil, !currentTracks.isEmpty {
             currentTrackIndex = 0
         }
@@ -215,13 +211,13 @@ final class PlaybackStateManager {
             sourceType = SDPlaybackState.sourcePlaylist
         case .album(let albumId):
             sourceType = SDPlaybackState.sourceAlbum
-            // 通过 album UUID 查找对应的 SDAlbum 的 folderURLString
+            // Optimization: query specific album to avoid loading all albums
             albumFolderURL = findAlbumIdentifier(for: albumId)
         }
 
         let currentIdx = currentTrackIndex
 
-        // ✅ 状态去重
+        // Deduplicate: skip if no changes
         if sourceType == lastSavedSourceType,
            currentIdx == lastSavedIndex,
            volume == lastSavedVolume
@@ -291,7 +287,7 @@ final class PlaybackStateManager {
                 return nil
             }
 
-            // 通过标识符找到对应的 album UUID
+            // Find album UUID by identifier
             guard let albumId = findAlbumUUID(byIdentifier: albumIdentifier),
                   let album = await collectionManager?.loadSingleAlbum(id: albumId),
                   album.tracks.indices.contains(albumIndex)
@@ -332,33 +328,38 @@ final class PlaybackStateManager {
         }
     }
 
-    /// 根据 Album DTO UUID 找到 SwiftData 中的标识符（用 name 作为标识）
+    /// Optimization: find album identifier (folderURL or name) by UUID.
     private func findAlbumIdentifier(for albumId: UUID) -> String? {
-        do {
-            let sdAlbums = try dataService.fetchAlbums()
-            for sdAlbum in sdAlbums {
-                if sdAlbum.toAlbum().id == albumId {
-                    return sdAlbum.folderURLString ?? sdAlbum.name
-                }
-            }
-        } catch {
-            logger.warning("Failed to find album identifier")
+        // Query specific album, avoid loading all to prevent lag
+        guard let sdAlbum = dataService.findAlbum(byStableId: albumId) else {
+            logger.warning("Album not found for identifier lookup: \(albumId)")
+            return nil
         }
-        return nil
+
+        // Access properties directly to avoid toAlbum() triggering data loading
+        return sdAlbum.folderURLString ?? sdAlbum.name
     }
 
-    /// 根据标识符找到 Album DTO UUID
+    /// Optimization: find album UUID by identifier (folderURL or name).
     private func findAlbumUUID(byIdentifier identifier: String) -> UUID? {
+        // Try exact match by folderURLString
+        if let sdAlbum = dataService.findAlbum(byFolderURL: identifier) {
+            return sdAlbum.stableId
+        }
+
+        // Fallback: if folderURL fails, iterate (rare case)
+        // Load all albums only if necessary
         do {
             let sdAlbums = try dataService.fetchAlbums()
             for sdAlbum in sdAlbums {
-                if sdAlbum.folderURLString == identifier || sdAlbum.name == identifier {
-                    return sdAlbum.toAlbum().id
+                if sdAlbum.name == identifier {
+                    return sdAlbum.stableId
                 }
             }
         } catch {
             logger.warning("Failed to find album by identifier")
         }
+
         return nil
     }
 
