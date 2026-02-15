@@ -84,6 +84,16 @@
 		FCF558CE2F261A9300E7DC2A /* RotatingVinylLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCF558CD2F261A9300E7DC2A /* RotatingVinylLayer.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		FC94297F2F417A5200542E69 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FC1662222EEFAE2C00F01BCE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FC1662292EEFAE2C00F01BCE;
+			remoteInfo = Me2Tune;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		FC0A173F2EF262600090B22C /* Album.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Album.swift; sourceTree = "<group>"; };
 		FC0A17432EF2628E0090B22C /* CollectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionManager.swift; sourceTree = "<group>"; };
@@ -136,6 +146,7 @@
 		FC85280F2F014F7A00B53540 /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
 		FC8528112F014FA900B53540 /* Logger+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Logger+Extensions.swift"; sourceTree = "<group>"; };
 		FC8C88712F06263100ABC82E /* WindowStateMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowStateMonitor.swift; sourceTree = "<group>"; };
+		FC94297B2F417A5200542E69 /* Me2TuneTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Me2TuneTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		FC9596672F1D23CE00ED7FB7 /* LyricsCacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsCacheService.swift; sourceTree = "<group>"; };
 		FC9698E92F20BF18002FFD53 /* PlaybackProgressState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackProgressState.swift; sourceTree = "<group>"; };
 		FC9C89E52F3B06AD004A59AC /* SDAlbum.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDAlbum.swift; sourceTree = "<group>"; };
@@ -162,11 +173,24 @@
 		FCF558CD2F261A9300E7DC2A /* RotatingVinylLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RotatingVinylLayer.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		FC94297C2F417A5200542E69 /* Me2TuneTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Me2TuneTests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
 /* Begin PBXFrameworksBuildPhase section */
 		FC1662272EEFAE2C00F01BCE /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
 				FCC613FD2F1F21690008A57E /* SFBAudioEngine in Frameworks */,
+			);
+		};
+		FC9429782F417A5200542E69 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -196,6 +220,7 @@
 			isa = PBXGroup;
 			children = (
 				FC480EA62EF107E8000D8393 /* Me2Tune */,
+				FC94297C2F417A5200542E69 /* Me2TuneTests */,
 				FC16622B2EEFAE2C00F01BCE /* Products */,
 			);
 			sourceTree = "<group>";
@@ -204,6 +229,7 @@
 			isa = PBXGroup;
 			children = (
 				FC16622A2EEFAE2C00F01BCE /* Me2Tune.app */,
+				FC94297B2F417A5200542E69 /* Me2TuneTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -490,6 +516,27 @@
 			productReference = FC16622A2EEFAE2C00F01BCE /* Me2Tune.app */;
 			productType = "com.apple.product-type.application";
 		};
+		FC94297A2F417A5200542E69 /* Me2TuneTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FC9429832F417A5200542E69 /* Build configuration list for PBXNativeTarget "Me2TuneTests" */;
+			buildPhases = (
+				FC9429772F417A5200542E69 /* Sources */,
+				FC9429782F417A5200542E69 /* Frameworks */,
+				FC9429792F417A5200542E69 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				FC9429802F417A5200542E69 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				FC94297C2F417A5200542E69 /* Me2TuneTests */,
+			);
+			name = Me2TuneTests;
+			productName = Me2TuneTests;
+			productReference = FC94297B2F417A5200542E69 /* Me2TuneTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -502,6 +549,11 @@
 				TargetAttributes = {
 					FC1662292EEFAE2C00F01BCE = {
 						CreatedOnToolsVersion = 26.2;
+					};
+					FC94297A2F417A5200542E69 = {
+						CreatedOnToolsVersion = 26.2;
+						LastSwiftMigration = 2620;
+						TestTargetID = FC1662292EEFAE2C00F01BCE;
 					};
 				};
 			};
@@ -524,6 +576,7 @@
 			projectRoot = "";
 			targets = (
 				FC1662292EEFAE2C00F01BCE /* Me2Tune */,
+				FC94297A2F417A5200542E69 /* Me2TuneTests */,
 			);
 		};
 /* End PBXProject section */
@@ -536,6 +589,11 @@
 				FC480EBE2EF137BB000D8393 /* Localizable.strings in Resources */,
 				FC480EB72EF13722000D8393 /* Localizable.strings in Resources */,
 				FC480EB02EF107E8000D8393 /* info.plist in Resources */,
+			);
+		};
+		FC9429792F417A5200542E69 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
 			);
 		};
 /* End PBXResourcesBuildPhase section */
@@ -616,7 +674,20 @@
 				FC13AFCF2F15EBE800D9E0D4 /* MiniPlayerView.swift in Sources */,
 			);
 		};
+		FC9429772F417A5200542E69 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		FC9429802F417A5200542E69 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FC1662292EEFAE2C00F01BCE /* Me2Tune */;
+			targetProxy = FC94297F2F417A5200542E69 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		FC480EB62EF13722000D8393 /* Localizable.strings */ = {
@@ -874,6 +945,49 @@
 			};
 			name = Release;
 		};
+		FC9429812F417A5200542E69 /* Debug configuration for PBXNativeTarget "Me2TuneTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2XCFSMR77F;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = me2.test.Me2TuneTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Me2Tune.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Me2Tune";
+			};
+			name = Debug;
+		};
+		FC9429822F417A5200542E69 /* Release configuration for PBXNativeTarget "Me2TuneTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2XCFSMR77F;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = me2.test.Me2TuneTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Me2Tune.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Me2Tune";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -890,6 +1004,14 @@
 			buildConfigurations = (
 				FC1662362EEFAE2E00F01BCE /* Debug configuration for PBXNativeTarget "Me2Tune" */,
 				FC1662372EEFAE2E00F01BCE /* Release configuration for PBXNativeTarget "Me2Tune" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		FC9429832F417A5200542E69 /* Build configuration list for PBXNativeTarget "Me2TuneTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FC9429812F417A5200542E69 /* Debug configuration for PBXNativeTarget "Me2TuneTests" */,
+				FC9429822F417A5200542E69 /* Release configuration for PBXNativeTarget "Me2TuneTests" */,
 			);
 			defaultConfigurationName = Release;
 		};
