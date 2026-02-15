@@ -67,6 +67,7 @@ final class PlayerViewModel {
     
     let playlistManager: PlaylistManager
     let playbackStateManager: PlaybackStateManager
+    private let statisticsManager: StatisticsManagerProtocol
     private let failedTrackHandler = FailedTrackHandler()
     
     // MARK: - Types
@@ -139,12 +140,18 @@ final class PlayerViewModel {
 
     // MARK: - Initialization
     
-    init(collectionManager: CollectionManager? = nil) {
-        self.playlistManager = PlaylistManager()
+    init(
+        dataService: DataServiceProtocol = DataService.shared,
+        collectionManager: CollectionManager? = nil,
+        statisticsManager: StatisticsManagerProtocol = StatisticsManager.shared
+    ) {
+        self.playlistManager = PlaylistManager(dataService: dataService)
         self.playbackStateManager = PlaybackStateManager(
-            playlistManager: playlistManager,
-            collectionManager: collectionManager
+            playlistManager: self.playlistManager,
+            collectionManager: collectionManager,
+            dataService: dataService
         )
+        self.statisticsManager = statisticsManager
         self.playerCore = AudioPlayerCore()
         
         self.playerCore.delegate = self
@@ -614,7 +621,7 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
         if !hasMarkedPlayCount, currentTime >= duration * playCountThreshold {
             hasMarkedPlayCount = true
             Task { @MainActor in
-                await StatisticsManager.shared.incrementTodayPlayCount()
+                await self.statisticsManager.incrementTodayPlayCount()
             }
         }
     }

@@ -35,7 +35,7 @@ final class PlaybackStateManager {
 
     // MARK: - Private Properties
 
-    private let dataService = DataService.shared
+    private let dataService: DataServiceProtocol
     private weak var playlistManager: PlaylistManager?
     private weak var collectionManager: CollectionManager?
 
@@ -64,9 +64,14 @@ final class PlaybackStateManager {
 
     // MARK: - Initialization
 
-    init(playlistManager: PlaylistManager, collectionManager: CollectionManager?) {
+    init(
+        playlistManager: PlaylistManager,
+        collectionManager: CollectionManager?,
+        dataService: DataServiceProtocol = DataService.shared
+    ) {
         self.playlistManager = playlistManager
         self.collectionManager = collectionManager
+        self.dataService = dataService
 
         logger.debug("✅ PlaybackStateManager initialized (SwiftData)")
     }

@@ -22,7 +22,7 @@ final class PlaylistManager {
 
     // MARK: - Private Properties
 
-    private let dataService = DataService.shared
+    private let dataService: DataServiceProtocol
 
     // In-memory index: UUID → SDTrack for fast lookup during drag operations
     private var trackIndex: [UUID: SDTrack] = [:]
@@ -39,7 +39,8 @@ final class PlaylistManager {
 
     // MARK: - Initialization
 
-    init() {
+    init(dataService: DataServiceProtocol = DataService.shared) {
+        self.dataService = dataService
         loadPlaylistContent()
         logger.debug("✅ PlaylistManager initialized (SwiftData)")
     }

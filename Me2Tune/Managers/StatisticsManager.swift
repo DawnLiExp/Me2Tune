@@ -40,10 +40,10 @@ enum StatPeriod: String, CaseIterable {
 // MARK: - Manager
 
 @MainActor
-final class StatisticsManager {
+final class StatisticsManager: StatisticsManagerProtocol {
     static let shared = StatisticsManager()
     
-    private let dataService = DataService.shared
+    private let dataService: DataServiceProtocol
     private var modelContext: ModelContext {
         dataService.modelContext
     }
@@ -55,7 +55,10 @@ final class StatisticsManager {
         return formatter
     }()
     
-    private init() {}
+    /// 支持依赖注入 - 默认使用单例
+    init(dataService: DataServiceProtocol = DataService.shared) {
+        self.dataService = dataService
+    }
     
     // MARK: - Actions
     
@@ -168,8 +171,8 @@ final class StatisticsManager {
         
         if lastCleanup != today {
             // Perform cleanup asynchronously to avoid blocking the main task
-            Task.detached(priority: .background) { @MainActor in
-                Self.shared.cleanupOldData(keepDays: 365)
+            Task { @MainActor [weak self] in
+                self?.cleanupOldData(keepDays: 365)
                 UserDefaults.standard.set(today, forKey: key)
                 logger.info("🧹 Daily statistics cleanup executed for \(today)")
             }

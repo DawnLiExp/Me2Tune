@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		FC08C8512F41BE1C003163CB /* DataServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC08C8502F41BE1C003163CB /* DataServiceProtocol.swift */; };
 		FC0A17402EF262620090B22C /* Album.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC0A173F2EF262600090B22C /* Album.swift */; };
 		FC0A17442EF262910090B22C /* CollectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC0A17432EF2628E0090B22C /* CollectionManager.swift */; };
 		FC13779B2EFCF9AD00A9CE99 /* CollectionsGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC13779A2EFCF9AB00A9CE99 /* CollectionsGridView.swift */; };
@@ -39,6 +40,7 @@
 		FC50C7442F0658AE00597B19 /* TopBarSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC50C7432F0658AC00597B19 /* TopBarSectionView.swift */; };
 		FC50C7462F0658E600597B19 /* VinylSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC50C7452F0658E400597B19 /* VinylSectionView.swift */; };
 		FC51ACE52F1DD1D4009C47C9 /* CacheConfigManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC51ACE42F1DD1D4009C47C9 /* CacheConfigManager.swift */; };
+		FC5229702F41BF2A007F70C0 /* StatisticsManagerProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC52296F2F41BF2A007F70C0 /* StatisticsManagerProtocol.swift */; };
 		FC62DA392F0372C000DD1509 /* ArtworkCacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC62DA382F0372BA00DD1509 /* ArtworkCacheService.swift */; };
 		FC62DA3B2F0373C800DD1509 /* Array+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC62DA3A2F0373C600DD1509 /* Array+Extensions.swift */; };
 		FC6845602F27063300528840 /* EnvironmentKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC68455F2F27063200528840 /* EnvironmentKeys.swift */; };
@@ -95,6 +97,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		FC08C8502F41BE1C003163CB /* DataServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataServiceProtocol.swift; sourceTree = "<group>"; };
 		FC0A173F2EF262600090B22C /* Album.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Album.swift; sourceTree = "<group>"; };
 		FC0A17432EF2628E0090B22C /* CollectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionManager.swift; sourceTree = "<group>"; };
 		FC13779A2EFCF9AB00A9CE99 /* CollectionsGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionsGridView.swift; sourceTree = "<group>"; };
@@ -128,6 +131,7 @@
 		FC50C7432F0658AC00597B19 /* TopBarSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopBarSectionView.swift; sourceTree = "<group>"; };
 		FC50C7452F0658E400597B19 /* VinylSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VinylSectionView.swift; sourceTree = "<group>"; };
 		FC51ACE42F1DD1D4009C47C9 /* CacheConfigManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheConfigManager.swift; sourceTree = "<group>"; };
+		FC52296F2F41BF2A007F70C0 /* StatisticsManagerProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsManagerProtocol.swift; sourceTree = "<group>"; };
 		FC62DA382F0372BA00DD1509 /* ArtworkCacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkCacheService.swift; sourceTree = "<group>"; };
 		FC62DA3A2F0373C600DD1509 /* Array+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Array+Extensions.swift"; sourceTree = "<group>"; };
 		FC68455F2F27063200528840 /* EnvironmentKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvironmentKeys.swift; sourceTree = "<group>"; };
@@ -355,6 +359,7 @@
 				FC3E2B032F08BF1400F59E4B /* PlaybackStateManager.swift */,
 				FC31BA482F08323800786380 /* PlaylistManager.swift */,
 				FC7A0BE42F3E061900C29400 /* StatisticsManager.swift */,
+				FC52296F2F41BF2A007F70C0 /* StatisticsManagerProtocol.swift */,
 			);
 			path = Managers;
 			sourceTree = "<group>";
@@ -362,6 +367,7 @@
 		FC480EC12EF13946000D8393 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				FC08C8502F41BE1C003163CB /* DataServiceProtocol.swift */,
 				FC62DA382F0372BA00DD1509 /* ArtworkCacheService.swift */,
 				FC9C89ED2F3B083D004A59AC /* DataService.swift */,
 				FC9596672F1D23CE00ED7FB7 /* LyricsCacheService.swift */,
@@ -652,7 +658,9 @@
 				FCA502352F21F36A003C6543 /* AudioBufferDetector.swift in Sources */,
 				FC7596882F1BB95A00E86C9C /* AlbumDetailView.swift in Sources */,
 				FCDDF5AE2F14DACE003AFB85 /* EmeraldTheme.swift in Sources */,
+				FC5229702F41BF2A007F70C0 /* StatisticsManagerProtocol.swift in Sources */,
 				FC2032F72F08E8F700D17FEE /* Theme.swift in Sources */,
+				FC08C8512F41BE1C003163CB /* DataServiceProtocol.swift in Sources */,
 				FC31BA492F08323A00786380 /* PlaylistManager.swift in Sources */,
 				FC13AFCD2F15EBD400D9E0D4 /* MiniPlayerTheme.swift in Sources */,
 				FC50C7392F06583100597B19 /* ControlSectionView.swift in Sources */,

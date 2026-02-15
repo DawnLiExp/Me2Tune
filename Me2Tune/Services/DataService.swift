@@ -12,7 +12,7 @@ import SwiftData
 private let logger = Logger.persistence
 
 @MainActor
-final class DataService {
+final class DataService: DataServiceProtocol {
     // MARK: - Singleton
 
     static let shared = DataService()
@@ -26,7 +26,13 @@ final class DataService {
 
     // MARK: - Initialization
 
-    private init() {
+    /// 公开初始化器 - 用于测试时注入自定义 ModelContainer
+    init(modelContainer: ModelContainer) {
+        self.modelContainer = modelContainer
+    }
+
+    /// 便利初始化器 - 用于生产环境，创建默认 ModelContainer
+    private convenience init() {
         let schema = Schema([
             SDTrack.self,
             SDAlbum.self,
@@ -41,9 +47,10 @@ final class DataService {
         )
 
         do {
-            modelContainer = try ModelContainer(for: schema, configurations: [config])
-            modelContainer.mainContext.autosaveEnabled = true
+            let container = try ModelContainer(for: schema, configurations: [config])
+            container.mainContext.autosaveEnabled = true
             logger.info("✅ DataService initialized - SwiftData ModelContainer ready")
+            self.init(modelContainer: container)
         } catch {
             fatalError("❌ Failed to create ModelContainer: \(error)")
         }

@@ -2,7 +2,7 @@
 //  StatisticsManagerTests.swift
 //  Me2TuneTests
 //
-//  【Level 3】业务逻辑测试 - 验证 StatisticsManager 的数据聚合和清理功能
+//  【Level 3】StatisticsManager 单元测试 - 验证统计业务逻辑
 //
 
 import Foundation
@@ -11,238 +11,263 @@ import Testing
 @testable import Me2Tune
 
 @MainActor
-@Suite("StatisticsManager 业务逻辑测试")
+@Suite("StatisticsManager 单元测试")
 struct StatisticsManagerTests {
     
-    // MARK: - 测试用 Manager（使用独立数据库）
+    // MARK: - 基础功能测试
     
-    /// 为测试创建独立的 Manager 实例
-    @MainActor
-    final class TestStatisticsManager {
-        let container: ModelContainer
-        var modelContext: ModelContext { container.mainContext }
-        
-        init() throws {
-            container = try createTestModelContainer()
-        }
-        
-        // 复制核心业务逻辑（简化版）
-        func incrementPlayCount(for dateString: String) throws {
-            let descriptor = FetchDescriptor<SDStatistics>(
-                predicate: #Predicate { $0.dateString == dateString }
-            )
-            
-            if let stat = try modelContext.fetch(descriptor).first {
-                stat.playCount += 1
-            } else {
-                let newStat = SDStatistics(dateString: dateString, playCount: 1)
-                modelContext.insert(newStat)
-            }
-            try modelContext.save()
-        }
-        
-        func fetchRecentDays(_ days: Int) throws -> [SDStatistics] {
-            let calendar = Calendar.current
-            let today = calendar.startOfDay(for: Date())
-            let startDate = calendar.date(byAdding: .day, value: -days + 1, to: today)!
-            let startString = formatDate(startDate)
-            
-            let descriptor = FetchDescriptor<SDStatistics>(
-                predicate: #Predicate { $0.dateString >= startString },
-                sortBy: [SortDescriptor(\.dateString)]
-            )
-            
-            return try modelContext.fetch(descriptor)
-        }
-        
-        func deleteOldRecords(olderThan days: Int) throws {
-            let calendar = Calendar.current
-            let cutoffDate = calendar.date(byAdding: .day, value: -days, to: Date())!
-            let cutoffString = formatDate(cutoffDate)
-            
-            let descriptor = FetchDescriptor<SDStatistics>(
-                predicate: #Predicate { $0.dateString < cutoffString }
-            )
-            
-            let oldRecords = try modelContext.fetch(descriptor)
-            for record in oldRecords {
-                modelContext.delete(record)
-            }
-            try modelContext.save()
-        }
-        
-        private func formatDate(_ date: Date) -> String {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            return formatter.string(from: date)
-        }
-    }
-    
-    // MARK: - Test 1: 首次播放创建新记录
-    
-    @Test("首次播放应创建新的统计记录")
-    func testFirstPlayCreatesNewRecord() throws {
+    @Test("首次播放创建统计记录")
+    func testFirstPlayCreatesRecord() async throws {
         // Arrange
-        let manager = try TestStatisticsManager()
-        let today = formatDate(Date())
+        let statsManager = try createTestStatisticsManager()
         
         // Act
-        try manager.incrementPlayCount(for: today)
+        await statsManager.incrementTodayPlayCount()
         
         // Assert
-        let descriptor = FetchDescriptor<SDStatistics>()
-        let results = try manager.modelContext.fetch(descriptor)
-        #expect(results.count == 1)
-        #expect(results.first?.playCount == 1)
+        let stats = await statsManager.fetchRecentStatistics(days: 1)
+        #expect(stats.count == 1)
+        #expect(stats.first?.playCount == 1)
     }
     
-    // MARK: - Test 2: 同一天多次播放累加
-    
-    @Test("同一天多次播放应累加计数")
-    func testMultiplePlaysSameDay() throws {
+    @Test("同一天多次播放累加计数")
+    func testMultiplePlaysSameDay() async throws {
         // Arrange
-        let manager = try TestStatisticsManager()
-        let today = formatDate(Date())
+        let statsManager = try createTestStatisticsManager()
         
         // Act - 模拟播放 3 次
-        try manager.incrementPlayCount(for: today)
-        try manager.incrementPlayCount(for: today)
-        try manager.incrementPlayCount(for: today)
+        await statsManager.incrementTodayPlayCount()
+        await statsManager.incrementTodayPlayCount()
+        await statsManager.incrementTodayPlayCount()
         
         // Assert
-        let descriptor = FetchDescriptor<SDStatistics>(
-            predicate: #Predicate { $0.dateString == today }
-        )
-        let results = try manager.modelContext.fetch(descriptor)
-        #expect(results.first?.playCount == 3)
+        let stats = await statsManager.fetchRecentStatistics(days: 1)
+        #expect(stats.first?.playCount == 3)
     }
     
-    // MARK: - Test 3: 不同天播放独立计数
-    
-    @Test("不同日期的播放应独立统计")
-    func testDifferentDaysIndependentCount() throws {
+    @Test("不同日期独立统计")
+    func testDifferentDaysIndependentCount() async throws {
         // Arrange
-        let manager = try TestStatisticsManager()
-        let calendar = Calendar.current
-        let today = Date()
-        let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
+        let dataService = try createTestDataService()
+        let statsManager = StatisticsManager(dataService: dataService)
+        
+        let today = formatDate(Date())
+        let yesterday = formatDate(Date().addingTimeInterval(-86400))
+        
+        // 手动插入不同日期的数据
+        dataService.insert(SDStatistics.makeSample(dateString: today, playCount: 2))
+        dataService.insert(SDStatistics.makeSample(dateString: yesterday, playCount: 1))
+        try dataService.save()
         
         // Act
-        try manager.incrementPlayCount(for: formatDate(today))
-        try manager.incrementPlayCount(for: formatDate(today))
-        try manager.incrementPlayCount(for: formatDate(yesterday))
+        let stats = await statsManager.fetchRecentStatistics(days: 7)
         
         // Assert
-        let descriptor = FetchDescriptor<SDStatistics>(
-            sortBy: [SortDescriptor(\.dateString, order: .reverse)]
-        )
-        let results = try manager.modelContext.fetch(descriptor)
+        #expect(stats.count == 7)
         
-        #expect(results.count == 2)
-        #expect(results[0].playCount == 2)  // 今天
-        #expect(results[1].playCount == 1)  // 昨天
+        let todayStats = stats.first { $0.id == today }
+        let yesterdayStats = stats.first { $0.id == yesterday }
+        
+        #expect(todayStats?.playCount == 2)
+        #expect(yesterdayStats?.playCount == 1)
     }
     
-    // MARK: - Test 4: 查询最近 N 天
+    // MARK: - 聚合统计测试
     
-    @Test("应能正确查询最近指定天数的统计")
-    func testFetchRecentDays() throws {
+    @Test("日统计模式返回原始数据")
+    func testDailyAggregation() async throws {
         // Arrange
-        let manager = try TestStatisticsManager()
-        let calendar = Calendar.current
-        let today = Date()
+        let dataService = try createTestDataService()
+        let statsManager = StatisticsManager(dataService: dataService)
         
-        // 插入 10 天的数据
-        for i in 0..<10 {
-            let date = calendar.date(byAdding: .day, value: -i, to: today)!
-            let dateString = formatDate(date)
-            let stat = SDStatistics.makeSample(dateString: dateString, playCount: i + 1)
-            manager.modelContext.insert(stat)
+        // 插入最近 7 天数据
+        for i in 0..<7 {
+            let date = Date().addingTimeInterval(TimeInterval(-i * 86400))
+            dataService.insert(SDStatistics.makeSample(
+                dateString: formatDate(date),
+                playCount: i + 1
+            ))
         }
-        try manager.modelContext.save()
+        try dataService.save()
         
-        // Act - 查询最近 7 天
-        let recent = try manager.fetchRecentDays(7)
+        // Act
+        let stats = await statsManager.fetchAggregatedStats(period: .daily)
         
         // Assert
-        #expect(recent.count == 7)
-        // 验证日期排序正确（从旧到新）
-        #expect(recent.first!.dateString < recent.last!.dateString)
+        #expect(stats.count == 30) // 默认 30 天
+        
+        // 验证最近一天的数据
+        let todayCount = stats.last?.playCount ?? 0
+        #expect(todayCount == 1)
     }
     
-    // MARK: - Test 5: 清理过期数据
-    
-    @Test("应能删除超过指定天数的旧记录")
-    func testCleanupOldRecords() throws {
+    @Test("周统计聚合")
+    func testWeeklyAggregation() async throws {
         // Arrange
-        let manager = try TestStatisticsManager()
+        let dataService = try createTestDataService()
+        let statsManager = StatisticsManager(dataService: dataService)
+        
+        // 插入 14 天数据（2 周）
+        for i in 0..<14 {
+            let date = Date().addingTimeInterval(TimeInterval(-i * 86400))
+            dataService.insert(SDStatistics.makeSample(
+                dateString: formatDate(date),
+                playCount: 1
+            ))
+        }
+        try dataService.save()
+        
+        // Act
+        let stats = await statsManager.fetchAggregatedStats(period: .weekly)
+        
+        // Assert
+        #expect(stats.count >= 2) // 至少 2 周的数据
+        
+        // 验证总播放次数
+        let totalPlays = stats.reduce(0) { $0 + $1.playCount }
+        #expect(totalPlays == 14)
+    }
+    
+    @Test("月统计聚合")
+    func testMonthlyAggregation() async throws {
+        // Arrange
+        let dataService = try createTestDataService()
+        let statsManager = StatisticsManager(dataService: dataService)
+        
         let calendar = Calendar.current
         let today = Date()
         
-        // 插入新旧两组数据
+        // 本月 15 天
+        for i in 0..<15 {
+            let date = calendar.date(byAdding: .day, value: -i, to: today)!
+            dataService.insert(SDStatistics.makeSample(
+                dateString: formatDate(date),
+                playCount: 1
+            ))
+        }
+        
+        // 上月 15 天
+        for i in 15..<30 {
+            let date = calendar.date(byAdding: .day, value: -i, to: today)!
+            dataService.insert(SDStatistics.makeSample(
+                dateString: formatDate(date),
+                playCount: 2
+            ))
+        }
+        try dataService.save()
+        
+        // Act
+        let stats = await statsManager.fetchAggregatedStats(period: .monthly)
+        
+        // Assert
+        #expect(stats.count >= 1)
+        
+        // 验证总播放次数
+        let totalPlays = stats.reduce(0) { $0 + $1.playCount }
+        #expect(totalPlays == 45) // 15*1 + 15*2
+    }
+    
+    // MARK: - 数据清理测试
+    
+    @Test("清理超过指定天数的旧记录")
+    func testCleanupOldData() async throws {
+        // Arrange
+        let dataService = try createTestDataService()
+        let statsManager = StatisticsManager(dataService: dataService)
+        
+        let calendar = Calendar.current
+        let today = Date()
+        
+        // 插入 400 天前的旧数据
         let oldDate = calendar.date(byAdding: .day, value: -400, to: today)!
-        let oldStat = SDStatistics.makeSample(dateString: formatDate(oldDate))
-        manager.modelContext.insert(oldStat)
+        dataService.insert(SDStatistics.makeSample(dateString: formatDate(oldDate)))
         
-        let newStat = SDStatistics.makeSample(dateString: formatDate(today))
-        manager.modelContext.insert(newStat)
+        // 插入今天的新数据
+        dataService.insert(SDStatistics.makeSample(dateString: formatDate(today)))
+        try dataService.save()
         
-        try manager.modelContext.save()
-        
-        // Act - 删除 365 天前的数据
-        try manager.deleteOldRecords(olderThan: 365)
+        // Act - 清理 365 天前的数据
+        statsManager.cleanupOldData(keepDays: 365)
         
         // Assert - 只剩下新数据
         let descriptor = FetchDescriptor<SDStatistics>()
-        let remaining = try manager.modelContext.fetch(descriptor)
+        let remaining = try dataService.fetch(descriptor)
         #expect(remaining.count == 1)
         #expect(remaining.first?.dateString == formatDate(today))
     }
     
-    // MARK: - Test 6: 边界条件 - 删除刚好 365 天的记录
-    
-    @Test("刚好 365 天的记录应被保留（边界条件）")
-    func testCleanupBoundary() throws {
+    @Test("边界条件 - 刚好保留天数的记录不删除")
+    func testCleanupBoundary() async throws {
         // Arrange
-        let manager = try TestStatisticsManager()
+        let dataService = try createTestDataService()
+        let statsManager = StatisticsManager(dataService: dataService)
+        
         let calendar = Calendar.current
         let today = Date()
         
-        // 刚好 365 天前
+        // 刚好 365 天前（应保留）
         let boundaryDate = calendar.date(byAdding: .day, value: -365, to: today)!
-        let boundaryStat = SDStatistics.makeSample(dateString: formatDate(boundaryDate))
-        manager.modelContext.insert(boundaryStat)
+        dataService.insert(SDStatistics.makeSample(dateString: formatDate(boundaryDate)))
         
-        // 366 天前（应被删除）
+        // 366 天前（应删除）
         let oldDate = calendar.date(byAdding: .day, value: -366, to: today)!
-        let oldStat = SDStatistics.makeSample(dateString: formatDate(oldDate))
-        manager.modelContext.insert(oldStat)
-        
-        try manager.modelContext.save()
+        dataService.insert(SDStatistics.makeSample(dateString: formatDate(oldDate)))
+        try dataService.save()
         
         // Act
-        try manager.deleteOldRecords(olderThan: 365)
+        statsManager.cleanupOldData(keepDays: 365)
         
         // Assert
         let descriptor = FetchDescriptor<SDStatistics>()
-        let remaining = try manager.modelContext.fetch(descriptor)
+        let remaining = try dataService.fetch(descriptor)
         #expect(remaining.count == 1)
         #expect(remaining.first?.dateString == formatDate(boundaryDate))
     }
     
-    // MARK: - Test 7: 空数据库清理（不应崩溃）
-    
-    @Test("空数据库执行清理不应报错")
+    @Test("空数据库清理不报错")
     func testCleanupEmptyDatabase() throws {
         // Arrange
-        let manager = try TestStatisticsManager()
+        let statsManager = try createTestStatisticsManager()
         
         // Act & Assert - 不应抛出异常
-        try manager.deleteOldRecords(olderThan: 365)
+        statsManager.cleanupOldData(keepDays: 365)
+    }
+    
+    // MARK: - 数据填充测试
+    
+    @Test("查询结果自动填充缺失日期（零值）")
+    func testFetchFillsGaps() async throws {
+        // Arrange
+        let dataService = try createTestDataService()
+        let statsManager = StatisticsManager(dataService: dataService)
         
-        let descriptor = FetchDescriptor<SDStatistics>()
-        let results = try manager.modelContext.fetch(descriptor)
-        #expect(results.isEmpty)
+        let calendar = Calendar.current
+        let today = Date()
+        
+        // 只插入 3 天数据（有间隔）
+        let day0 = formatDate(today)
+        let day3 = formatDate(calendar.date(byAdding: .day, value: -3, to: today)!)
+        let day6 = formatDate(calendar.date(byAdding: .day, value: -6, to: today)!)
+        
+        dataService.insert(SDStatistics.makeSample(dateString: day0, playCount: 1))
+        dataService.insert(SDStatistics.makeSample(dateString: day3, playCount: 2))
+        dataService.insert(SDStatistics.makeSample(dateString: day6, playCount: 3))
+        try dataService.save()
+        
+        // Act - 查询最近 7 天
+        let stats = await statsManager.fetchRecentStatistics(days: 7)
+        
+        // Assert - 应该返回完整的 7 天数据
+        #expect(stats.count == 7)
+        
+        // 验证有数据的日期
+        #expect(stats.last?.playCount == 1) // 今天
+        #expect(stats[3].playCount == 2)    // 3 天前
+        #expect(stats[0].playCount == 3)    // 6 天前
+        
+        // 验证中间日期被填充为 0
+        #expect(stats[1].playCount == 0)
+        #expect(stats[2].playCount == 0)
     }
     
     // MARK: - Helper
@@ -254,7 +279,7 @@ struct StatisticsManagerTests {
     }
 }
 
-// MARK: - 性能测试示例
+// MARK: - 性能测试
 
 @MainActor
 @Suite("StatisticsManager 性能测试")
@@ -263,7 +288,7 @@ struct StatisticsManagerPerformanceTests {
     @Test("大量数据插入性能")
     func testBulkInsertPerformance() throws {
         // Arrange
-        let manager = try StatisticsManagerTests.TestStatisticsManager()
+        let dataService = try createTestDataService()
         let calendar = Calendar.current
         let today = Date()
         
@@ -274,9 +299,9 @@ struct StatisticsManagerPerformanceTests {
             let date = calendar.date(byAdding: .day, value: -i, to: today)!
             let dateString = formatDate(date)
             let stat = SDStatistics.makeSample(dateString: dateString, playCount: i % 10)
-            manager.modelContext.insert(stat)
+            dataService.insert(stat)
         }
-        try manager.modelContext.save()
+        try dataService.save()
         
         let elapsed = CFAbsoluteTimeGetCurrent() - startTime
         
@@ -285,7 +310,7 @@ struct StatisticsManagerPerformanceTests {
         
         // 验证数据正确性
         let descriptor = FetchDescriptor<SDStatistics>()
-        let results = try manager.modelContext.fetch(descriptor)
+        let results = try dataService.fetch(descriptor)
         #expect(results.count == 365)
     }
     

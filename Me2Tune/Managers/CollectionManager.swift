@@ -26,7 +26,7 @@ final class CollectionManager {
 
     // MARK: - Private Properties
 
-    private let dataService = DataService.shared
+    private let dataService: DataServiceProtocol
     private var delayedLoadTask: Task<Void, Never>?
 
     // In-memory index: UUID → SDAlbum for fast lookup during drag operations
@@ -40,7 +40,8 @@ final class CollectionManager {
 
     // MARK: - Initialization
 
-    init() {
+    init(dataService: DataServiceProtocol = DataService.shared) {
+        self.dataService = dataService
         logger.debug("✅ CollectionManager initialized (SwiftData)")
     }
 

@@ -31,8 +31,8 @@ final class StatisticsViewModel {
         }
     }
     
-    private let dataService = DataService.shared
-    private let statisticsManager = StatisticsManager.shared
+    private let dataService: DataServiceProtocol
+    private let statisticsManager: StatisticsManagerProtocol
     
     private var modelContext: ModelContext {
         dataService.modelContext
@@ -45,7 +45,13 @@ final class StatisticsViewModel {
     
     // MARK: - Initialization
     
-    init() {}
+    init(
+        dataService: DataServiceProtocol = DataService.shared,
+        statisticsManager: StatisticsManagerProtocol = StatisticsManager.shared
+    ) {
+        self.dataService = dataService
+        self.statisticsManager = statisticsManager
+    }
     
     // MARK: - Actions
     
