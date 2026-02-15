@@ -108,9 +108,11 @@ final class StatisticsManager: StatisticsManagerProtocol {
             return []
         }
         
+        let startDateString = Self.dateFormatter.string(from: startDate)
+        
         let descriptor = FetchDescriptor<SDStatistics>(
-            predicate: #Predicate { $0.createdAt >= startDate },
-            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
+            predicate: #Predicate { $0.dateString >= startDateString },
+            sortBy: [SortDescriptor(\.dateString, order: .forward)]
         )
         
         let dbStats: [SDStatistics]
@@ -145,8 +147,10 @@ final class StatisticsManager: StatisticsManagerProtocol {
         let calendar = Calendar.current
         guard let cutoffDate = calendar.date(byAdding: .day, value: -keepDays, to: Date()) else { return }
         
+        let cutoffDateString = Self.dateFormatter.string(from: cutoffDate)
+        
         let descriptor = FetchDescriptor<SDStatistics>(
-            predicate: #Predicate { $0.createdAt < cutoffDate }
+            predicate: #Predicate { $0.dateString < cutoffDateString }
         )
         
         do {
