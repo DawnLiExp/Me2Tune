@@ -267,7 +267,7 @@ struct StatisticsChartView: View {
     /// Calculates horizontal offset for axis labels.
     private func labelXOffset(for date: Date) -> CGFloat {
         let baseOffset: CGFloat = -15.0 // Approx. half the average label width to center under tick
-        let edgeNudge: CGFloat = 12.0 // Additional shift to pull edge labels toward the chart body
+        let edgeNudge: CGFloat = 13.0 // Additional shift to pull edge labels toward the chart body
 
         if date == data.first?.date {
             return baseOffset + edgeNudge

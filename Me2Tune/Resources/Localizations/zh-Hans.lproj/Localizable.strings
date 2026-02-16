@@ -127,15 +127,15 @@
 "stat_period_daily" = "日";
 "stat_period_weekly" = "周";
 "stat_period_monthly" = "月";
-"stat_today" = "播放量";
-"stat_this_week" = "本周播放量";
+"stat_today" = "日播量";
+"stat_this_week" = "周播放量";
 "stat_weeks_ago_format" = "%d周前";
 "stat_tracks" = "歌曲总数";
 "stat_albums" = "专辑总数";
 "stat_artists" = "艺术家总数";
 "stat_empty_title" = "暂无播放记录";
 "stat_empty_subtitle" = "开始听歌来填充你的音乐足迹";
-"stat_plays_count" = "当日聆听";
+"stat_plays_count" = "聆听曲目";
 "stat_count_unit" = "首";
 
 // MARK: - 设置 - 播放控制
