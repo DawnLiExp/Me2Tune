@@ -58,6 +58,7 @@
 		FC8528082F01486100B53540 /* ContentSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8528072F01485D00B53540 /* ContentSectionView.swift */; };
 		FC8528102F014F7C00B53540 /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC85280F2F014F7A00B53540 /* AppError.swift */; };
 		FC8528122F014FAA00B53540 /* Logger+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8528112F014FA900B53540 /* Logger+Extensions.swift */; };
+		FC8A14892F42E18B00FADD0B /* PlaybackStateManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8A14882F42E18B00FADD0B /* PlaybackStateManagerTests.swift */; };
 		FC8C88722F06263500ABC82E /* WindowStateMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8C88712F06263100ABC82E /* WindowStateMonitor.swift */; };
 		FC9596682F1D23CE00ED7FB7 /* LyricsCacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC9596672F1D23CE00ED7FB7 /* LyricsCacheService.swift */; };
 		FC9698EA2F20BF1A002FFD53 /* PlaybackProgressState.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC9698E92F20BF18002FFD53 /* PlaybackProgressState.swift */; };
@@ -157,6 +158,7 @@
 		FC8528072F01485D00B53540 /* ContentSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentSectionView.swift; sourceTree = "<group>"; };
 		FC85280F2F014F7A00B53540 /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
 		FC8528112F014FA900B53540 /* Logger+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Logger+Extensions.swift"; sourceTree = "<group>"; };
+		FC8A14882F42E18B00FADD0B /* PlaybackStateManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackStateManagerTests.swift; sourceTree = "<group>"; };
 		FC8C88712F06263100ABC82E /* WindowStateMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowStateMonitor.swift; sourceTree = "<group>"; };
 		FC94297B2F417A5200542E69 /* Me2TuneTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Me2TuneTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		FC9596672F1D23CE00ED7FB7 /* LyricsCacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsCacheService.swift; sourceTree = "<group>"; };
@@ -516,6 +518,7 @@
 				FCCCBC842F4229710026774D /* DataServiceStatisticsTests.swift */,
 				FCCCBC852F4229710026774D /* DataServiceTests.swift */,
 				FCCCBC862F4229710026774D /* IntegrationTests.swift */,
+				FC8A14882F42E18B00FADD0B /* PlaybackStateManagerTests.swift */,
 				FCCCBC912F4229750026774D /* PlaylistManagerTests.swift */,
 				FCCCBC872F4229710026774D /* SDStatisticsTests.swift */,
 				FCCCBC882F4229710026774D /* StatisticsManagerTests.swift */,
@@ -712,6 +715,7 @@
 				FCCCBC8D2F4229710026774D /* IntegrationTests.swift in Sources */,
 				FCCCBC8E2F4229710026774D /* SDStatisticsTests.swift in Sources */,
 				FCCCBC8F2F4229710026774D /* StatisticsManagerTests.swift in Sources */,
+				FC8A14892F42E18B00FADD0B /* PlaybackStateManagerTests.swift in Sources */,
 				FCCCBC902F4229710026774D /* TestHelpers.swift in Sources */,
 			);
 		};
