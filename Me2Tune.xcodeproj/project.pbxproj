@@ -76,6 +76,13 @@
 		FCC613FD2F1F21690008A57E /* SFBAudioEngine in Frameworks */ = {isa = PBXBuildFile; productRef = FCC613FC2F1F21690008A57E /* SFBAudioEngine */; };
 		FCCAAFBA2F12847900DF5D71 /* LanguageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCAAFB92F12847600DF5D71 /* LanguageManager.swift */; };
 		FCCAAFBD2F1284C700DF5D71 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCAAFBC2F1284C500DF5D71 /* SettingsView.swift */; };
+		FCCCBC8B2F4229710026774D /* DataServiceStatisticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCCBC842F4229710026774D /* DataServiceStatisticsTests.swift */; };
+		FCCCBC8C2F4229710026774D /* DataServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCCBC852F4229710026774D /* DataServiceTests.swift */; };
+		FCCCBC8D2F4229710026774D /* IntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCCBC862F4229710026774D /* IntegrationTests.swift */; };
+		FCCCBC8E2F4229710026774D /* SDStatisticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCCBC872F4229710026774D /* SDStatisticsTests.swift */; };
+		FCCCBC8F2F4229710026774D /* StatisticsManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCCBC882F4229710026774D /* StatisticsManagerTests.swift */; };
+		FCCCBC902F4229710026774D /* TestHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCCBC892F4229710026774D /* TestHelpers.swift */; };
+		FCCCBC922F4229750026774D /* PlaylistManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCCBC912F4229750026774D /* PlaylistManagerTests.swift */; };
 		FCD1A6A42F16ABED00EC88E2 /* DisplayMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCD1A6A32F16ABEB00EC88E2 /* DisplayMode.swift */; };
 		FCDDD83F2F17625F00295F8C /* MiniVolumeSliderStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDDD83E2F17625D00295F8C /* MiniVolumeSliderStyle.swift */; };
 		FCDDD8412F17656500295F8C /* NonDraggableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDDD8402F17656300295F8C /* NonDraggableView.swift */; };
@@ -167,6 +174,13 @@
 		FCB9B96B2F1C0AE900CA7866 /* LyricsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsView.swift; sourceTree = "<group>"; };
 		FCCAAFB92F12847600DF5D71 /* LanguageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageManager.swift; sourceTree = "<group>"; };
 		FCCAAFBC2F1284C500DF5D71 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		FCCCBC842F4229710026774D /* DataServiceStatisticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataServiceStatisticsTests.swift; sourceTree = "<group>"; };
+		FCCCBC852F4229710026774D /* DataServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataServiceTests.swift; sourceTree = "<group>"; };
+		FCCCBC862F4229710026774D /* IntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegrationTests.swift; sourceTree = "<group>"; };
+		FCCCBC872F4229710026774D /* SDStatisticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDStatisticsTests.swift; sourceTree = "<group>"; };
+		FCCCBC882F4229710026774D /* StatisticsManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsManagerTests.swift; sourceTree = "<group>"; };
+		FCCCBC892F4229710026774D /* TestHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestHelpers.swift; sourceTree = "<group>"; };
+		FCCCBC912F4229750026774D /* PlaylistManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistManagerTests.swift; sourceTree = "<group>"; };
 		FCD1A6A32F16ABEB00EC88E2 /* DisplayMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayMode.swift; sourceTree = "<group>"; };
 		FCDDD83E2F17625D00295F8C /* MiniVolumeSliderStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniVolumeSliderStyle.swift; sourceTree = "<group>"; };
 		FCDDD8402F17656300295F8C /* NonDraggableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NonDraggableView.swift; sourceTree = "<group>"; };
@@ -176,14 +190,6 @@
 		FCE6E8702F053E8D004D5E21 /* RemoteCommandController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteCommandController.swift; sourceTree = "<group>"; };
 		FCF558CD2F261A9300E7DC2A /* RotatingVinylLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RotatingVinylLayer.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
-
-/* Begin PBXFileSystemSynchronizedRootGroup section */
-		FC94297C2F417A5200542E69 /* Me2TuneTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Me2TuneTests;
-			sourceTree = "<group>";
-		};
-/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		FC1662272EEFAE2C00F01BCE /* Frameworks */ = {
@@ -224,7 +230,7 @@
 			isa = PBXGroup;
 			children = (
 				FC480EA62EF107E8000D8393 /* Me2Tune */,
-				FC94297C2F417A5200542E69 /* Me2TuneTests */,
+				FCCCBC8A2F4229710026774D /* Me2TuneTests */,
 				FC16622B2EEFAE2C00F01BCE /* Products */,
 			);
 			sourceTree = "<group>";
@@ -501,6 +507,20 @@
 			path = Settings;
 			sourceTree = "<group>";
 		};
+		FCCCBC8A2F4229710026774D /* Me2TuneTests */ = {
+			isa = PBXGroup;
+			children = (
+				FCCCBC842F4229710026774D /* DataServiceStatisticsTests.swift */,
+				FCCCBC852F4229710026774D /* DataServiceTests.swift */,
+				FCCCBC862F4229710026774D /* IntegrationTests.swift */,
+				FCCCBC912F4229750026774D /* PlaylistManagerTests.swift */,
+				FCCCBC872F4229710026774D /* SDStatisticsTests.swift */,
+				FCCCBC882F4229710026774D /* StatisticsManagerTests.swift */,
+				FCCCBC892F4229710026774D /* TestHelpers.swift */,
+			);
+			path = Me2TuneTests;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -534,9 +554,6 @@
 			);
 			dependencies = (
 				FC9429802F417A5200542E69 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				FC94297C2F417A5200542E69 /* Me2TuneTests */,
 			);
 			name = Me2TuneTests;
 			productName = Me2TuneTests;
@@ -685,6 +702,13 @@
 		FC9429772F417A5200542E69 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
+				FCCCBC8B2F4229710026774D /* DataServiceStatisticsTests.swift in Sources */,
+				FCCCBC8C2F4229710026774D /* DataServiceTests.swift in Sources */,
+				FCCCBC922F4229750026774D /* PlaylistManagerTests.swift in Sources */,
+				FCCCBC8D2F4229710026774D /* IntegrationTests.swift in Sources */,
+				FCCCBC8E2F4229710026774D /* SDStatisticsTests.swift in Sources */,
+				FCCCBC8F2F4229710026774D /* StatisticsManagerTests.swift in Sources */,
+				FCCCBC902F4229710026774D /* TestHelpers.swift in Sources */,
 			);
 		};
 /* End PBXSourcesBuildPhase section */
