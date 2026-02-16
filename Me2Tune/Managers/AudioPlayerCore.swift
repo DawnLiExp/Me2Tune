@@ -367,7 +367,7 @@ extension AudioPlayerCore: AudioPlayer.Delegate {
         }
     }
     
-    nonisolated func audioPlayer(_ audioPlayer: AudioPlayer, nowPlayingChanged nowPlaying: PCMDecoding?, previouslyPlaying: PCMDecoding?) {
+    nonisolated func audioPlayer(_ audioPlayer: AudioPlayer, nowPlayingChanged nowPlaying: PCMDecoding?) {
         Task { @MainActor in
             if let nextTrack = self.queuedTracks.first {
                 self.currentTrack = nextTrack

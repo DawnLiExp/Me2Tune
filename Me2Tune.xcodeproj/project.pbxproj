@@ -59,6 +59,7 @@
 		FC8528102F014F7C00B53540 /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC85280F2F014F7A00B53540 /* AppError.swift */; };
 		FC8528122F014FAA00B53540 /* Logger+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8528112F014FA900B53540 /* Logger+Extensions.swift */; };
 		FC8A14892F42E18B00FADD0B /* PlaybackStateManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8A14882F42E18B00FADD0B /* PlaybackStateManagerTests.swift */; };
+		FC8A148C2F42F0AB00FADD0B /* SFBAudioEngine in Frameworks */ = {isa = PBXBuildFile; productRef = FC8A148B2F42F0AB00FADD0B /* SFBAudioEngine */; };
 		FC8C88722F06263500ABC82E /* WindowStateMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8C88712F06263100ABC82E /* WindowStateMonitor.swift */; };
 		FC9596682F1D23CE00ED7FB7 /* LyricsCacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC9596672F1D23CE00ED7FB7 /* LyricsCacheService.swift */; };
 		FC9698EA2F20BF1A002FFD53 /* PlaybackProgressState.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC9698E92F20BF18002FFD53 /* PlaybackProgressState.swift */; };
@@ -74,7 +75,6 @@
 		FCB9B9682F1C0ACB00CA7866 /* LyricsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB9B9672F1C0ACB00CA7866 /* LyricsService.swift */; };
 		FCB9B96A2F1C0AE000CA7866 /* LyricsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB9B9692F1C0AE000CA7866 /* LyricsWindowController.swift */; };
 		FCB9B96C2F1C0AE900CA7866 /* LyricsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB9B96B2F1C0AE900CA7866 /* LyricsView.swift */; };
-		FCC613FD2F1F21690008A57E /* SFBAudioEngine in Frameworks */ = {isa = PBXBuildFile; productRef = FCC613FC2F1F21690008A57E /* SFBAudioEngine */; };
 		FCCAAFBA2F12847900DF5D71 /* LanguageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCAAFB92F12847600DF5D71 /* LanguageManager.swift */; };
 		FCCAAFBD2F1284C700DF5D71 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCAAFBC2F1284C500DF5D71 /* SettingsView.swift */; };
 		FCCCBC8B2F4229710026774D /* DataServiceStatisticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCCBC842F4229710026774D /* DataServiceStatisticsTests.swift */; };
@@ -199,7 +199,7 @@
 		FC1662272EEFAE2C00F01BCE /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
-				FCC613FD2F1F21690008A57E /* SFBAudioEngine in Frameworks */,
+				FC8A148C2F42F0AB00FADD0B /* SFBAudioEngine in Frameworks */,
 			);
 		};
 		FC9429782F417A5200542E69 /* Frameworks */ = {
@@ -542,7 +542,7 @@
 			);
 			name = Me2Tune;
 			packageProductDependencies = (
-				FCC613FC2F1F21690008A57E /* SFBAudioEngine */,
+				FC8A148B2F42F0AB00FADD0B /* SFBAudioEngine */,
 			);
 			productName = Me2Tune;
 			productReference = FC16622A2EEFAE2C00F01BCE /* Me2Tune.app */;
@@ -597,7 +597,7 @@
 			mainGroup = FC1662212EEFAE2C00F01BCE;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				FCC613FB2F1F21690008A57E /* XCRemoteSwiftPackageReference "SFBAudioEngine" */,
+				FC8A148A2F42F0AB00FADD0B /* XCRemoteSwiftPackageReference "SFBAudioEngine" */,
 			);
 			preferredProjectObjectVersion = 90;
 			productRefGroup = FC16622B2EEFAE2C00F01BCE /* Products */;
@@ -994,6 +994,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 2XCFSMR77F;
 				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me2.test.Me2TuneTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1016,6 +1017,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 2XCFSMR77F;
 				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me2.test.Me2TuneTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1058,20 +1060,20 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		FCC613FB2F1F21690008A57E /* XCRemoteSwiftPackageReference "SFBAudioEngine" */ = {
+		FC8A148A2F42F0AB00FADD0B /* XCRemoteSwiftPackageReference "SFBAudioEngine" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sbooth/SFBAudioEngine";
 			requirement = {
 				kind = exactVersion;
-				version = 0.11.0;
+				version = 0.12.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		FCC613FC2F1F21690008A57E /* SFBAudioEngine */ = {
+		FC8A148B2F42F0AB00FADD0B /* SFBAudioEngine */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FCC613FB2F1F21690008A57E /* XCRemoteSwiftPackageReference "SFBAudioEngine" */;
+			package = FC8A148A2F42F0AB00FADD0B /* XCRemoteSwiftPackageReference "SFBAudioEngine" */;
 			productName = SFBAudioEngine;
 		};
 /* End XCSwiftPackageProductDependency section */
