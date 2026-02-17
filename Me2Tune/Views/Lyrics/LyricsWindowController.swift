@@ -89,18 +89,14 @@ final class LyricsWindowController {
     }
     
     private func setupAlwaysOnTopObserver(for window: NSWindow) {
-        NotificationCenter.default.addObserver(
-            forName: UserDefaults.didChangeNotification,
-            object: nil,
-            queue: .main
-        ) { [weak window] _ in
-            let alwaysOnTop = UserDefaults.standard.bool(forKey: "lyricsAlwaysOnTop")
+        withObservationTracking {
+            let alwaysOnTop = SettingsManager.shared.lyricsAlwaysOnTop
+            window.level = alwaysOnTop ? .floating : .normal
+        } onChange: { [weak self, weak window] in
             Task { @MainActor in
-                window?.level = alwaysOnTop ? .floating : .normal
+                guard let window else { return }
+                self?.setupAlwaysOnTopObserver(for: window)
             }
         }
-        
-        let alwaysOnTop = UserDefaults.standard.bool(forKey: "lyricsAlwaysOnTop")
-        window.level = alwaysOnTop ? .floating : .normal
     }
 }

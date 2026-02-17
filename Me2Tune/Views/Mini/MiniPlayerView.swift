@@ -11,7 +11,6 @@ struct MiniPlayerView: View {
     @Environment(PlayerViewModel.self) private var playerViewModel
     @Environment(\.playbackProgressState) private var playbackProgressState
     @AppStorage("displayMode") private var displayMode = DisplayMode.full.rawValue
-    @AppStorage("miniAlwaysOnTop") private var alwaysOnTop = false
     
     private let miniTheme = MiniPlayerTheme()
     
@@ -24,7 +23,8 @@ struct MiniPlayerView: View {
         }
         .frame(width: 440, height: 78)
         .contextMenu {
-            Toggle(isOn: $alwaysOnTop) {
+            @Bindable var settings = SettingsManager.shared
+            Toggle(isOn: $settings.miniAlwaysOnTop) {
                 Label(String(localized: "always_on_top"), systemImage: "pin.fill")
             }
         }

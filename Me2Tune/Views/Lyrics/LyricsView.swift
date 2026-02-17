@@ -16,8 +16,6 @@ struct LyricsView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     
-    @AppStorage("lyricsAlwaysOnTop") private var alwaysOnTop = false
-    
     // ✅ 独立刷新 Timer
     @State private var updateTimer: Timer?
     @State private var currentPlaybackTime: TimeInterval = 0
@@ -49,7 +47,8 @@ struct LyricsView: View {
         }
         .frame(width: 440, height: 800)
         .contextMenu {
-            Toggle(isOn: $alwaysOnTop) {
+            @Bindable var settings = SettingsManager.shared
+            Toggle(isOn: $settings.lyricsAlwaysOnTop) {
                 Label(String(localized: "always_on_top"), systemImage: "pin.fill")
             }
         }

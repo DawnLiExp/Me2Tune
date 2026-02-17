@@ -89,20 +89,15 @@ final class MiniWindowController {
     }
     
     private func setupAlwaysOnTopObserver(for panel: NSPanel) {
-        NotificationCenter.default.addObserver(
-            forName: UserDefaults.didChangeNotification,
-            object: nil,
-            queue: .main
-        ) { [weak panel] _ in
-            let alwaysOnTop = UserDefaults.standard.bool(forKey: "miniAlwaysOnTop")
-            // ✅ 显式使用MainActor
+        withObservationTracking {
+            let alwaysOnTop = SettingsManager.shared.miniAlwaysOnTop
+            panel.level = alwaysOnTop ? .floating : .normal
+        } onChange: { [weak self, weak panel] in
             Task { @MainActor in
-                panel?.level = alwaysOnTop ? .floating : .normal
+                guard let panel else { return }
+                self?.setupAlwaysOnTopObserver(for: panel)
             }
         }
-        
-        let alwaysOnTop = UserDefaults.standard.bool(forKey: "miniAlwaysOnTop")
-        panel.level = alwaysOnTop ? .floating : .normal
     }
 }
 

@@ -69,6 +69,7 @@
 		FC9C89EC2F3B06AD004A59AC /* SDAlbum.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC9C89E52F3B06AD004A59AC /* SDAlbum.swift */; };
 		FC9C89EE2F3B083D004A59AC /* DataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC9C89ED2F3B083D004A59AC /* DataService.swift */; };
 		FCA502352F21F36A003C6543 /* AudioBufferDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCA502342F21F36A003C6543 /* AudioBufferDetector.swift */; };
+		FCA742F72F443CFF0008C636 /* SettingsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCA742F62F443CFF0008C636 /* SettingsManager.swift */; };
 		FCAE83FF2F18C07A00BBEC0B /* MiniWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCAE83FE2F18C07800BBEC0B /* MiniWindowController.swift */; };
 		FCAE84012F18C09F00BBEC0B /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCAE84002F18C09D00BBEC0B /* AppDelegate.swift */; };
 		FCB9B9662F1C0AB400CA7866 /* Lyrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB9B9652F1C0AB400CA7866 /* Lyrics.swift */; };
@@ -169,6 +170,7 @@
 		FC9C89E82F3B06AD004A59AC /* SDTrack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDTrack.swift; sourceTree = "<group>"; };
 		FC9C89ED2F3B083D004A59AC /* DataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataService.swift; sourceTree = "<group>"; };
 		FCA502342F21F36A003C6543 /* AudioBufferDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioBufferDetector.swift; sourceTree = "<group>"; };
+		FCA742F62F443CFF0008C636 /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
 		FCAE83FE2F18C07800BBEC0B /* MiniWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniWindowController.swift; sourceTree = "<group>"; };
 		FCAE84002F18C09D00BBEC0B /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		FCB9B9652F1C0AB400CA7866 /* Lyrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lyrics.swift; sourceTree = "<group>"; };
@@ -368,6 +370,7 @@
 				FCAE83FE2F18C07800BBEC0B /* MiniWindowController.swift */,
 				FC3E2B032F08BF1400F59E4B /* PlaybackStateManager.swift */,
 				FC31BA482F08323800786380 /* PlaylistManager.swift */,
+				FCA742F62F443CFF0008C636 /* SettingsManager.swift */,
 				FC7A0BE42F3E061900C29400 /* StatisticsManager.swift */,
 				FC52296F2F41BF2A007F70C0 /* StatisticsManagerProtocol.swift */,
 			);
@@ -655,6 +658,7 @@
 				FCDDD83F2F17625F00295F8C /* MiniVolumeSliderStyle.swift in Sources */,
 				FC50C7402F06588700597B19 /* ToolbarButtonView.swift in Sources */,
 				FCB9B9662F1C0AB400CA7866 /* Lyrics.swift in Sources */,
+				FCA742F72F443CFF0008C636 /* SettingsManager.swift in Sources */,
 				FC7A0BED2F3E064900C29400 /* StatCard.swift in Sources */,
 				FC7A0BEE2F3E064900C29400 /* StatisticsChartView.swift in Sources */,
 				FC7A0BEF2F3E064900C29400 /* EmptyStateView.swift in Sources */,
