@@ -92,6 +92,10 @@ final class PlayerViewModel {
     
     @ObservationIgnored private var hasMarkedPlayCount = false
     @ObservationIgnored private var currentStatTrackId: UUID?
+
+    /// Snapshot of currentTrackIndex captured at decodingComplete time.
+    /// Used to detect whether gapless has already advanced the index before playerCoreDidReachEnd fires.
+    @ObservationIgnored private var trackIndexBeforeGapless: Int?
     
     private let playCountThreshold: Double = 0.8 // 80% threshold for play count
     
@@ -683,13 +687,22 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
     }
     
     func playerCore(_ core: AudioPlayerCore, decodingCompleteFor track: AudioTrack) {
+        // Snapshot the index BEFORE gapless transition can advance it.
+        // playerCoreDidReachEnd uses this to detect if gapless already moved to the next track.
+        trackIndexBeforeGapless = currentTrackIndex
         logger.debug("🔄 Decoding complete, enqueuing next track")
         enqueueNextTrack()
     }
     
     func playerCoreDidReachEnd(_ core: AudioPlayerCore) {
-        // Single loop: replay
-        if repeatMode == .one, let index = currentTrackIndex {
+        // Consume the pre-gapless snapshot; nil means decodingComplete didn't fire (rare edge case).
+        let baseIndex = trackIndexBeforeGapless
+        trackIndexBeforeGapless = nil
+
+        // Single loop: replay same track
+        if repeatMode == .one {
+            let index = baseIndex ?? currentTrackIndex
+            guard let index else { return }
             let track = currentTracks[index]
             
             if failedTrackHandler.isMarked(track.id) {
@@ -700,16 +713,29 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
             }
             return
         }
-        
-        // Other modes: try next
-        guard let currentIndex = currentTrackIndex else { return }
-        
-        if let nextIndex = playbackStateManager.calculateNextIndex(at: currentIndex, repeatMode: convertRepeatMode()) {
-            logger.debug("🔄 End of track, loading next")
-            loadAndPlay(at: nextIndex)
-        } else {
-            logger.debug("🏁 Reached end of playlist")
+
+        // Use the snapshot index to calculate the true "next" track.
+        // If baseIndex is nil (decodingComplete never fired), skip to avoid incorrect advance.
+        guard let baseIndex else {
+            logger.warning("⚠️ trackIndexBeforeGapless was nil at end-of-audio; skipping auto-advance")
+            return
         }
+
+        guard let nextIndex = playbackStateManager.calculateNextIndex(at: baseIndex, repeatMode: convertRepeatMode()) else {
+            logger.debug("🏁 Reached end of playlist")
+            return
+        }
+
+        // Guard against gapless double-advance:
+        // nowPlayingChangedTo may have already updated currentTrackIndex to nextIndex,
+        // meaning the gapless transition succeeded — skip loadAndPlay to avoid skipping a track.
+        if currentTrackIndex == nextIndex {
+            logger.debug("🔄 Gapless transition already handled (index \(nextIndex)), skipping manual load")
+            return
+        }
+
+        logger.debug("🔄 End of track, loading next (base: \(baseIndex) \\➡️ next: \(nextIndex))")
+        loadAndPlay(at: nextIndex)
     }
 }
 
