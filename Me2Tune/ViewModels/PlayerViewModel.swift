@@ -100,6 +100,10 @@ final class PlayerViewModel {
         self?.playbackProgressState.currentTime ?? 0
     }
 
+    // MARK: - Window Monitor (DI)
+    
+    @ObservationIgnored private var windowStateMonitor: WindowStateMonitor?
+
     // MARK: - Computed Properties
     
     var currentFormat: AudioFormat {
@@ -143,7 +147,8 @@ final class PlayerViewModel {
     init(
         dataService: DataServiceProtocol = DataService.shared,
         collectionManager: CollectionManager? = nil,
-        statisticsManager: StatisticsManagerProtocol = StatisticsManager.shared
+        statisticsManager: StatisticsManagerProtocol = StatisticsManager.shared,
+        windowStateMonitor: WindowStateMonitor? = nil
     ) {
         self.playlistManager = PlaylistManager(dataService: dataService)
         self.playbackStateManager = PlaybackStateManager(
@@ -152,6 +157,7 @@ final class PlayerViewModel {
             dataService: dataService
         )
         self.statisticsManager = statisticsManager
+        self.windowStateMonitor = windowStateMonitor
         self.playerCore = AudioPlayerCore()
         
         self.playerCore.delegate = self
@@ -162,7 +168,9 @@ final class PlayerViewModel {
             await restorePlaybackState()
         }
         
-        setupNotificationObservers()
+        if let monitor = windowStateMonitor {
+            setupVisibilityObserver(monitor)
+        }
         
         logger.debug("✅ PlayerViewModel initialized (@Observable)")
     }
@@ -176,14 +184,19 @@ final class PlayerViewModel {
 
     // MARK: - Setup
     
-    private func setupNotificationObservers() {
-        observerTask?.cancel()
-        observerTask = Task { [weak self] in
-            for await notification in NotificationCenter.default.notifications(named: .windowVisibilityDidChange) {
-                guard let self,
-                      let state = notification.object as? WindowStateMonitor.WindowVisibilityState
-                else { continue }
-                self.playerCore.updateVisibilityState(state)
+    /// Public injection point for lazy initialization
+    func injectWindowStateMonitor(_ monitor: WindowStateMonitor) {
+        self.windowStateMonitor = monitor
+        setupVisibilityObserver(monitor)
+    }
+    
+    private func setupVisibilityObserver(_ monitor: WindowStateMonitor) {
+        withObservationTracking {
+            let state = monitor.visibilityState
+            playerCore.updateVisibilityState(state)
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.setupVisibilityObserver(monitor)
             }
         }
     }

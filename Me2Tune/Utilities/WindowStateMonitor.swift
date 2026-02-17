@@ -12,12 +12,6 @@ import OSLog
 
 private let logger = Logger.app
 
-// MARK: - Notification Extension
-
-extension Notification.Name {
-    static let windowVisibilityDidChange = Notification.Name("WindowVisibilityDidChange")
-}
-
 // MARK: - Window State Monitor
 
 @MainActor
@@ -114,7 +108,6 @@ final class WindowStateMonitor {
         }
         
         visibilityState = state
-        NotificationCenter.default.post(name: .windowVisibilityDidChange, object: state)
         logger.debug("🔄 Force set visibility: \(state.description)")
     }
     
@@ -129,7 +122,6 @@ final class WindowStateMonitor {
         guard visibilityState != newState else { return }
         
         visibilityState = newState
-        NotificationCenter.default.post(name: .windowVisibilityDidChange, object: newState)
         logger.debug("🔄 Mini visibility changed: \(newState.description) (interval: \(String(format: "%.1f", newState.updateInterval))s)")
     }
     
@@ -216,7 +208,6 @@ final class WindowStateMonitor {
         guard visibilityState != newState else { return }
         
         visibilityState = newState
-        NotificationCenter.default.post(name: .windowVisibilityDidChange, object: newState)
         logger.debug("🔄 Visibility changed: \(newState.description) (interval: \(String(format: "%.1f", newState.updateInterval))s)")
     }
 }

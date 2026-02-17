@@ -91,6 +91,8 @@ struct Me2TuneApp: App {
         appDelegate.windowStateMonitor = monitor
         monitor.startMonitoring(window: window)
 
+        playerViewModel.injectWindowStateMonitor(monitor)
+
         // ✅ 设置歌词窗口控制器
         LyricsWindowController.shared.setup(playerViewModel: playerViewModel)
 
