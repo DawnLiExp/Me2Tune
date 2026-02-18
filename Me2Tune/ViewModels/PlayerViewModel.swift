@@ -715,13 +715,14 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
         }
 
         // Use the snapshot index to calculate the true "next" track.
-        // If baseIndex is nil (decodingComplete never fired), skip to avoid incorrect advance.
-        guard let baseIndex else {
-            logger.warning("⚠️ trackIndexBeforeGapless was nil at end-of-audio; skipping auto-advance")
-            return
+        // If snapshot is nil (decodingComplete never fired), fall back to current index so we don't stall.
+        if baseIndex == nil {
+            logger.warning("⚠️ trackIndexBeforeGapless missing, falling back to currentTrackIndex")
         }
+        let effectiveIndex = baseIndex ?? currentTrackIndex
+        guard let effectiveIndex else { return }
 
-        guard let nextIndex = playbackStateManager.calculateNextIndex(at: baseIndex, repeatMode: convertRepeatMode()) else {
+        guard let nextIndex = playbackStateManager.calculateNextIndex(at: effectiveIndex, repeatMode: convertRepeatMode()) else {
             logger.debug("🏁 Reached end of playlist")
             return
         }
@@ -734,7 +735,7 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
             return
         }
 
-        logger.debug("🔄 End of track, loading next (base: \(baseIndex) \\➡️ next: \(nextIndex))")
+        logger.debug("🔄 End of track, loading next (base: \(effectiveIndex) \\➡️ next: \(nextIndex))")
         loadAndPlay(at: nextIndex)
     }
 }
