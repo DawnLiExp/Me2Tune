@@ -122,7 +122,8 @@ final class WindowStateMonitor {
         guard visibilityState != newState else { return }
         
         visibilityState = newState
-        logger.debug("🔄 Mini visibility changed: \(newState.description) (interval: \(String(format: "%.1f", newState.updateInterval))s)")
+        let iv = String(format: "%.1f", newState.updateInterval)
+        logger.debug("🔄 Mini visibility changed: \(newState.description) (interval: \(iv)s)")
     }
     
     // MARK: - Private Methods
@@ -208,6 +209,7 @@ final class WindowStateMonitor {
         guard visibilityState != newState else { return }
         
         visibilityState = newState
-        logger.debug("🔄 Visibility changed: \(newState.description) (interval: \(String(format: "%.1f", newState.updateInterval))s)")
+        let iv = String(format: "%.1f", newState.updateInterval)
+        logger.debug("🔄 Visibility changed: \(newState.description) (interval: \(iv)s)")
     }
 }

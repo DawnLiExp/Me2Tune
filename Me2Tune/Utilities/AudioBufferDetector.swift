@@ -16,7 +16,7 @@ enum AudioBufferDetector {
     private static let maxBufferSize: Int = 100 * 1024 * 1024 // 100MB
     
     // 缓冲时长（秒）
-    private static let localBufferDuration: Double = 1  // SSD: 1秒
+    private static let localBufferDuration: Double = 1 // SSD: 1秒
     private static let networkBufferDuration: Double = 8.0 // NAS: 8秒
     
     // MARK: - Public Methods
@@ -31,7 +31,8 @@ enum AudioBufferDetector {
         // 检查卷是否为本地
         if let resourceValues = try? url.resourceValues(forKeys: [.volumeIsLocalKey]),
            let isLocal = resourceValues.volumeIsLocal,
-           !isLocal {
+           !isLocal
+        {
             return true
         }
         
@@ -71,7 +72,8 @@ enum AudioBufferDetector {
     static func calculateBufferSize(track: AudioTrack, isNetworkStorage: Bool) -> Int? {
         // 检查文件大小
         guard let fileSize = try? FileManager.default.attributesOfItem(atPath: track.url.path)[.size] as? UInt64,
-              fileSize <= maxBufferSize else {
+              fileSize <= maxBufferSize
+        else {
             logger.info("File too large for buffering: \(track.url.lastPathComponent)")
             return nil
         }
@@ -88,7 +90,8 @@ enum AudioBufferDetector {
         // 确保不超过文件大小和最大限制
         let actualBufferSize = min(bufferBytes, Int(fileSize), maxBufferSize)
         
-        logger.debug("Buffer size: \(actualBufferSize) bytes (\(String(format: "%.1f", bufferDuration))s @ \(bitrate)kbps) - \(track.title)")
+        let bd = String(format: "%.1f", bufferDuration)
+        logger.debug("Buffer size: \(actualBufferSize) bytes (\(bd)s @ \(bitrate)kbps) - \(track.title)")
         
         return actualBufferSize
     }

@@ -596,7 +596,8 @@ final class PlayerViewModel {
         if let savedVolume = restored.volume {
             volume = savedVolume
             playerCore.setVolume(savedVolume)
-            logger.debug("🔊 Restored volume: \(String(format: "%.0f", savedVolume * 100))%")
+            let pct = String(format: "%.0f", savedVolume * 100)
+            logger.debug("🔊 Restored volume: \(pct)%")
         }
         
         _ = await loadTrack(restored.track)

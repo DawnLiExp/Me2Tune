@@ -31,20 +31,22 @@ nonisolated extension Logger {
 extension Logger {
     func logError(_ error: Error, context: String = "") {
         if let appError = error as? AppError {
-            self.error("[\(context)] \(appError.localizedDescription)")
+            self.error("[\(context)] \(appError)")
             if let suggestion = appError.recoverySuggestion {
                 self.notice("Suggestion: \(suggestion)")
             }
         } else {
-            self.error("[\(context)] \(error.localizedDescription)")
+            self.error("[\(context)] \(error)")
         }
     }
 
     func logPerformance(_ operation: String, duration: TimeInterval) {
+        let formatted = String(format: "%.2f", duration)
         if duration > 0.1 {
-            self.warning("⚠️ \(operation) took \(String(format: "%.2f", duration))s")
+            self.warning("⚠️ \(operation) took \(formatted)s")
         } else {
-            self.debug("✓ \(operation) completed in \(String(format: "%.3f", duration))s")
+            let detailed = String(format: "%.3f", duration)
+            self.debug("✓ \(operation) completed in \(detailed)s")
         }
     }
 }

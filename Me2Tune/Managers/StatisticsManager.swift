@@ -82,7 +82,7 @@ final class StatisticsManager: StatisticsManagerProtocol {
             
             checkAndCleanupIfNeeded(today: today)
         } catch {
-            logger.error("❌ Failed to increment play count: \(error)")
+            logger.logError(error, context: "incrementTodayPlayCount")
         }
     }
     
@@ -119,7 +119,7 @@ final class StatisticsManager: StatisticsManagerProtocol {
         do {
             dbStats = try modelContext.fetch(descriptor)
         } catch {
-            logger.error("❌ Failed to fetch statistics: \(error)")
+            logger.logError(error, context: "fetchRecentStatistics")
             dbStats = []
         }
         
@@ -162,7 +162,7 @@ final class StatisticsManager: StatisticsManagerProtocol {
                 logger.info("🧹 Cleaned up \(oldStats.count) old statistics records")
             }
         } catch {
-            logger.error("❌ Failed to cleanup old statistics: \(error)")
+            logger.logError(error, context: "cleanupOldData")
         }
     }
     

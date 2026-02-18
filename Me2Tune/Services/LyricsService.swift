@@ -72,7 +72,7 @@ actor LyricsService {
         do {
             content = try String(contentsOf: lrcURL, encoding: .utf8)
         } catch {
-            logger.error("Failed to read local LRC: \(error.localizedDescription)")
+            logger.error("Failed to read local LRC: \(error)")
             throw LyricsError.fileReadError
         }
         
@@ -114,7 +114,7 @@ actor LyricsService {
         } catch is DecodingError {
             logger.warning("⚠️ Exact match decode error (invalid response format)")
         } catch {
-            logger.error("❌ Exact match error: \(error.localizedDescription)")
+            logger.error("❌ Exact match error: \(error)")
             // 仅致命网络错误（超时等）才抛出
             if let urlError = error as? URLError, urlError.code == .timedOut {
                 throw error
@@ -140,7 +140,7 @@ actor LyricsService {
                 } catch is DecodingError {
                     logger.warning("⚠️ Normalized match decode error")
                 } catch {
-                    logger.error("❌ Normalized match error: \(error.localizedDescription)")
+                    logger.error("❌ Normalized match error: \(error)")
                     if let urlError = error as? URLError, urlError.code == .timedOut {
                         throw error
                     }
@@ -167,7 +167,7 @@ actor LyricsService {
             } catch is DecodingError {
                 logger.warning("⚠️ No-album match decode error")
             } catch {
-                logger.error("❌ No-album match error: \(error.localizedDescription)")
+                logger.error("❌ No-album match error: \(error)")
             }
         }
         
@@ -179,7 +179,7 @@ actor LyricsService {
             logger.error("❌ All attempts failed with decode errors - API may be returning problematic data")
             throw LyricsError.invalidResponse
         } catch {
-            logger.error("❌ Search API failed: \(error.localizedDescription)")
+            logger.error("❌ Search API failed: \(error)")
             throw error
         }
     }
@@ -267,7 +267,7 @@ actor LyricsService {
             // DecodingError 详细诊断
             if let responseText = String(data: data, encoding: .utf8) {
                 let snippet = responseText.prefix(2000)
-                logger.error("JSON decode failed: \(error.localizedDescription). Data snippet: \(snippet)")
+                logger.error("JSON decode failed: \(error). Data snippet: \(snippet)")
                 
                 // 检查是否为明显的截断
                 let trimmed = responseText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -323,7 +323,7 @@ actor LyricsService {
         } catch let error as DecodingError {
             if let responseText = String(data: data, encoding: .utf8) {
                 let snippet = responseText.prefix(2000)
-                logger.error("Search JSON decode failed: \(error.localizedDescription). Data snippet: \(snippet)")
+                logger.error("Search JSON decode failed: \(error). Data snippet: \(snippet)")
                 
                 let trimmed = responseText.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !trimmed.hasSuffix("}"), !trimmed.hasSuffix("]") {

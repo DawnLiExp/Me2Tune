@@ -146,7 +146,7 @@ final class CacheConfigManager {
                         withIntermediateDirectories: true
                     )
                 } catch {
-                    logger.error("Failed to create directory: \(error.localizedDescription)")
+                    logger.error("Failed to create directory: \(error)")
                 }
             }
         }

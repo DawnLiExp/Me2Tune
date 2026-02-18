@@ -83,7 +83,8 @@ final class AudioPlayerCore: NSObject {
         visibilityState = state
         
         logger.debug("⚡ Visibility changed: \(oldState.description) -> \(state.description)")
-        logger.debug("⚡ Update interval: \(String(format: "%.1f", state.updateInterval))s")
+        let iv = String(format: "%.1f", state.updateInterval)
+        logger.debug("⚡ Update interval: \(iv)s")
         
         if shouldTimerRun {
             logger.debug("⚡ Rebuilding timer with new interval")
@@ -122,7 +123,7 @@ final class AudioPlayerCore: NSObject {
                         let decoder = try AudioDecoder(inputSource: inputSource)
                         try player.play(decoder)
                     } catch {
-                        logger.warning("Buffering failed, fallback to direct: \(error.localizedDescription)")
+                        logger.warning("Buffering failed, fallback to direct: \(error)")
                         try player.play(track.url)
                     }
                 } else {
@@ -179,7 +180,7 @@ final class AudioPlayerCore: NSObject {
                         logger.debug("✓ Enqueued next track (buffered)")
                         return true
                     } catch {
-                        logger.warning("Buffer enqueue failed, using direct: \(error.localizedDescription)")
+                        logger.warning("Buffer enqueue failed, using direct: \(error)")
                     }
                 }
             }
@@ -238,7 +239,8 @@ final class AudioPlayerCore: NSObject {
         if player.seek(time: time) {
             currentTime = time
             delegate?.playerCore(self, didUpdateTime: currentTime, duration: duration)
-            logger.debug("⏩ Seeked to \(String(format: "%.1f", time))s")
+            let t = String(format: "%.1f", time)
+            logger.debug("⏩ Seeked to \(t)s")
         } else {
             logger.warning("Seek to \(time)s failed")
         }
@@ -262,9 +264,10 @@ final class AudioPlayerCore: NSObject {
         do {
             try player.setVolume(Float(volume))
             self.volume = volume
-            logger.debug("🔊 Volume set to \(String(format: "%.0f", volume * 100))%")
+            let pct = String(format: "%.0f", volume * 100)
+            logger.debug("🔊 Volume set to \(pct)%")
         } catch {
-            logger.error("Failed to set volume: \(error.localizedDescription)")
+            logger.error("Failed to set volume: \(error)")
         }
     }
     
@@ -300,7 +303,8 @@ final class AudioPlayerCore: NSObject {
             .milliseconds(200)
         }
         
-        logger.debug("⏱️ Creating timer for \(self.visibilityState.description), interval: \(String(format: "%.1f", interval))s")
+        let iv = String(format: "%.1f", interval)
+        logger.debug("⏱️ Creating timer for \(self.visibilityState.description), interval: \(iv)s")
         
         let newTimer = DispatchSource.makeTimerSource(queue: .main)
         newTimer.schedule(
@@ -395,7 +399,7 @@ extension AudioPlayerCore: AudioPlayer.Delegate {
     
     @objc nonisolated func audioPlayer(_ audioPlayer: AudioPlayer, encounteredError error: Error) {
         Task { @MainActor in
-            logger.error("Player error: \(error.localizedDescription)")
+            logger.error("Player error: \(error)")
             self.delegate?.playerCore(self, didEncounterError: error)
         }
     }

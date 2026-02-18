@@ -156,7 +156,7 @@ actor LyricsCacheService {
             await cleanupIfNeeded()
             
         } catch {
-            logger.error("Failed to save cache: \(error.localizedDescription)")
+            logger.error("Failed to save cache: \(error)")
         }
     }
     

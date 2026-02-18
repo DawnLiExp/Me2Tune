@@ -190,7 +190,7 @@ actor ArtworkCacheService {
             await cleanupIfNeeded()
             
         } catch {
-            logger.error("Failed to cache artwork: \(error.localizedDescription)")
+            logger.error("Failed to cache artwork: \(error)")
         }
     }
     
