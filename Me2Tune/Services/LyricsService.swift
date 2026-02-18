@@ -80,6 +80,10 @@ actor LyricsService {
             throw LyricsError.emptyFile
         }
         
+        let hasSyncedTags = content.contains(where: { $0 == "[" }) &&
+            (try? NSRegularExpression(pattern: #"\[\d{2}:\d{2}\.\d{2}\]"#))
+            .map { $0.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)) != nil } ?? false
+                
         return Lyrics(
             id: 0,
             trackName: audioURL.deletingPathExtension().lastPathComponent,
@@ -87,8 +91,8 @@ actor LyricsService {
             albumName: nil,
             duration: 0,
             instrumental: false,
-            plainLyrics: nil,
-            syncedLyrics: content
+            plainLyrics: hasSyncedTags ? nil : content,
+            syncedLyrics: hasSyncedTags ? content : nil
         )
     }
     
