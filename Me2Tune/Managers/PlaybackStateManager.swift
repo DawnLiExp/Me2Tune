@@ -246,8 +246,7 @@ final class PlaybackStateManager {
             lastSavedIndex = currentIdx
             lastSavedVolume = volume
         } catch {
-            let appError = AppError.persistenceFailed("save playback state")
-            logger.logError(appError, context: "savePlaybackState")
+            logger.logError(error, context: "savePlaybackState")
         }
     }
 

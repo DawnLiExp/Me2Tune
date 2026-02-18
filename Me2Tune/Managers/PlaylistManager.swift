@@ -92,7 +92,11 @@ final class PlaylistManager {
             updateTrackIndex(sdTrack)
         }
 
-        try? dataService.save()
+        do {
+            try dataService.save()
+        } catch {
+            logger.logError(error, context: "addTracks")
+        }
 
         // Directly append to memory, avoid full reload
         tracks.append(contentsOf: newDTOTracks)
@@ -138,7 +142,7 @@ final class PlaylistManager {
             }
             try dataService.save()
         } catch {
-            logger.logError(AppError.persistenceFailed("clear playlist"), context: "clearAll")
+            logger.logError(error, context: "clearAll")
         }
 
         tracks.removeAll()

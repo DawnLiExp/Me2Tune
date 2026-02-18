@@ -66,16 +66,28 @@ final class DataService: DataServiceProtocol {
         modelContext.delete(model)
     }
 
-    func fetch<T: PersistentModel>(_ descriptor: FetchDescriptor<T>) throws -> [T] {
-        try modelContext.fetch(descriptor)
+    func fetch<T: PersistentModel>(_ descriptor: FetchDescriptor<T>) throws(AppError) -> [T] {
+        do {
+            return try modelContext.fetch(descriptor)
+        } catch {
+            throw AppError.swiftDataFailed(underlying: error)
+        }
     }
 
-    func fetchCount(_ descriptor: FetchDescriptor<some PersistentModel>) throws -> Int {
-        try modelContext.fetchCount(descriptor)
+    func fetchCount(_ descriptor: FetchDescriptor<some PersistentModel>) throws(AppError) -> Int {
+        do {
+            return try modelContext.fetchCount(descriptor)
+        } catch {
+            throw AppError.swiftDataFailed(underlying: error)
+        }
     }
 
-    func save() throws {
-        try modelContext.save()
+    func save() throws(AppError) {
+        do {
+            try modelContext.save()
+        } catch {
+            throw AppError.swiftDataFailed(underlying: error)
+        }
     }
 
     // MARK: - Track Operations
@@ -96,29 +108,41 @@ final class DataService: DataServiceProtocol {
         return try? modelContext.fetch(descriptor).first
     }
 
-    func fetchPlaylistTracks() throws -> [SDTrack] {
+    func fetchPlaylistTracks() throws(AppError) -> [SDTrack] {
         var descriptor = FetchDescriptor<SDTrack>(
             predicate: #Predicate { $0.isInPlaylist == true },
             sortBy: [SortDescriptor(\.playlistOrder)]
         )
         descriptor.fetchLimit = 20000
-        return try modelContext.fetch(descriptor)
+        do {
+            return try modelContext.fetch(descriptor)
+        } catch {
+            throw AppError.swiftDataFailed(underlying: error)
+        }
     }
 
-    func playlistTrackCount() throws -> Int {
+    func playlistTrackCount() throws(AppError) -> Int {
         let descriptor = FetchDescriptor<SDTrack>(
             predicate: #Predicate { $0.isInPlaylist == true }
         )
-        return try modelContext.fetchCount(descriptor)
+        do {
+            return try modelContext.fetchCount(descriptor)
+        } catch {
+            throw AppError.swiftDataFailed(underlying: error)
+        }
     }
 
     // MARK: - Album Operations
 
-    func fetchAlbums() throws -> [SDAlbum] {
+    func fetchAlbums() throws(AppError) -> [SDAlbum] {
         let descriptor = FetchDescriptor<SDAlbum>(
             sortBy: [SortDescriptor(\.displayOrder)]
         )
-        return try modelContext.fetch(descriptor)
+        do {
+            return try modelContext.fetch(descriptor)
+        } catch {
+            throw AppError.swiftDataFailed(underlying: error)
+        }
     }
 
     func findAlbum(byFolderURL urlString: String) -> SDAlbum? {
@@ -137,9 +161,13 @@ final class DataService: DataServiceProtocol {
         return try? modelContext.fetch(descriptor).first
     }
 
-    func albumCount() throws -> Int {
+    func albumCount() throws(AppError) -> Int {
         let descriptor = FetchDescriptor<SDAlbum>(predicate: nil as Predicate<SDAlbum>?)
-        return try modelContext.fetchCount(descriptor)
+        do {
+            return try modelContext.fetchCount(descriptor)
+        } catch {
+            throw AppError.swiftDataFailed(underlying: error)
+        }
     }
 
     // MARK: - Playback State Operations

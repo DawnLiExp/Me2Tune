@@ -16,23 +16,23 @@ protocol DataServiceProtocol {
     
     func insert(_ model: some PersistentModel)
     func delete(_ model: some PersistentModel)
-    func fetch<T: PersistentModel>(_ descriptor: FetchDescriptor<T>) throws -> [T]
-    func fetchCount(_ descriptor: FetchDescriptor<some PersistentModel>) throws -> Int
-    func save() throws
+    func fetch<T: PersistentModel>(_ descriptor: FetchDescriptor<T>) throws(AppError) -> [T]
+    func fetchCount(_ descriptor: FetchDescriptor<some PersistentModel>) throws(AppError) -> Int
+    func save() throws(AppError)
     
     // MARK: - Track Operations
     
     func findTrack(byURL urlString: String) -> SDTrack?
     func findTrack(byStableId id: UUID) -> SDTrack?
-    func fetchPlaylistTracks() throws -> [SDTrack]
-    func playlistTrackCount() throws -> Int
+    func fetchPlaylistTracks() throws(AppError) -> [SDTrack]
+    func playlistTrackCount() throws(AppError) -> Int
     
     // MARK: - Album Operations
     
-    func fetchAlbums() throws -> [SDAlbum]
+    func fetchAlbums() throws(AppError) -> [SDAlbum]
     func findAlbum(byFolderURL urlString: String) -> SDAlbum?
     func findAlbum(byStableId id: UUID) -> SDAlbum?
-    func albumCount() throws -> Int
+    func albumCount() throws(AppError) -> Int
     
     // MARK: - Playback State Operations
     

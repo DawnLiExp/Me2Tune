@@ -145,7 +145,11 @@ final class CollectionManager {
             dataService.insert(entry)
         }
 
-        try? dataService.save()
+        do {
+            try dataService.save()
+        } catch {
+            logger.logError(error, context: "addAlbumFromPlaylist")
+        }
 
         updateAlbumIndex(sdAlbum)
 
@@ -234,7 +238,11 @@ final class CollectionManager {
             dataService.insert(entry)
         }
 
-        try? dataService.save()
+        do {
+            try dataService.save()
+        } catch {
+            logger.logError(error, context: "createAlbum")
+        }
 
         updateAlbumIndex(sdAlbum)
 
@@ -309,7 +317,7 @@ final class CollectionManager {
             }
             try dataService.save()
         } catch {
-            logger.logError(AppError.persistenceFailed("clear collections"), context: "clearAllAlbums")
+            logger.logError(error, context: "clearAllAlbums")
         }
 
         let count = albums.count

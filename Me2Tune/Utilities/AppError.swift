@@ -14,6 +14,7 @@ enum AppError: LocalizedError {
     case persistenceFailed(String)
     case invalidFileFormat(URL)
     case folderAccessDenied(URL)
+    case swiftDataFailed(underlying: Error)
 
     var errorDescription: String? {
         switch self {
@@ -29,6 +30,8 @@ enum AppError: LocalizedError {
             return "Unsupported file format: \(url.pathExtension)"
         case .folderAccessDenied(let url):
             return "Cannot access folder: \(url.lastPathComponent)"
+        case .swiftDataFailed(let error):
+            return "Data operation failed: \(error.localizedDescription)"
         }
     }
 
@@ -44,6 +47,8 @@ enum AppError: LocalizedError {
             return "Use supported audio formats (MP3, AAC, FLAC, etc.)"
         case .folderAccessDenied:
             return "Grant file access permission in System Settings"
+        case .swiftDataFailed:
+            return "Check disk space and permissions"
         }
     }
 }
