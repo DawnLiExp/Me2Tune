@@ -48,12 +48,13 @@ final class StatisticsManager: StatisticsManagerProtocol {
         dataService.modelContext
     }
     
-    private static let dateFormatter: DateFormatter = {
+    private static func makeDateFormatter() -> DateFormatter {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
-        formatter.calendar = Calendar.current
+        formatter.calendar = .autoupdatingCurrent
+        formatter.timeZone = .autoupdatingCurrent
         return formatter
-    }()
+    }
     
     /// 支持依赖注入 - 默认使用单例
     init(dataService: DataServiceProtocol = DataService.shared) {
@@ -64,7 +65,7 @@ final class StatisticsManager: StatisticsManagerProtocol {
     
     func incrementTodayPlayCount() async {
         let now = Date()
-        let today = Self.dateFormatter.string(from: now)
+        let today = Self.makeDateFormatter().string(from: now)
         
         let descriptor = FetchDescriptor<SDStatistics>(
             predicate: #Predicate { $0.dateString == today }
@@ -102,13 +103,15 @@ final class StatisticsManager: StatisticsManagerProtocol {
     
     /// Fetches raw daily statistics for the recent N days, filling gaps with zero values.
     func fetchRecentStatistics(days: Int = 30) async -> [DailyStatItem] {
-        let calendar = Calendar.current
+        let calendar = Calendar.autoupdatingCurrent
+        let dateFormatter = Self.makeDateFormatter()
+        
         let today = calendar.startOfDay(for: Date())
         guard let startDate = calendar.date(byAdding: .day, value: -(days - 1), to: today) else {
             return []
         }
         
-        let startDateString = Self.dateFormatter.string(from: startDate)
+        let startDateString = dateFormatter.string(from: startDate)
         
         let descriptor = FetchDescriptor<SDStatistics>(
             predicate: #Predicate { $0.dateString >= startDateString },
@@ -130,7 +133,7 @@ final class StatisticsManager: StatisticsManagerProtocol {
         var result: [DailyStatItem] = []
         for dayOffset in 0 ..< days {
             guard let date = calendar.date(byAdding: .day, value: dayOffset, to: startDate) else { continue }
-            let dateString = Self.dateFormatter.string(from: date)
+            let dateString = dateFormatter.string(from: date)
             let playCount = statsDict[dateString] ?? 0
             
             result.append(DailyStatItem(
@@ -144,10 +147,12 @@ final class StatisticsManager: StatisticsManagerProtocol {
     }
     
     func cleanupOldData(keepDays: Int = 365) {
-        let calendar = Calendar.current
+        let calendar = Calendar.autoupdatingCurrent
+        let dateFormatter = Self.makeDateFormatter()
+        
         guard let cutoffDate = calendar.date(byAdding: .day, value: -keepDays, to: Date()) else { return }
         
-        let cutoffDateString = Self.dateFormatter.string(from: cutoffDate)
+        let cutoffDateString = dateFormatter.string(from: cutoffDate)
         
         let descriptor = FetchDescriptor<SDStatistics>(
             predicate: #Predicate { $0.dateString < cutoffDateString }
@@ -184,7 +189,7 @@ final class StatisticsManager: StatisticsManagerProtocol {
     }
     
     private func aggregateByWeek(_ data: [DailyStatItem]) -> [DailyStatItem] {
-        let calendar = Calendar.current
+        let calendar = Calendar.autoupdatingCurrent
         let grouped = Dictionary(grouping: data) { item in
             calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: item.date)
         }
@@ -201,7 +206,7 @@ final class StatisticsManager: StatisticsManagerProtocol {
     }
     
     private func aggregateByMonth(_ data: [DailyStatItem]) -> [DailyStatItem] {
-        let calendar = Calendar.current
+        let calendar = Calendar.autoupdatingCurrent
         let grouped = Dictionary(grouping: data) { item in
             calendar.dateComponents([.year, .month], from: item.date)
         }
