@@ -227,7 +227,8 @@ struct PlaybackStateManagerTests {
         manager.switchToPlaylist()
         manager.setCurrentIndex(0)
         
-        let nextIndex = manager.moveToNextIndex()
+        let nextIndex = manager.calculateNextIndex(repeatMode: .off)
+        if let nextIndex { manager.setCurrentIndex(nextIndex) }
         
         #expect(nextIndex == 1)
         #expect(manager.currentTrackIndex == 1)
@@ -241,7 +242,8 @@ struct PlaybackStateManagerTests {
         manager.switchToPlaylist()
         manager.setCurrentIndex(2)
         
-        let nextIndex = manager.moveToNextIndex()
+        let nextIndex = manager.calculateNextIndex(repeatMode: .off)
+        if let nextIndex { manager.setCurrentIndex(nextIndex) }
         
         #expect(nextIndex == nil)
         #expect(manager.currentTrackIndex == 2)
@@ -254,7 +256,8 @@ struct PlaybackStateManagerTests {
         
         manager.switchToPlaylist()
         
-        let nextIndex = manager.moveToNextIndex()
+        let nextIndex = manager.calculateNextIndex(repeatMode: .off)
+        if let nextIndex { manager.setCurrentIndex(nextIndex) }
         
         #expect(nextIndex == nil)
         #expect(manager.currentTrackIndex == nil)
@@ -268,7 +271,8 @@ struct PlaybackStateManagerTests {
         manager.switchToPlaylist()
         manager.setCurrentIndex(2)
         
-        let prevIndex = manager.moveToPreviousIndex()
+        let prevIndex = manager.currentTrackIndex.flatMap { manager.calculatePreviousIndex(at: $0, repeatMode: .off) }
+        if let prevIndex { manager.setCurrentIndex(prevIndex) }
         
         #expect(prevIndex == 1)
         #expect(manager.currentTrackIndex == 1)
@@ -282,7 +286,8 @@ struct PlaybackStateManagerTests {
         manager.switchToPlaylist()
         manager.setCurrentIndex(0)
         
-        let prevIndex = manager.moveToPreviousIndex()
+        let prevIndex = manager.currentTrackIndex.flatMap { manager.calculatePreviousIndex(at: $0, repeatMode: .off) }
+        if let prevIndex { manager.setCurrentIndex(prevIndex) }
         
         #expect(prevIndex == nil)
         #expect(manager.currentTrackIndex == 0)
@@ -295,7 +300,8 @@ struct PlaybackStateManagerTests {
         
         manager.switchToPlaylist()
         
-        let prevIndex = manager.moveToPreviousIndex()
+        let prevIndex = manager.currentTrackIndex.flatMap { manager.calculatePreviousIndex(at: $0, repeatMode: .off) }
+        if let prevIndex { manager.setCurrentIndex(prevIndex) }
         
         #expect(prevIndex == nil)
         #expect(manager.currentTrackIndex == nil)
