@@ -134,7 +134,7 @@ struct StatisticsManagerTests {
         let dataService = try createTestDataService()
         let statsManager = StatisticsManager(dataService: dataService)
         
-        let calendar = Calendar.current
+        let calendar = Calendar.autoupdatingCurrent
         let today = Date()
         
         // 本月 15 天
@@ -175,7 +175,7 @@ struct StatisticsManagerTests {
         let dataService = try createTestDataService()
         let statsManager = StatisticsManager(dataService: dataService)
         
-        let calendar = Calendar.current
+        let calendar = Calendar.autoupdatingCurrent
         let today = Date()
         
         // 插入 400 天前的旧数据
@@ -202,7 +202,7 @@ struct StatisticsManagerTests {
         let dataService = try createTestDataService()
         let statsManager = StatisticsManager(dataService: dataService)
         
-        let calendar = Calendar.current
+        let calendar = Calendar.autoupdatingCurrent
         let today = Date()
         
         // 刚好 365 天前（应保留）
@@ -241,7 +241,7 @@ struct StatisticsManagerTests {
         let dataService = try createTestDataService()
         let statsManager = StatisticsManager(dataService: dataService)
         
-        let calendar = Calendar.current
+        let calendar = Calendar.autoupdatingCurrent
         let today = Date()
         
         // 只插入 3 天数据（有间隔）
@@ -275,6 +275,8 @@ struct StatisticsManagerTests {
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
+        formatter.calendar = .autoupdatingCurrent
+        formatter.timeZone = .autoupdatingCurrent
         return formatter.string(from: date)
     }
 }
@@ -289,7 +291,7 @@ struct StatisticsManagerPerformanceTests {
     func testBulkInsertPerformance() throws {
         // Arrange
         let dataService = try createTestDataService()
-        let calendar = Calendar.current
+        let calendar = Calendar.autoupdatingCurrent
         let today = Date()
         
         // Act - 插入 365 天的数据
@@ -317,6 +319,8 @@ struct StatisticsManagerPerformanceTests {
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
+        formatter.calendar = .autoupdatingCurrent
+        formatter.timeZone = .autoupdatingCurrent
         return formatter.string(from: date)
     }
 }
