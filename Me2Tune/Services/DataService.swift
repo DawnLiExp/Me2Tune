@@ -33,6 +33,16 @@ final class DataService: DataServiceProtocol {
 
     /// 便利初始化器 - 用于生产环境，创建默认 ModelContainer
     private convenience init() {
+        let appSupportURL = FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let storeDirectory = appSupportURL.appendingPathComponent("Me2Tune", isDirectory: true)
+        let storeURL = storeDirectory.appendingPathComponent("Me2Tune.store")
+
+        try? FileManager.default.createDirectory(
+            at: storeDirectory,
+            withIntermediateDirectories: true
+        )
+
         let schema = Schema([
             SDTrack.self,
             SDAlbum.self,
@@ -41,15 +51,12 @@ final class DataService: DataServiceProtocol {
             SDStatistics.self,
         ])
 
-        let config = ModelConfiguration(
-            "Me2Tune",
-            isStoredInMemoryOnly: false
-        )
+        let config = ModelConfiguration(schema: schema, url: storeURL)
 
         do {
             let container = try ModelContainer(for: schema, configurations: [config])
             container.mainContext.autosaveEnabled = true
-            logger.info("✅ DataService initialized - SwiftData ModelContainer ready")
+            logger.info("✅ DataService initialized - store: \(storeURL.path)")
             self.init(modelContainer: container)
         } catch {
             fatalError("❌ Failed to create ModelContainer: \(error)")
