@@ -131,11 +131,16 @@ final class PlayerViewModel {
     }
     
     var canGoPrevious: Bool {
-        playbackStateManager.canGoPrevious
+        guard currentTrackIndex != nil else { return false }
+        if repeatMode == .all { return !currentTracks.isEmpty }
+        return playbackStateManager.canGoPrevious
     }
     
     var canGoNext: Bool {
-        playbackStateManager.canGoNext
+        guard currentTrackIndex != nil else { return false }
+      
+        if repeatMode == .all { return !currentTracks.isEmpty }
+        return playbackStateManager.canGoNext
     }
     
     var isLoadingTracks: Bool {
@@ -247,8 +252,12 @@ final class PlayerViewModel {
     
     func previous() {
         guard let currentIndex = currentTrackIndex else { return }
-        
-        if let previousIndex = findPreviousValidTrack(from: currentIndex) {
+
+        guard let targetIndex = playbackStateManager.calculatePreviousIndex(
+            at: currentIndex, repeatMode: convertRepeatMode()
+        ) else { return }
+
+        if let previousIndex = findPreviousValidTrack(from: targetIndex + 1) {
             loadAndPlay(at: previousIndex)
         } else {
             logger.debug("No valid previous track found")
@@ -256,7 +265,7 @@ final class PlayerViewModel {
     }
     
     func next() {
-        guard let nextIndex = playbackStateManager.moveToNextIndex() else {
+        guard let nextIndex = playbackStateManager.calculateNextIndex(repeatMode: convertRepeatMode()) else {
             return
         }
         

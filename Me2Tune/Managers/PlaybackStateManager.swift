@@ -100,26 +100,17 @@ final class PlaybackStateManager {
         currentTrackIndex = index
     }
 
-    func moveToNextIndex() -> Int? {
-        guard let currentIndex = currentTrackIndex,
-              currentIndex < currentTracks.count - 1
-        else {
-            return nil
+    /// Calculate previous index without mutating current index.
+    func calculatePreviousIndex(at index: Int, repeatMode: RepeatMode) -> Int? {
+        switch repeatMode {
+        case .one:
+            return index
+        case .all:
+            guard !currentTracks.isEmpty else { return nil }
+            return index > 0 ? index - 1 : currentTracks.count - 1
+        case .off:
+            return index > 0 ? index - 1 : nil
         }
-
-        let nextIndex = currentIndex + 1
-        currentTrackIndex = nextIndex
-        return nextIndex
-    }
-
-    func moveToPreviousIndex() -> Int? {
-        guard let currentIndex = currentTrackIndex, currentIndex > 0 else {
-            return nil
-        }
-
-        let previousIndex = currentIndex - 1
-        currentTrackIndex = previousIndex
-        return previousIndex
     }
 
     /// Calculate next index without mutating current index.
@@ -128,11 +119,8 @@ final class PlaybackStateManager {
         case .one:
             return index
         case .all:
-            if index < currentTracks.count - 1 {
-                return index + 1
-            } else {
-                return 0
-            }
+            guard !currentTracks.isEmpty else { return nil }
+            return index < currentTracks.count - 1 ? index + 1 : 0
         case .off:
             if index < currentTracks.count - 1 {
                 return index + 1
