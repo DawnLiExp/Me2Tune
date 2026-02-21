@@ -83,7 +83,6 @@ final class PlayerViewModel {
     // MARK: - Private Properties
     
     @ObservationIgnored private let playerCore: AudioPlayerCore
-    @ObservationIgnored private var observerTask: Task<Void, Never>?
     @ObservationIgnored private var stateSaveTask: Task<Void, Never>?
     @ObservationIgnored private var pendingSaveTask: Task<Void, Never>?
     @ObservationIgnored private var volumeUpdateTask: Task<Void, Never>?
@@ -186,7 +185,6 @@ final class PlayerViewModel {
     
     deinit {
         stateSaveTask?.cancel()
-        observerTask?.cancel()
         pendingSaveTask?.cancel()
         volumeUpdateTask?.cancel()
     }
