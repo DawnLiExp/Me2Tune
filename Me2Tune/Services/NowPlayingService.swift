@@ -97,6 +97,7 @@ final class NowPlayingService {
     
     func clearNowPlayingInfo() {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        stopUpdateTimer()
    
         logger.debug("🧹 Cleared Now Playing info")
     }
@@ -108,6 +109,7 @@ final class NowPlayingService {
         placeholderInfo[MPMediaItemPropertyTitle] = "Me2Tune"
         placeholderInfo[MPNowPlayingInfoPropertyPlaybackRate] = currentRate
         MPNowPlayingInfoCenter.default().nowPlayingInfo = placeholderInfo
+        stopUpdateTimer()
         logger.debug("🔑 Set placeholder info for media keys (rate: \(currentRate))")
     }
     
