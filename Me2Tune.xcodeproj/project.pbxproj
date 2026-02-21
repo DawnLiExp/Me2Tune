@@ -87,6 +87,8 @@
 		FCCCBC922F4229750026774D /* PlaylistManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCCBC912F4229750026774D /* PlaylistManagerTests.swift */; };
 		FCD1A6A42F16ABED00EC88E2 /* DisplayMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCD1A6A32F16ABEB00EC88E2 /* DisplayMode.swift */; };
 		FCD38B8B2F42D6FE0074B61C /* CollectionManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCD38B8A2F42D6FE0074B61C /* CollectionManagerTests.swift */; };
+		FCD3DC0C2F4991FA008AC650 /* Me2TuneMigrationPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCD3DC0A2F4991FA008AC650 /* Me2TuneMigrationPlan.swift */; };
+		FCD3DC0D2F4991FA008AC650 /* Me2TuneSchemaV1.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCD3DC0B2F4991FA008AC650 /* Me2TuneSchemaV1.swift */; };
 		FCDDD83F2F17625F00295F8C /* MiniVolumeSliderStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDDD83E2F17625D00295F8C /* MiniVolumeSliderStyle.swift */; };
 		FCDDD8412F17656500295F8C /* NonDraggableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDDD8402F17656300295F8C /* NonDraggableView.swift */; };
 		FCDDF5AE2F14DACE003AFB85 /* EmeraldTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDDF5AD2F14DACD003AFB85 /* EmeraldTheme.swift */; };
@@ -188,6 +190,8 @@
 		FCCCBC912F4229750026774D /* PlaylistManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistManagerTests.swift; sourceTree = "<group>"; };
 		FCD1A6A32F16ABEB00EC88E2 /* DisplayMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayMode.swift; sourceTree = "<group>"; };
 		FCD38B8A2F42D6FE0074B61C /* CollectionManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionManagerTests.swift; sourceTree = "<group>"; };
+		FCD3DC0A2F4991FA008AC650 /* Me2TuneMigrationPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Me2TuneMigrationPlan.swift; sourceTree = "<group>"; };
+		FCD3DC0B2F4991FA008AC650 /* Me2TuneSchemaV1.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Me2TuneSchemaV1.swift; sourceTree = "<group>"; };
 		FCDDD83E2F17625D00295F8C /* MiniVolumeSliderStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniVolumeSliderStyle.swift; sourceTree = "<group>"; };
 		FCDDD8402F17656300295F8C /* NonDraggableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NonDraggableView.swift; sourceTree = "<group>"; };
 		FCDDF5AD2F14DACD003AFB85 /* EmeraldTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmeraldTheme.swift; sourceTree = "<group>"; };
@@ -380,9 +384,9 @@
 		FC480EC12EF13946000D8393 /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				FC08C8502F41BE1C003163CB /* DataServiceProtocol.swift */,
 				FC62DA382F0372BA00DD1509 /* ArtworkCacheService.swift */,
 				FC9C89ED2F3B083D004A59AC /* DataService.swift */,
+				FC08C8502F41BE1C003163CB /* DataServiceProtocol.swift */,
 				FC9596672F1D23CE00ED7FB7 /* LyricsCacheService.swift */,
 				FCB9B9672F1C0ACB00CA7866 /* LyricsService.swift */,
 				FCE6E86E2F053E6F004D5E21 /* NowPlayingService.swift */,
@@ -486,6 +490,8 @@
 		FC9C89E42F3B065B004A59AC /* SwiftData */ = {
 			isa = PBXGroup;
 			children = (
+				FCD3DC0A2F4991FA008AC650 /* Me2TuneMigrationPlan.swift */,
+				FCD3DC0B2F4991FA008AC650 /* Me2TuneSchemaV1.swift */,
 				FC9C89E52F3B06AD004A59AC /* SDAlbum.swift */,
 				FC9C89E62F3B06AD004A59AC /* SDAlbumTrackEntry.swift */,
 				FC9C89E72F3B06AD004A59AC /* SDPlaybackState.swift */,
@@ -664,6 +670,8 @@
 				FC7A0BEF2F3E064900C29400 /* EmptyStateView.swift in Sources */,
 				FC7A0BE52F3E061900C29400 /* StatisticsManager.swift in Sources */,
 				FC62DA3B2F0373C800DD1509 /* Array+Extensions.swift in Sources */,
+				FCD3DC0C2F4991FA008AC650 /* Me2TuneMigrationPlan.swift in Sources */,
+				FCD3DC0D2F4991FA008AC650 /* Me2TuneSchemaV1.swift in Sources */,
 				FC7596862F1BB95100E86C9C /* AlbumTrackRowView.swift in Sources */,
 				FCD1A6A42F16ABED00EC88E2 /* DisplayMode.swift in Sources */,
 				FC7A0BF12F3E065800C29400 /* StatisticsView.swift in Sources */,

@@ -5,7 +5,11 @@
 //  Settings interface - Features/Appearance/Statistics/About
 //
 
+import OSLog
+import SwiftData
 import SwiftUI
+
+private let logger = Logger.persistence
 
 struct SettingsView: View {
     @State private var currentTheme = ThemeManager.shared.themeMode
@@ -21,7 +25,8 @@ struct SettingsView: View {
     @State private var selectedTab = 0
     
     @State private var statisticsViewModel = StatisticsViewModel()
-    
+    @State private var showResetConfirmation = false
+
     @AppStorage("CleanMode") private var cleanMode = false
     @AppStorage("nowPlayingEnabled") private var nowPlayingEnabled = true
     @AppStorage("audioBufferingEnabled") private var audioBufferingEnabled = false
@@ -32,7 +37,7 @@ struct SettingsView: View {
     // MARK: - Tab Heights
     
     private let tabHeights: [Int: CGFloat] = [
-        0: 340, // Features
+        0: 480, // Features
         1: 340, // Appearance
         2: 530, // Statistics
         3: 340 // About
@@ -278,6 +283,60 @@ struct SettingsView: View {
                         }
                 }
             }
+
+            Divider()
+
+            // MARK: Danger Zone
+
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 12))
+                        .foregroundColor(.red.opacity(0.8))
+                    Text("settings_danger_zone")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.red.opacity(0.8))
+                    Spacer()
+                }
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("settings_reset_db")
+                            .font(.system(size: 13))
+                        Text("settings_reset_db_description")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+
+                    Spacer()
+
+                    Button(role: .destructive) {
+                        showResetConfirmation = true
+                    } label: {
+                        Label("settings_reset_db_button", systemImage: "trash")
+                            .font(.system(size: 12))
+                    }
+                    .confirmationDialog(
+                        "settings_reset_db",
+                        isPresented: $showResetConfirmation,
+                        titleVisibility: .visible
+                    ) {
+                        Button("settings_reset_db_confirm", role: .destructive) { resetDatabase() }
+                        Button("cancel", role: .cancel) {}
+                    } message: {
+                        Text("settings_reset_db_message")
+                    }
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.red.opacity(0.05))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.red.opacity(0.15), lineWidth: 1)
+                        )
+                )
+            }
         }
     }
     
@@ -484,6 +543,22 @@ struct SettingsView: View {
                 cacheManager.setCustomCachePath(url)
             }
         }
+    }
+
+    private func resetDatabase() {
+        guard let storeURL = DataService.shared.modelContainer.configurations.first?.url else {
+            logger.error("❌ resetDatabase: could not resolve store URL")
+            return
+        }
+
+        let suffixes = ["", "-shm", "-wal"]
+        for suffix in suffixes {
+            let target = URL(fileURLWithPath: storeURL.path + suffix)
+            try? FileManager.default.removeItem(at: target)
+        }
+
+        logger.info("🗑️ Database reset - restarting")
+        restartApp()
     }
     
     private func restartApp() {

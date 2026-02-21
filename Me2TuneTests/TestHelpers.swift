@@ -15,14 +15,7 @@ import Testing
 /// 为每个测试创建独立的内存数据库，测试结束后自动销毁
 @MainActor
 func createTestModelContainer() throws -> ModelContainer {
-    let schema = Schema([
-        SDTrack.self,
-        SDAlbum.self,
-        SDAlbumTrackEntry.self,
-        SDPlaybackState.self,
-        SDStatistics.self,
-    ])
-    
+    let schema = Schema(Me2TuneSchemaV1.models)   // 统一引用，不再硬编码列表
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
     return try ModelContainer(for: schema, configurations: [config])
 }

@@ -105,6 +105,19 @@
 "now_playing_sync" = "Now Playing Sync";
 "now_playing_sync_footer" = "When disabled, reduces system overhead by limiting playback progress updates in Control Center. Media keys remain fully supported.";
 
+// MARK: - Settings - Danger Zone
+"settings_danger_zone" = "Danger Zone";
+"settings_reset_db" = "Reset Database";
+"settings_reset_db_description" = "Delete all tracks, albums and statistics. App will restart automatically.";
+"settings_reset_db_button" = "Reset";
+"settings_reset_db_confirm" = "Confirm Reset";
+"settings_reset_db_message" = "All tracks, albums and statistics will be permanently deleted. This cannot be undone. App will restart automatically.";
+
+// MARK: - Migration Failed
+"migration_failed_title" = "Database Migration Failed";
+"migration_failed_body" = "Running in temporary mode — data will not be saved.\nPlease reset the database in Settings or wait for an updated version.";
+"migration_open_settings" = "Open Settings";
+
 // MARK: - Settings - Dynamic Glow Options
 "settings_glow_mode" = "Background Glow";
 "settings_glow_mode_footer" = "Choose visual style for background lighting effects";

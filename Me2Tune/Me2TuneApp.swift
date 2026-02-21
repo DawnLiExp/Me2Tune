@@ -13,12 +13,15 @@ private let logger = Logger.app
 
 @main
 struct Me2TuneApp: App {
+    @State private var isMigrationFailed: Bool
     @State private var collectionManager: CollectionManager
     @State private var playerViewModel: PlayerViewModel
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     init() {
         logger.debug("🚀 Me2TuneApp.init() START")
+
+        _isMigrationFailed = State(wrappedValue: DataService.shared.isMigrationFailed)
 
         // ✅ 单一初始化路径：先创建 CollectionManager，再创建 PlayerViewModel
         let manager = CollectionManager()
@@ -32,7 +35,7 @@ struct Me2TuneApp: App {
 
     var body: some Scene {
         Window("Me2Tune", id: "main") {
-            ContentView()
+            ContentView(isMigrationFailed: isMigrationFailed)
                 .frame(minWidth: 495)
                 .environment(playerViewModel)
                 .environment(\.playbackProgressState, playerViewModel.playbackProgressState)

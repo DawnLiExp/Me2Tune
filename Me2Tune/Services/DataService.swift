@@ -20,6 +20,8 @@ final class DataService: DataServiceProtocol {
     // MARK: - Properties
 
     let modelContainer: ModelContainer
+    let isMigrationFailed: Bool
+
     var modelContext: ModelContext {
         modelContainer.mainContext
     }
@@ -27,11 +29,12 @@ final class DataService: DataServiceProtocol {
     // MARK: - Initialization
 
     /// 公开初始化器 - 用于测试时注入自定义 ModelContainer
-    init(modelContainer: ModelContainer) {
+    init(modelContainer: ModelContainer, isMigrationFailed: Bool = false) {
         self.modelContainer = modelContainer
+        self.isMigrationFailed = isMigrationFailed
     }
 
-    /// 便利初始化器 - 用于生产环境，创建默认 ModelContainer
+    /// 便利初始化器 - 用于生产环境
     private convenience init() {
         let appSupportURL = FileManager.default
             .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -43,23 +46,24 @@ final class DataService: DataServiceProtocol {
             withIntermediateDirectories: true
         )
 
-        let schema = Schema([
-            SDTrack.self,
-            SDAlbum.self,
-            SDAlbumTrackEntry.self,
-            SDPlaybackState.self,
-            SDStatistics.self,
-        ])
-
+        let schema = Schema(Me2TuneSchemaV1.models)
         let config = ModelConfiguration(schema: schema, url: storeURL)
 
         do {
-            let container = try ModelContainer(for: schema, configurations: [config])
+            let container = try ModelContainer(
+                for: schema,
+                migrationPlan: Me2TuneMigrationPlan.self,
+                configurations: [config]
+            )
             container.mainContext.autosaveEnabled = true
             logger.info("✅ DataService initialized - store: \(storeURL.path)")
-            self.init(modelContainer: container)
+            self.init(modelContainer: container, isMigrationFailed: false)
         } catch {
-            fatalError("❌ Failed to create ModelContainer: \(error)")
+            logger.critical("❌ Migration failed, falling back to in-memory store: \(error)")
+            let memConfig = ModelConfiguration(isStoredInMemoryOnly: true)
+            // 内存容器初始化不应失败，force-try 可接受
+            let fallback = try! ModelContainer(for: schema, configurations: [memConfig])
+            self.init(modelContainer: fallback, isMigrationFailed: true)
         }
     }
 

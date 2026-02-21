@@ -105,6 +105,19 @@
 "now_playing_sync" = "Now Playing 同步";
 "now_playing_sync_footer" = "关闭后将降低系统开销，仅在必要时更新控制中心播放进度，媒体键始终可用";
 
+// MARK: - Settings - Danger Zone
+"settings_danger_zone" = "危险操作";
+"settings_reset_db" = "重置数据库";
+"settings_reset_db_description" = "删除所有曲库、专辑和统计数据，App 将自动重启";
+"settings_reset_db_button" = "重置";
+"settings_reset_db_confirm" = "确认重置";
+"settings_reset_db_message" = "将删除所有曲库、专辑和统计数据，操作不可撤销。App 将自动重启。";
+
+// MARK: - Migration Failed
+"migration_failed_title" = "数据库迁移失败";
+"migration_failed_body" = "当前以临时模式运行，数据不会被保存。\n请前往设置手动重置数据库，或等待更新版本。";
+"migration_open_settings" = "前往设置";
+
 // MARK: - Settings - Dynamic Glow Options
 "settings_glow_mode" = "背景光晕";
 "settings_glow_mode_footer" = "选择背景光晕的视觉风格";

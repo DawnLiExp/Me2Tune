@@ -10,6 +10,8 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct ContentView: View {
+    let isMigrationFailed: Bool
+
     @Environment(PlayerViewModel.self) private var playerViewModel
     @Environment(CollectionManager.self) private var collectionManager
     @Environment(\.playbackProgressState) private var playbackProgressState
@@ -30,24 +32,28 @@ struct ContentView: View {
     @State private var showClearCollectionsConfirm = false
     
     var body: some View {
-        mainView
-            .frame(minHeight: 800, maxHeight: .infinity)
-            .preferredColorScheme(.dark)
-            .onDrop(of: [.fileURL], isTargeted: $isDragging) { providers in
-                handleDrop(providers: providers)
-            }
-            .modifier(AlertsModifier(
-                showExportDialog: $showExportDialog,
-                exportAlbumName: $exportAlbumName,
-                showClearPlaylistConfirm: $showClearPlaylistConfirm,
-                showClearCollectionsConfirm: $showClearCollectionsConfirm,
-                onExport: exportPlaylistToAlbum,
-                onClearPlaylist: playerViewModel.clearPlaylist,
-                onClearCollections: collectionManager.clearAllAlbums
-            ))
-            .onChange(of: playerViewModel.currentTrack?.id) { _, newID in
-                updateAlbumGlow(newID: newID)
-            }
+        if isMigrationFailed {
+            MigrationFailedView()
+        } else {
+            mainView
+                .frame(minHeight: 800, maxHeight: .infinity)
+                .preferredColorScheme(.dark)
+                .onDrop(of: [.fileURL], isTargeted: $isDragging) { providers in
+                    handleDrop(providers: providers)
+                }
+                .modifier(AlertsModifier(
+                    showExportDialog: $showExportDialog,
+                    exportAlbumName: $exportAlbumName,
+                    showClearPlaylistConfirm: $showClearPlaylistConfirm,
+                    showClearCollectionsConfirm: $showClearCollectionsConfirm,
+                    onExport: exportPlaylistToAlbum,
+                    onClearPlaylist: playerViewModel.clearPlaylist,
+                    onClearCollections: collectionManager.clearAllAlbums
+                ))
+                .onChange(of: playerViewModel.currentTrack?.id) { _, newID in
+                    updateAlbumGlow(newID: newID)
+                }
+        }
     }
     
     // MARK: - Main View
@@ -328,6 +334,34 @@ struct ContentView: View {
         }
         
         return result
+    }
+}
+
+// MARK: - Migration Failed View
+
+private struct MigrationFailedView: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 48))
+                .foregroundColor(.orange)
+
+            Text("migration_failed_title")
+                .font(.title2.bold())
+
+            Text("migration_failed_body")
+                .multilineTextAlignment(.center)
+                .foregroundColor(.secondary)
+                .font(.callout)
+
+            Button("migration_open_settings") {
+                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding(40)
+        .frame(minWidth: 400, minHeight: 800)
+        .preferredColorScheme(.dark)
     }
 }
 
