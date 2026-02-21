@@ -55,6 +55,8 @@ actor LyricsCacheService {
     // MARK: - Public Methods
     
     func getCachedLyrics(audioURL: URL) async -> Lyrics? {
+        if Task.isCancelled { return nil }
+        
         let urlHash = cacheKey(audioURL: audioURL)
         
         let metadata = loadMetadata()
@@ -63,6 +65,8 @@ actor LyricsCacheService {
         }
         
         let fileURL = cacheDirectory.appendingPathComponent("\(entry.fileName).lrc")
+        
+        if Task.isCancelled { return nil }
         
         guard FileManager.default.fileExists(atPath: fileURL.path),
               let content = try? String(contentsOf: fileURL, encoding: .utf8),
@@ -110,13 +114,17 @@ actor LyricsCacheService {
     }
     
     func saveLyrics(_ lyrics: Lyrics, audioURL: URL) async {
+        if Task.isCancelled { return }
+        
         // ✅ 优先使用同步歌词，兜底使用纯文本歌词
         let lyricsContent: String
         if let syncedLyrics = lyrics.syncedLyrics,
-           !syncedLyrics.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+           !syncedLyrics.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
             lyricsContent = syncedLyrics
         } else if let plainLyrics = lyrics.plainLyrics,
-                  !plainLyrics.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                  !plainLyrics.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
             lyricsContent = plainLyrics
             logger.info("ℹ️ Caching plain lyrics (no synced version available)")
         } else {
@@ -128,6 +136,8 @@ actor LyricsCacheService {
         let baseFileName = audioURL.deletingPathExtension().lastPathComponent
         let finalFileName = findAvailableFileName(baseFileName: baseFileName, urlHash: urlHash)
         let cacheFile = cacheDirectory.appendingPathComponent("\(finalFileName).lrc")
+        
+        if Task.isCancelled { return }
         
         do {
             try lyricsContent.write(to: cacheFile, atomically: true, encoding: .utf8)

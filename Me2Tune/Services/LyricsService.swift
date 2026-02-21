@@ -68,6 +68,8 @@ actor LyricsService {
             throw LyricsError.notFound
         }
         
+        try Task.checkCancellation()
+        
         let content: String
         do {
             content = try String(contentsOf: lrcURL, encoding: .utf8)
@@ -75,6 +77,8 @@ actor LyricsService {
             logger.error("Failed to read local LRC: \(error)")
             throw LyricsError.fileReadError
         }
+        
+        try Task.checkCancellation()
         
         guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw LyricsError.emptyFile
