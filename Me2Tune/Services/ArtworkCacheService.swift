@@ -99,7 +99,10 @@ actor ArtworkCacheService {
         
         loadingTasks[url] = task
         let result = await task.value
-        loadingTasks[url] = nil
+        
+        if loadingTasks[url] == task {
+            loadingTasks[url] = nil
+        }
         
         return result
     }
