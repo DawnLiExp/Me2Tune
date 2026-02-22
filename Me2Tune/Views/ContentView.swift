@@ -16,6 +16,9 @@ struct ContentView: View {
     @Environment(CollectionManager.self) private var collectionManager
     @Environment(\.playbackProgressState) private var playbackProgressState
     
+    // Mini 模式切换时，跳过 Full 窗口内容渲染，断开 SwiftUI 观察链
+    @AppStorage("displayMode") private var displayMode = DisplayMode.full.rawValue
+    
     @State private var albumGlowColor = Color.defaultAlbumGlow
     @State private var previousTrackID: UUID?
     @State private var isDragging = false
@@ -30,6 +33,11 @@ struct ContentView: View {
     @State private var exportAlbumName = ""
     @State private var showClearPlaylistConfirm = false
     @State private var showClearCollectionsConfirm = false
+    
+    // Full 窗口是否处于激活状态（非 Mini 模式）
+    private var isFullModeActive: Bool {
+        displayMode == DisplayMode.full.rawValue
+    }
     
     var body: some View {
         if isMigrationFailed {
@@ -60,19 +68,25 @@ struct ContentView: View {
     
     private var mainView: some View {
         ZStack {
-            BackgroundLayerView(albumGlowColor: albumGlowColor)
-                .ignoresSafeArea(.all)
-            mainContentStack
-                
-            if showSearchOverlay {
-                searchOverlay
-                    .transition(.opacity)
-                    .zIndex(100)
+            // Mini 模式时跳过所有内容渲染：
+            //    - 断开 playbackProgressState 观察链，消除 Full 窗口隐藏后的空跑 re-render
+            //    - 销毁 RotatingVinylLayer CALayer，停止 GPU 旋转动画
+            //    - 停止 MeshGradient 呼吸循环（task 随视图销毁取消）
+            if isFullModeActive {
+                BackgroundLayerView(albumGlowColor: albumGlowColor)
+                    .ignoresSafeArea(.all)
+                mainContentStack
+                    
+                if showSearchOverlay {
+                    searchOverlay
+                        .transition(.opacity)
+                        .zIndex(100)
+                }
             }
         }
     }
     
-    // ✅ 关键优化：提前提取状态到局部变量，减少对 playerViewModel 的直接访问
+    // 提前提取状态到局部变量，减少对 playerViewModel 的直接访问
     private var mainContentStack: some View {
         @Bindable var viewModel = playerViewModel
         
@@ -107,7 +121,7 @@ struct ContentView: View {
                 isPlaying: isPlaying,
                 isRotationEnabled: isRotationEnabled,
                 duration: duration,
-                isWindowVisible: true
+                isWindowVisible: isFullModeActive
             )
             .frame(height: 160)
             .padding(.horizontal, 12)
