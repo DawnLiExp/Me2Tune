@@ -241,11 +241,24 @@ private struct MeshGradientGlowView: View {
     @State private var accumulatedPhase: Double = 0
     @State private var lastUpdateTime: Date = .init()
     
+    // 窗口最小化状态 - 用于暂停动画循环，避免 Dock 后持续 CPU 占用
+    @State private var isMiniaturized = false
+    
     var body: some View {
         vinylGlowMesh
             .allowsHitTesting(false)
-            .task(id: "\(breathingRateRaw)-\(breathingIntensityRaw)") {
+            .task(id: "\(breathingRateRaw)-\(breathingIntensityRaw)-\(isMiniaturized)") {
                 await startBreathingEffect()
+            }
+            .onReceive(
+                NotificationCenter.default.publisher(for: NSWindow.didMiniaturizeNotification)
+            ) { _ in
+                isMiniaturized = true
+            }
+            .onReceive(
+                NotificationCenter.default.publisher(for: NSWindow.didDeminiaturizeNotification)
+            ) { _ in
+                isMiniaturized = false
             }
     }
     
@@ -265,6 +278,9 @@ private struct MeshGradientGlowView: View {
     
     @MainActor
     private func startBreathingEffect() async {
+        // 窗口已最小化 → 不启动循环，直接退出
+        guard !isMiniaturized else { return }
+        
         lastUpdateTime = Date()
         let sleepMs = 120
         
