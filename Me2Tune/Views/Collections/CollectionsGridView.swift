@@ -40,6 +40,7 @@ struct CollectionsGridView: View {
     @State private var draggingAlbumId: UUID?
     @State private var dropTargetIndex: Int?
     @State private var lastViewedAlbumId: UUID?
+    @State private var hasInitiallyScrolled = false
     
     private let cardSize: CGFloat = 135
     private let spacing: CGFloat = 14
@@ -227,15 +228,18 @@ struct CollectionsGridView: View {
                         }
                     }
                     .task(id: isInAlbumDetail) {
-                        // albumGridView 始终驻留渲染树，scrollTo 仅作首次启动 / deep link 的 fallback
-                        if !isInAlbumDetail {
-                            let targetId = manager.lastScrollAlbumId ?? lastViewedAlbumId ?? selectedAlbumId
-                            if let targetId {
-                                try? await Task.sleep(for: .milliseconds(50))
-                                await MainActor.run {
-                                    proxy.scrollTo(targetId, anchor: .center)
-                                }
+                        // albumGridView 始终驻留渲染树，.scrollPosition 会自动维持滚动位置。
+                        // scrollTo 仅作首次启动 / deep link 的 fallback，返回详情页后无需干预。
+                        guard !isInAlbumDetail, !hasInitiallyScrolled else { return }
+                        let targetId = manager.lastScrollAlbumId ?? lastViewedAlbumId ?? selectedAlbumId
+                        if let targetId {
+                            try? await Task.sleep(for: .milliseconds(50))
+                            await MainActor.run {
+                                proxy.scrollTo(targetId, anchor: .center)
+                                hasInitiallyScrolled = true
                             }
+                        } else {
+                            hasInitiallyScrolled = true
                         }
                     }
                 }
