@@ -26,7 +26,7 @@ struct CollectionsGridView: View {
     let onEnsureLoaded: () async -> Void
     
     @State private var selectedAlbum: Album?
-    @State private var artworkCache: [UUID: NSImage] = [:]
+    @State private var selectedAlbumArtwork: NSImage?
     @State private var renamingAlbumId: UUID?
     @State private var renameText = ""
     @State private var albumToDelete: Album?
@@ -49,12 +49,13 @@ struct CollectionsGridView: View {
             if let album = selectedAlbum {
                 AlbumDetailView(
                     album: album,
-                    artwork: artworkCache[album.id],
+                    artwork: selectedAlbumArtwork,
                     playingSource: playingSource,
                     currentIndex: currentIndex,
                     onBack: {
                         withAnimation(.easeInOut(duration: 0.25)) {
                             selectedAlbum = nil
+                            selectedAlbumArtwork = nil
                         }
                     },
                     onTrackTap: { index in
@@ -93,16 +94,15 @@ struct CollectionsGridView: View {
         }
         
         // When selectedAlbumId is updated externally (e.g., by search), sync selectedAlbum
+        // artwork 为 nil：由 AlbumDetailView.task 冷启动路径异步补全
         .onChange(of: selectedAlbumId) { _, newId in
             if let newId, selectedAlbum?.id != newId {
                 if let album = albums.first(where: { $0.id == newId }) {
                     selectedAlbum = album
-                    Task {
-                        await loadArtwork(for: album)
-                    }
                 }
             } else if newId == nil {
                 selectedAlbum = nil
+                selectedAlbumArtwork = nil
             }
         }
         
@@ -113,7 +113,6 @@ struct CollectionsGridView: View {
                let album = albums.first(where: { $0.id == id })
             {
                 selectedAlbum = album
-                await loadArtwork(for: album)
             }
         }
         
@@ -177,10 +176,10 @@ struct CollectionsGridView: View {
                                     ForEach(Array(albums.enumerated()), id: \.element.id) { _, album in
                                         AlbumCardView(
                                             album: album,
-                                            artwork: artworkCache[album.id],
                                             isDragging: draggingAlbumId == album.id,
-                                            onTap: {
+                                            onTap: { artwork in
                                                 lastViewedAlbumId = album.id
+                                                selectedAlbumArtwork = artwork
                                                 withAnimation(.easeInOut(duration: 0.25)) {
                                                     selectedAlbum = album
                                                 }
@@ -195,9 +194,6 @@ struct CollectionsGridView: View {
                                         )
                                         .equatable()
                                         .id(album.id)
-                                        .task {
-                                            await loadArtwork(for: album)
-                                        }
                                         .onAppear {
                                             preloadNearbyArtworks(for: album)
                                         }
@@ -296,21 +292,7 @@ struct CollectionsGridView: View {
         .padding(.vertical, 80)
     }
     
-    // MARK: - Artwork Loading
-    
-    private func loadArtwork(for album: Album) async {
-        guard artworkCache[album.id] == nil,
-              let firstTrack = album.tracks.first
-        else {
-            return
-        }
-        
-        if let artwork = await ArtworkCacheService.shared.artwork(for: firstTrack.url) {
-            await MainActor.run {
-                artworkCache[album.id] = artwork
-            }
-        }
-    }
+    // MARK: - Preload
     
     private func preloadNearbyArtworks(for album: Album) {
         guard !preloadedAlbumIds.contains(album.id) else {

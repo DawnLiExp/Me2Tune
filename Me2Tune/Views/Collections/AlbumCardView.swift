@@ -12,36 +12,32 @@ import UniformTypeIdentifiers
 struct AlbumCardView: View, Equatable {
     nonisolated static func == (lhs: AlbumCardView, rhs: AlbumCardView) -> Bool {
         lhs.album.id == rhs.album.id
-            && lhs.artwork === rhs.artwork
             && lhs.isDragging == rhs.isDragging
     }
     
     let album: Album
-    let artwork: NSImage?
     let isDragging: Bool
-    let onTap: () -> Void
+    let onTap: (NSImage?) -> Void
     let onRename: () -> Void
     let onRemove: () -> Void
     
+    @State private var artwork: NSImage?
     @State private var isHovered = false
-    @AppStorage("CleanMode") private var cleanMode = false // 新增：简洁模式设置
+    @AppStorage("CleanMode") private var cleanMode = false
     
     // MARK: - Body
     
     var body: some View {
         ZStack {
-            // 内容层
             contentView
             
-            // 简洁模式下跳过 hover 检测
             if !cleanMode {
-                // Hover 检测层（透明覆盖）
                 HoverDetectingView(isHovered: $isHovered)
                     .allowsHitTesting(false)
             }
         }
         .onTapGesture {
-            onTap()
+            onTap(artwork)
         }
         .contextMenu {
             Button("rename") {
@@ -53,6 +49,9 @@ struct AlbumCardView: View, Equatable {
             Button("remove", role: .destructive) {
                 onRemove()
             }
+        }
+        .task(id: album.id) {
+            await loadArtwork()
         }
     }
     
@@ -74,7 +73,6 @@ struct AlbumCardView: View, Equatable {
             }
         }
         .opacity(isDragging ? 0.4 : 1.0)
-        // 简洁模式下禁用缩放动画
         .scaleEffect((isHovered && !isDragging && !cleanMode) ? 1.02 : 1.0)
         .animation(.easeOut(duration: 0.15), value: isHovered)
         .animation(.easeOut(duration: 0.15), value: isDragging)
@@ -103,15 +101,20 @@ struct AlbumCardView: View, Equatable {
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .strokeBorder(
-                    // 简洁模式下禁用边框高亮
                     Color.accent.opacity((isHovered && !isDragging && !cleanMode) ? 0.4 : 0),
                     lineWidth: 2
                 )
         )
         .shadow(
-            // 简洁模式下禁用阴影
             color: (isHovered && !isDragging && !cleanMode) ? Color.accent.opacity(0.2) : .clear,
             radius: 8
         )
+    }
+    
+    // MARK: - Artwork Loading
+    
+    private func loadArtwork() async {
+        guard artwork == nil, let firstTrack = album.tracks.first else { return }
+        artwork = await ArtworkCacheService.shared.artwork(for: firstTrack.url)
     }
 }

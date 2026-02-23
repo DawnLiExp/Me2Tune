@@ -19,8 +19,12 @@ struct AlbumDetailView: View {
     let onShowInFinder: (AudioTrack) -> Void
     let onAddToPlaylist: (AudioTrack) -> Void
     
-    // ✅ 新增：从 environment 获取 PlayerViewModel
     @Environment(PlayerViewModel.self) private var playerViewModel
+    
+    // 冷启动兜底：App 恢复时 artwork 为 nil，异步补全
+    @State private var resolvedArtwork: NSImage?
+    
+    // MARK: - Body
     
     var body: some View {
         VStack(spacing: 5) {
@@ -38,7 +42,7 @@ struct AlbumDetailView: View {
                                 }
                                 return false
                             }(),
-                            isFailed: playerViewModel.isTrackFailed(track.id), // ✅ 新增失败检查
+                            isFailed: playerViewModel.isTrackFailed(track.id),
                             onTap: { onTrackTap(index) },
                             onShowInFinder: { onShowInFinder(track) },
                             onAddToPlaylist: { onAddToPlaylist(track) }
@@ -48,12 +52,22 @@ struct AlbumDetailView: View {
                 .padding(.bottom, 20)
             }
         }
+        .task(id: album.id) {
+            // 正常路径：artwork 由 onTap 传入，此处直接跳过
+            // 冷启动路径：artwork == nil 时异步加载
+            guard artwork == nil, resolvedArtwork == nil,
+                  let firstTrack = album.tracks.first else { return }
+            resolvedArtwork = await ArtworkCacheService.shared.artwork(for: firstTrack.url)
+        }
     }
     
     // MARK: - Album Header
     
     private var albumHeader: some View {
-        HStack(spacing: 12) {
+        // 优先使用同步传入的 artwork，冷启动时退回到异步加载的 resolvedArtwork
+        let displayArtwork = artwork ?? resolvedArtwork
+        
+        return HStack(spacing: 12) {
             Button(action: onBack) {
                 Image(systemName: "chevron.left.circle.fill")
                     .font(.system(size: 24))
@@ -62,8 +76,8 @@ struct AlbumDetailView: View {
             .buttonStyle(.plain)
             
             Group {
-                if let artwork {
-                    Image(nsImage: artwork)
+                if let displayArtwork {
+                    Image(nsImage: displayArtwork)
                         .resizable()
                         .scaledToFill()
                 } else {
