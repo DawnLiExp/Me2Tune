@@ -43,9 +43,17 @@ struct CollectionsGridView: View {
     
     private let cardSize: CGFloat = 135
     private let spacing: CGFloat = 14
+
+    // MARK: - Body
     
     var body: some View {
-        Group {
+        // ZStack 保持 albumGridView 始终驻留渲染树，避免 LazyVGrid 重建导致 cell 飞入动画
+        ZStack {
+            albumGridView
+                .opacity(selectedAlbum != nil ? 0 : 1)
+                .offset(x: selectedAlbum != nil ? -100 : 0)
+                .disabled(selectedAlbum != nil)
+            
             if let album = selectedAlbum {
                 AlbumDetailView(
                     album: album,
@@ -69,9 +77,7 @@ struct CollectionsGridView: View {
                     }
                 )
                 .transition(.move(edge: .trailing).combined(with: .opacity))
-            } else {
-                albumGridView
-                    .transition(.move(edge: .leading).combined(with: .opacity))
+                .zIndex(1)
             }
         }
         .task {
@@ -159,84 +165,75 @@ struct CollectionsGridView: View {
     // MARK: - Album Grid View
     
     private var albumGridView: some View {
-        VStack(spacing: 0) {
-            Group {
-                if albums.isEmpty {
-                    if isLoaded {
-                        emptyStateView
-                    } else {
-                        loadingView
-                    }
+        Group {
+            if albums.isEmpty {
+                if isLoaded {
+                    emptyStateView
                 } else {
-                    GeometryReader { geometry in
-                        @Bindable var manager = collectionManager
-                        ScrollViewReader { proxy in
-                            ScrollView(showsIndicators: false) {
-                                LazyVGrid(columns: columns, spacing: spacing) {
-                                    ForEach(Array(albums.enumerated()), id: \.element.id) { _, album in
-                                        AlbumCardView(
-                                            album: album,
-                                            isDragging: draggingAlbumId == album.id,
-                                            onTap: { artwork in
-                                                lastViewedAlbumId = album.id
-                                                selectedAlbumArtwork = artwork
-                                                withAnimation(.easeInOut(duration: 0.25)) {
-                                                    selectedAlbum = album
-                                                }
-                                            },
-                                            onRename: {
-                                                renamingAlbumId = album.id
-                                                renameText = album.name
-                                            },
-                                            onRemove: {
-                                                albumToDelete = album
-                                            }
-                                        )
-                                        .equatable()
-                                        .id(album.id)
-                                        .onAppear {
-                                            preloadNearbyArtworks(for: album)
+                    loadingView
+                }
+            } else {
+                @Bindable var manager = collectionManager
+                ScrollViewReader { proxy in
+                    ScrollView(showsIndicators: false) {
+                        LazyVGrid(columns: columns, spacing: spacing) {
+                            ForEach(Array(albums.enumerated()), id: \.element.id) { _, album in
+                                AlbumCardView(
+                                    album: album,
+                                    isDragging: draggingAlbumId == album.id,
+                                    onTap: { artwork in
+                                        lastViewedAlbumId = album.id
+                                        selectedAlbumArtwork = artwork
+                                        withAnimation(.easeInOut(duration: 0.25)) {
+                                            selectedAlbum = album
                                         }
-                                        .onDrag {
-                                            draggingAlbumId = album.id
-                                            return NSItemProvider(object: album.id.uuidString as NSString)
-                                        }
-                                        .onDrop(of: [.text], delegate: AlbumDropDelegate(
-                                            albumId: album.id,
-                                            albums: albums,
-                                            draggingAlbumId: $draggingAlbumId,
-                                            dropTargetIndex: $dropTargetIndex,
-                                            onDrop: { sourceIndex, targetIndex in
-                                                onAlbumMoved(sourceIndex, targetIndex)
-                                            }
-                                        ))
+                                    },
+                                    onRename: {
+                                        renamingAlbumId = album.id
+                                        renameText = album.name
+                                    },
+                                    onRemove: {
+                                        albumToDelete = album
                                     }
+                                )
+                                .equatable()
+                                .id(album.id)
+                                .onAppear {
+                                    preloadNearbyArtworks(for: album)
                                 }
-                                .padding(.vertical, 8)
-                                .scrollTargetLayout()
-                            }
-                            .scrollPosition(id: $manager.lastScrollAlbumId)
-                            .onAppear {
-                                updateColumns(for: geometry.size.width)
-                    
-                                if lastViewedAlbumId == nil, let id = selectedAlbumId {
-                                    lastViewedAlbumId = id
+                                .onDrag {
+                                    draggingAlbumId = album.id
+                                    return NSItemProvider(object: album.id.uuidString as NSString)
                                 }
-                            }
-                            .onChange(of: geometry.size.width) { _, newWidth in
-                                updateColumns(for: newWidth)
-                            }
-                            .task(id: isInAlbumDetail) {
-                                if !isInAlbumDetail {
-                                    // 优先使用 manager 中持久化的滚动 ID
-                                    let targetId = manager.lastScrollAlbumId ?? lastViewedAlbumId ?? selectedAlbumId
-                                    
-                                    if let targetId {
-                                        try? await Task.sleep(for: .milliseconds(100))
-                                        await MainActor.run {
-                                            proxy.scrollTo(targetId, anchor: .center)
-                                        }
+                                .onDrop(of: [.text], delegate: AlbumDropDelegate(
+                                    albumId: album.id,
+                                    albums: albums,
+                                    draggingAlbumId: $draggingAlbumId,
+                                    dropTargetIndex: $dropTargetIndex,
+                                    onDrop: { sourceIndex, targetIndex in
+                                        onAlbumMoved(sourceIndex, targetIndex)
                                     }
+                                ))
+                            }
+                        }
+                        .padding(.vertical, 8)
+                        .scrollTargetLayout()
+                    }
+                    .scrollPosition(id: $manager.lastScrollAlbumId)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { newWidth in
+                        updateColumns(for: newWidth)
+                        if lastViewedAlbumId == nil, let id = selectedAlbumId {
+                            lastViewedAlbumId = id
+                        }
+                    }
+                    .task(id: isInAlbumDetail) {
+                        // albumGridView 始终驻留渲染树，scrollTo 仅作首次启动 / deep link 的 fallback
+                        if !isInAlbumDetail {
+                            let targetId = manager.lastScrollAlbumId ?? lastViewedAlbumId ?? selectedAlbumId
+                            if let targetId {
+                                try? await Task.sleep(for: .milliseconds(50))
+                                await MainActor.run {
+                                    proxy.scrollTo(targetId, anchor: .center)
                                 }
                             }
                         }
@@ -295,14 +292,10 @@ struct CollectionsGridView: View {
     // MARK: - Preload
     
     private func preloadNearbyArtworks(for album: Album) {
-        guard !preloadedAlbumIds.contains(album.id) else {
-            return
-        }
+        guard !preloadedAlbumIds.contains(album.id) else { return }
         preloadedAlbumIds.insert(album.id)
         
-        guard let index = albums.firstIndex(where: { $0.id == album.id }) else {
-            return
-        }
+        guard let index = albums.firstIndex(where: { $0.id == album.id }) else { return }
         
         let range = max(0, index - 2) ... min(albums.count - 1, index + 5)
         let nearbyAlbums = range.compactMap { albums[safe: $0] }
@@ -327,9 +320,7 @@ struct AlbumDropDelegate: DropDelegate {
         guard let draggingId = draggingAlbumId,
               draggingId != albumId,
               let targetIndex = albums.firstIndex(where: { $0.id == albumId })
-        else {
-            return
-        }
+        else { return }
         
         dropTargetIndex = targetIndex
     }
