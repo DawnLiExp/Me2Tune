@@ -16,6 +16,7 @@ struct SearchOverlayView: View {
     
     @State private var searchText = ""
     @State private var debouncedSearchText = ""
+    @State private var searchResults: [SearchResult] = []
     @State private var debounceTask: Task<Void, Never>?
     @State private var animationProgress: CGFloat = 0
     
@@ -86,6 +87,9 @@ struct SearchOverlayView: View {
         .onChange(of: searchText) { _, newValue in
             debounceSearch(newValue)
         }
+        .onChange(of: debouncedSearchText) { _, _ in
+            searchResults = performSearch()
+        }
     }
     
     // MARK: - Search Card
@@ -147,12 +151,10 @@ struct SearchOverlayView: View {
     
     private var resultsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            let results = performSearch()
-            
-            if results.isEmpty {
+            if searchResults.isEmpty {
                 emptyResultsView
             } else {
-                let groupedResults = Dictionary(grouping: results, by: { $0.category })
+                let groupedResults = Dictionary(grouping: searchResults, by: { $0.category })
                 
                 ScrollView(showsIndicators: false) {
                     LazyVStack(alignment: .leading, spacing: 16) {
