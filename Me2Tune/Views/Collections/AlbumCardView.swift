@@ -9,7 +9,13 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-struct AlbumCardView: View {
+struct AlbumCardView: View, Equatable {
+    nonisolated static func == (lhs: AlbumCardView, rhs: AlbumCardView) -> Bool {
+        lhs.album.id == rhs.album.id
+            && lhs.artwork === rhs.artwork
+            && lhs.isDragging == rhs.isDragging
+    }
+    
     let album: Album
     let artwork: NSImage?
     let isDragging: Bool

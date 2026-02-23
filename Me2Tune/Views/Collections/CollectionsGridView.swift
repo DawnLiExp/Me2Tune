@@ -193,6 +193,7 @@ struct CollectionsGridView: View {
                                                 albumToDelete = album
                                             }
                                         )
+                                        .equatable()
                                         .id(album.id)
                                         .task {
                                             await loadArtwork(for: album)
