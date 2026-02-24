@@ -173,52 +173,57 @@ struct CollectionsGridView: View {
                 }
             } else {
                 @Bindable var manager = collectionManager
-                ScrollView(showsIndicators: false) {
-                    LazyVGrid(columns: columns, spacing: spacing) {
-                        ForEach(Array(albums.enumerated()), id: \.element.id) { _, album in
-                            AlbumCardView(
-                                album: album,
-                                isDragging: draggingAlbumId == album.id,
-                                onTap: { artwork in
-                                    selectedAlbumArtwork = artwork
-                                    withAnimation(.easeInOut(duration: 0.25)) {
-                                        selectedAlbum = album
+                GeometryReader { geometry in
+                    ScrollView(showsIndicators: false) {
+                        LazyVGrid(columns: columns, spacing: spacing) {
+                            ForEach(Array(albums.enumerated()), id: \.element.id) { _, album in
+                                AlbumCardView(
+                                    album: album,
+                                    isDragging: draggingAlbumId == album.id,
+                                    onTap: { artwork in
+                                        selectedAlbumArtwork = artwork
+                                        withAnimation(.easeInOut(duration: 0.25)) {
+                                            selectedAlbum = album
+                                        }
+                                    },
+                                    onRename: {
+                                        renamingAlbumId = album.id
+                                        renameText = album.name
+                                    },
+                                    onRemove: {
+                                        albumToDelete = album
                                     }
-                                },
-                                onRename: {
-                                    renamingAlbumId = album.id
-                                    renameText = album.name
-                                },
-                                onRemove: {
-                                    albumToDelete = album
+                                )
+                                .equatable()
+                                .id(album.id)
+                                .onAppear {
+                                    preloadNearbyArtworks(for: album)
                                 }
-                            )
-                            .equatable()
-                            .id(album.id)
-                            .onAppear {
-                                preloadNearbyArtworks(for: album)
-                            }
-                            .onDrag {
-                                draggingAlbumId = album.id
-                                return NSItemProvider(object: album.id.uuidString as NSString)
-                            }
-                            .onDrop(of: [.text], delegate: AlbumDropDelegate(
-                                albumId: album.id,
-                                albums: albums,
-                                draggingAlbumId: $draggingAlbumId,
-                                dropTargetIndex: $dropTargetIndex,
-                                onDrop: { sourceIndex, targetIndex in
-                                    onAlbumMoved(sourceIndex, targetIndex)
+                                .onDrag {
+                                    draggingAlbumId = album.id
+                                    return NSItemProvider(object: album.id.uuidString as NSString)
                                 }
-                            ))
+                                .onDrop(of: [.text], delegate: AlbumDropDelegate(
+                                    albumId: album.id,
+                                    albums: albums,
+                                    draggingAlbumId: $draggingAlbumId,
+                                    dropTargetIndex: $dropTargetIndex,
+                                    onDrop: { sourceIndex, targetIndex in
+                                        onAlbumMoved(sourceIndex, targetIndex)
+                                    }
+                                ))
+                            }
                         }
+                        .padding(.vertical, 8)
+                        .scrollTargetLayout()
                     }
-                    .padding(.vertical, 8)
-                    .scrollTargetLayout()
-                }
-                .scrollPosition(id: $manager.lastScrollAlbumId)
-                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { newWidth in
-                    updateColumns(for: newWidth)
+                    .scrollPosition(id: $manager.lastScrollAlbumId)
+                    .onAppear {
+                        updateColumns(for: geometry.size.width)
+                    }
+                    .onChange(of: geometry.size.width) { _, newWidth in
+                        updateColumns(for: newWidth)
+                    }
                 }
             }
         }
