@@ -64,7 +64,7 @@ final class AudioPlayerCore: NSObject {
         logger.debug("AudioPlayerCore initialized")
     }
     
-    nonisolated deinit {
+    deinit {
         timer?.cancel()
         timer = nil
     }
