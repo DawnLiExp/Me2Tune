@@ -69,7 +69,41 @@ struct ContentSectionView: View {
         let collectionsAlbums = collectionManager.albums
         let collectionsLoaded = collectionManager.isLoaded
         
-        Group {
+        ZStack {
+            CollectionsGridView(
+                selectedTab: $selectedTab,
+                isInAlbumDetail: $isInAlbumDetail,
+                selectedAlbumId: $selectedAlbumId,
+                albums: collectionsAlbums,
+                isLoaded: collectionsLoaded,
+                isActiveTab: selectedTab == .collections, // 传递当前是否激活的状态
+                currentIndex: currentIndex,
+                playingSource: playingSource,
+                onAlbumPlayAt: { album, index in
+                    viewModel.playAlbum(album, startAt: index)
+                },
+                onAlbumRemoved: { albumId in
+                    collectionManager.removeAlbum(id: albumId)
+                },
+                onAlbumRenamed: { albumId, newName in
+                    collectionManager.renameAlbum(id: albumId, newName: newName)
+                },
+                onAlbumMoved: { from, to in
+                    collectionManager.moveAlbum(from: from, to: to)
+                },
+                onTrackAddedToPlaylist: { track in
+                    viewModel.addTracksToPlaylist(urls: [track.url])
+                },
+                onEnsureLoaded: {
+                    await collectionManager.ensureLoaded()
+                }
+            )
+            .padding(.horizontal, 12)
+            .padding(.top, 16)
+            .opacity(selectedTab == .collections ? 1 : 0)
+            .allowsHitTesting(selectedTab == .collections)
+            
+            // PlaylistTabView 只有在选中时才挂载，避免影响其他拖拽
             if selectedTab == .playlist {
                 PlaylistTabView(
                     selectedTab: $selectedTab,
@@ -94,36 +128,8 @@ struct ContentSectionView: View {
                 )
                 .padding(.horizontal, 12)
                 .padding(.top, 16)
-            } else {
-                CollectionsGridView(
-                    selectedTab: $selectedTab,
-                    isInAlbumDetail: $isInAlbumDetail,
-                    selectedAlbumId: $selectedAlbumId,
-                    albums: collectionsAlbums,
-                    isLoaded: collectionsLoaded,
-                    currentIndex: currentIndex,
-                    playingSource: playingSource,
-                    onAlbumPlayAt: { album, index in
-                        viewModel.playAlbum(album, startAt: index)
-                    },
-                    onAlbumRemoved: { albumId in
-                        collectionManager.removeAlbum(id: albumId)
-                    },
-                    onAlbumRenamed: { albumId, newName in
-                        collectionManager.renameAlbum(id: albumId, newName: newName)
-                    },
-                    onAlbumMoved: { from, to in
-                        collectionManager.moveAlbum(from: from, to: to)
-                    },
-                    onTrackAddedToPlaylist: { track in
-                        viewModel.addTracksToPlaylist(urls: [track.url])
-                    },
-                    onEnsureLoaded: {
-                        await collectionManager.ensureLoaded()
-                    }
-                )
-                .padding(.horizontal, 12)
-                .padding(.top, 16)
+                // 加一个不透明度的背景遮挡，确保即便有意外也不会透出底下的视图
+                .background(Color.containerBackground)
             }
         }
     }

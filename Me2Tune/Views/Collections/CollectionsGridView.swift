@@ -16,6 +16,7 @@ struct CollectionsGridView: View {
     @Binding var selectedAlbumId: UUID?
     let albums: [Album]
     let isLoaded: Bool
+    let isActiveTab: Bool
     let currentIndex: Int?
     let playingSource: PlayerViewModel.PlayingSource
     let onAlbumPlayAt: (Album, Int) -> Void
@@ -199,13 +200,14 @@ struct CollectionsGridView: View {
                                 .onAppear {
                                     preloadNearbyArtworks(for: album)
                                 }
-                                .onDrag {
+                                .optionalOnDrag(if: isActiveTab) {
                                     draggingAlbumId = album.id
                                     return NSItemProvider(object: album.id.uuidString as NSString)
                                 }
-                                .onDrop(of: [.text], delegate: AlbumDropDelegate(
+                                .optionalOnDrop(if: isActiveTab, of: [.text], delegate: AlbumDropDelegate(
                                     albumId: album.id,
                                     albums: albums,
+                                    isActiveTab: isActiveTab,
                                     draggingAlbumId: $draggingAlbumId,
                                     dropTargetIndex: $dropTargetIndex,
                                     onDrop: { sourceIndex, targetIndex in
@@ -298,11 +300,13 @@ struct CollectionsGridView: View {
 struct AlbumDropDelegate: DropDelegate {
     let albumId: UUID
     let albums: [Album]
+    let isActiveTab: Bool
     @Binding var draggingAlbumId: UUID?
     @Binding var dropTargetIndex: Int?
     let onDrop: (Int, Int) -> Void
     
     func dropEntered(info: DropInfo) {
+        guard isActiveTab else { return }
         guard let draggingId = draggingAlbumId,
               draggingId != albumId,
               let targetIndex = albums.firstIndex(where: { $0.id == albumId })
@@ -312,10 +316,13 @@ struct AlbumDropDelegate: DropDelegate {
     }
     
     func dropExited(info: DropInfo) {
+        guard isActiveTab else { return }
         dropTargetIndex = nil
     }
     
     func performDrop(info: DropInfo) -> Bool {
+        guard isActiveTab else { return false }
+        
         guard let draggingId = draggingAlbumId,
               let sourceIndex = albums.firstIndex(where: { $0.id == draggingId }),
               let targetIndex = albums.firstIndex(where: { $0.id == albumId })
@@ -340,6 +347,28 @@ struct AlbumDropDelegate: DropDelegate {
     }
 }
 
+// MARK: - Conditional View Modifiers
+
+extension View {
+    @ViewBuilder
+    func optionalOnDrop(if condition: Bool, of supportedContentTypes: [UTType], delegate: DropDelegate) -> some View {
+        if condition {
+            self.onDrop(of: supportedContentTypes, delegate: delegate)
+        } else {
+            self
+        }
+    }
+    
+    @ViewBuilder
+    func optionalOnDrag(if condition: Bool, _ data: @escaping () -> NSItemProvider) -> some View {
+        if condition {
+            self.onDrag(data)
+        } else {
+            self
+        }
+    }
+}
+
 #Preview {
     CollectionsGridView(
         selectedTab: .constant(.collections),
@@ -347,6 +376,7 @@ struct AlbumDropDelegate: DropDelegate {
         selectedAlbumId: .constant(nil),
         albums: [],
         isLoaded: true,
+        isActiveTab: true,
         currentIndex: nil,
         playingSource: .playlist,
         onAlbumPlayAt: { _, _ in },
