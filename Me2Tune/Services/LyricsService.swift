@@ -20,7 +20,7 @@ actor LyricsService {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 10
         config.httpAdditionalHeaders = [
-            "User-Agent": "Me2Tune v0.8.0 (https://github.com/DawnLiExp/Me2Tune)"
+            "User-Agent": "Me2Tune v0.8.1 (https://github.com/DawnLiExp/Me2Tune)"
         ]
         self.session = URLSession(configuration: config)
     }

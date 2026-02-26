@@ -19,6 +19,7 @@ xcuserdata/
 Preview Content/
 .vscode
 local/
+.agent
 
 ## Swift Package Manager
 .swiftpm/
