@@ -200,11 +200,14 @@ struct CollectionsGridView: View {
                                 .onAppear {
                                     preloadNearbyArtworks(for: album)
                                 }
-                                .optionalOnDrag(if: isActiveTab) {
+                                .onDrag {
+                                    // 始终挂载，通过 isActiveTab 控制行为而非结构
+                                    // 避免 modifier 动态添加/移除导致 cell identity 错乱
+                                    guard isActiveTab else { return NSItemProvider() }
                                     draggingAlbumId = album.id
                                     return NSItemProvider(object: album.id.uuidString as NSString)
                                 }
-                                .optionalOnDrop(if: isActiveTab, of: [.text], delegate: AlbumDropDelegate(
+                                .onDrop(of: [.text], delegate: AlbumDropDelegate(
                                     albumId: album.id,
                                     albums: albums,
                                     isActiveTab: isActiveTab,
@@ -305,6 +308,13 @@ struct AlbumDropDelegate: DropDelegate {
     @Binding var dropTargetIndex: Int?
     let onDrop: (Int, Int) -> Void
     
+    func validateDrop(info: DropInfo) -> Bool {
+        // 非激活 tab 时拒绝，让 macOS 将拖拽传递给下方的 playlist drop 区域
+        guard isActiveTab else { return false }
+        // 只接受文字类型（专辑 UUID），不拦截来自 Finder 的文件拖拽
+        return info.hasItemsConforming(to: [.text])
+    }
+    
     func dropEntered(info: DropInfo) {
         guard isActiveTab else { return }
         guard let draggingId = draggingAlbumId,
@@ -344,28 +354,6 @@ struct AlbumDropDelegate: DropDelegate {
         
         onDrop(sourceIndex, adjustedTarget)
         return true
-    }
-}
-
-// MARK: - Conditional View Modifiers
-
-extension View {
-    @ViewBuilder
-    func optionalOnDrop(if condition: Bool, of supportedContentTypes: [UTType], delegate: DropDelegate) -> some View {
-        if condition {
-            self.onDrop(of: supportedContentTypes, delegate: delegate)
-        } else {
-            self
-        }
-    }
-    
-    @ViewBuilder
-    func optionalOnDrag(if condition: Bool, _ data: @escaping () -> NSItemProvider) -> some View {
-        if condition {
-            self.onDrag(data)
-        } else {
-            self
-        }
     }
 }
 

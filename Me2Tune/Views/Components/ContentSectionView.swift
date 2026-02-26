@@ -128,8 +128,6 @@ struct ContentSectionView: View {
                 )
                 .padding(.horizontal, 12)
                 .padding(.top, 16)
-                // 加一个不透明度的背景遮挡，确保即便有意外也不会透出底下的视图
-                .background(Color.containerBackground)
             }
         }
     }

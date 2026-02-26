@@ -23,7 +23,7 @@ struct PlaylistTabView: View {
     @State private var draggingIndex: Int?
     @State private var dropTargetIndex: Int?
     
-    // ✅ 新增：从 environment 获取 PlayerViewModel
+    // 从 environment 获取 PlayerViewModel
     @Environment(PlayerViewModel.self) private var playerViewModel
     
     var body: some View {
@@ -77,6 +77,9 @@ struct PlaylistTabView: View {
                 }
             }
         }
+        // 外层兜底：fileURL 文件拖拽（内层 track row 的 onDrop 先命中，此处只处理空白区域）
+        // SwiftUI NSDragging 遵循视图深度，内层 track row 始终优先
+        .onDrop(of: [.fileURL], delegate: FileOnlyDropDelegate(onFilesDrop: onFilesDrop))
         .transition(.opacity.combined(with: .move(edge: .leading)))
     }
     
@@ -170,6 +173,12 @@ struct PlaylistTabView: View {
                 var destination = to
                 if from < to {
                     destination = to - 1
+                }
+
+                if from < tracks.count,
+                   tracks[from].id == playerViewModel.lastScrollTrackId
+                {
+                    playerViewModel.lastScrollTrackId = nil
                 }
                 onTrackMoved(fromSet, destination)
             },
@@ -271,6 +280,48 @@ struct TrackDropDelegate: DropDelegate {
             onFilesDrop(urls)
         }
         
+        return true
+    }
+}
+
+// MARK: - File Only Drop Delegate
+
+/// 仅处理来自 Finder 的 fileURL 拖拽，不响应 track/album 排序（.text 类型）
+/// 用于 PlaylistTabView 的全局兜底层，防止被底层不可见专辑 cells 抢占
+struct FileOnlyDropDelegate: DropDelegate {
+    let onFilesDrop: ([URL]) -> Void
+
+    func validateDrop(info: DropInfo) -> Bool {
+        // 只接受 fileURL，不接受 .text（track/album 排序），避免意外拦截
+        info.hasItemsConforming(to: [.fileURL])
+    }
+
+    func dropEntered(info: DropInfo) {}
+    func dropExited(info: DropInfo) {}
+
+    func performDrop(info: DropInfo) -> Bool {
+        let providers = info.itemProviders(for: [.fileURL])
+        guard !providers.isEmpty else { return false }
+
+        Task { @MainActor in
+            var urls: [URL] = []
+            for provider in providers {
+                guard provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) else { continue }
+                do {
+                    let item = try await provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier)
+                    switch item {
+                    case let url as URL: urls.append(url)
+                    case let data as Data:
+                        if let s = String(data: data, encoding: .utf8) {
+                            urls.append(URL(string: s) ?? URL(fileURLWithPath: s))
+                        }
+                    case let s as String: urls.append(URL(string: s) ?? URL(fileURLWithPath: s))
+                    default: break
+                    }
+                } catch { continue }
+            }
+            onFilesDrop(urls)
+        }
         return true
     }
 }
