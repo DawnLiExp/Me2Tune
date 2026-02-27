@@ -1,9 +1,7 @@
-name: Me2Tune - Build and Analyze
+name: Build
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  workflow_dispatch: 
+
 permissions:
   contents: read
 jobs:
