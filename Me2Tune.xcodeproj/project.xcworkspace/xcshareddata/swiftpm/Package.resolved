@@ -141,8 +141,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/sbooth/SFBAudioEngine",
       "state" : {
-        "revision" : "108ed7ce6fdb945ad96e09600a93954b54675cc0",
-        "version" : "0.12.0"
+        "revision" : "10670eb58f9acc0e5ac2907dc744a78ade2597cd",
+        "version" : "0.12.1"
       }
     },
     {

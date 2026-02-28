@@ -230,6 +230,10 @@ final class AudioPlayerCore: NSObject {
             logger.warning("Seek not supported for current track")
             return
         }
+        guard time.isFinite else {
+            logger.warning("Seek rejected: non-finite value \(time)")
+            return
+        }
         
         let wasPlaying = isPlaying
         if wasPlaying {
