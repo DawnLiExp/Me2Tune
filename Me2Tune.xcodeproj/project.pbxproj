@@ -27,8 +27,6 @@
 		FC480EAB2EF107E8000D8393 /* Me2TuneApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480EA22EF107E8000D8393 /* Me2TuneApp.swift */; };
 		FC480EAF2EF107E8000D8393 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FC480E9E2EF107E8000D8393 /* Assets.xcassets */; };
 		FC480EB02EF107E8000D8393 /* info.plist in Resources */ = {isa = PBXBuildFile; fileRef = FC480EA12EF107E8000D8393 /* info.plist */; };
-		FC480EB72EF13722000D8393 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = FC480EB62EF13722000D8393 /* Localizable.strings */; };
-		FC480EBE2EF137BB000D8393 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = FC480EBC2EF137AE000D8393 /* Localizable.strings */; };
 		FC480EC42EF152BC000D8393 /* AudioTrack.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC480EC32EF152A2000D8393 /* AudioTrack.swift */; };
 		FC49D3B02F0AC2F000628C1B /* SearchResultRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC49D3AF2F0AC2EE00628C1B /* SearchResultRowView.swift */; };
 		FC49D3B22F0AC30000628C1B /* SearchOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC49D3B12F0AC2FE00628C1B /* SearchOverlayView.swift */; };
@@ -55,6 +53,7 @@
 		FC7A0BEE2F3E064900C29400 /* StatisticsChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC7A0BEC2F3E064900C29400 /* StatisticsChartView.swift */; };
 		FC7A0BEF2F3E064900C29400 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC7A0BEA2F3E064900C29400 /* EmptyStateView.swift */; };
 		FC7A0BF12F3E065800C29400 /* StatisticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC7A0BF02F3E065800C29400 /* StatisticsView.swift */; };
+		FC7B2E9B2F5575320091521D /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = FC7B2E9A2F5575320091521D /* Localizable.xcstrings */; };
 		FC8528082F01486100B53540 /* ContentSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8528072F01485D00B53540 /* ContentSectionView.swift */; };
 		FC8528102F014F7C00B53540 /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC85280F2F014F7A00B53540 /* AppError.swift */; };
 		FC8528122F014FAA00B53540 /* Logger+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8528112F014FA900B53540 /* Logger+Extensions.swift */; };
@@ -130,8 +129,6 @@
 		FC480EA02EF107E8000D8393 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		FC480EA12EF107E8000D8393 /* info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = info.plist; sourceTree = "<group>"; };
 		FC480EA22EF107E8000D8393 /* Me2TuneApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Me2TuneApp.swift; sourceTree = "<group>"; };
-		FC480EB52EF13722000D8393 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = Localizable.strings; sourceTree = "<group>"; };
-		FC480EBD2EF137AE000D8393 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = Localizable.strings; sourceTree = "<group>"; };
 		FC480EC32EF152A2000D8393 /* AudioTrack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioTrack.swift; sourceTree = "<group>"; };
 		FC49D3AF2F0AC2EE00628C1B /* SearchResultRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResultRowView.swift; sourceTree = "<group>"; };
 		FC49D3B12F0AC2FE00628C1B /* SearchOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchOverlayView.swift; sourceTree = "<group>"; };
@@ -158,6 +155,7 @@
 		FC7A0BEB2F3E064900C29400 /* StatCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatCard.swift; sourceTree = "<group>"; };
 		FC7A0BEC2F3E064900C29400 /* StatisticsChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsChartView.swift; sourceTree = "<group>"; };
 		FC7A0BF02F3E065800C29400 /* StatisticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsView.swift; sourceTree = "<group>"; };
+		FC7B2E9A2F5575320091521D /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		FC8528072F01485D00B53540 /* ContentSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentSectionView.swift; sourceTree = "<group>"; };
 		FC85280F2F014F7A00B53540 /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
 		FC8528112F014FA900B53540 /* Logger+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Logger+Extensions.swift"; sourceTree = "<group>"; };
@@ -324,26 +322,9 @@
 		FC480EB82EF13776000D8393 /* Localizations */ = {
 			isa = PBXGroup;
 			children = (
-				FC480EBA2EF13795000D8393 /* zh-Hans.lproj */,
-				FC480EB92EF13783000D8393 /* en.lproj */,
+				FC7B2E9A2F5575320091521D /* Localizable.xcstrings */,
 			);
 			path = Localizations;
-			sourceTree = "<group>";
-		};
-		FC480EB92EF13783000D8393 /* en.lproj */ = {
-			isa = PBXGroup;
-			children = (
-				FC480EB62EF13722000D8393 /* Localizable.strings */,
-			);
-			path = en.lproj;
-			sourceTree = "<group>";
-		};
-		FC480EBA2EF13795000D8393 /* zh-Hans.lproj */ = {
-			isa = PBXGroup;
-			children = (
-				FC480EBC2EF137AE000D8393 /* Localizable.strings */,
-			);
-			path = "zh-Hans.lproj";
 			sourceTree = "<group>";
 		};
 		FC480EBF2EF13912000D8393 /* Views */ = {
@@ -624,8 +605,7 @@
 			isa = PBXResourcesBuildPhase;
 			files = (
 				FC480EAF2EF107E8000D8393 /* Assets.xcassets in Resources */,
-				FC480EBE2EF137BB000D8393 /* Localizable.strings in Resources */,
-				FC480EB72EF13722000D8393 /* Localizable.strings in Resources */,
+				FC7B2E9B2F5575320091521D /* Localizable.xcstrings in Resources */,
 				FC480EB02EF107E8000D8393 /* info.plist in Resources */,
 			);
 		};
@@ -741,25 +721,6 @@
 		};
 /* End PBXTargetDependency section */
 
-/* Begin PBXVariantGroup section */
-		FC480EB62EF13722000D8393 /* Localizable.strings */ = {
-			isa = PBXVariantGroup;
-			children = (
-				FC480EB52EF13722000D8393 /* en */,
-			);
-			name = Localizable.strings;
-			sourceTree = "<group>";
-		};
-		FC480EBC2EF137AE000D8393 /* Localizable.strings */ = {
-			isa = PBXVariantGroup;
-			children = (
-				FC480EBD2EF137AE000D8393 /* zh-Hans */,
-			);
-			name = Localizable.strings;
-			sourceTree = "<group>";
-		};
-/* End PBXVariantGroup section */
-
 /* Begin XCBuildConfiguration section */
 		FC1662332EEFAE2E00F01BCE /* Debug configuration for PBXProject "Me2Tune" */ = {
 			isa = XCBuildConfiguration;
@@ -824,6 +785,7 @@
 				SDKROOT = macosx;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
 			name = Debug;
@@ -885,6 +847,7 @@
 				SDKROOT = macosx;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 			};
 			name = Release;
 		};
