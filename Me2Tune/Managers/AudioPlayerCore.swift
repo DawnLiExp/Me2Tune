@@ -141,6 +141,8 @@ final class AudioPlayerCore: NSObject {
             currentTrack = track
             queuedTracks.removeAll()
             
+            delegate?.playerCore(self, didUpdateTime: 0, duration: duration)
+            
             let artwork = await ArtworkCacheService.shared.artwork(for: track.url)
             
             delegate?.playerCore(self, didLoadTrack: track, artwork: artwork)
@@ -279,6 +281,13 @@ final class AudioPlayerCore: NSObject {
     
     func getCurrentPlaybackTime() -> TimeInterval {
         return player?.currentTime ?? currentTime
+    }
+    
+    func prepareForTrackSwitch() {
+        stopTimer()
+        currentTime = 0
+        delegate?.playerCore(self, didUpdateTime: 0, duration: duration)
+        logger.debug("🧹 Prepared for track switch (timer stopped, progress reset)")
     }
     
     // MARK: - Private Methods

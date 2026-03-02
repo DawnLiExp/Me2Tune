@@ -435,6 +435,8 @@ final class PlayerViewModel {
             return
         }
         
+        playerCore.prepareForTrackSwitch()
+        
         Task { @MainActor in
             let success = await loadTrack(track)
             
@@ -686,6 +688,7 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
                 self.playerCore.updateDockIcon(artwork)
                 
                 if indexChanged {
+                    self.playbackProgressState.currentTime = 0
                     self.scheduleStateSave()
                 }
             }
