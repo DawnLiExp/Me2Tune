@@ -1,26 +1,37 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "" : {
-
-    },
     "(%lld)" : {
-
+      "shouldTranslate" : false
     },
     "%lld" : {
-
+      "shouldTranslate" : false
     },
     "%lld files processing" : {
-
+      "shouldTranslate" : false
     },
     "%lld tracks" : {
-
+      "shouldTranslate" : false
     },
     "•" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "•"
+          }
+        }
+      }
     },
     "© 2025 Me2Tune" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "© 2025 Me2Tune"
+          }
+        }
+      }
     },
     "add_album" : {
       "localizations" : {
@@ -71,7 +82,14 @@
       }
     },
     "Adding Tracks..." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在添加曲目..."
+          }
+        }
+      }
     },
     "album_name" : {
       "localizations" : {
@@ -123,7 +141,21 @@
       }
     },
     "api_error %lld" : {
-
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Server error: %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务器错误: %lld"
+          }
+        }
+      }
     },
     "audio_buffering" : {
       "localizations" : {
@@ -334,7 +366,20 @@
       }
     },
     "Date" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日期"
+          }
+        }
+      }
     },
     "drag_folders_here" : {
       "localizations" : {
@@ -530,13 +575,52 @@
       }
     },
     "glow_intensity_gentle" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gentle"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "柔和"
+          }
+        }
+      }
     },
     "glow_intensity_medium" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medium"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中等"
+          }
+        }
+      }
     },
     "glow_intensity_strong" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Strong"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "强烈"
+          }
+        }
+      }
     },
     "glow_intensity_strong_short" : {
       "localizations" : {
@@ -603,7 +687,20 @@
       }
     },
     "glow_rate_fast" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fast"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "快速"
+          }
+        }
+      }
     },
     "glow_rate_fast_short" : {
       "localizations" : {
@@ -622,10 +719,36 @@
       }
     },
     "glow_rate_medium" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medium"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中等"
+          }
+        }
+      }
     },
     "glow_rate_slow" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slow"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "缓慢"
+          }
+        }
+      }
     },
     "glow_rate_slow_short" : {
       "localizations" : {
@@ -644,10 +767,36 @@
       }
     },
     "glow_rate_very_fast" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Very Fast"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "极快"
+          }
+        }
+      }
     },
     "glow_rate_very_slow" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Very Slow"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "极慢"
+          }
+        }
+      }
     },
     "in_album %@" : {
       "localizations" : {
@@ -746,7 +895,14 @@
       }
     },
     "Loading Collections..." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在加载收藏..."
+          }
+        }
+      }
     },
     "loading_lyrics" : {
       "localizations" : {
@@ -813,7 +969,14 @@
       }
     },
     "Me2Tune" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Me2Tune"
+          }
+        }
+      }
     },
     "migration_failed_body" : {
       "localizations" : {
@@ -1002,7 +1165,7 @@
       }
     },
     "Plays" : {
-
+      "shouldTranslate" : false
     },
     "ready_to_play" : {
       "localizations" : {
@@ -1403,7 +1566,6 @@
       }
     },
     "settings_menu" : {
-      "comment" : "MARK: - Settings",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -1600,11 +1762,10 @@
     },
     "stat_count_unit" : {
       "comment" : "Empty for English, unit is not used",
-      "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : ""
           }
         },
@@ -1964,8 +2125,14 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Version %1$@ (%2$@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "版本 %1$@ (%2$@)"
           }
         }
       }

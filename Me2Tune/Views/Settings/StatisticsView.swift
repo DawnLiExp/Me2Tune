@@ -14,11 +14,13 @@ struct StatisticsView: View {
         VStack(spacing: 0) {
             // MARK: - Period Picker
             
-            Picker("", selection: $viewModel.selectedPeriod) {
+            Picker(selection: $viewModel.selectedPeriod) {
                 ForEach(StatPeriod.allCases, id: \.self) { period in
                     Text(period.displayName)
                         .tag(period)
                 }
+            } label: {
+                EmptyView()
             }
             .pickerStyle(.segmented)
             .padding(.horizontal, 24)

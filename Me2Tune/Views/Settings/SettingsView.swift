@@ -265,22 +265,26 @@ struct SettingsView: View {
             
             VStack(spacing: 16) {
                 settingRow(icon: "waveform.circle", label: "audio_buffering", helpText: "audio_buffering_footer") {
-                    Toggle("", isOn: $audioBufferingEnabled)
-                        .toggleStyle(.switch)
-                        .labelsHidden()
-                        .controlSize(.small)
+                    Toggle(isOn: $audioBufferingEnabled) {
+                        EmptyView()
+                    }
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                    .controlSize(.small)
                 }
                 
                 settingRow(icon: "music.note.list", label: "now_playing_sync", helpText: "now_playing_sync_footer") {
-                    Toggle("", isOn: $nowPlayingEnabled)
-                        .toggleStyle(.switch)
-                        .labelsHidden()
-                        .controlSize(.small)
-                        .onChange(of: nowPlayingEnabled) { _, newValue in
-                            if !newValue {
-                                NowPlayingService.shared.setPlaceholderInfo()
-                            }
+                    Toggle(isOn: $nowPlayingEnabled) {
+                        EmptyView()
+                    }
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                    .controlSize(.small)
+                    .onChange(of: nowPlayingEnabled) { _, newValue in
+                        if !newValue {
+                            NowPlayingService.shared.setPlaceholderInfo()
                         }
+                    }
                 }
             }
 
@@ -346,10 +350,12 @@ struct SettingsView: View {
         VStack(spacing: 24) {
             VStack(spacing: 16) {
                 settingRow(icon: "globe", label: "settings_language_label") {
-                    Picker("", selection: $currentLanguage) {
+                    Picker(selection: $currentLanguage) {
                         ForEach(LanguageManager.AppLanguage.allCases) { language in
                             Text(language.displayName).tag(language)
                         }
+                    } label: {
+                        EmptyView()
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
@@ -363,10 +369,12 @@ struct SettingsView: View {
                 }
                 
                 settingRow(icon: "paintpalette", label: "settings_theme_label", helpText: "settings_theme_footer") {
-                    Picker("", selection: $currentTheme) {
+                    Picker(selection: $currentTheme) {
                         ForEach(ThemeManager.ThemeMode.allCases) { mode in
                             Text(mode.displayName).tag(mode)
                         }
+                    } label: {
+                        EmptyView()
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
@@ -384,10 +392,12 @@ struct SettingsView: View {
             
             VStack(spacing: 16) {
                 settingRow(icon: "wand.and.stars", label: "settings_glow_mode", helpText: "settings_glow_mode_footer") {
-                    Picker("", selection: $backgroundGlowMode) {
+                    Picker(selection: $backgroundGlowMode) {
                         ForEach(BackgroundGlowMode.allCases) { mode in
                             Text(mode.displayName).tag(mode.rawValue)
                         }
+                    } label: {
+                        EmptyView()
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
@@ -415,10 +425,12 @@ struct SettingsView: View {
                 .opacity(backgroundGlowMode == BackgroundGlowMode.meshGradient.rawValue ? 1 : 0.4)
 
                 settingRow(icon: "sparkles", label: "settings_clean_mode", helpText: "settings_clean_mode_footer") {
-                    Toggle("", isOn: $cleanMode)
-                        .toggleStyle(.switch)
-                        .labelsHidden()
-                        .controlSize(.small)
+                    Toggle(isOn: $cleanMode) {
+                        EmptyView()
+                    }
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                    .controlSize(.small)
                 }
             }
         }
