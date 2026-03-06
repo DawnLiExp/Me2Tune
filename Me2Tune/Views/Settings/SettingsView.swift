@@ -517,10 +517,7 @@ struct SettingsView: View {
                     .fixedSize(horizontal: true, vertical: false)
                 
                 if let helpText {
-                    Image(systemName: "questionmark.circle")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary.opacity(0.6))
-                        .help(Text(helpText))
+                    HelpPopoverButton(helpText: helpText)
                 }
             }
             .layoutPriority(1)
@@ -595,6 +592,34 @@ struct SettingsView: View {
         frame.size.height = targetHeight
    
         window.setFrame(frame, display: true)
+    }
+}
+
+// MARK: - HelpPopoverButton
+
+private struct HelpPopoverButton: View {
+    let helpText: LocalizedStringKey
+    @State private var isPresented = false
+
+    var body: some View {
+        Button {
+            isPresented.toggle()
+        } label: {
+            Image(systemName: "questionmark.circle")
+                .font(.system(size: 11))
+                .foregroundColor(isPresented ? .accentColor : .secondary.opacity(0.6))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $isPresented, arrowEdge: .bottom) {
+            Text(helpText)
+                .font(.system(size: 12))
+                .foregroundColor(.primary)
+                .multilineTextAlignment(.leading)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .fixedSize()
+        }
     }
 }
 
