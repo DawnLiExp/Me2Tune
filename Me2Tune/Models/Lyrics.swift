@@ -38,16 +38,25 @@ struct LyricLine: Identifiable, Sendable {
     let id = UUID()
     let timestamp: TimeInterval
     let text: String
+    /// 译文行（相同时间戳的第二行），nil 表示无双语
+    let translation: String?
 }
 
 extension Lyrics {
     /// 解析同步歌词为时间轴数组
+    /// 支持双语：相同时间戳的连续两行自动合并为 text + translation
     func parseSyncedLyrics() -> [LyricLine] {
         guard let syncedLyrics, !syncedLyrics.isEmpty else {
             return []
         }
 
-        var lines: [LyricLine] = []
+        // MARK: Step 1 - 原始解析为 (timestamp, text) 对
+        struct RawLine {
+            let timestamp: TimeInterval
+            let text: String
+        }
+
+        var rawLines: [RawLine] = []
         let pattern = #"\[(\d{2}):(\d{2})\.(\d{2})\]\s*(.*)$"#
         let regex = try? NSRegularExpression(pattern: pattern, options: [])
 
@@ -71,9 +80,41 @@ extension Lyrics {
             let timestamp = TimeInterval(minutes * 60) + TimeInterval(seconds) + TimeInterval(centiseconds) / 100.0
             let text = String(line[textRange]).trimmingCharacters(in: .whitespaces)
 
-            lines.append(LyricLine(timestamp: timestamp, text: text))
+            rawLines.append(RawLine(timestamp: timestamp, text: text))
         }
 
-        return lines.sorted { $0.timestamp < $1.timestamp }
+        rawLines.sort { $0.timestamp < $1.timestamp }
+
+        // MARK: Step 2 - 合并相同时间戳的双语行
+        var result: [LyricLine] = []
+        var i = 0
+
+        while i < rawLines.count {
+            let current = rawLines[i]
+
+            // 检查下一行是否时间戳相同（双语配对）
+            if i + 1 < rawLines.count {
+                let next = rawLines[i + 1]
+                if next.timestamp == current.timestamp {
+                    // 合并：当前行为主文本，下一行为译文
+                    result.append(LyricLine(
+                        timestamp: current.timestamp,
+                        text: current.text,
+                        translation: next.text.isEmpty ? nil : next.text
+                    ))
+                    i += 2
+                    continue
+                }
+            }
+
+            result.append(LyricLine(
+                timestamp: current.timestamp,
+                text: current.text,
+                translation: nil
+            ))
+            i += 1
+        }
+
+        return result
     }
 }

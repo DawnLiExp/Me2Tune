@@ -362,22 +362,7 @@ struct LyricLineView: View {
         }
     }
     
-    var body: some View {
-        Text(line.text.isEmpty ? "♪" : line.text)
-            .font(.system(
-                size: isCurrent ? 17 : 15,
-                weight: isCurrent ? .semibold : .regular
-            ))
-            .foregroundColor(textColor)
-            .opacity(distanceOpacity)
-            .multilineTextAlignment(.center)
-            .lineSpacing(6)
-            .frame(maxWidth: .infinity)
-            .animation(.easeOut(duration: 0.3), value: isCurrent)
-            .animation(.easeOut(duration: 0.3), value: distanceFromCurrent)
-    }
-    
-    private var textColor: Color {
+    private var primaryTextColor: Color {
         if isCurrent {
             return theme.accent
         } else if isPassed {
@@ -385,6 +370,48 @@ struct LyricLineView: View {
         } else {
             return theme.secondaryText.opacity(0.8)
         }
+    }
+    
+    private var translationTextColor: Color {
+        if isCurrent {
+            // 译文比主文本稍微收敛，保持层次感
+            return theme.accent.opacity(0.75)
+        } else if isPassed {
+            return theme.primaryText.opacity(0.55)
+        } else {
+            return theme.secondaryText.opacity(0.65)
+        }
+    }
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            // 主文本（英文原文）
+            Text(line.text.isEmpty ? "♪" : line.text)
+                .font(.system(
+                    size: isCurrent ? 17 : 15,
+                    weight: isCurrent ? .semibold : .regular
+                ))
+                .foregroundColor(primaryTextColor)
+                .multilineTextAlignment(.center)
+                .lineSpacing(4)
+                .frame(maxWidth: .infinity)
+            
+            // 译文（中文），仅双语时显示
+            if let translation = line.translation, !translation.isEmpty {
+                Text(translation)
+                    .font(.system(
+                        size: isCurrent ? 14 : 13,
+                        weight: .regular
+                    ))
+                    .foregroundColor(translationTextColor)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(3)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .opacity(distanceOpacity)
+        .animation(.easeOut(duration: 0.3), value: isCurrent)
+        .animation(.easeOut(duration: 0.3), value: distanceFromCurrent)
     }
 }
 
