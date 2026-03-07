@@ -20,6 +20,7 @@ Preview Content/
 .vscode
 local/
 .agent
+AGENTS.md
 
 ## Swift Package Manager
 .swiftpm/

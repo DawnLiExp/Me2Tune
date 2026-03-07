@@ -13,7 +13,7 @@ Me2Tune is a macOS local music player. The official one just didn't feel right, 
 <div align="center">
   <img src="docs/screenshot1.png" width="32%" alt="Playlist"/>
   <img src="docs/screenshot2.png" width="32%" alt="Album Collection"/>
-  <img src="docs/screenshot8.png" width="29.2%" alt="Lyrics"/>
+  <img src="docs/screenshot7.png" width="29.2%" alt="Lyrics"/>
 </div>
 
 <div align="center">
@@ -21,9 +21,9 @@ Me2Tune is a macOS local music player. The official one just didn't feel right, 
 </div>
 
 <div align="center">
-  <img src="docs/screenshot4.png" width="32%" alt="General Settings"/>
-  <img src="docs/screenshot5.png" width="32%" alt="Appearance Settings"/>
-  <img src="docs/screenshot6.png" width="32%" alt="Statistics"/>
+  <img src="docs/screenshot4.png" width="36%" alt="General Settings"/>
+  <img src="docs/screenshot5.png" width="30%" alt="Appearance Settings"/>
+  <img src="docs/screenshot6.png" width="30%" alt="Statistics"/>
 </div>
 
 ## ✨ Features
