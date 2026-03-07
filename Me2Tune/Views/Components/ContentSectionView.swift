@@ -101,6 +101,7 @@ struct ContentSectionView: View {
             .padding(.horizontal, 12)
             .padding(.top, 16)
             .opacity(selectedTab == .collections ? 1 : 0)
+            .offset(x: selectedTab == .collections ? 0 : 100)
             .allowsHitTesting(selectedTab == .collections)
             
             // PlaylistTabView 只有在选中时才挂载，避免影响其他拖拽
