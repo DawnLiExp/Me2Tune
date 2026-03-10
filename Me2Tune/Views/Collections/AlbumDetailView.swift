@@ -24,29 +24,36 @@ struct AlbumDetailView: View {
     // 冷启动兜底：App 恢复时 artwork 为 nil，异步补全
     @State private var resolvedArtwork: NSImage?
     
+    @AppStorage("CleanMode") private var cleanMode = false
+    
     // MARK: - Body
     
     var body: some View {
+        let isCurrentAlbumPlaying: Bool = {
+            if case .album(let id) = playingSource {
+                return id == album.id
+            }
+            return false
+        }()
+
         VStack(spacing: 5) {
             albumHeader
             
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
-                    ForEach(Array(album.tracks.enumerated()), id: \.element.id) { index, track in
+                LazyVStack(spacing: 0) {
+                    ForEach(album.tracks.indices, id: \.self) { index in
+                        let track = album.tracks[index]
                         AlbumTrackRowView(
                             track: track,
                             index: index,
-                            isPlaying: {
-                                if case .album(let id) = playingSource {
-                                    return id == album.id && currentIndex == index
-                                }
-                                return false
-                            }(),
+                            isPlaying: isCurrentAlbumPlaying && currentIndex == index,
                             isFailed: playerViewModel.isTrackFailed(track.id),
+                            cleanMode: cleanMode,
                             onTap: { onTrackTap(index) },
                             onShowInFinder: { onShowInFinder(track) },
                             onAddToPlaylist: { onAddToPlaylist(track) }
                         )
+                        .equatable()
                     }
                 }
                 .padding(.bottom, 20)

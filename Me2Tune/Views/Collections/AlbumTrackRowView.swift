@@ -7,17 +7,50 @@
 
 import SwiftUI
 
-struct AlbumTrackRowView: View {
+struct AlbumTrackRowView: View, Equatable {
+    nonisolated static func == (lhs: AlbumTrackRowView, rhs: AlbumTrackRowView) -> Bool {
+        lhs.track.id == rhs.track.id &&
+            lhs.index == rhs.index &&
+            lhs.isPlaying == rhs.isPlaying &&
+            lhs.isFailed == rhs.isFailed &&
+            lhs.cleanMode == rhs.cleanMode
+    }
+
     let track: AudioTrack
     let index: Int
     let isPlaying: Bool
-    let isFailed: Bool // ✅ 新增：失败标记
+    let isFailed: Bool
+    let cleanMode: Bool
     let onTap: () -> Void
     let onShowInFinder: () -> Void
     let onAddToPlaylist: () -> Void
+
+    private let timeString: String
+    private let artistString: String
     
     @State private var isHovered = false
-    @AppStorage("CleanMode") private var cleanMode = false
+
+    init(
+        track: AudioTrack,
+        index: Int,
+        isPlaying: Bool,
+        isFailed: Bool,
+        cleanMode: Bool,
+        onTap: @escaping () -> Void,
+        onShowInFinder: @escaping () -> Void,
+        onAddToPlaylist: @escaping () -> Void
+    ) {
+        self.track = track
+        self.index = index
+        self.isPlaying = isPlaying
+        self.isFailed = isFailed
+        self.cleanMode = cleanMode
+        self.onTap = onTap
+        self.onShowInFinder = onShowInFinder
+        self.onAddToPlaylist = onAddToPlaylist
+        self.timeString = Self.formatTime(track.duration)
+        self.artistString = track.artist ?? String(localized: "unknown_artist")
+    }
     
     var body: some View {
         ZStack {
@@ -56,13 +89,13 @@ struct AlbumTrackRowView: View {
             
             Spacer()
             
-            Text(track.artist ?? String(localized: "unknown_artist"))
+            Text(artistString)
                 .font(.system(size: 13))
                 .foregroundColor(.secondaryText.opacity(isFailed ? 0.5 : 1.0))
                 .lineLimit(1)
                 .frame(maxWidth: 120, alignment: .trailing)
             
-            Text(formatTime(track.duration))
+            Text(timeString)
                 .font(.system(size: 13, design: .monospaced))
                 .foregroundColor(.secondaryText.opacity(isFailed ? 0.5 : 1.0))
                 .frame(width: 48, alignment: .trailing)
@@ -79,7 +112,6 @@ struct AlbumTrackRowView: View {
             }
         }
         .contentShape(Rectangle())
-        .drawingGroup()
     }
     
     // MARK: - Index or Indicator
@@ -87,7 +119,6 @@ struct AlbumTrackRowView: View {
     @ViewBuilder
     private var indexOrIndicator: some View {
         if isFailed {
-            // ✅ 失败标记：警告图标
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundColor(.orange.opacity(0.8))
                 .font(.system(size: 12, weight: .semibold))
@@ -116,7 +147,7 @@ struct AlbumTrackRowView: View {
     
     // MARK: - Helper
     
-    private func formatTime(_ time: TimeInterval) -> String {
+    private static func formatTime(_ time: TimeInterval) -> String {
         guard time.isFinite, !time.isNaN else { return "0:00" }
         let minutes = Int(time) / 60
         let seconds = Int(time) % 60
