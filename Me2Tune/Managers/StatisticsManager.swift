@@ -33,7 +33,7 @@ enum StatPeriod: String, CaseIterable {
     }
     
     var displayName: String {
-        NSLocalizedString(rawValue, comment: "Statistics period display name")
+        String(localized: String.LocalizationValue(rawValue))
     }
 }
 
