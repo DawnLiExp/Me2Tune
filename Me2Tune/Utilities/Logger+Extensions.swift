@@ -40,10 +40,10 @@ extension Logger {
         }
     }
 
-    func logPerformance(_ operation: String, duration: TimeInterval) {
-        let formatted = String(format: "%.2f", duration)
-        if duration > 0.1 {
-            self.warning("⚠️ \(operation) took \(formatted)s")
+    func logPerformance(_ operation: String, duration: TimeInterval, threshold: TimeInterval = 0.1) {
+        if duration > threshold {
+            let formatted = String(format: "%.2f", duration)
+            self.notice("⚠️ \(operation) took \(formatted)s (threshold: \(threshold)s)")
         } else {
             let detailed = String(format: "%.3f", duration)
             self.debug("✓ \(operation) completed in \(detailed)s")
