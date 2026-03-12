@@ -57,7 +57,9 @@ final class PlayerViewModel {
         }
     }
 
-    var lastScrollTrackId: UUID? // Scroll anchor for playlist tab
+    // ⚠️ 双向绑定：ScrollView 会将顶部可见 item 的 ID 写回此字段。
+    // 移动歌曲后如不清除，SwiftUI 会自动滚回锚点曲目，导致新第 1 首不可见。
+    var lastScrollTrackId: UUID?
     
     // MARK: - Progress State
     

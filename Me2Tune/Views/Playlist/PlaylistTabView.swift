@@ -152,7 +152,7 @@ struct PlaylistTabView: View {
             track: track,
             index: index,
             isPlaying: playingSource == .playlist && currentIndex == index,
-            isFailed: playerViewModel.isTrackFailed(track.id) // ✅ 新增失败检查
+            isFailed: playerViewModel.isTrackFailed(track.id)
         )
         .equatable()
         .opacity(draggingIndex == index ? 0.5 : 1.0)
@@ -174,9 +174,10 @@ struct PlaylistTabView: View {
                 if from < to {
                     destination = to - 1
                 }
-
-                if from < tracks.count,
-                   tracks[from].id == playerViewModel.lastScrollTrackId
+                // 移动目标是第 1 位，或被拖曳曲目本身是当前滚动锚点时，必须清除锚点。
+                // 否则 SwiftUI .scrollPosition 会将列表自动滚回该曲目，新首位将不可见
+                if destination == 0
+                    || (from < tracks.count && tracks[from].id == playerViewModel.lastScrollTrackId)
                 {
                     playerViewModel.lastScrollTrackId = nil
                 }
