@@ -19,8 +19,14 @@ struct ToolbarButtonView: View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(isEnabled ? (isHovered ? .primary : .secondary) : .tertiary)
+                .foregroundStyle(
+                    isEnabled
+                        ? (isHovered ? Color.accent : Color.secondaryText)
+                        : Color.tertiaryText
+                )
                 .frame(width: 24, height: 24)
+                .scaleEffect(isHovered && isEnabled ? 1.12 : 1.0)
+                .animation(.spring(response: 0.2, dampingFraction: 0.65), value: isHovered)
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
