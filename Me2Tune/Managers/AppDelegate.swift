@@ -26,7 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if let manager = collectionManager {
                 // Ensure delayed load starts ONLY after manager is injected to prevent nil crashes
                 logger.debug("📥 CollectionManager injected, scheduling delayed load")
-                manager.scheduleDelayedLoad(delay: 1.5)
+                manager.scheduleDelayedLoad(delay: 0.5)
             }
         }
     }

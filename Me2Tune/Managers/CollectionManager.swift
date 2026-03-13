@@ -47,7 +47,7 @@ final class CollectionManager {
 
     // MARK: - Delayed Loading
 
-    func scheduleDelayedLoad(delay: TimeInterval = 1.5) {
+    func scheduleDelayedLoad(delay: TimeInterval = 0.5) {
         guard delayedLoadTask == nil else {
             logger.debug("Delayed load already scheduled, skipping")
             return
