@@ -219,9 +219,13 @@ struct CollectionsGridView: View {
                                 ))
                             }
                         }
-                        .padding(.vertical, 8)
+                        // .padding(.vertical, 8)
                         .scrollTargetLayout()
                     }
+                    // contentMargins 将 vertical 留白纳入 scroll 坐标系统，
+                    // 使 scrollPosition(id:) 在 resize 时锚点计算正确，消除整体上移抖动。
+                    // 替代 .padding(.vertical, 8) —— 后者在坐标系外导致 8px 偏差。
+                    .contentMargins(.vertical, 8, for: .scrollContent)
                     .scrollPosition(id: $manager.lastScrollAlbumId)
                     .onAppear {
                         updateColumns(for: geometry.size.width)
