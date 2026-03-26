@@ -99,7 +99,7 @@ struct ContentSectionView: View {
                 }
             )
             .padding(.horizontal, 12)
-            .padding(.top, 16)
+            .padding(.top, 12)
             .opacity(selectedTab == .collections ? 1 : 0)
             .offset(x: selectedTab == .collections ? 0 : 100)
             .allowsHitTesting(selectedTab == .collections)
@@ -128,7 +128,7 @@ struct ContentSectionView: View {
                     onFilesDrop: onPlaylistDrop
                 )
                 .padding(.horizontal, 12)
-                .padding(.top, 16)
+                .padding(.top, 12)
             }
         }
     }
@@ -168,11 +168,11 @@ struct TabSwitcherView: View {
     let onClearCollections: () -> Void
     let onOpenFilePicker: () -> Void
     
+    @Namespace private var tabNamespace
+
     var body: some View {
         HStack(spacing: 0) {
-            tabButton(title: String(localized: "playlist"), tab: .playlist)
-            tabButton(title: String(localized: "collections"), tab: .collections)
-            
+            slidingPillTabs
             Spacer()
             
             if selectedTab == .playlist {
@@ -183,41 +183,102 @@ struct TabSwitcherView: View {
         }
     }
     
-    // MARK: - Tab Button
-    
-    private func tabButton(title: String, tab: PlaylistTab) -> some View {
-        Button(action: {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+    // MARK: - Sliding Pill Tabs
+
+    private var slidingPillTabs: some View {
+        HStack(spacing: 2) {
+            tabPill(title: String(localized: "playlist"), tab: .playlist)
+            tabPill(title: String(localized: "collections"), tab: .collections)
+        }
+        .padding(3)
+        .background {
+            ZStack {
+                // 玻璃底层填充
+                RoundedRectangle(cornerRadius: 18)
+                    .fill(Color.white.opacity(0.05))
+
+                // 顶部反光边（模拟 Liquid Glass 上沿高光）
+                RoundedRectangle(cornerRadius: 18)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.15),
+                                Color.white.opacity(0.03)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 0.8
+                    )
+            }
+        }
+    }
+
+    private func tabPill(title: String, tab: PlaylistTab) -> some View {
+        let isSelected = selectedTab == tab
+
+        return Button(action: {
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
                 selectedTab = tab
             }
         }) {
-            VStack(spacing: 6) {
-                Text(title)
-                    .font(.system(size: 13, weight: selectedTab == tab ? .semibold : .regular))
-                    .foregroundColor(selectedTab == tab ? .primaryText : .primaryText.opacity(0.5))
-                
-                if selectedTab == tab {
-                    RoundedRectangle(cornerRadius: 1)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    .accent,
-                                    .accent.opacity(0.7)
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(height: 2)
-                        .shadow(color: .accentGlow, radius: 4)
-                        .transition(.scale.combined(with: .opacity))
-                } else {
-                    Rectangle()
-                        .fill(Color.clear)
-                        .frame(height: 2)
+            Text(title)
+                .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
+                .foregroundStyle(
+                    isSelected
+                        ? Color.accent.opacity(0.9)
+                        : Color.primaryText.opacity(0.38)
+                )
+                .frame(width: 86, height: 26)
+                .contentShape(RoundedRectangle(cornerRadius: 15))
+                .background {
+                    if isSelected {
+                        ZStack {
+                            // 主体玻璃填充
+                            RoundedRectangle(cornerRadius: 15)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.accent.opacity(0.20),
+                                            Color.accent.opacity(0.06)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+
+                            // 顶部白色反光（Liquid Glass 折射感）
+                            RoundedRectangle(cornerRadius: 15)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.white.opacity(0.10),
+                                            Color.clear
+                                        ],
+                                        startPoint: .top,
+                                        endPoint: .center
+                                    )
+                                )
+
+                            // Accent 内描边
+                            RoundedRectangle(cornerRadius: 15)
+                                .strokeBorder(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.accent.opacity(0.55),
+                                            Color.accent.opacity(0.12)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 0.7
+                                )
+                        }
+                        .shadow(color: Color.accentGlow.opacity(0.40), radius: 7, y: 3)
+                        .shadow(color: Color.black.opacity(0.25), radius: 2, y: 1)
+                        .matchedGeometryEffect(id: "tabIndicator", in: tabNamespace)
+                    }
                 }
-            }
-            .frame(width: 90)
         }
         .buttonStyle(.plain)
     }

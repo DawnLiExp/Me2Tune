@@ -156,7 +156,7 @@ struct ContentView: View {
                 onPlaylistDrop: handlePlaylistDrop
             )
             .padding(.horizontal, 12)
-            .padding(.top, 16)
+            .padding(.top, 12)
             .padding(.bottom, 20)
         }
     }
