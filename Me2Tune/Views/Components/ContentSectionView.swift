@@ -12,16 +12,16 @@ struct ContentSectionView: View {
     @Binding var isInAlbumDetail: Bool
     @Binding var isPlaylistCollapsed: Bool
     @Binding var selectedAlbumId: UUID?
-    
+
     let playerViewModel: PlayerViewModel
     let collectionManager: CollectionManager
-    
+
     let onExportPlaylist: () -> Void
     let onClearPlaylist: () -> Void
     let onClearCollections: () -> Void
     let onOpenFilePicker: () -> Void
     let onPlaylistDrop: ([URL]) -> Void
-    
+
     var body: some View {
         NonDraggableView {
             ZStack(alignment: .bottom) {
@@ -38,13 +38,13 @@ struct ContentSectionView: View {
                     )
                     .padding(.top, 12)
                     .padding(.horizontal, 12)
-                    
+
                     contentView
                         .frame(maxHeight: .infinity)
                 }
                 .frame(minHeight: 405)
                 .background(containerBackground)
-                
+
                 CollapseButtonView(isCollapsed: $isPlaylistCollapsed)
                     .offset(y: 8)
             }
@@ -53,14 +53,15 @@ struct ContentSectionView: View {
     }
 
     // MARK: - Content View
-    
+
+    // IMPORTANT: CollectionsGridView stays permanently mounted so its lazy-load
+    // state and artwork cache survive tab switches. Use opacity/offset instead of
+    // conditional rendering. PlaylistTabView is conditionally mounted to prevent
+    // drag-and-drop interference when hidden.
     @ViewBuilder
     private var contentView: some View {
-        // 一次性提取所有需要的状态,减少对 PlayerViewModel 的访问次数
         @Bindable var viewModel = playerViewModel
-        
-        // 提前提取状态到局部变量
-        // 注意: 这些值在 body 执行期间是不变的,避免重复读取触发 Observation
+
         let playlistTracks = viewModel.playlistManager.tracks
         let currentIndex = viewModel.currentTrackIndex
         let playingSource = viewModel.playingSource
@@ -68,7 +69,12 @@ struct ContentSectionView: View {
         let loadingTracksCount = viewModel.playlistManager.loadingCount
         let collectionsAlbums = collectionManager.albums
         let collectionsLoaded = collectionManager.isLoaded
-        
+
+        // Shared spring — both sides use identical parameters so perceived
+        // duration and easing are indistinguishable regardless of direction.
+        let tabSpring = Animation.spring(response: 0.28, dampingFraction: 0.78)
+        let slideOffset: CGFloat = 60
+
         ZStack {
             CollectionsGridView(
                 selectedTab: $selectedTab,
@@ -76,7 +82,7 @@ struct ContentSectionView: View {
                 selectedAlbumId: $selectedAlbumId,
                 albums: collectionsAlbums,
                 isLoaded: collectionsLoaded,
-                isActiveTab: selectedTab == .collections, // 传递当前是否激活的状态
+                isActiveTab: selectedTab == .collections,
                 currentIndex: currentIndex,
                 playingSource: playingSource,
                 onAlbumPlayAt: { album, index in
@@ -101,10 +107,10 @@ struct ContentSectionView: View {
             .padding(.horizontal, 12)
             .padding(.top, 12)
             .opacity(selectedTab == .collections ? 1 : 0)
-            .offset(x: selectedTab == .collections ? 0 : 100)
+            .offset(x: selectedTab == .collections ? 0 : slideOffset)
+            .animation(tabSpring, value: selectedTab)
             .allowsHitTesting(selectedTab == .collections)
-            
-            // PlaylistTabView 只有在选中时才挂载，避免影响其他拖拽
+
             if selectedTab == .playlist {
                 PlaylistTabView(
                     selectedTab: $selectedTab,
@@ -114,7 +120,6 @@ struct ContentSectionView: View {
                     isLoadingTracks: isLoadingTracks,
                     loadingTracksCount: loadingTracksCount,
                     onTrackSelected: { index in
-                        // 闭包内部直接调用,减少嵌套
                         viewModel.playPlaylistTrack(at: index)
                     },
                     onTrackRemoved: { index in
@@ -129,12 +134,20 @@ struct ContentSectionView: View {
                 )
                 .padding(.horizontal, 12)
                 .padding(.top, 12)
+                // Mirror Collections: slide in from the left, same offset magnitude.
+                .transition(
+                    .asymmetric(
+                        insertion: .opacity.combined(with: .offset(x: -slideOffset)),
+                        removal: .opacity.combined(with: .offset(x: -slideOffset))
+                    )
+                )
             }
         }
+        .animation(tabSpring, value: selectedTab)
     }
-    
+
     // MARK: - Container Background
-    
+
     private var containerBackground: some View {
         RoundedRectangle(cornerRadius: 22)
             .fill(Color.containerBackground)
@@ -162,19 +175,19 @@ struct TabSwitcherView: View {
     let isInAlbumDetail: Bool
     let playlistEmpty: Bool
     let collectionsEmpty: Bool
-    
+
     let onExportPlaylist: () -> Void
     let onClearPlaylist: () -> Void
     let onClearCollections: () -> Void
     let onOpenFilePicker: () -> Void
-    
+
     @Namespace private var tabNamespace
 
     var body: some View {
         HStack(spacing: 0) {
             slidingPillTabs
             Spacer()
-            
+
             if selectedTab == .playlist {
                 playlistToolbar
             } else {
@@ -182,7 +195,7 @@ struct TabSwitcherView: View {
             }
         }
     }
-    
+
     // MARK: - Sliding Pill Tabs
 
     private var slidingPillTabs: some View {
@@ -193,11 +206,9 @@ struct TabSwitcherView: View {
         .padding(3)
         .background {
             ZStack {
-                // 玻璃底层填充
                 RoundedRectangle(cornerRadius: 18)
                     .fill(Color.white.opacity(0.05))
 
-                // 顶部反光边（模拟 Liquid Glass 上沿高光）
                 RoundedRectangle(cornerRadius: 18)
                     .strokeBorder(
                         LinearGradient(
@@ -218,7 +229,8 @@ struct TabSwitcherView: View {
         let isSelected = selectedTab == tab
 
         return Button(action: {
-            withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
+            // dampingFraction 0.90 — nearly critically damped, minimal overshoot.
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
                 selectedTab = tab
             }
         }) {
@@ -234,7 +246,6 @@ struct TabSwitcherView: View {
                 .background {
                     if isSelected {
                         ZStack {
-                            // 主体玻璃填充
                             RoundedRectangle(cornerRadius: 15)
                                 .fill(
                                     LinearGradient(
@@ -247,7 +258,6 @@ struct TabSwitcherView: View {
                                     )
                                 )
 
-                            // 顶部白色反光（Liquid Glass 折射感）
                             RoundedRectangle(cornerRadius: 15)
                                 .fill(
                                     LinearGradient(
@@ -260,7 +270,6 @@ struct TabSwitcherView: View {
                                     )
                                 )
 
-                            // Accent 内描边
                             RoundedRectangle(cornerRadius: 15)
                                 .strokeBorder(
                                     LinearGradient(
@@ -282,9 +291,9 @@ struct TabSwitcherView: View {
         }
         .buttonStyle(.plain)
     }
-    
+
     // MARK: - Toolbars
-    
+
     private var playlistToolbar: some View {
         HStack(spacing: 8) {
             ToolbarButtonView(
@@ -293,13 +302,13 @@ struct TabSwitcherView: View {
                 isEnabled: !playlistEmpty,
                 action: onExportPlaylist
             )
-            
+
             ToolbarButtonView(
                 icon: "plus.circle",
                 tooltip: String(localized: "add_files"),
                 action: onOpenFilePicker
             )
-            
+
             ToolbarButtonView(
                 icon: "xmark.circle",
                 tooltip: String(localized: "clear_playlist"),
@@ -308,7 +317,7 @@ struct TabSwitcherView: View {
             )
         }
     }
-    
+
     private var collectionsToolbar: some View {
         HStack(spacing: 8) {
             ToolbarButtonView(
@@ -316,7 +325,7 @@ struct TabSwitcherView: View {
                 tooltip: String(localized: "add_album"),
                 action: onOpenFilePicker
             )
-            
+
             ToolbarButtonView(
                 icon: "xmark.circle",
                 tooltip: String(localized: "clear_collections"),
