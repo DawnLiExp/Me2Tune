@@ -30,7 +30,7 @@ final class PlayerViewModel {
 
     var volume: Double = 0.7 {
         didSet {
-            scheduleVolumeUpdate(volume)
+            persistenceController.scheduleVolumeApply(volume)
         }
     }
 
@@ -57,9 +57,7 @@ final class PlayerViewModel {
     // MARK: - Private Properties
     
     @ObservationIgnored private let playerCore: AudioPlayerCore
-    @ObservationIgnored private var stateSaveTask: Task<Void, Never>?
-    @ObservationIgnored private var pendingSaveTask: Task<Void, Never>?
-    @ObservationIgnored private var volumeUpdateTask: Task<Void, Never>?
+    @ObservationIgnored private let persistenceController: PlaybackPersistenceController
     
     // MARK: - Statistics
     
@@ -140,7 +138,17 @@ final class PlayerViewModel {
         )
         self.statisticsManager = statisticsManager
         self.windowStateMonitor = windowStateMonitor
-        self.playerCore = AudioPlayerCore()
+        let playerCore = AudioPlayerCore()
+        self.playerCore = playerCore
+        let playbackStateManager = self.playbackStateManager
+        self.persistenceController = PlaybackPersistenceController(
+            saveHandler: { [weak playbackStateManager] volume in
+                playbackStateManager?.saveState(volume: volume)
+            },
+            volumeApplyHandler: { [weak playerCore] volume in
+                playerCore?.setVolume(volume)
+            }
+        )
         
         self.playerCore.delegate = self
         
@@ -158,9 +166,7 @@ final class PlayerViewModel {
     }
     
     deinit {
-        stateSaveTask?.cancel()
-        pendingSaveTask?.cancel()
-        volumeUpdateTask?.cancel()
+        persistenceController.cancelAllFromDeinit()
     }
 
     // MARK: - Setup
@@ -179,16 +185,6 @@ final class PlayerViewModel {
             Task { @MainActor in
                 self?.setupVisibilityObserver(monitor)
             }
-        }
-    }
-    
-    private func scheduleVolumeUpdate(_ newVolume: Double) {
-        volumeUpdateTask?.cancel()
-        volumeUpdateTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(500))
-            guard !Task.isCancelled else { return }
-            self.playerCore.setVolume(newVolume)
-            self.scheduleStateSave()
         }
     }
     
@@ -531,32 +527,18 @@ final class PlayerViewModel {
     }
     
     private func scheduleStateSave() {
-        pendingSaveTask?.cancel()
-        pendingSaveTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(50))
-            guard !Task.isCancelled else { return }
-            saveState()
-        }
+        persistenceController.scheduleSave(volume: volume)
     }
     
     private func startStateSaveTimer() {
-        stopStateSaveTimer()
-        
-        stateSaveTask = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(5), clock: .continuous)
-                if Task.isCancelled { break }
-                
-                guard let self, self.isPlaying else { break }
-                self.saveState()
-            }
+        persistenceController.startPeriodicSave { [weak self] in
+            self?.volume ?? 0.7
         }
         logger.debug("💾 State save timer started")
     }
     
     private func stopStateSaveTimer() {
-        stateSaveTask?.cancel()
-        stateSaveTask = nil
+        persistenceController.stopPeriodicSave()
     }
  
     private func restorePlaybackState() async {
