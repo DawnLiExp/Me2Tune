@@ -2,214 +2,140 @@
 //  PlayerViewModel.swift
 //  Me2Tune
 //
-//  播放器视图模型 - 协调播放控制、播放列表、状态管理
+//  播放器视图模型 - 薄壳转发到 PlaybackCoordinator
 //
 
 import AppKit
 import Foundation
 import Observation
-import OSLog
-import SwiftUI
-
-private let logger = Logger.viewModel
 
 @MainActor
 @Observable
 final class PlayerViewModel {
-    // MARK: - Published States
+    private let coordinator: PlaybackCoordinator
 
-    private(set) var isPlaying = false
-    private(set) var duration: TimeInterval = 0
-    private(set) var currentArtwork: NSImage?
     private(set) var isPlaylistLoaded = false
-    var repeatMode: RepeatMode = .off {
-        didSet {
-            playerCore.repeatMode = repeatMode
-        }
-    }
-
-    var volume: Double = 0.7 {
-        didSet {
-            persistenceController.scheduleVolumeApply(volume)
-        }
-    }
 
     // ⚠️ 双向绑定：ScrollView 会将顶部可见 item 的 ID 写回此字段。
     // 移动歌曲后如不清除，SwiftUI 会自动滚回锚点曲目，导致新第 1 首不可见。
     var lastScrollTrackId: UUID?
-    
-    // MARK: - Progress State
-    
-    @ObservationIgnored let playbackProgressState = PlaybackProgressState()
-    
-    // MARK: - Managers
-    
+
+    @ObservationIgnored
+    let playbackProgressState: PlaybackProgressState
+
     let playlistManager: PlaylistManager
     let playbackStateManager: PlaybackStateManager
-    private let statisticsManager: StatisticsManagerProtocol
-    private let failedTrackRegistry = FailedTrackRegistry()
-    
-    // MARK: - Types
-    
+
     typealias PlayingSource = PlaybackStateManager.PlayingSource
     typealias RepeatMode = Me2Tune.RepeatMode
-    
-    // MARK: - Private Properties
-    
-    @ObservationIgnored private let playerCore: AudioPlayerCore
-    @ObservationIgnored private let persistenceController: PlaybackPersistenceController
-    
-    // MARK: - Statistics
-    
-    @ObservationIgnored private var hasMarkedPlayCount = false
-    @ObservationIgnored private var currentStatTrackId: UUID?
 
-    /// Snapshot of currentTrackIndex captured at decodingComplete time.
-    /// Used to detect whether gapless has already advanced the index before playerCoreDidReachEnd fires.
-    @ObservationIgnored private var trackIndexBeforeGapless: Int?
-    
-    private let playCountThreshold: Double = 0.8 // 80% threshold for play count
-    
-    @ObservationIgnored private var isWindowVisible = true
-    @ObservationIgnored private lazy var progressTimeProvider: () -> TimeInterval = { [weak self] in
-        self?.playbackProgressState.currentTime ?? 0
+    var isPlaying: Bool {
+        coordinator.isPlaying
     }
 
-    // MARK: - Window Monitor (DI)
-    
-    @ObservationIgnored private var windowStateMonitor: WindowStateMonitor?
+    var duration: TimeInterval {
+        coordinator.duration
+    }
 
-    // MARK: - Computed Properties
-    
+    var currentArtwork: NSImage? {
+        coordinator.currentArtwork
+    }
+
+    var repeatMode: RepeatMode {
+        get { coordinator.repeatMode }
+        set { coordinator.repeatMode = newValue }
+    }
+
+    var volume: Double {
+        get { coordinator.volume }
+        set { coordinator.volume = newValue }
+    }
+
     var currentFormat: AudioFormat {
         currentTrack?.format ?? .unknown
     }
-    
+
     var currentTrack: AudioTrack? {
         playbackStateManager.currentTrack
     }
-    
+
     var currentTrackIndex: Int? {
         playbackStateManager.currentTrackIndex
     }
-    
+
     var currentTracks: [AudioTrack] {
         playbackStateManager.currentTracks
     }
-    
+
     var playingSource: PlaybackStateManager.PlayingSource {
         playbackStateManager.playingSource
     }
-    
+
     var canGoPrevious: Bool {
-        guard currentTrackIndex != nil else { return false }
-        if repeatMode == .all { return !currentTracks.isEmpty }
-        return playbackStateManager.canGoPrevious
+        coordinator.canGoPrevious
     }
-    
+
     var canGoNext: Bool {
-        guard currentTrackIndex != nil else { return false }
-      
-        if repeatMode == .all { return !currentTracks.isEmpty }
-        return playbackStateManager.canGoNext
+        coordinator.canGoNext
     }
-    
+
     var isLoadingTracks: Bool {
         playlistManager.isLoading
     }
-    
+
     var loadingTracksCount: Int {
         playlistManager.loadingCount
     }
 
-    // MARK: - Initialization
-    
     init(
-        dataService: DataServiceProtocol = DataService.shared,
-        collectionManager: CollectionManager? = nil,
-        statisticsManager: StatisticsManagerProtocol = StatisticsManager.shared,
+        coordinator: PlaybackCoordinator,
         windowStateMonitor: WindowStateMonitor? = nil
     ) {
-        self.playlistManager = PlaylistManager(dataService: dataService)
-        self.playbackStateManager = PlaybackStateManager(
-            playlistManager: self.playlistManager,
-            collectionManager: collectionManager,
-            dataService: dataService
-        )
-        self.statisticsManager = statisticsManager
-        self.windowStateMonitor = windowStateMonitor
-        let playerCore = AudioPlayerCore()
-        self.playerCore = playerCore
-        let playbackStateManager = self.playbackStateManager
-        self.persistenceController = PlaybackPersistenceController(
-            saveHandler: { [weak playbackStateManager] volume in
-                playbackStateManager?.saveState(volume: volume)
-            },
-            volumeApplyHandler: { [weak playerCore] volume in
-                playerCore?.setVolume(volume)
-            }
-        )
-        
-        self.playerCore.delegate = self
-        
+        self.coordinator = coordinator
+        self.playbackProgressState = coordinator.playbackProgressState
+        self.playlistManager = coordinator.playlistManager
+        self.playbackStateManager = coordinator.playbackStateManager
+
         RemoteCommandController.shared.setup(viewModel: self)
-        
-        Task { @MainActor in
-            await restorePlaybackState()
-        }
-        
+
         if let monitor = windowStateMonitor {
-            setupVisibilityObserver(monitor)
+            injectWindowStateMonitor(monitor)
         }
-        
-        logger.debug("✅ PlayerViewModel initialized (@Observable)")
-    }
-    
-    deinit {
-        persistenceController.cancelAllFromDeinit()
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            _ = await self.coordinator.restoreState()
+            self.isPlaylistLoaded = true
+        }
     }
 
-    // MARK: - Setup
-    
-    /// Public injection point for lazy initialization
+    convenience init(
+        dataService: DataServiceProtocol = DataService.shared,
+        collectionManager: CollectionManager? = nil,
+        statisticsManager: some StatisticsManagerProtocol = StatisticsManager.shared,
+        windowStateMonitor: WindowStateMonitor? = nil
+    ) {
+        let resolvedCollectionManager = collectionManager ?? CollectionManager(dataService: dataService)
+        let coordinator = PlaybackCoordinator(
+            collectionManager: resolvedCollectionManager,
+            dataService: dataService,
+            statisticsManager: statisticsManager
+        )
+        self.init(coordinator: coordinator, windowStateMonitor: windowStateMonitor)
+    }
+
     func injectWindowStateMonitor(_ monitor: WindowStateMonitor) {
-        self.windowStateMonitor = monitor
-        setupVisibilityObserver(monitor)
+        coordinator.injectWindowStateMonitor(monitor)
     }
-    
-    private func setupVisibilityObserver(_ monitor: WindowStateMonitor) {
-        withObservationTracking {
-            let state = monitor.visibilityState
-            playerCore.updateVisibilityState(state)
-        } onChange: { [weak self] in
-            Task { @MainActor in
-                self?.setupVisibilityObserver(monitor)
-            }
-        }
-    }
-    
-    // MARK: - Playback Control
-    
+
     func play() {
-        if currentTrack == nil, !playlistManager.isEmpty {
-            playbackStateManager.switchToPlaylist()
-            loadAndPlay(at: 0)
-            return
-        }
-        
-        guard currentTrack != nil else {
-            logger.warning("No track loaded, cannot play")
-            return
-        }
-        
-        playerCore.play()
+        coordinator.play()
     }
-    
+
     func pause() {
-        playerCore.pause()
-        scheduleStateSave()
+        coordinator.pause()
     }
-    
+
     func togglePlayPause() {
         if isPlaying {
             pause()
@@ -217,481 +143,66 @@ final class PlayerViewModel {
             play()
         }
     }
-    
+
     func previous() {
-        guard let currentIndex = currentTrackIndex else { return }
-
-        guard let targetIndex = playbackStateManager.calculatePreviousIndex(
-            at: currentIndex, repeatMode: repeatMode
-        ) else { return }
-
-        if let previousIndex = findPreviousValidTrack(from: targetIndex + 1) {
-            loadAndPlay(at: previousIndex)
-        } else {
-            logger.debug("No valid previous track found")
-        }
+        coordinator.previous()
     }
-    
+
     func next() {
-        guard let nextIndex = playbackStateManager.calculateNextIndex(repeatMode: repeatMode) else {
-            return
-        }
-        
-        loadAndPlay(at: nextIndex)
+        coordinator.next()
     }
-    
+
     func seek(to time: TimeInterval) {
-        playerCore.seek(to: time)
-        
-        NowPlayingService.shared.updatePlaybackTime(currentTime: time)
-        NowPlayingService.shared.restartUpdateTimer()
-        
-        scheduleStateSave()
+        coordinator.seek(to: time)
     }
-    
+
     func toggleRepeatMode() {
-        switch repeatMode {
-        case .off:
-            repeatMode = .all
-        case .all:
-            repeatMode = .one
-        case .one:
-            repeatMode = .off
-        }
-        logger.debug("Repeat mode: \(String(describing: self.repeatMode))")
+        coordinator.toggleRepeatMode()
     }
-    
-    // MARK: - Real-time Progress Access
-    
-    func getCurrentPlaybackTime() -> TimeInterval {
-        return playerCore.getCurrentPlaybackTime()
-    }
-    
-    // MARK: - Window Visibility
 
     func updateWindowVisibility(_ state: WindowStateMonitor.WindowVisibilityState) {
-        playerCore.updateVisibilityState(state)
-        
-        isWindowVisible = (state == .activeFocused || state == .inactive)
-        
-        NowPlayingService.shared.handleWindowVisibilityChange(
-            isVisible: state == .activeFocused,
-            isPlaying: isPlaying
-        )
-        
-        logger.debug("ViewModel visibility: \(state.description)")
+        coordinator.updateWindowVisibility(state)
     }
-    
-    // MARK: - Playlist Operations
-    
+
     func addTracksToPlaylist(urls: [URL]) {
-        Task { @MainActor in
-            await playlistManager.addTracks(urls: urls)
-            
-            if !isPlaylistLoaded {
-                isPlaylistLoaded = true
-            }
-            
-            playbackStateManager.handlePlaylistTracksAdded()
-            
-            if currentTrackIndex == nil, let track = currentTrack {
-                _ = await loadTrack(track)
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.coordinator.addTracksToPlaylist(urls: urls)
+            if !self.isPlaylistLoaded {
+                self.isPlaylistLoaded = true
             }
         }
     }
-    
+
     func removeTrackFromPlaylist(at index: Int) {
-        guard playlistManager.tracks.indices.contains(index) else { return }
-        
-        let wasPlaying = (playingSource == .playlist && currentTrackIndex == index)
-        let removedTrack = playlistManager.tracks[index]
-        
-        failedTrackRegistry.clear(removedTrack.id)
-        
-        if wasPlaying {
-            pause()
-        }
-        
-        playlistManager.removeTrack(at: index)
-        playbackStateManager.handlePlaylistTrackRemoved(at: index, wasPlaying: wasPlaying)
-        
-        scheduleStateSave()
-        
-        if playlistManager.isEmpty, playingSource == .playlist {
-            RemoteCommandController.shared.disable()
-        }
+        coordinator.removeTrackFromPlaylist(at: index)
     }
-    
+
     func clearPlaylist() {
-        if playingSource == .playlist {
-            pause()
-        }
-        
-        playlistManager.clearAll()
-        playbackStateManager.handlePlaylistCleared()
-        failedTrackRegistry.pruneStale(keeping: Set(playbackStateManager.currentTracks.map(\.id)))
-        
-        if playingSource == .playlist {
-            RemoteCommandController.shared.disable()
-        }
-        
-        scheduleStateSave()
+        coordinator.clearPlaylist()
     }
-    
+
     func moveTrackInPlaylist(from source: Int, to destination: Int) {
-        playlistManager.moveTrack(from: source, to: destination)
-        playbackStateManager.handlePlaylistTrackMoved(from: source, to: destination)
-        scheduleStateSave()
+        coordinator.moveTrackInPlaylist(from: source, to: destination)
     }
-    
+
     func playPlaylistTrack(at index: Int) {
-        guard playlistManager.tracks.indices.contains(index) else { return }
-        
-        playbackStateManager.switchToPlaylist()
-        
-        let track = playlistManager.tracks[index]
-        retryIfFailed(track)
-        
-        loadAndPlay(at: index)
+        coordinator.playPlaylistTrack(at: index)
     }
-    
-    // MARK: - Album Playback
-    
+
     func playAlbum(_ album: Album, startAt index: Int = 0) {
-        guard !album.tracks.isEmpty else {
-            logger.warning("Cannot play empty album: \(album.name)")
-            return
-        }
-        
-        playbackStateManager.switchToAlbum(album)
-        
-        let track = album.tracks[index]
-        retryIfFailed(track)
-        
-        loadAndPlay(at: index)
+        coordinator.playAlbum(album, startAt: index)
     }
-    
-    // MARK: - Track Loading
-    
-    private func loadTrack(_ track: AudioTrack) async -> Bool {
-        return await playerCore.loadTrack(track)
-    }
-    
-    private func loadAndPlay(at index: Int, attempt: Int = 0) {
-        guard currentTracks.indices.contains(index) else {
-            logger.warning("❌ Index out of range: \(index)")
-            return
-        }
-        
-        guard attempt < 10 else {
-            logger.error("❌ Max retry attempts reached, stopping playback")
-            pause()
-            return
-        }
-        
-        let track = currentTracks[index]
-        
-        // Reset stats marker
-        if currentStatTrackId != track.id {
-            currentStatTrackId = track.id
-            hasMarkedPlayCount = false
-        }
-        
-        // Skip tracks marked as failed
-        if failedTrackRegistry.isMarked(track.id) {
-            logger.debug("⏭️ Skipping known failed track: \(track.title)")
-            skipToNextTrack(from: index, attempt: attempt)
-            return
-        }
-        
-        playerCore.prepareForTrackSwitch()
-        
-        Task { @MainActor in
-            let success = await loadTrack(track)
-            
-            if !success {
-                handleLoadFailure(track: track, index: index, attempt: attempt)
-                return
-            }
-            
-            // Load success: set index and play
-            playbackStateManager.setCurrentIndex(index)
-            playerCore.play()
-            scheduleStateSave()
-        }
-    }
-    
-    /// Handle load failure
-    private func handleLoadFailure(track: AudioTrack, index: Int, attempt: Int) {
-        logger.warning("⚠️ Track load failed: \(track.title)")
-        failedTrackRegistry.mark(track.id)
-        
-        // Stop if single loop mode
-        if repeatMode == .one {
-            logger.info("🛑 Single repeat on failed track, stopping")
-            pause()
-            return
-        }
-        
-        skipToNextTrack(from: index, attempt: attempt)
-    }
-    
-    /// Skip to next track
-    private func skipToNextTrack(from index: Int, attempt: Int) {
-        if let nextIndex = playbackStateManager.calculateNextIndex(at: index, repeatMode: repeatMode) {
-            logger.info("⏭️ Auto-skipping to next track")
-            loadAndPlay(at: nextIndex, attempt: attempt + 1)
-        } else {
-            logger.debug("No next track available")
-            pause()
-        }
-    }
-    
-    private func enqueueNextTrack() {
-        guard let currentIndex = currentTrackIndex else { return }
-        
-        let nextIndex = playbackStateManager.calculateNextIndex(at: currentIndex, repeatMode: repeatMode)
-        
-        guard let nextIndex, currentTracks.indices.contains(nextIndex) else {
-            logger.debug("No next track to enqueue")
-            return
-        }
-        
-        let nextTrack = currentTracks[nextIndex]
-        
-        // Do not preload failed tracks
-        if failedTrackRegistry.isMarked(nextTrack.id) {
-            logger.debug("Skip enqueuing known failed track: \(nextTrack.title)")
-            return
-        }
-        
-        Task { @MainActor in
-            let success = await playerCore.enqueueTrack(nextTrack)
-            
-            // Preload failed: mark only
-            if !success {
-                logger.warning("⚠️ Enqueue failed, marking track: \(nextTrack.title)")
-                failedTrackRegistry.mark(nextTrack.id)
-            }
-        }
-    }
-    
-    /// Clear failure mark on manual retry
-    private func retryIfFailed(_ track: AudioTrack) {
-        if failedTrackRegistry.isMarked(track.id) {
-            logger.info("🔄 Retry failed track: \(track.title)")
-            failedTrackRegistry.clear(track.id)
-        }
-    }
-    
-    /// Find previous valid track
-    private func findPreviousValidTrack(from currentIndex: Int) -> Int? {
-        var testIndex = currentIndex - 1
-        var attempts = 0
-        
-        while testIndex >= 0, attempts < currentTracks.count {
-            let track = currentTracks[testIndex]
-            if !failedTrackRegistry.isMarked(track.id) {
-                return testIndex
-            }
-            testIndex -= 1
-            attempts += 1
-        }
-        
-        return nil
-    }
-    
-    // MARK: - Failed Track Public Access
-    
-    /// Check if a track is marked as failed
+
     func isTrackFailed(_ trackID: UUID) -> Bool {
-        failedTrackRegistry.isMarked(trackID)
+        coordinator.isTrackFailed(trackID)
     }
 
-    private func updateNowPlayingInfo() {
-        guard let track = currentTrack else { return }
-        
-        NowPlayingService.shared.updateNowPlayingInfo(
-            track: track,
-            artwork: currentArtwork,
-            currentTime: playbackProgressState.currentTime,
-            duration: duration,
-            isPlaying: isPlaying
-        )
+    func getCurrentPlaybackTime() -> TimeInterval {
+        coordinator.getCurrentPlaybackTime()
     }
-    
-    // MARK: - Persistence
-    
+
     func saveState() {
-        playbackStateManager.saveState(volume: volume)
-    }
-    
-    private func scheduleStateSave() {
-        persistenceController.scheduleSave(volume: volume)
-    }
-    
-    private func startStateSaveTimer() {
-        persistenceController.startPeriodicSave { [weak self] in
-            self?.volume ?? 0.7
-        }
-        logger.debug("💾 State save timer started")
-    }
-    
-    private func stopStateSaveTimer() {
-        persistenceController.stopPeriodicSave()
-    }
- 
-    private func restorePlaybackState() async {
-        guard let restored = await playbackStateManager.restoreState() else {
-            isPlaylistLoaded = true
-            return
-        }
-        
-        if let savedVolume = restored.volume {
-            volume = savedVolume
-            playerCore.setVolume(savedVolume)
-            let pct = String(format: "%.0f", savedVolume * 100)
-            logger.debug("🔊 Restored volume: \(pct)%")
-        }
-        
-        _ = await loadTrack(restored.track)
-        isPlaylistLoaded = true
-    }
-}
-
-// MARK: - AudioPlayerCore Delegate
-
-extension PlayerViewModel: AudioPlayerCoreDelegate {
-    func playerCoreDidUpdatePlaybackState(_ isPlaying: Bool) {
-        self.isPlaying = isPlaying
-        
-        NowPlayingService.shared.updatePlaybackState(isPlaying: isPlaying)
-        NowPlayingService.shared.handlePlaybackStateChange(
-            isPlaying: isPlaying,
-            isWindowVisible: isWindowVisible,
-            currentTimeProvider: progressTimeProvider
-        )
-                
-        if isPlaying {
-            startStateSaveTimer()
-        } else {
-            stopStateSaveTimer()
-        }
-    }
-    
-    func playerCoreDidUpdateTime(currentTime: TimeInterval, duration: TimeInterval) {
-        playbackProgressState.currentTime = currentTime
-        
-        // Statistics: Mark as played at 80%
-        guard duration > 0 else { return }
-        
-        // Reset play count mark on loop
-        if hasMarkedPlayCount, currentTime < 1.0 {
-            hasMarkedPlayCount = false
-        }
-        
-        if !hasMarkedPlayCount, currentTime >= duration * playCountThreshold {
-            hasMarkedPlayCount = true
-            Task { @MainActor in
-                await self.statisticsManager.incrementTodayPlayCount()
-            }
-        }
-    }
-    
-    func playerCoreDidLoadTrack(_ track: AudioTrack, artwork: NSImage?) {
-        self.currentArtwork = artwork
-        self.duration = track.duration
-        
-        RemoteCommandController.shared.enable()
-    }
-    
-    func playerCoreDidEncounterError(_ error: Error) {
-        logger.logError(error, context: "PlayerCore")
-    }
-    
-    func playerCoreNowPlayingChanged(to track: AudioTrack?) {
-        guard let track else {
-            logger.debug("Now playing changed to nil")
-            return
-        }
-        
-        if let index = currentTracks.firstIndex(where: { $0.id == track.id }) {
-            let indexChanged = (currentTrackIndex != index)
-            
-            if indexChanged {
-                logger.info("🔄 Auto switched to track \(index + 1): \(track.title)")
-                playbackStateManager.setCurrentIndex(index)
-            }
-            
-            Task { @MainActor in
-                let artwork = await ArtworkCacheService.shared.artwork(for: track.url)
-                
-                self.currentArtwork = artwork
-                self.duration = track.duration
-                
-                self.updateNowPlayingInfo()
-                self.playerCore.updateDockIcon(artwork)
-                
-                if indexChanged {
-                    self.playbackProgressState.currentTime = 0
-                    self.scheduleStateSave()
-                }
-            }
-        } else {
-            logger.warning("Track not found in current tracks: \(track.title)")
-        }
-    }
-    
-    func playerCoreDecodingComplete(for track: AudioTrack) {
-        // Snapshot the index BEFORE gapless transition can advance it.
-        // playerCoreDidReachEnd uses this to detect if gapless already moved to the next track.
-        trackIndexBeforeGapless = currentTrackIndex
-        logger.debug("🔄 Decoding complete, enqueuing next track")
-        enqueueNextTrack()
-    }
-    
-    func playerCoreDidReachEnd() {
-        // Consume the pre-gapless snapshot; nil means decodingComplete didn't fire (rare edge case).
-        let baseIndex = trackIndexBeforeGapless
-        trackIndexBeforeGapless = nil
-
-        // Single loop: replay same track
-        if repeatMode == .one {
-            let index = baseIndex ?? currentTrackIndex
-            guard let index else { return }
-            let track = currentTracks[index]
-            
-            if failedTrackRegistry.isMarked(track.id) {
-                logger.info("🛑 Single repeat on failed track, stopping")
-                pause()
-            } else {
-                loadAndPlay(at: index)
-            }
-            return
-        }
-
-        // Use the snapshot index to calculate the true "next" track.
-        // If snapshot is nil (decodingComplete never fired), fall back to current index so we don't stall.
-        if baseIndex == nil {
-            logger.warning("⚠️ trackIndexBeforeGapless missing, falling back to currentTrackIndex")
-        }
-        let effectiveIndex = baseIndex ?? currentTrackIndex
-        guard let effectiveIndex else { return }
-
-        guard let nextIndex = playbackStateManager.calculateNextIndex(at: effectiveIndex, repeatMode: repeatMode) else {
-            logger.debug("🏁 Reached end of playlist")
-            return
-        }
-
-        // Guard against gapless double-advance:
-        // nowPlayingChangedTo may have already updated currentTrackIndex to nextIndex,
-        // meaning the gapless transition succeeded — skip loadAndPlay to avoid skipping a track.
-        if currentTrackIndex == nextIndex {
-            logger.debug("🔄 Gapless transition already handled (index \(nextIndex)), skipping manual load")
-            return
-        }
-
-        logger.debug("🔄 End of track, loading next (base: \(effectiveIndex) \\➡️ next: \(nextIndex))")
-        loadAndPlay(at: nextIndex)
+        coordinator.saveState()
     }
 }

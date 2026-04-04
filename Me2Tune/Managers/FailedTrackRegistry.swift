@@ -32,4 +32,8 @@ final class FailedTrackRegistry {
             logger.debug("Pruned stale failed IDs: \(previousCount) -> \(self.failedIDs.count)")
         }
     }
+
+    func snapshot() -> Set<UUID> {
+        failedIDs
+    }
 }

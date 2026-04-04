@@ -23,11 +23,12 @@ struct Me2TuneApp: App {
 
         _isMigrationFailed = State(wrappedValue: DataService.shared.isMigrationFailed)
 
-        // ✅ 单一初始化路径：先创建 CollectionManager，再创建 PlayerViewModel
+        // ✅ 单一初始化路径：CollectionManager -> PlaybackCoordinator -> PlayerViewModel
         let manager = CollectionManager()
         _collectionManager = State(wrappedValue: manager)
 
-        let viewModel = PlayerViewModel(collectionManager: manager)
+        let coordinator = PlaybackCoordinator(collectionManager: manager)
+        let viewModel = PlayerViewModel(coordinator: coordinator)
         _playerViewModel = State(wrappedValue: viewModel)
 
         logger.debug("✅ Me2TuneApp initialized - @Observable architecture")
