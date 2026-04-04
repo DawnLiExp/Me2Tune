@@ -16,29 +16,6 @@ private let logger = Logger.viewModel
 @MainActor
 @Observable
 final class PlayerViewModel {
-    // MARK: - Nested Types
-    
-    @MainActor
-    private final class FailedTrackHandler {
-        private var failedIDs = Set<UUID>()
-        
-        func mark(_ id: UUID) {
-            failedIDs.insert(id)
-        }
-        
-        func isMarked(_ id: UUID) -> Bool {
-            failedIDs.contains(id)
-        }
-        
-        func clear(_ id: UUID) {
-            failedIDs.remove(id)
-        }
-        
-        func clearForPlaylist(_ trackIDs: Set<UUID>) {
-            failedIDs.subtract(trackIDs)
-        }
-    }
-
     // MARK: - Published States
 
     private(set) var isPlaying = false
@@ -47,7 +24,7 @@ final class PlayerViewModel {
     private(set) var isPlaylistLoaded = false
     var repeatMode: RepeatMode = .off {
         didSet {
-            playerCore.repeatMode = AudioPlayerCore.RepeatMode(from: repeatMode)
+            playerCore.repeatMode = repeatMode
         }
     }
 
@@ -70,17 +47,12 @@ final class PlayerViewModel {
     let playlistManager: PlaylistManager
     let playbackStateManager: PlaybackStateManager
     private let statisticsManager: StatisticsManagerProtocol
-    private let failedTrackHandler = FailedTrackHandler()
+    private let failedTrackRegistry = FailedTrackRegistry()
     
     // MARK: - Types
     
     typealias PlayingSource = PlaybackStateManager.PlayingSource
-    
-    enum RepeatMode {
-        case off
-        case all
-        case one
-    }
+    typealias RepeatMode = Me2Tune.RepeatMode
     
     // MARK: - Private Properties
     
@@ -254,7 +226,7 @@ final class PlayerViewModel {
         guard let currentIndex = currentTrackIndex else { return }
 
         guard let targetIndex = playbackStateManager.calculatePreviousIndex(
-            at: currentIndex, repeatMode: convertRepeatMode()
+            at: currentIndex, repeatMode: repeatMode
         ) else { return }
 
         if let previousIndex = findPreviousValidTrack(from: targetIndex + 1) {
@@ -265,7 +237,7 @@ final class PlayerViewModel {
     }
     
     func next() {
-        guard let nextIndex = playbackStateManager.calculateNextIndex(repeatMode: convertRepeatMode()) else {
+        guard let nextIndex = playbackStateManager.calculateNextIndex(repeatMode: repeatMode) else {
             return
         }
         
@@ -338,7 +310,7 @@ final class PlayerViewModel {
         let wasPlaying = (playingSource == .playlist && currentTrackIndex == index)
         let removedTrack = playlistManager.tracks[index]
         
-        failedTrackHandler.clear(removedTrack.id)
+        failedTrackRegistry.clear(removedTrack.id)
         
         if wasPlaying {
             pause()
@@ -359,10 +331,9 @@ final class PlayerViewModel {
             pause()
         }
         
-        failedTrackHandler.clearForPlaylist(Set(playlistManager.tracks.map(\.id)))
-        
         playlistManager.clearAll()
         playbackStateManager.handlePlaylistCleared()
+        failedTrackRegistry.pruneStale(keeping: Set(playbackStateManager.currentTracks.map(\.id)))
         
         if playingSource == .playlist {
             RemoteCommandController.shared.disable()
@@ -431,7 +402,7 @@ final class PlayerViewModel {
         }
         
         // Skip tracks marked as failed
-        if failedTrackHandler.isMarked(track.id) {
+        if failedTrackRegistry.isMarked(track.id) {
             logger.debug("⏭️ Skipping known failed track: \(track.title)")
             skipToNextTrack(from: index, attempt: attempt)
             return
@@ -457,7 +428,7 @@ final class PlayerViewModel {
     /// Handle load failure
     private func handleLoadFailure(track: AudioTrack, index: Int, attempt: Int) {
         logger.warning("⚠️ Track load failed: \(track.title)")
-        failedTrackHandler.mark(track.id)
+        failedTrackRegistry.mark(track.id)
         
         // Stop if single loop mode
         if repeatMode == .one {
@@ -471,7 +442,7 @@ final class PlayerViewModel {
     
     /// Skip to next track
     private func skipToNextTrack(from index: Int, attempt: Int) {
-        if let nextIndex = playbackStateManager.calculateNextIndex(at: index, repeatMode: convertRepeatMode()) {
+        if let nextIndex = playbackStateManager.calculateNextIndex(at: index, repeatMode: repeatMode) {
             logger.info("⏭️ Auto-skipping to next track")
             loadAndPlay(at: nextIndex, attempt: attempt + 1)
         } else {
@@ -483,7 +454,7 @@ final class PlayerViewModel {
     private func enqueueNextTrack() {
         guard let currentIndex = currentTrackIndex else { return }
         
-        let nextIndex = playbackStateManager.calculateNextIndex(at: currentIndex, repeatMode: convertRepeatMode())
+        let nextIndex = playbackStateManager.calculateNextIndex(at: currentIndex, repeatMode: repeatMode)
         
         guard let nextIndex, currentTracks.indices.contains(nextIndex) else {
             logger.debug("No next track to enqueue")
@@ -493,7 +464,7 @@ final class PlayerViewModel {
         let nextTrack = currentTracks[nextIndex]
         
         // Do not preload failed tracks
-        if failedTrackHandler.isMarked(nextTrack.id) {
+        if failedTrackRegistry.isMarked(nextTrack.id) {
             logger.debug("Skip enqueuing known failed track: \(nextTrack.title)")
             return
         }
@@ -504,16 +475,16 @@ final class PlayerViewModel {
             // Preload failed: mark only
             if !success {
                 logger.warning("⚠️ Enqueue failed, marking track: \(nextTrack.title)")
-                failedTrackHandler.mark(nextTrack.id)
+                failedTrackRegistry.mark(nextTrack.id)
             }
         }
     }
     
     /// Clear failure mark on manual retry
     private func retryIfFailed(_ track: AudioTrack) {
-        if failedTrackHandler.isMarked(track.id) {
+        if failedTrackRegistry.isMarked(track.id) {
             logger.info("🔄 Retry failed track: \(track.title)")
-            failedTrackHandler.clear(track.id)
+            failedTrackRegistry.clear(track.id)
         }
     }
     
@@ -524,7 +495,7 @@ final class PlayerViewModel {
         
         while testIndex >= 0, attempts < currentTracks.count {
             let track = currentTracks[testIndex]
-            if !failedTrackHandler.isMarked(track.id) {
+            if !failedTrackRegistry.isMarked(track.id) {
                 return testIndex
             }
             testIndex -= 1
@@ -538,17 +509,7 @@ final class PlayerViewModel {
     
     /// Check if a track is marked as failed
     func isTrackFailed(_ trackID: UUID) -> Bool {
-        failedTrackHandler.isMarked(trackID)
-    }
-
-    // MARK: - Private Helpers
-    
-    private func convertRepeatMode() -> PlaybackStateManager.RepeatMode {
-        switch repeatMode {
-        case .off: return .off
-        case .all: return .all
-        case .one: return .one
-        }
+        failedTrackRegistry.isMarked(trackID)
     }
 
     private func updateNowPlayingInfo() {
@@ -619,7 +580,7 @@ final class PlayerViewModel {
 // MARK: - AudioPlayerCore Delegate
 
 extension PlayerViewModel: AudioPlayerCoreDelegate {
-    func playerCore(_ core: AudioPlayerCore, didUpdatePlaybackState isPlaying: Bool) {
+    func playerCoreDidUpdatePlaybackState(_ isPlaying: Bool) {
         self.isPlaying = isPlaying
         
         NowPlayingService.shared.updatePlaybackState(isPlaying: isPlaying)
@@ -636,7 +597,7 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
         }
     }
     
-    func playerCore(_ core: AudioPlayerCore, didUpdateTime currentTime: TimeInterval, duration: TimeInterval) {
+    func playerCoreDidUpdateTime(currentTime: TimeInterval, duration: TimeInterval) {
         playbackProgressState.currentTime = currentTime
         
         // Statistics: Mark as played at 80%
@@ -655,18 +616,18 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
         }
     }
     
-    func playerCore(_ core: AudioPlayerCore, didLoadTrack track: AudioTrack, artwork: NSImage?) {
+    func playerCoreDidLoadTrack(_ track: AudioTrack, artwork: NSImage?) {
         self.currentArtwork = artwork
         self.duration = track.duration
         
         RemoteCommandController.shared.enable()
     }
     
-    func playerCore(_ core: AudioPlayerCore, didEncounterError error: Error) {
+    func playerCoreDidEncounterError(_ error: Error) {
         logger.logError(error, context: "PlayerCore")
     }
     
-    func playerCore(_ core: AudioPlayerCore, nowPlayingChangedTo track: AudioTrack?) {
+    func playerCoreNowPlayingChanged(to track: AudioTrack?) {
         guard let track else {
             logger.debug("Now playing changed to nil")
             return
@@ -699,7 +660,7 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
         }
     }
     
-    func playerCore(_ core: AudioPlayerCore, decodingCompleteFor track: AudioTrack) {
+    func playerCoreDecodingComplete(for track: AudioTrack) {
         // Snapshot the index BEFORE gapless transition can advance it.
         // playerCoreDidReachEnd uses this to detect if gapless already moved to the next track.
         trackIndexBeforeGapless = currentTrackIndex
@@ -707,7 +668,7 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
         enqueueNextTrack()
     }
     
-    func playerCoreDidReachEnd(_ core: AudioPlayerCore) {
+    func playerCoreDidReachEnd() {
         // Consume the pre-gapless snapshot; nil means decodingComplete didn't fire (rare edge case).
         let baseIndex = trackIndexBeforeGapless
         trackIndexBeforeGapless = nil
@@ -718,7 +679,7 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
             guard let index else { return }
             let track = currentTracks[index]
             
-            if failedTrackHandler.isMarked(track.id) {
+            if failedTrackRegistry.isMarked(track.id) {
                 logger.info("🛑 Single repeat on failed track, stopping")
                 pause()
             } else {
@@ -735,7 +696,7 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
         let effectiveIndex = baseIndex ?? currentTrackIndex
         guard let effectiveIndex else { return }
 
-        guard let nextIndex = playbackStateManager.calculateNextIndex(at: effectiveIndex, repeatMode: convertRepeatMode()) else {
+        guard let nextIndex = playbackStateManager.calculateNextIndex(at: effectiveIndex, repeatMode: repeatMode) else {
             logger.debug("🏁 Reached end of playlist")
             return
         }
@@ -750,20 +711,5 @@ extension PlayerViewModel: AudioPlayerCoreDelegate {
 
         logger.debug("🔄 End of track, loading next (base: \(effectiveIndex) \\➡️ next: \(nextIndex))")
         loadAndPlay(at: nextIndex)
-    }
-}
-
-// MARK: - RepeatMode Conversion
-
-private extension AudioPlayerCore.RepeatMode {
-    init(from viewModelMode: PlayerViewModel.RepeatMode) {
-        switch viewModelMode {
-        case .off:
-            self = .off
-        case .all:
-            self = .all
-        case .one:
-            self = .one
-        }
     }
 }

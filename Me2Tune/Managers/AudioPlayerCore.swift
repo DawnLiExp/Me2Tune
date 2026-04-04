@@ -16,20 +16,20 @@ private let logger = Logger.player
 
 @MainActor
 protocol AudioPlayerCoreDelegate: AnyObject {
-    func playerCore(_ core: AudioPlayerCore, didUpdatePlaybackState isPlaying: Bool)
-    func playerCore(_ core: AudioPlayerCore, didUpdateTime currentTime: TimeInterval, duration: TimeInterval)
-    func playerCore(_ core: AudioPlayerCore, didLoadTrack track: AudioTrack, artwork: NSImage?)
-    func playerCore(_ core: AudioPlayerCore, didEncounterError error: Error)
-    func playerCoreDidReachEnd(_ core: AudioPlayerCore)
-    func playerCore(_ core: AudioPlayerCore, decodingCompleteFor track: AudioTrack)
-    func playerCore(_ core: AudioPlayerCore, nowPlayingChangedTo track: AudioTrack?)
+    func playerCoreDidUpdatePlaybackState(_ isPlaying: Bool)
+    func playerCoreDidUpdateTime(currentTime: TimeInterval, duration: TimeInterval)
+    func playerCoreDidLoadTrack(_ track: AudioTrack, artwork: NSImage?)
+    func playerCoreDidEncounterError(_ error: Error)
+    func playerCoreDidReachEnd()
+    func playerCoreDecodingComplete(for track: AudioTrack)
+    func playerCoreNowPlayingChanged(to track: AudioTrack?)
 }
 
 // MARK: - Audio Player Core
 
 @MainActor
 final class AudioPlayerCore: NSObject {
-    weak var delegate: AudioPlayerCoreDelegate?
+    weak var delegate: (any AudioPlayerCoreDelegate)?
     
     private var player: AudioPlayer?
     private var timer: DispatchSourceTimer?
@@ -50,11 +50,7 @@ final class AudioPlayerCore: NSObject {
         return isPlaying
     }
     
-    enum RepeatMode {
-        case off
-        case all
-        case one
-    }
+    typealias RepeatMode = Me2Tune.RepeatMode
     
     var repeatMode: RepeatMode = .off
     var volume: Double = 0.7
@@ -141,11 +137,11 @@ final class AudioPlayerCore: NSObject {
             currentTrack = track
             queuedTracks.removeAll()
             
-            delegate?.playerCore(self, didUpdateTime: 0, duration: duration)
+            delegate?.playerCoreDidUpdateTime(currentTime: 0, duration: duration)
             
             let artwork = await ArtworkCacheService.shared.artwork(for: track.url)
             
-            delegate?.playerCore(self, didLoadTrack: track, artwork: artwork)
+            delegate?.playerCoreDidLoadTrack(track, artwork: artwork)
             updateDockIcon(artwork)
             
             let elapsed = CFAbsoluteTimeGetCurrent() - startTime
@@ -155,7 +151,7 @@ final class AudioPlayerCore: NSObject {
         } catch {
             let appError = AppError.audioLoadFailed(track.url)
             logger.logError(appError, context: "loadTrack")
-            delegate?.playerCore(self, didEncounterError: appError)
+            delegate?.playerCoreDidEncounterError(appError)
             return false // ❌ 失败
         }
     }
@@ -195,7 +191,7 @@ final class AudioPlayerCore: NSObject {
         } catch {
             let appError = AppError.audioLoadFailed(track.url)
             logger.logError(appError, context: "enqueueTrack")
-            delegate?.playerCore(self, didEncounterError: appError)
+            delegate?.playerCoreDidEncounterError(appError)
             return false
         }
     }
@@ -208,12 +204,12 @@ final class AudioPlayerCore: NSObject {
             try player.play()
             isPlaying = true
             startTimer()
-            delegate?.playerCore(self, didUpdatePlaybackState: true)
+            delegate?.playerCoreDidUpdatePlaybackState(true)
             logger.debug("▶️ Playback started")
         } catch {
             let appError = AppError.audioPlayFailed(error.localizedDescription)
             logger.logError(appError, context: "play")
-            delegate?.playerCore(self, didEncounterError: appError)
+            delegate?.playerCoreDidEncounterError(appError)
         }
     }
     
@@ -223,7 +219,7 @@ final class AudioPlayerCore: NSObject {
         player.pause()
         isPlaying = false
         stopTimer()
-        delegate?.playerCore(self, didUpdatePlaybackState: false)
+        delegate?.playerCoreDidUpdatePlaybackState(false)
         logger.debug("⏸ Playback paused")
     }
     
@@ -244,7 +240,7 @@ final class AudioPlayerCore: NSObject {
         
         if player.seek(time: time) {
             currentTime = time
-            delegate?.playerCore(self, didUpdateTime: currentTime, duration: duration)
+            delegate?.playerCoreDidUpdateTime(currentTime: currentTime, duration: duration)
             let t = String(format: "%.1f", time)
             logger.debug("⏩ Seeked to \(t)s")
         } else {
@@ -258,8 +254,8 @@ final class AudioPlayerCore: NSObject {
                 let appError = AppError.audioPlayFailed("Resume after seek failed")
                 logger.logError(appError, context: "seek")
                 isPlaying = false
-                delegate?.playerCore(self, didUpdatePlaybackState: false)
-                delegate?.playerCore(self, didEncounterError: appError)
+                delegate?.playerCoreDidUpdatePlaybackState(false)
+                delegate?.playerCoreDidEncounterError(appError)
             }
         }
     }
@@ -286,7 +282,7 @@ final class AudioPlayerCore: NSObject {
     func prepareForTrackSwitch() {
         stopTimer()
         currentTime = 0
-        delegate?.playerCore(self, didUpdateTime: 0, duration: duration)
+        delegate?.playerCoreDidUpdateTime(currentTime: 0, duration: duration)
         logger.debug("🧹 Prepared for track switch (timer stopped, progress reset)")
     }
     
@@ -331,7 +327,7 @@ final class AudioPlayerCore: NSObject {
             
             self.currentTime = player.currentTime ?? 0
             self.duration = player.totalTime ?? 0
-            self.delegate?.playerCore(self, didUpdateTime: self.currentTime, duration: self.duration)
+            self.delegate?.playerCoreDidUpdateTime(currentTime: self.currentTime, duration: self.duration)
         }
         
         newTimer.resume()
@@ -380,7 +376,7 @@ extension AudioPlayerCore: AudioPlayer.Delegate {
     nonisolated func audioPlayer(_ audioPlayer: AudioPlayer, playbackStateChanged playbackState: AudioPlayer.PlaybackState) {
         Task { @MainActor in
             self.isPlaying = (playbackState == .playing)
-            self.delegate?.playerCore(self, didUpdatePlaybackState: self.isPlaying)
+            self.delegate?.playerCoreDidUpdatePlaybackState(self.isPlaying)
         }
     }
     
@@ -392,7 +388,7 @@ extension AudioPlayerCore: AudioPlayer.Delegate {
             }
             
             logger.debug("🔄 Now playing changed to: \(self.currentTrack?.title ?? "nil")")
-            self.delegate?.playerCore(self, nowPlayingChangedTo: self.currentTrack)
+            self.delegate?.playerCoreNowPlayingChanged(to: self.currentTrack)
         }
     }
     
@@ -400,20 +396,22 @@ extension AudioPlayerCore: AudioPlayer.Delegate {
         Task { @MainActor in
             guard let track = self.currentTrack else { return }
             logger.debug("✓ Decoding complete for: \(track.title)")
-            self.delegate?.playerCore(self, decodingCompleteFor: track)
+            self.delegate?.playerCoreDecodingComplete(for: track)
         }
     }
     
     nonisolated func audioPlayerEndOfAudio(_ audioPlayer: AudioPlayer) {
         Task { @MainActor in
-            self.delegate?.playerCoreDidReachEnd(self)
+            self.delegate?.playerCoreDidReachEnd()
         }
     }
     
     @objc nonisolated func audioPlayer(_ audioPlayer: AudioPlayer, encounteredError error: Error) {
         Task { @MainActor in
             logger.error("Player error: \(error)")
-            self.delegate?.playerCore(self, didEncounterError: error)
+            self.delegate?.playerCoreDidEncounterError(error)
         }
     }
 }
+
+extension AudioPlayerCore: AudioPlayerCoreProtocol {}

@@ -27,11 +27,7 @@ final class PlaybackStateManager {
         case album(UUID)
     }
 
-    enum RepeatMode {
-        case off
-        case all
-        case one
-    }
+    typealias RepeatMode = Me2Tune.RepeatMode
 
     // MARK: - Private Properties
 
