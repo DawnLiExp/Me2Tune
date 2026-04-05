@@ -96,8 +96,6 @@ final class PlayerViewModel {
         self.playlistManager = coordinator.playlistManager
         self.playbackStateManager = coordinator.playbackStateManager
 
-        RemoteCommandController.shared.setup(viewModel: self)
-
         if let monitor = windowStateMonitor {
             injectWindowStateMonitor(monitor)
         }

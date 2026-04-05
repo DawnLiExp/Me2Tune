@@ -48,7 +48,7 @@ final class PlaybackCoordinator {
     @ObservationIgnored private let playerCore: any AudioPlayerCoreProtocol
     @ObservationIgnored private let failedTrackRegistry: FailedTrackRegistry
     @ObservationIgnored private let persistenceController: PlaybackPersistenceController
-    @ObservationIgnored private let statisticsManager: any StatisticsManagerProtocol
+    @ObservationIgnored private let effectsController: PlaybackEffectsController
 
     @ObservationIgnored private var hasMarkedPlayCount = false
     @ObservationIgnored private var currentStatTrackId: UUID?
@@ -78,7 +78,7 @@ final class PlaybackCoordinator {
         let playerCore = playerCore ?? AudioPlayerCore()
         self.playerCore = playerCore
         self.failedTrackRegistry = FailedTrackRegistry()
-        self.statisticsManager = statisticsManager
+        self.effectsController = PlaybackEffectsController(statisticsManager: statisticsManager)
 
         let playbackStateManager = self.playbackStateManager
         self.persistenceController = PlaybackPersistenceController(
@@ -120,9 +120,7 @@ final class PlaybackCoordinator {
 
     func seek(to time: TimeInterval) {
         playerCore.seek(to: time)
-
-        NowPlayingService.shared.updatePlaybackTime(currentTime: time)
-        NowPlayingService.shared.restartUpdateTimer()
+        effectsController.handleSeek(to: time)
 
         persistenceController.scheduleSave(volume: volume)
     }
@@ -222,7 +220,8 @@ final class PlaybackCoordinator {
         persistenceController.scheduleSave(volume: volume)
 
         if playlistManager.isEmpty, playbackStateManager.playingSource == .playlist {
-            RemoteCommandController.shared.disable()
+            effectsController.disableRemoteCommands()
+            effectsController.clearNowPlayingInfo()
         }
     }
 
@@ -236,7 +235,8 @@ final class PlaybackCoordinator {
         failedTrackRegistry.pruneStale(keeping: Set(playbackStateManager.currentTracks.map(\.id)))
 
         if playbackStateManager.playingSource == .playlist {
-            RemoteCommandController.shared.disable()
+            effectsController.disableRemoteCommands()
+            effectsController.clearNowPlayingInfo()
         }
 
         persistenceController.scheduleSave(volume: volume)
@@ -257,10 +257,7 @@ final class PlaybackCoordinator {
         playerCore.updateVisibilityState(state)
 
         isWindowVisible = (state == .activeFocused || state == .inactive)
-        NowPlayingService.shared.handleWindowVisibilityChange(
-            isVisible: state == .activeFocused,
-            isPlaying: isPlaying
-        )
+        effectsController.handleWindowVisibilityChange(isVisible: state == .activeFocused, isPlaying: isPlaying)
 
         logger.debug("Coordinator visibility: \(state.description)")
     }
@@ -291,6 +288,43 @@ final class PlaybackCoordinator {
 
     func getCurrentPlaybackTime() -> TimeInterval {
         playerCore.getCurrentPlaybackTime()
+    }
+
+    private func makePlaybackCommandHandlers() -> PlaybackCommandHandlers {
+        PlaybackCommandHandlers(
+            play: { [weak self] in
+                self?.play()
+            },
+            pause: { [weak self] in
+                self?.pause()
+            },
+            togglePlayPause: { [weak self] in
+                guard let self else { return }
+                if self.isPlaying {
+                    self.pause()
+                } else {
+                    self.play()
+                }
+            },
+            next: { [weak self] in
+                self?.next()
+            },
+            previous: { [weak self] in
+                self?.previous()
+            },
+            seek: { [weak self] time in
+                self?.seek(to: time)
+            },
+            canGoNext: { [weak self] in
+                self?.canGoNext ?? false
+            },
+            canGoPrevious: { [weak self] in
+                self?.canGoPrevious ?? false
+            },
+            isPlaying: { [weak self] in
+                self?.isPlaying ?? false
+            }
+        )
     }
 
     private func setupVisibilityObserver(_ monitor: WindowStateMonitor) {
@@ -410,7 +444,7 @@ final class PlaybackCoordinator {
 
     private func updateNowPlayingInfo() {
         guard let track = playbackStateManager.currentTrack else { return }
-        NowPlayingService.shared.updateNowPlayingInfo(
+        effectsController.updateNowPlayingInfo(
             track: track,
             artwork: currentArtwork,
             currentTime: playbackProgressState.currentTime,
@@ -424,8 +458,7 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
     func playerCoreDidUpdatePlaybackState(_ isPlaying: Bool) {
         self.isPlaying = isPlaying
 
-        NowPlayingService.shared.updatePlaybackState(isPlaying: isPlaying)
-        NowPlayingService.shared.handlePlaybackStateChange(
+        effectsController.handlePlaybackStateChanged(
             isPlaying: isPlaying,
             isWindowVisible: isWindowVisible,
             currentTimeProvider: progressTimeProvider
@@ -443,24 +476,18 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
     func playerCoreDidUpdateTime(currentTime: TimeInterval, duration: TimeInterval) {
         playbackProgressState.currentTime = currentTime
 
-        guard duration > 0 else { return }
-
-        if hasMarkedPlayCount, currentTime < 1.0 {
-            hasMarkedPlayCount = false
-        }
-
-        if !hasMarkedPlayCount, currentTime >= duration * playCountThreshold {
-            hasMarkedPlayCount = true
-            Task { @MainActor in
-                await statisticsManager.incrementTodayPlayCount()
-            }
-        }
+        hasMarkedPlayCount = effectsController.handlePlaybackTimeUpdated(
+            currentTime: currentTime,
+            duration: duration,
+            playCountThreshold: playCountThreshold,
+            hasMarkedPlayCount: hasMarkedPlayCount
+        )
     }
 
     func playerCoreDidLoadTrack(_ track: AudioTrack, artwork: NSImage?) {
         currentArtwork = artwork
         duration = track.duration
-        RemoteCommandController.shared.enable()
+        effectsController.ensureRemoteCommandsReady(handlers: makePlaybackCommandHandlers())
     }
 
     func playerCoreDidEncounterError(_ error: Error) {

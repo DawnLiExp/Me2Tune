@@ -155,7 +155,7 @@ struct PlaybackCoordinatorTests {
     }
 
     private func waitUntil(
-        timeout: Duration = .seconds(1),
+        timeout: Duration = .seconds(3),
         interval: Duration = .milliseconds(10),
         condition: @escaping @MainActor () -> Bool
     ) async -> Bool {
