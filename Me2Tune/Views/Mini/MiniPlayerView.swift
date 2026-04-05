@@ -269,6 +269,10 @@ struct MiniPlayerView: View {
 }
 
 #Preview {
+    let collectionManager = CollectionManager()
+    let coordinator = PlaybackCoordinator(collectionManager: collectionManager)
+    let playerViewModel = PlayerViewModel(coordinator: coordinator)
+
     MiniPlayerView()
-        .environment(PlayerViewModel())
+        .environment(playerViewModel)
 }

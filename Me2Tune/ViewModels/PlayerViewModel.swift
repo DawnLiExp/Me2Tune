@@ -107,21 +107,6 @@ final class PlayerViewModel {
         }
     }
 
-    convenience init(
-        dataService: DataServiceProtocol = DataService.shared,
-        collectionManager: CollectionManager? = nil,
-        statisticsManager: some StatisticsManagerProtocol = StatisticsManager.shared,
-        windowStateMonitor: WindowStateMonitor? = nil
-    ) {
-        let resolvedCollectionManager = collectionManager ?? CollectionManager(dataService: dataService)
-        let coordinator = PlaybackCoordinator(
-            collectionManager: resolvedCollectionManager,
-            dataService: dataService,
-            statisticsManager: statisticsManager
-        )
-        self.init(coordinator: coordinator, windowStateMonitor: windowStateMonitor)
-    }
-
     func injectWindowStateMonitor(_ monitor: WindowStateMonitor) {
         coordinator.injectWindowStateMonitor(monitor)
     }

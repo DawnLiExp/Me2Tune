@@ -416,6 +416,10 @@ struct LyricLineView: View {
 }
 
 #Preview {
+    let collectionManager = CollectionManager()
+    let coordinator = PlaybackCoordinator(collectionManager: collectionManager)
+    let playerViewModel = PlayerViewModel(coordinator: coordinator)
+
     LyricsView()
-        .environment(PlayerViewModel())
+        .environment(playerViewModel)
 }

@@ -337,13 +337,17 @@ struct TabSwitcherView: View {
 }
 
 #Preview {
+    let collectionManager = CollectionManager()
+    let coordinator = PlaybackCoordinator(collectionManager: collectionManager)
+    let playerViewModel = PlayerViewModel(coordinator: coordinator)
+
     ContentSectionView(
         selectedTab: .constant(.playlist),
         isInAlbumDetail: .constant(false),
         isPlaylistCollapsed: .constant(false),
         selectedAlbumId: .constant(nil),
-        playerViewModel: PlayerViewModel(),
-        collectionManager: CollectionManager(),
+        playerViewModel: playerViewModel,
+        collectionManager: collectionManager,
         onExportPlaylist: {},
         onClearPlaylist: {},
         onClearCollections: {},

@@ -2,7 +2,7 @@
 //  PlaybackStateManager.swift
 //  Me2Tune
 //
-//  播放状态管理 - 播放源切换 + SwiftData 持久化 + 索引计算
+//  播放状态管理 - 播放源切换 + SwiftData 持久化 + 索引状态
 //
 
 import Foundation
@@ -94,42 +94,6 @@ final class PlaybackStateManager {
 
     func setCurrentIndex(_ index: Int?) {
         currentTrackIndex = index
-    }
-
-    /// Calculate previous index without mutating current index.
-    func calculatePreviousIndex(at index: Int, repeatMode: RepeatMode) -> Int? {
-        switch repeatMode {
-        case .one:
-            return index
-        case .all:
-            guard !currentTracks.isEmpty else { return nil }
-            return index > 0 ? index - 1 : currentTracks.count - 1
-        case .off:
-            return index > 0 ? index - 1 : nil
-        }
-    }
-
-    /// Calculate next index without mutating current index.
-    func calculateNextIndex(at index: Int, repeatMode: RepeatMode) -> Int? {
-        switch repeatMode {
-        case .one:
-            return index
-        case .all:
-            guard !currentTracks.isEmpty else { return nil }
-            return index < currentTracks.count - 1 ? index + 1 : 0
-        case .off:
-            if index < currentTracks.count - 1 {
-                return index + 1
-            } else {
-                return nil
-            }
-        }
-    }
-
-    /// Compatibility method using current index.
-    func calculateNextIndex(repeatMode: RepeatMode) -> Int? {
-        guard let currentIndex = currentTrackIndex else { return nil }
-        return calculateNextIndex(at: currentIndex, repeatMode: repeatMode)
     }
 
     // MARK: - Playlist Updates Handling
