@@ -488,8 +488,10 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
 
     func playerCoreDidUpdateTime(currentTime: TimeInterval, duration: TimeInterval) {
         playbackProgressState.currentTime = currentTime
-        if duration > 0 {
-            self.duration = duration
+        let knownTrackDuration = playbackStateManager.currentTrack?.duration ?? 0
+        let resolvedDuration = knownTrackDuration > 0 ? knownTrackDuration : duration
+        if resolvedDuration > 0 {
+            self.duration = resolvedDuration
         }
     }
 

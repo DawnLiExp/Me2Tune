@@ -294,10 +294,19 @@ extension AudioPlayerCore: AudioPlayer.Delegate {
     }
     
     nonisolated func audioPlayer(_ audioPlayer: AudioPlayer, nowPlayingChanged nowPlaying: PCMDecoding?) {
+        let playbackTime = audioPlayer.currentTime ?? 0
         Task { @MainActor in
             if let nextTrack = self.queuedTracks.first {
                 self.currentTrack = nextTrack
                 self.queuedTracks.removeFirst()
+            }
+
+            if let currentTrack = self.currentTrack {
+                if currentTrack.duration > 0 {
+                    self.duration = currentTrack.duration
+                }
+                self.currentTime = playbackTime
+                self.delegate?.playerCoreDidUpdateTime(currentTime: self.currentTime, duration: self.duration)
             }
             
             logger.debug("🔄 Now playing changed to: \(self.currentTrack?.title ?? "nil")")
