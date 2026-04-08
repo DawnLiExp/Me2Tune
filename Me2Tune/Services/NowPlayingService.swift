@@ -118,23 +118,11 @@ final class NowPlayingService {
     /// 处理播放状态变化，自动管理定时器
     func handlePlaybackStateChange(
         isPlaying: Bool,
-        isWindowVisible: Bool,
         currentTimeProvider: @escaping () -> TimeInterval
     ) {
         self.currentTimeProvider = currentTimeProvider
         
-        if isPlaying, isWindowVisible, isEnabled {
-            startUpdateTimer()
-        } else {
-            stopUpdateTimer()
-        }
-    }
-    
-    /// 窗口可见性变化时调用
-    func handleWindowVisibilityChange(isVisible: Bool, isPlaying: Bool) {
-        guard isEnabled else { return }
-        
-        if isPlaying, isVisible {
+        if isPlaying, isEnabled {
             startUpdateTimer()
         } else {
             stopUpdateTimer()
@@ -159,6 +147,11 @@ final class NowPlayingService {
     // MARK: - Private Methods
     
     private func startUpdateTimer() {
+        guard isEnabled else {
+            stopUpdateTimer()
+            return
+        }
+
         stopUpdateTimer()
         
         updateTimerTask = Task { [weak self] in

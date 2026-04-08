@@ -28,21 +28,6 @@ final class WindowStateMonitor {
         case miniVisible
         case miniHidden
         
-        var updateInterval: TimeInterval {
-            switch self {
-            case .activeFocused:
-                return 0.3
-            case .inactive:
-                return 0.5
-            case .hidden:
-                return 2.0
-            case .miniVisible:
-                return 1.0
-            case .miniHidden:
-                return 2.0
-            }
-        }
-        
         var description: String {
             switch self {
             case .activeFocused:
@@ -122,8 +107,7 @@ final class WindowStateMonitor {
         guard visibilityState != newState else { return }
         
         visibilityState = newState
-        let iv = String(format: "%.1f", newState.updateInterval)
-        logger.debug("🔄 Mini visibility changed: \(newState.description) (interval: \(iv)s)")
+        logger.debug("🔄 Mini visibility changed: \(newState.description)")
     }
     
     // MARK: - Private Methods
@@ -209,7 +193,6 @@ final class WindowStateMonitor {
         guard visibilityState != newState else { return }
         
         visibilityState = newState
-        let iv = String(format: "%.1f", newState.updateInterval)
-        logger.debug("🔄 Visibility changed: \(newState.description) (interval: \(iv)s)")
+        logger.debug("🔄 Visibility changed: \(newState.description)")
     }
 }

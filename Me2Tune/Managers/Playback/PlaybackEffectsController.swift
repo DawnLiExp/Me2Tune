@@ -47,19 +47,13 @@ final class PlaybackEffectsController {
 
     func handlePlaybackStateChanged(
         isPlaying: Bool,
-        isWindowVisible: Bool,
         currentTimeProvider: @escaping () -> TimeInterval
     ) {
         nowPlayingService.updatePlaybackState(isPlaying: isPlaying)
         nowPlayingService.handlePlaybackStateChange(
             isPlaying: isPlaying,
-            isWindowVisible: isWindowVisible,
             currentTimeProvider: currentTimeProvider
         )
-    }
-
-    func handleWindowVisibilityChange(isVisible: Bool, isPlaying: Bool) {
-        nowPlayingService.handleWindowVisibilityChange(isVisible: isVisible, isPlaying: isPlaying)
     }
 
     func handlePlaybackTimeUpdated(

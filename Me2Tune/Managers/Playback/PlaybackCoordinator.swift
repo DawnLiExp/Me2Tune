@@ -54,7 +54,6 @@ final class PlaybackCoordinator {
     @ObservationIgnored private var hasMarkedPlayCount = false
     @ObservationIgnored private var currentStatTrackId: UUID?
     @ObservationIgnored private var trackIndexBeforeGapless: Int?
-    @ObservationIgnored private var isWindowVisible = true
     @ObservationIgnored private var windowStateMonitor: WindowStateMonitor?
     @ObservationIgnored private lazy var progressTimeProvider: () -> TimeInterval = { [weak self] in
         self?.playerCore.getCurrentPlaybackTime() ?? 0
@@ -348,9 +347,7 @@ final class PlaybackCoordinator {
     }
 
     private func handleWindowStateChanged(_ state: WindowStateMonitor.WindowVisibilityState) {
-        isWindowVisible = (state == .activeFocused || state == .inactive)
         progressController.updateVisibilityState(state)
-        effectsController.handleWindowVisibilityChange(isVisible: state == .activeFocused, isPlaying: isPlaying)
         logger.debug("Coordinator visibility: \(state.description)")
     }
 
@@ -477,7 +474,6 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
 
         effectsController.handlePlaybackStateChanged(
             isPlaying: isPlaying,
-            isWindowVisible: isWindowVisible,
             currentTimeProvider: progressTimeProvider
         )
 
