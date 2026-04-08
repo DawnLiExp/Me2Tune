@@ -130,6 +130,54 @@ struct PlaybackCoordinatorTests {
         #expect(playerCore.loadTrackCallIDs.count == 1)
     }
 
+    @Test("自动切歌后过期时长回调不会覆盖当前曲目时长")
+    func testStaleDurationUpdateDoesNotOverrideCurrentTrackDuration() async throws {
+        let dataService = try createTestDataService()
+        let collectionManager = CollectionManager(dataService: dataService)
+        let playerCore = MockAudioPlayerCore()
+        let statistics = MockStatisticsManager()
+        let coordinator = PlaybackCoordinator(
+            collectionManager: collectionManager,
+            dataService: dataService,
+            statisticsManager: statistics,
+            playerCore: playerCore
+        )
+
+        let trackA = AudioTrack(
+            id: UUID(),
+            url: URL(fileURLWithPath: "/tmp/test_track_a.mp3"),
+            title: "Track A",
+            artist: nil,
+            albumTitle: nil,
+            duration: 277,
+            format: .unknown,
+            bookmark: nil
+        )
+        let trackB = AudioTrack(
+            id: UUID(),
+            url: URL(fileURLWithPath: "/tmp/test_track_b.mp3"),
+            title: "Track B",
+            artist: nil,
+            albumTitle: nil,
+            duration: 385,
+            format: .unknown,
+            bookmark: nil
+        )
+
+        coordinator.playAlbum(makeAlbum(with: [trackA, trackB]), startAt: 1)
+
+        let loadedSecond = await waitUntil {
+            coordinator.playbackStateManager.currentTrackIndex == 1
+        }
+        #expect(loadedSecond)
+
+        coordinator.playerCoreDidLoadTrack(trackB, artwork: nil)
+        #expect(coordinator.duration == 385)
+
+        coordinator.playerCoreDidUpdateTime(currentTime: 10, duration: 277)
+        #expect(coordinator.duration == 385)
+    }
+
     private func makeTracks(count: Int) -> [AudioTrack] {
         (0..<count).map { index in
             AudioTrack(
