@@ -33,7 +33,11 @@ enum StatPeriod: String, CaseIterable {
     }
     
     var displayName: String {
-        String(localized: String.LocalizationValue(rawValue))
+        switch self {
+        case .daily: return String(localized: "stat_period_daily")
+        case .weekly: return String(localized: "stat_period_weekly")
+        case .monthly: return String(localized: "stat_period_monthly")
+        }
     }
 }
 

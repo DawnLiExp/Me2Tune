@@ -166,7 +166,7 @@ struct ControlSectionView: View {
                 .frame(width: 28, height: 28)
         }
         .buttonStyle(.plain)
-        .help(String(localized: repeatTooltip))
+        .help(repeatTooltip)
         .rotationEffect(.degrees(rotationAngle))
         .animation(.spring(response: 0.4, dampingFraction: 0.6), value: repeatMode)
     }
@@ -180,7 +180,7 @@ struct ControlSectionView: View {
         }
     }
 
-    private var repeatTooltip: String.LocalizationValue {
+    private var repeatTooltip: LocalizedStringKey {
         switch repeatMode {
         case .off:
             return "Repeat: Off"
