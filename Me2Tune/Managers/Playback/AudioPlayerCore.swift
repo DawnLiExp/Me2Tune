@@ -2,7 +2,7 @@
 //  AudioPlayerCore.swift
 //  Me2Tune
 //
-//  音频播放核心 - 纯播放逻辑（三档自适应刷新频率）+ 加载状态返回
+//  音频播放核心 - 纯播放逻辑 + 加载状态返回
 //
 
 import AppKit
@@ -32,7 +32,6 @@ final class AudioPlayerCore: NSObject {
     weak var delegate: (any AudioPlayerCoreDelegate)?
     
     private var player: AudioPlayer?
-    private var timer: DispatchSourceTimer?
     
     private(set) var isPlaying = false
     private(set) var currentTime: TimeInterval = 0
@@ -40,14 +39,8 @@ final class AudioPlayerCore: NSObject {
     private(set) var currentTrack: AudioTrack?
     private var queuedTracks: [AudioTrack] = []
     
-    private(set) var visibilityState: WindowStateMonitor.WindowVisibilityState = .activeFocused
-    
     private var audioBufferingEnabled: Bool {
         UserDefaults.standard.bool(forKey: "audioBufferingEnabled")
-    }
-    
-    private var shouldTimerRun: Bool {
-        return isPlaying
     }
     
     typealias RepeatMode = Me2Tune.RepeatMode
@@ -58,36 +51,6 @@ final class AudioPlayerCore: NSObject {
     override init() {
         super.init()
         logger.debug("AudioPlayerCore initialized")
-    }
-    
-    deinit {
-        timer?.cancel()
-        timer = nil
-    }
-    
-    // MARK: - Window Visibility
-    
-    func updateVisibilityState(_ state: WindowStateMonitor.WindowVisibilityState) {
-        logger.debug("🎯 AudioPlayerCore received state: \(state.description)")
-        
-        guard visibilityState != state else {
-            logger.debug("🎯 State unchanged, skipping")
-            return
-        }
-        
-        let oldState = visibilityState
-        visibilityState = state
-        
-        logger.debug("⚡ Visibility changed: \(oldState.description) -> \(state.description)")
-        let iv = String(format: "%.1f", state.updateInterval)
-        logger.debug("⚡ Update interval: \(iv)s")
-        
-        if shouldTimerRun {
-            logger.debug("⚡ Rebuilding timer with new interval")
-            startTimer()
-        } else {
-            logger.debug("⚡ Not playing, skipping timer rebuild")
-        }
     }
     
     // MARK: - Playback Control
@@ -102,7 +65,6 @@ final class AudioPlayerCore: NSObject {
             player.pause()
             isPlaying = false
         }
-        stopTimer()
         
         logger.info("Loading: \(track.title)")
         
@@ -203,7 +165,6 @@ final class AudioPlayerCore: NSObject {
         do {
             try player.play()
             isPlaying = true
-            startTimer()
             delegate?.playerCoreDidUpdatePlaybackState(true)
             logger.debug("▶️ Playback started")
         } catch {
@@ -218,7 +179,6 @@ final class AudioPlayerCore: NSObject {
         
         player.pause()
         isPlaying = false
-        stopTimer()
         delegate?.playerCoreDidUpdatePlaybackState(false)
         logger.debug("⏸ Playback paused")
     }
@@ -280,10 +240,9 @@ final class AudioPlayerCore: NSObject {
     }
     
     func prepareForTrackSwitch() {
-        stopTimer()
         currentTime = 0
         delegate?.playerCoreDidUpdateTime(currentTime: 0, duration: duration)
-        logger.debug("🧹 Prepared for track switch (timer stopped, progress reset)")
+        logger.debug("🧹 Prepared for track switch (progress reset)")
     }
     
     // MARK: - Private Methods
@@ -294,52 +253,6 @@ final class AudioPlayerCore: NSObject {
         player = AudioPlayer()
         player?.delegate = self
         logger.debug("Audio player initialized")
-    }
-    
-    private func startTimer() {
-        stopTimer()
-        
-        let interval = visibilityState.updateInterval
-        
-        let leeway: DispatchTimeInterval = switch visibilityState {
-        case .activeFocused:
-            .milliseconds(200)
-        case .inactive:
-            .milliseconds(300)
-        case .hidden, .miniHidden:
-            .milliseconds(1000)
-        case .miniVisible:
-            .milliseconds(200)
-        }
-        
-        let iv = String(format: "%.1f", interval)
-        logger.debug("⏱️ Creating timer for \(self.visibilityState.description), interval: \(iv)s")
-        
-        let newTimer = DispatchSource.makeTimerSource(queue: .main)
-        newTimer.schedule(
-            deadline: .now() + interval,
-            repeating: interval,
-            leeway: leeway
-        )
-        
-        newTimer.setEventHandler { [weak self] in
-            guard let self, let player = self.player else { return }
-            
-            self.currentTime = player.currentTime ?? 0
-            self.duration = player.totalTime ?? 0
-            self.delegate?.playerCoreDidUpdateTime(currentTime: self.currentTime, duration: self.duration)
-        }
-        
-        newTimer.resume()
-        timer = newTimer
-    }
-
-    private func stopTimer() {
-        if timer != nil {
-            logger.debug("⏱️ Stopping timer")
-        }
-        timer?.cancel()
-        timer = nil
     }
     
     func updateDockIcon(_ artwork: NSImage?) {

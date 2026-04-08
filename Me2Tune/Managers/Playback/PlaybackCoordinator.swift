@@ -49,6 +49,7 @@ final class PlaybackCoordinator {
     @ObservationIgnored private let failedTrackRegistry: FailedTrackRegistry
     @ObservationIgnored private let persistenceController: PlaybackPersistenceController
     @ObservationIgnored private let effectsController: PlaybackEffectsController
+    @ObservationIgnored private var progressController: PlaybackProgressController!
 
     @ObservationIgnored private var hasMarkedPlayCount = false
     @ObservationIgnored private var currentStatTrackId: UUID?
@@ -56,7 +57,7 @@ final class PlaybackCoordinator {
     @ObservationIgnored private var isWindowVisible = true
     @ObservationIgnored private var windowStateMonitor: WindowStateMonitor?
     @ObservationIgnored private lazy var progressTimeProvider: () -> TimeInterval = { [weak self] in
-        self?.playbackProgressState.currentTime ?? 0
+        self?.playerCore.getCurrentPlaybackTime() ?? 0
     }
 
     private let playCountThreshold: Double = 0.8
@@ -91,10 +92,26 @@ final class PlaybackCoordinator {
         )
 
         playerCore.delegate = self
+        self.progressController = PlaybackProgressController(
+            timeProvider: { [weak self] in
+                self?.playerCore.getCurrentPlaybackTime() ?? 0
+            },
+            tickHandler: { [weak self] time in
+                guard let self else { return }
+                self.playbackProgressState.currentTime = time
+                self.hasMarkedPlayCount = self.effectsController.handlePlaybackTimeUpdated(
+                    currentTime: time,
+                    duration: self.duration,
+                    playCountThreshold: self.playCountThreshold,
+                    hasMarkedPlayCount: self.hasMarkedPlayCount
+                )
+            }
+        )
         logger.debug("PlaybackCoordinator initialized")
     }
 
     deinit {
+        progressController.stopFromDeinit()
         persistenceController.cancelAllFromDeinit()
     }
 
@@ -250,16 +267,8 @@ final class PlaybackCoordinator {
 
     func injectWindowStateMonitor(_ monitor: WindowStateMonitor) {
         windowStateMonitor = monitor
+        handleWindowStateChanged(monitor.visibilityState)
         setupVisibilityObserver(monitor)
-    }
-
-    func updateWindowVisibility(_ state: WindowStateMonitor.WindowVisibilityState) {
-        playerCore.updateVisibilityState(state)
-
-        isWindowVisible = (state == .activeFocused || state == .inactive)
-        effectsController.handleWindowVisibilityChange(isVisible: state == .activeFocused, isPlaying: isPlaying)
-
-        logger.debug("Coordinator visibility: \(state.description)")
     }
 
     @discardableResult
@@ -330,12 +339,19 @@ final class PlaybackCoordinator {
     private func setupVisibilityObserver(_ monitor: WindowStateMonitor) {
         withObservationTracking {
             let state = monitor.visibilityState
-            playerCore.updateVisibilityState(state)
+            handleWindowStateChanged(state)
         } onChange: { [weak self] in
             Task { @MainActor in
                 self?.setupVisibilityObserver(monitor)
             }
         }
+    }
+
+    private func handleWindowStateChanged(_ state: WindowStateMonitor.WindowVisibilityState) {
+        isWindowVisible = (state == .activeFocused || state == .inactive)
+        progressController.updateVisibilityState(state)
+        effectsController.handleWindowVisibilityChange(isVisible: state == .activeFocused, isPlaying: isPlaying)
+        logger.debug("Coordinator visibility: \(state.description)")
     }
 
     private func loadTrack(_ track: AudioTrack) async -> Bool {
@@ -457,6 +473,7 @@ final class PlaybackCoordinator {
 extension PlaybackCoordinator: AudioPlayerCoreDelegate {
     func playerCoreDidUpdatePlaybackState(_ isPlaying: Bool) {
         self.isPlaying = isPlaying
+        progressController.updatePlaybackState(isPlaying: isPlaying)
 
         effectsController.handlePlaybackStateChanged(
             isPlaying: isPlaying,
@@ -475,13 +492,9 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
 
     func playerCoreDidUpdateTime(currentTime: TimeInterval, duration: TimeInterval) {
         playbackProgressState.currentTime = currentTime
-
-        hasMarkedPlayCount = effectsController.handlePlaybackTimeUpdated(
-            currentTime: currentTime,
-            duration: duration,
-            playCountThreshold: playCountThreshold,
-            hasMarkedPlayCount: hasMarkedPlayCount
-        )
+        if duration > 0 {
+            self.duration = duration
+        }
     }
 
     func playerCoreDidLoadTrack(_ track: AudioTrack, artwork: NSImage?) {

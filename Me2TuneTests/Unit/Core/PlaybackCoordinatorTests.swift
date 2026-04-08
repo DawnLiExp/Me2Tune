@@ -238,7 +238,5 @@ private final class MockAudioPlayerCore: AudioPlayerCoreProtocol {
         currentTime
     }
 
-    func updateVisibilityState(_ state: WindowStateMonitor.WindowVisibilityState) {}
-
     func updateDockIcon(_ artwork: NSImage?) {}
 }

@@ -23,6 +23,5 @@ protocol AudioPlayerCoreProtocol: AnyObject {
     func setVolume(_ volume: Double)
     func prepareForTrackSwitch()
     func getCurrentPlaybackTime() -> TimeInterval
-    func updateVisibilityState(_ state: WindowStateMonitor.WindowVisibilityState)
     func updateDockIcon(_ artwork: NSImage?)
 }

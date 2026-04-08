@@ -143,10 +143,6 @@ final class PlayerViewModel {
         coordinator.toggleRepeatMode()
     }
 
-    func updateWindowVisibility(_ state: WindowStateMonitor.WindowVisibilityState) {
-        coordinator.updateWindowVisibility(state)
-    }
-
     func addTracksToPlaylist(urls: [URL]) {
         Task { @MainActor [weak self] in
             guard let self else { return }
