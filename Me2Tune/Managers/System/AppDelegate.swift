@@ -225,7 +225,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         fullModeWindow?.orderOut(nil)
         
         windowStateMonitor?.forceSetState(.miniVisible)
-        playerViewModel.updateWindowVisibility(.miniVisible)
         
         if miniWindowController == nil {
             miniWindowController = MiniWindowController(

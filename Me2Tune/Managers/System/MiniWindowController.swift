@@ -47,9 +47,10 @@ final class MiniWindowController {
     // MARK: - Private Methods
     
     private func createPanel() {
+        let monitor = windowStateMonitor ?? WindowStateMonitor()
         let contentView = MiniPlayerView()
             .environment(playerViewModel) // ✅ 使用 .environment()
-            .environment(\.playbackProgressState, playerViewModel.playbackProgressState)
+            .environment(monitor)
         
         let hostingView = NSHostingView(rootView: contentView)
         hostingView.frame = NSRect(x: 0, y: 0, width: 440, height: 78)

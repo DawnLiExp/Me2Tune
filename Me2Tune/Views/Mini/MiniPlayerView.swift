@@ -9,10 +9,12 @@ import SwiftUI
 
 struct MiniPlayerView: View {
     @Environment(PlayerViewModel.self) private var playerViewModel
-    @Environment(\.playbackProgressState) private var playbackProgressState
+    @Environment(WindowStateMonitor.self) private var windowStateMonitor
     @AppStorage("displayMode") private var displayMode = DisplayMode.full.rawValue
     
     private let miniTheme = MiniPlayerTheme()
+    @State private var miniCurrentTime: TimeInterval = 0
+    @State private var miniTimePollingTask: Task<Void, Never>?
     
     var body: some View {
         ZStack {
@@ -27,6 +29,23 @@ struct MiniPlayerView: View {
             Toggle(isOn: $settings.miniAlwaysOnTop) {
                 Label(String(localized: "always_on_top"), systemImage: "pin.fill")
             }
+        }
+        .onAppear {
+            refreshMiniCurrentTime()
+            rebuildMiniTimePollingIfNeeded()
+        }
+        .onDisappear {
+            stopMiniTimePolling()
+        }
+        .onChange(of: playerViewModel.isPlaying) { _, _ in
+            rebuildMiniTimePollingIfNeeded()
+        }
+        .onChange(of: playerViewModel.currentTrack?.id) { _, _ in
+            refreshMiniCurrentTime()
+            rebuildMiniTimePollingIfNeeded()
+        }
+        .onChange(of: windowStateMonitor.visibilityState) { _, _ in
+            rebuildMiniTimePollingIfNeeded()
         }
     }
     
@@ -110,7 +129,7 @@ struct MiniPlayerView: View {
     }
     
     private var remainingTimeString: String {
-        let remaining = max(0, playerViewModel.duration - playbackProgressState.currentTime)
+        let remaining = max(0, playerViewModel.duration - miniCurrentTime)
         guard remaining.isFinite, !remaining.isNaN else { return "-0:00" }
         let minutes = Int(remaining) / 60
         let seconds = Int(remaining) % 60
@@ -266,13 +285,65 @@ struct MiniPlayerView: View {
     private func switchToFullMode() {
         displayMode = DisplayMode.full.rawValue
     }
+
+    private var shouldPollMiniTime: Bool {
+        windowStateMonitor.visibilityState == .miniVisible
+        && playerViewModel.isPlaying
+        && playerViewModel.currentTrack != nil
+    }
+
+    private func rebuildMiniTimePollingIfNeeded() {
+        if shouldPollMiniTime {
+            if miniTimePollingTask == nil {
+                startMiniTimePolling()
+            }
+            return
+        }
+
+        stopMiniTimePolling()
+        if playerViewModel.currentTrack == nil {
+            miniCurrentTime = 0
+        }
+    }
+
+    private func startMiniTimePolling() {
+        stopMiniTimePolling()
+        refreshMiniCurrentTime()
+
+        miniTimePollingTask = Task { @MainActor in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1), clock: .continuous)
+                guard !Task.isCancelled else { break }
+                guard shouldPollMiniTime else { break }
+                refreshMiniCurrentTime()
+            }
+
+            miniTimePollingTask = nil
+        }
+    }
+
+    private func stopMiniTimePolling() {
+        miniTimePollingTask?.cancel()
+        miniTimePollingTask = nil
+    }
+
+    private func refreshMiniCurrentTime() {
+        guard playerViewModel.currentTrack != nil else {
+            miniCurrentTime = 0
+            return
+        }
+
+        miniCurrentTime = playerViewModel.getCurrentPlaybackTime()
+    }
 }
 
 #Preview {
     let collectionManager = CollectionManager()
     let coordinator = PlaybackCoordinator(collectionManager: collectionManager)
     let playerViewModel = PlayerViewModel(coordinator: coordinator)
+    let windowStateMonitor = WindowStateMonitor()
 
     MiniPlayerView()
         .environment(playerViewModel)
+        .environment(windowStateMonitor)
 }
