@@ -183,9 +183,13 @@ final class DataService: DataServiceProtocol {
 
     // MARK: - Playback State Operations
 
-    func getOrCreatePlaybackState() -> SDPlaybackState {
+    func fetchPlaybackStateIfExists() -> SDPlaybackState? {
         let descriptor = FetchDescriptor<SDPlaybackState>()
-        if let existing = try? modelContext.fetch(descriptor).first {
+        return try? modelContext.fetch(descriptor).first
+    }
+
+    func getOrCreatePlaybackState() -> SDPlaybackState {
+        if let existing = fetchPlaybackStateIfExists() {
             return existing
         }
         let state = SDPlaybackState()

@@ -14,27 +14,26 @@ import Testing
 struct PlaybackPersistenceControllerTests {
     @Test("scheduleSave 去抖只执行最后一次")
     func testScheduleSaveDebounce() async {
-        var savedVolumes: [Double?] = []
+        var saveCount = 0
 
         let controller = PlaybackPersistenceController(
             saveDebounce: .milliseconds(40),
             volumeDebounce: .milliseconds(20),
-            periodicInterval: .milliseconds(50),
-            saveHandler: { volume in
-                savedVolumes.append(volume)
+            saveHandler: {
+                saveCount += 1
             },
             volumeApplyHandler: { _ in }
         )
 
-        controller.scheduleSave(volume: 0.1)
-        controller.scheduleSave(volume: 0.9)
+        controller.scheduleSave()
+        controller.scheduleSave()
 
         let didSave = await waitUntil {
-            !savedVolumes.isEmpty
+            saveCount > 0
         }
 
         #expect(didSave)
-        #expect(savedVolumes.last == 0.9)
+        #expect(saveCount == 1)
     }
 
     @Test("scheduleVolumeApply 去抖只应用最后一次")
@@ -44,8 +43,7 @@ struct PlaybackPersistenceControllerTests {
         let controller = PlaybackPersistenceController(
             saveDebounce: .milliseconds(20),
             volumeDebounce: .milliseconds(40),
-            periodicInterval: .milliseconds(50),
-            saveHandler: { _ in },
+            saveHandler: {},
             volumeApplyHandler: { volume in
                 appliedVolumes.append(volume)
             }
@@ -60,32 +58,6 @@ struct PlaybackPersistenceControllerTests {
 
         #expect(didApply)
         #expect(appliedVolumes.last == 0.6)
-    }
-
-    @Test("start/stopPeriodicSave 按周期执行并可停止")
-    func testPeriodicStartStop() async {
-        var savedVolumes: [Double?] = []
-
-        let controller = PlaybackPersistenceController(
-            saveDebounce: .milliseconds(20),
-            volumeDebounce: .milliseconds(20),
-            periodicInterval: .milliseconds(30),
-            saveHandler: { current in
-                savedVolumes.append(current)
-            },
-            volumeApplyHandler: { _ in }
-        )
-
-        controller.startPeriodicSave { 0.3 }
-        let hasPeriodicTick = await waitUntil {
-            !savedVolumes.isEmpty
-        }
-        #expect(hasPeriodicTick)
-
-        controller.stopPeriodicSave()
-        let countAfterStop = savedVolumes.count
-        try? await Task.sleep(for: .milliseconds(200))
-        #expect(savedVolumes.count <= countAfterStop + 1)
     }
 
     private func waitUntil(

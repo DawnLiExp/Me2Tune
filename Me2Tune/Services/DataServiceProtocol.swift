@@ -36,5 +36,6 @@ protocol DataServiceProtocol {
     
     // MARK: - Playback State Operations
     
+    func fetchPlaybackStateIfExists() -> SDPlaybackState?
     func getOrCreatePlaybackState() -> SDPlaybackState
 }

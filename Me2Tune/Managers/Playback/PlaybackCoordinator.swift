@@ -81,14 +81,18 @@ final class PlaybackCoordinator {
         self.effectsController = PlaybackEffectsController(statisticsManager: statisticsManager)
 
         let playbackStateManager = self.playbackStateManager
+        var volumeProvider: @MainActor () -> Double = { 0.7 }
         self.persistenceController = PlaybackPersistenceController(
-            saveHandler: { [weak playbackStateManager] volume in
-                playbackStateManager?.saveState(volume: volume)
+            saveHandler: { [weak playbackStateManager] in
+                playbackStateManager?.saveState(volume: volumeProvider())
             },
             volumeApplyHandler: { [weak playerCore] volume in
                 playerCore?.setVolume(volume)
             }
         )
+        volumeProvider = { [weak self] in
+            self?.volume ?? 0.7
+        }
 
         playerCore.delegate = self
         self.progressController = PlaybackProgressController(
@@ -131,14 +135,11 @@ final class PlaybackCoordinator {
 
     func pause() {
         playerCore.pause()
-        persistenceController.scheduleSave(volume: volume)
     }
 
     func seek(to time: TimeInterval) {
         playerCore.seek(to: time)
         effectsController.handleSeek(to: time)
-
-        persistenceController.scheduleSave(volume: volume)
     }
 
     func toggleRepeatMode() {
@@ -197,6 +198,7 @@ final class PlaybackCoordinator {
         guard playlistManager.tracks.indices.contains(index) else { return }
 
         playbackStateManager.switchToPlaylist()
+        persistenceController.scheduleSave()
         let track = playlistManager.tracks[index]
         retryIfFailed(track)
         loadAndPlay(at: index)
@@ -210,6 +212,7 @@ final class PlaybackCoordinator {
         guard album.tracks.indices.contains(index) else { return }
 
         playbackStateManager.switchToAlbum(album)
+        persistenceController.scheduleSave()
         let track = album.tracks[index]
         retryIfFailed(track)
         loadAndPlay(at: index)
@@ -233,7 +236,9 @@ final class PlaybackCoordinator {
 
         playlistManager.removeTrack(at: index)
         playbackStateManager.handlePlaylistTrackRemoved(removedTrackID: removedTrack.id, wasPlaying: wasPlaying)
-        persistenceController.scheduleSave(volume: volume)
+        if wasPlaying {
+            persistenceController.scheduleSave()
+        }
 
         if playlistManager.isEmpty, playbackStateManager.playingSource == .playlist {
             effectsController.disableRemoteCommands()
@@ -242,7 +247,9 @@ final class PlaybackCoordinator {
     }
 
     func clearPlaylist() {
-        if playbackStateManager.playingSource == .playlist {
+        let isClearingCurrentSource = (playbackStateManager.playingSource == .playlist)
+
+        if isClearingCurrentSource {
             pause()
         }
 
@@ -250,18 +257,16 @@ final class PlaybackCoordinator {
         playbackStateManager.handlePlaylistCleared()
         failedTrackRegistry.pruneStale(keeping: Set(playbackStateManager.currentTracks.map(\.id)))
 
-        if playbackStateManager.playingSource == .playlist {
+        if isClearingCurrentSource {
             effectsController.disableRemoteCommands()
             effectsController.clearNowPlayingInfo()
+            persistenceController.scheduleSave()
         }
-
-        persistenceController.scheduleSave(volume: volume)
     }
 
     func moveTrackInPlaylist(from source: Int, to destination: Int) {
         playlistManager.moveTrack(from: source, to: destination)
         playbackStateManager.handlePlaylistTrackMoved(from: source, to: destination)
-        persistenceController.scheduleSave(volume: volume)
     }
 
     func injectWindowStateMonitor(_ monitor: WindowStateMonitor) {
@@ -392,7 +397,7 @@ final class PlaybackCoordinator {
 
             self.playbackStateManager.setCurrentIndex(index)
             self.playerCore.play()
-            self.persistenceController.scheduleSave(volume: self.volume)
+            self.persistenceController.scheduleSave()
         }
     }
 
@@ -476,14 +481,6 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
             isPlaying: isPlaying,
             currentTimeProvider: progressTimeProvider
         )
-
-        if isPlaying {
-            persistenceController.startPeriodicSave { [weak self] in
-                self?.volume ?? 0.7
-            }
-        } else {
-            persistenceController.stopPeriodicSave()
-        }
     }
 
     func playerCoreDidUpdateTime(currentTime: TimeInterval, duration: TimeInterval) {
@@ -530,7 +527,7 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
 
                 if idChanged {
                     self.playbackProgressState.currentTime = 0
-                    self.persistenceController.scheduleSave(volume: self.volume)
+                    self.persistenceController.scheduleSave()
                 }
             }
         } else {
