@@ -11,12 +11,19 @@ import OSLog
 
 private let logger = Logger.viewModel
 
+// MARK: - Playlist Entry
+
+private struct PlaylistEntry {
+    var track: AudioTrack
+    let sdTrack: SDTrack
+}
+
 @MainActor
 @Observable
 final class PlaylistManager {
     // MARK: - Published States
 
-    private(set) var tracks: [AudioTrack] = []
+    private var entries: [PlaylistEntry] = []
     private(set) var isLoading = false
     private(set) var loadingCount = 0
 
@@ -24,17 +31,18 @@ final class PlaylistManager {
 
     private let dataService: DataServiceProtocol
 
-    // In-memory index: UUID → SDTrack for fast lookup during drag operations
-    private var trackIndex: [UUID: SDTrack] = [:]
-
     // MARK: - Computed Properties
 
+    var tracks: [AudioTrack] {
+        entries.map(\.track)
+    }
+
     var isEmpty: Bool {
-        tracks.isEmpty
+        entries.isEmpty
     }
 
     var count: Int {
-        tracks.count
+        entries.count
     }
 
     // MARK: - Initialization
@@ -48,11 +56,11 @@ final class PlaylistManager {
     // MARK: - Public Methods - Query
 
     func track(at index: Int) -> AudioTrack? {
-        tracks.indices.contains(index) ? tracks[index] : nil
+        entries.indices.contains(index) ? entries[index].track : nil
     }
 
     func index(of track: AudioTrack) -> Int? {
-        tracks.firstIndex(where: { $0.id == track.id })
+        entries.firstIndex(where: { $0.track.id == track.id })
     }
 
     // MARK: - Public Methods - Add
@@ -76,7 +84,8 @@ final class PlaylistManager {
         logger.info("Adding \(sortedURLs.count) tracks")
 
         let newDTOTracks = await loadTracksFromURLs(sortedURLs)
-        let maxOrder = tracks.count
+        let baseOrder = entries.count
+        var newEntries: [PlaylistEntry] = []
 
         for (offset, dto) in newDTOTracks.enumerated() {
             let sdTrack: SDTrack
@@ -87,9 +96,8 @@ final class PlaylistManager {
                 dataService.insert(sdTrack)
             }
             sdTrack.isInPlaylist = true
-            sdTrack.playlistOrder = maxOrder + offset
-
-            updateTrackIndex(sdTrack)
+            sdTrack.playlistOrder = baseOrder + offset
+            newEntries.append(PlaylistEntry(track: sdTrack.toAudioTrack(), sdTrack: sdTrack))
         }
 
         do {
@@ -98,96 +106,77 @@ final class PlaylistManager {
             logger.logError(error, context: "addTracks")
         }
 
-        // Directly append to memory, avoid full reload
-        tracks.append(contentsOf: newDTOTracks)
+        entries.append(contentsOf: newEntries)
 
         isLoading = false
         loadingCount = 0
 
         let elapsed = CFAbsoluteTimeGetCurrent() - startTime
-        logger.logPerformance("Add \(newDTOTracks.count) tracks", duration: elapsed)
+        logger.logPerformance("Add \(newEntries.count) tracks", duration: elapsed)
     }
 
     // MARK: - Public Methods - Remove
 
     func removeTrack(at index: Int) {
-        guard tracks.indices.contains(index) else { return }
+        guard entries.indices.contains(index) else { return }
 
-        let track = tracks.remove(at: index)
+        let entry = entries.remove(at: index)
+        let sdTrack = entry.sdTrack
+        sdTrack.isInPlaylist = false
+        sdTrack.playlistOrder = nil
 
-        if let sdTrack = trackIndex[track.id] ?? dataService.findTrack(byURL: track.url.absoluteString) {
-            sdTrack.isInPlaylist = false
-            sdTrack.playlistOrder = nil
-
-            if sdTrack.albumEntries.isEmpty {
-                dataService.delete(sdTrack)
-                removeTrackIndex(for: track.id)
-            }
+        if sdTrack.albumEntries.isEmpty {
+            dataService.delete(sdTrack)
         }
 
-        reindexPlaylistOrdersOptimized(removedAt: index)
+        for i in index ..< entries.count {
+            entries[i].sdTrack.playlistOrder = i
+        }
 
         try? dataService.save()
     }
 
     func clearAll() {
-        do {
-            let sdTracks = try dataService.fetchPlaylistTracks()
-            for sdTrack in sdTracks {
-                sdTrack.isInPlaylist = false
-                sdTrack.playlistOrder = nil
-                if sdTrack.albumEntries.isEmpty {
-                    dataService.delete(sdTrack)
-                }
+        for entry in entries {
+            let sdTrack = entry.sdTrack
+            sdTrack.isInPlaylist = false
+            sdTrack.playlistOrder = nil
+            if sdTrack.albumEntries.isEmpty {
+                dataService.delete(sdTrack)
             }
+        }
+
+        do {
             try dataService.save()
         } catch {
             logger.logError(error, context: "clearAll")
         }
 
-        tracks.removeAll()
-        clearTrackIndex()
+        entries.removeAll()
         logger.info("🗑️ Cleared playlist")
     }
 
     // MARK: - Public Methods - Reorder
 
     func moveTrack(from source: Int, to destination: Int) {
-        guard tracks.indices.contains(source),
-              tracks.indices.contains(destination),
+        guard entries.indices.contains(source),
+              entries.indices.contains(destination),
               source != destination
         else {
             return
         }
 
-        let movedTrack = tracks.remove(at: source)
-        tracks.insert(movedTrack, at: destination)
+        let movedEntry = entries.remove(at: source)
+        entries.insert(movedEntry, at: destination)
 
-        reindexPlaylistOrdersOptimized(movedFrom: source, to: destination)
+        let start = min(source, destination)
+        let end = max(source, destination)
+        for i in start ... end {
+            entries[i].sdTrack.playlistOrder = i
+        }
 
         try? dataService.save()
         logger.debug("Moved track from \(source) to \(destination)")
-    }
-
-    // MARK: - Index Management
-
-    private func updateTrackIndex(_ sdTrack: SDTrack) {
-        trackIndex[sdTrack.stableId] = sdTrack
-    }
-
-    private func removeTrackIndex(for id: UUID) {
-        trackIndex.removeValue(forKey: id)
-    }
-
-    private func rebuildTrackIndex(from sdTracks: [SDTrack]) {
-        trackIndex.removeAll(keepingCapacity: true)
-        for sdTrack in sdTracks {
-            trackIndex[sdTrack.stableId] = sdTrack
-        }
-    }
-
-    private func clearTrackIndex() {
-        trackIndex.removeAll()
     }
 
     // MARK: - Private Methods - Persistence
@@ -195,34 +184,10 @@ final class PlaylistManager {
     private func loadPlaylistContent() {
         do {
             let sdTracks = try dataService.fetchPlaylistTracks()
-            rebuildTrackIndex(from: sdTracks)
-            tracks = sdTracks.map { $0.toAudioTrack() }
+            entries = sdTracks.map { PlaylistEntry(track: $0.toAudioTrack(), sdTrack: $0) }
             logger.info("📋 Loaded \(sdTracks.count) playlist tracks")
         } catch {
             logger.notice("No saved playlist content found")
-        }
-    }
-
-    // Only update affected range after deletion
-    private func reindexPlaylistOrdersOptimized(removedAt removedIndex: Int) {
-        for i in removedIndex ..< tracks.count {
-            let trackId = tracks[i].id
-            if let sdTrack = trackIndex[trackId] {
-                sdTrack.playlistOrder = i
-            }
-        }
-    }
-
-    // Only update affected range during drag
-    private func reindexPlaylistOrdersOptimized(movedFrom source: Int, to destination: Int) {
-        let start = min(source, destination)
-        let end = max(source, destination)
-
-        for i in start ... end {
-            let trackId = tracks[i].id
-            if let sdTrack = trackIndex[trackId] {
-                sdTrack.playlistOrder = i
-            }
         }
     }
 

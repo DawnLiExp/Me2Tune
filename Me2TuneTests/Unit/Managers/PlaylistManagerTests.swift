@@ -188,6 +188,39 @@ struct PlaylistManagerTests {
 extension PlaylistManagerTests {
     // MARK: - Add Tests
 
+    @Test("复用已有 SDTrack 时保持 stableId 并支持重排持久化")
+    func testReuseExistingTrackKeepsStableIDAndReorderPersists() async throws {
+        let dataService = try createTestDataService()
+
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let existingFile = tempDir.appendingPathComponent("a_existing.mp3")
+        let newFile = tempDir.appendingPathComponent("b_new.mp3")
+        try "dummy".write(to: existingFile, atomically: true, encoding: .utf8)
+        try "dummy".write(to: newFile, atomically: true, encoding: .utf8)
+
+        let existingTrack = SDTrack.makeSample(
+            title: "Existing",
+            urlString: existingFile.absoluteString
+        )
+        dataService.insert(existingTrack)
+        try dataService.save()
+
+        let manager = PlaylistManager(dataService: dataService)
+        await manager.addTracks(urls: [existingFile, newFile])
+
+        #expect(manager.count == 2)
+        #expect(manager.tracks[0].id == existingTrack.stableId, "Reused SDTrack must project stableId to AudioTrack.id")
+
+        manager.moveTrack(from: 0, to: 1)
+
+        let playlistTracks = try dataService.fetchPlaylistTracks()
+        let persistedExisting = playlistTracks.first(where: { $0.stableId == existingTrack.stableId })
+        #expect(persistedExisting?.playlistOrder == 1)
+    }
+
     @Test("添加曲目")
     func testAddTracks() async throws {
         let (manager, dataService) = try setup()
