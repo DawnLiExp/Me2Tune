@@ -493,45 +493,23 @@ struct PlaybackStateManagerTests {
         #expect(restored?.volume == 0.8)
     }
 
-    @Test("恢复状态 - SessionStore 优先于 Legacy")
-    func testRestoreStateSessionStorePrecedesLegacy() async throws {
+    @Test("恢复状态 - SessionStore 无快照")
+    func testRestoreStateNoSnapshot() async throws {
         let dataService = try createTestDataService()
-
-        for i in 0..<3 {
-            let track = SDTrack.makeSample(title: "Track \(i)", urlString: "file:///priority/\(i).mp3")
-            track.isInPlaylist = true
-            track.playlistOrder = i
-            dataService.insert(track)
-        }
-        try dataService.save()
-
         let playlistManager = PlaylistManager(dataService: dataService)
+        let collectionManager = CollectionManager(dataService: dataService)
         let sessionStore = makeSessionStore()
-        sessionStore.save(
-            PlaybackSessionSnapshot(
-                sourceKind: .playlist,
-                currentTrackID: playlistManager.tracks[2].id,
-                albumID: nil,
-                volume: 0.81
-            )
-        )
-
-        let sdState = dataService.getOrCreatePlaybackState()
-        sdState.playingSourceType = SDPlaybackState.sourcePlaylist
-        sdState.playlistCurrentIndex = 0
-        sdState.volume = 0.33
-        try dataService.save()
-
         let manager = PlaybackStateManager(
             playlistManager: playlistManager,
-            collectionManager: nil,
+            collectionManager: collectionManager,
             dataService: dataService,
             sessionStore: sessionStore
         )
 
         let restored = await manager.restoreState()
-        #expect(restored?.trackIndex == 2)
-        #expect(restored?.volume == 0.81)
+        #expect(restored == nil)
+        #expect(manager.playingSource == .playlist)
+        #expect(manager.currentTrackIndex == nil)
     }
 
     @Test("恢复状态 - 专辑不存在时回退播放列表")
@@ -561,115 +539,4 @@ struct PlaybackStateManagerTests {
         #expect(manager.playingSource == .playlist)
     }
 
-    @Test("恢复状态 - Legacy 播放列表导入")
-    func testRestoreLegacyPlaylistImport() async throws {
-        let dataService = try createTestDataService()
-
-        for i in 0..<3 {
-            let track = SDTrack.makeSample(title: "Track \(i)", urlString: "file:///legacy/\(i).mp3")
-            track.isInPlaylist = true
-            track.playlistOrder = i
-            dataService.insert(track)
-        }
-
-        let sdState = dataService.getOrCreatePlaybackState()
-        sdState.playingSourceType = SDPlaybackState.sourcePlaylist
-        sdState.playlistCurrentIndex = 1
-        sdState.volume = 0.66
-        try dataService.save()
-
-        let playlistManager = PlaylistManager(dataService: dataService)
-        let sessionStore = makeSessionStore()
-        let manager = PlaybackStateManager(
-            playlistManager: playlistManager,
-            collectionManager: nil,
-            dataService: dataService,
-            sessionStore: sessionStore
-        )
-
-        let restored = await manager.restoreState()
-        #expect(restored?.source == .playlist)
-        #expect(restored?.trackIndex == 1)
-        #expect(restored?.volume == 0.66)
-        #expect(sessionStore.load()?.currentTrackID == playlistManager.tracks[1].id)
-    }
-
-    @Test("恢复状态 - Legacy 专辑导入（folderURL）")
-    func testRestoreLegacyAlbumImportByFolderURL() async throws {
-        let dataService = try createTestDataService()
-        let playlistManager = PlaylistManager(dataService: dataService)
-        let collectionManager = CollectionManager(dataService: dataService)
-        let (album, sdAlbum) = createTestAlbum(name: "LegacyAlbum", trackCount: 3, dataService: dataService)
-
-        let sdState = dataService.getOrCreatePlaybackState()
-        sdState.playingSourceType = SDPlaybackState.sourceAlbum
-        sdState.playingSourceAlbumURLString = sdAlbum.folderURLString
-        sdState.albumCurrentIndex = 2
-        sdState.volume = 0.55
-        try dataService.save()
-
-        let sessionStore = makeSessionStore()
-        let manager = PlaybackStateManager(
-            playlistManager: playlistManager,
-            collectionManager: collectionManager,
-            dataService: dataService,
-            sessionStore: sessionStore
-        )
-
-        let restored = await manager.restoreState()
-        #expect(restored != nil)
-        #expect(restored?.trackIndex == 2)
-        #expect(restored?.volume == 0.55)
-        if case .album(let albumID) = restored?.source {
-            #expect(albumID == album.id)
-        } else {
-            Issue.record("Expected album source")
-        }
-    }
-
-    @Test("恢复状态 - Legacy 专辑导入（名称回退）")
-    func testRestoreLegacyAlbumImportByNameFallback() async throws {
-        let dataService = try createTestDataService()
-
-        let sdAlbum = SDAlbum(
-            name: "Name Only Album",
-            folderURLString: nil,
-            displayOrder: 0
-        )
-        dataService.insert(sdAlbum)
-        for i in 0..<2 {
-            let track = SDTrack.makeSample(
-                title: "Track \(i)",
-                urlString: "file:///name-only/\(i).mp3"
-            )
-            dataService.insert(track)
-            dataService.insert(SDAlbumTrackEntry(trackOrder: i, album: sdAlbum, track: track))
-        }
-
-        let sdState = dataService.getOrCreatePlaybackState()
-        sdState.playingSourceType = SDPlaybackState.sourceAlbum
-        sdState.playingSourceAlbumURLString = sdAlbum.name
-        sdState.albumCurrentIndex = 1
-        sdState.volume = 0.7
-        try dataService.save()
-
-        let playlistManager = PlaylistManager(dataService: dataService)
-        let collectionManager = CollectionManager(dataService: dataService)
-        let sessionStore = makeSessionStore()
-        let manager = PlaybackStateManager(
-            playlistManager: playlistManager,
-            collectionManager: collectionManager,
-            dataService: dataService,
-            sessionStore: sessionStore
-        )
-
-        let restored = await manager.restoreState()
-        #expect(restored != nil)
-        #expect(restored?.trackIndex == 1)
-        if case .album(let albumID) = restored?.source {
-            #expect(albumID == sdAlbum.stableId)
-        } else {
-            Issue.record("Expected album source")
-        }
-    }
 }

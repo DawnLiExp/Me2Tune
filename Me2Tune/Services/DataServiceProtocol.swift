@@ -34,8 +34,4 @@ protocol DataServiceProtocol {
     func findAlbum(byStableId id: UUID) -> SDAlbum?
     func albumCount() throws(AppError) -> Int
     
-    // MARK: - Playback State Operations
-    
-    func fetchPlaybackStateIfExists() -> SDPlaybackState?
-    func getOrCreatePlaybackState() -> SDPlaybackState
 }

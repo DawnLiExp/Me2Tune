@@ -163,43 +163,6 @@ struct DataServiceTests {
         #expect(count == 3)
     }
     
-    // MARK: - PlaybackState 操作测试
-    
-    @Test("获取或创建播放状态（首次）")
-    func testGetOrCreatePlaybackStateFirst() throws {
-        // Arrange
-        let dataService = try createTestDataService()
-        
-        // Act
-        let state = dataService.getOrCreatePlaybackState()
-        
-        // Assert - 验证返回的状态对象具有正确的默认值
-        #expect(state.isSingleton == true)
-        
-        // 验证确实保存到数据库
-        let descriptor = FetchDescriptor<SDPlaybackState>()
-        let states = try dataService.fetch(descriptor)
-        #expect(states.count == 1)
-    }
-    
-    @Test("获取或创建播放状态（重复调用返回同一个）")
-    func testGetOrCreatePlaybackStateExisting() throws {
-        // Arrange
-        let dataService = try createTestDataService()
-        
-        // Act - 两次调用
-        let state1 = dataService.getOrCreatePlaybackState()
-        let state2 = dataService.getOrCreatePlaybackState()
-        
-        // Assert - 应该是同一个实例
-        #expect(state1 === state2)
-        
-        // 数据库中仍然只有一条记录
-        let descriptor = FetchDescriptor<SDPlaybackState>()
-        let states = try dataService.fetch(descriptor)
-        #expect(states.count == 1)
-    }
-    
     // MARK: - Generic CRUD 测试
     
     @Test("删除模型")

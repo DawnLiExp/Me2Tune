@@ -180,20 +180,4 @@ final class DataService: DataServiceProtocol {
             throw AppError.swiftDataFailed(underlying: error)
         }
     }
-
-    // MARK: - Playback State Operations
-
-    func fetchPlaybackStateIfExists() -> SDPlaybackState? {
-        let descriptor = FetchDescriptor<SDPlaybackState>()
-        return try? modelContext.fetch(descriptor).first
-    }
-
-    func getOrCreatePlaybackState() -> SDPlaybackState {
-        if let existing = fetchPlaybackStateIfExists() {
-            return existing
-        }
-        let state = SDPlaybackState()
-        modelContext.insert(state)
-        return state
-    }
 }

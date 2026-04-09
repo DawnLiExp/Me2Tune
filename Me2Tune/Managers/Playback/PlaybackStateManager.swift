@@ -30,7 +30,6 @@ final class PlaybackStateManager {
 
     // MARK: - Private Properties
 
-    private let dataService: DataServiceProtocol
     private let sessionStore: PlaybackSessionStore
     private weak var playlistManager: PlaylistManager?
     private weak var collectionManager: CollectionManager?
@@ -73,12 +72,11 @@ final class PlaybackStateManager {
     init(
         playlistManager: PlaylistManager,
         collectionManager: CollectionManager?,
-        dataService: DataServiceProtocol = DataService.shared,
+        dataService _: DataServiceProtocol = DataService.shared,
         sessionStore: PlaybackSessionStore = PlaybackSessionStore()
     ) {
         self.playlistManager = playlistManager
         self.collectionManager = collectionManager
-        self.dataService = dataService
         self.sessionStore = sessionStore
 
         logger.debug("✅ PlaybackStateManager initialized")
@@ -180,23 +178,8 @@ final class PlaybackStateManager {
             }
             return restored
         }
-
-        guard let playlistManager else { return nil }
-        let importer = LegacyPlaybackStateImporter(dataService: dataService)
-        guard let legacySnapshot = await importer.importIfNeeded(
-            playlistManager: playlistManager,
-            collectionManager: collectionManager
-        ) else {
-            logger.notice("No saved playback state found")
-            return nil
-        }
-
-        sessionStore.save(legacySnapshot)
-        let restored = await restore(from: legacySnapshot)
-        if restored != nil {
-            lastSavedSnapshot = legacySnapshot
-        }
-        return restored
+        logger.notice("No saved playback state found")
+        return nil
     }
 
     // MARK: - Private Helpers
