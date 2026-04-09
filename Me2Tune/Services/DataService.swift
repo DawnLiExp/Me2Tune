@@ -17,6 +17,17 @@ final class DataService: DataServiceProtocol {
 
     static let shared = DataService()
 
+    // MARK: - Migration Telemetry
+
+    private static let currentSchemaVersion = "2.0.0"
+    private static let migrationFromSchemaVersion = "1.0.0"
+    private static let migrationToSchemaVersion = "2.0.0"
+
+    private static let v1ToV2MigrationCompletedKey = "migration.v1_to_v2.completed"
+    private static let v1ToV2MigrationCompletedAtKey = "migration.v1_to_v2.completedAt"
+    private static let v1ToV2MigrationFromVersionKey = "migration.v1_to_v2.fromVersion"
+    private static let v1ToV2MigrationToVersionKey = "migration.v1_to_v2.toVersion"
+
     // MARK: - Properties
 
     let modelContainer: ModelContainer
@@ -40,6 +51,7 @@ final class DataService: DataServiceProtocol {
             .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         let storeDirectory = appSupportURL.appendingPathComponent("Me2Tune", isDirectory: true)
         let storeURL = storeDirectory.appendingPathComponent("Me2Tune.store")
+        let defaults = UserDefaults.standard
 
         try? FileManager.default.createDirectory(
             at: storeDirectory,
@@ -55,12 +67,21 @@ final class DataService: DataServiceProtocol {
             let container: ModelContainer
             do {
                 container = try ModelContainer(for: schema, configurations: [config])
+                logger.info(
+                    "DataService open path=direct schema=\(Self.currentSchemaVersion) migrationMarker=\(Self.v1ToV2MarkerDescription(defaults: defaults))"
+                )
             } catch {
-                logger.notice("Direct open failed, trying migration path: \(error)")
+                logger.notice(
+                    "DataService open path=direct_failed schema=\(Self.currentSchemaVersion) migrateFrom=\(Self.migrationFromSchemaVersion) migrateTo=\(Self.migrationToSchemaVersion) error=\(error)"
+                )
                 container = try ModelContainer(
                     for: schema,
                     migrationPlan: Me2TuneMigrationPlan.self,
                     configurations: [config]
+                )
+                let markerAlreadyExists = Self.markV1ToV2MigrationCompleted(defaults: defaults)
+                logger.notice(
+                    "DataService open path=migration schemaBefore=\(Self.migrationFromSchemaVersion) schemaAfter=\(Self.migrationToSchemaVersion) migrationMarkerAlreadyExists=\(markerAlreadyExists)"
                 )
             }
             container.mainContext.autosaveEnabled = true
@@ -73,6 +94,23 @@ final class DataService: DataServiceProtocol {
             let fallback = try! ModelContainer(for: schema, configurations: [memConfig])
             self.init(modelContainer: fallback, isMigrationFailed: true)
         }
+    }
+
+    // MARK: - Migration Marker Helpers
+
+    private static func markV1ToV2MigrationCompleted(defaults: UserDefaults) -> Bool {
+        let wasMarked = defaults.bool(forKey: v1ToV2MigrationCompletedKey)
+        if wasMarked { return true }
+
+        defaults.set(true, forKey: v1ToV2MigrationCompletedKey)
+        defaults.set(Date(), forKey: v1ToV2MigrationCompletedAtKey)
+        defaults.set(migrationFromSchemaVersion, forKey: v1ToV2MigrationFromVersionKey)
+        defaults.set(migrationToSchemaVersion, forKey: v1ToV2MigrationToVersionKey)
+        return false
+    }
+
+    private static func v1ToV2MarkerDescription(defaults: UserDefaults) -> String {
+        defaults.bool(forKey: v1ToV2MigrationCompletedKey) ? "set" : "unset"
     }
 
     // MARK: - Generic CRUD
