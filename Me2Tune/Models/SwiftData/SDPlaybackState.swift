@@ -2,7 +2,7 @@
 //  SDPlaybackState.swift
 //  Me2Tune
 //
-//  SwiftData 播放状态模型 - 单例记录，持久化当前播放位置和音量
+//  SwiftData V1 迁移快照模型 - 仅用于历史 store 升级，不参与当前运行时读写
 //
 
 import Foundation

@@ -162,6 +162,60 @@ struct DataServiceTests {
         // Assert
         #expect(count == 3)
     }
+
+    @Test("V1 升级到 V2 后保留媒体库数据")
+    func testMigrateV1ToV2KeepsLibraryData() throws {
+        let directoryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("Me2TuneMigration-\(UUID().uuidString)", isDirectory: true)
+        let storeURL = directoryURL.appendingPathComponent("Me2Tune.store")
+
+        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directoryURL) }
+
+        // Step 1: 建立 V1 store 并写入样本数据
+        do {
+            let v1Schema = Schema(Me2TuneSchemaV1.models)
+            let v1Config = ModelConfiguration(schema: v1Schema, url: storeURL)
+            let v1Container = try ModelContainer(for: v1Schema, configurations: [v1Config])
+            let context = v1Container.mainContext
+
+            let track = SDTrack.makeSample(title: "Legacy Track", urlString: "file:///legacy/track.mp3")
+            track.isInPlaylist = true
+            track.playlistOrder = 0
+            context.insert(track)
+
+            let album = SDAlbum.makeSample(name: "Legacy Album", folderURLString: "file:///legacy/album")
+            context.insert(album)
+            context.insert(SDAlbumTrackEntry(trackOrder: 0, album: album, track: track))
+
+            let legacyState = SDPlaybackState()
+            legacyState.playingSourceType = SDPlaybackState.sourcePlaylist
+            legacyState.playlistCurrentIndex = 0
+            context.insert(legacyState)
+
+            try context.save()
+        }
+
+        // Step 2: 用 V2 + migration plan 打开同一 store，验证核心媒体数据仍可读取
+        do {
+            let v2Schema = Schema(Me2TuneSchemaV2.models)
+            let v2Config = ModelConfiguration(schema: v2Schema, url: storeURL)
+            let v2Container = try ModelContainer(
+                for: v2Schema,
+                migrationPlan: Me2TuneMigrationPlan.self,
+                configurations: [v2Config]
+            )
+            let migratedService = DataService(modelContainer: v2Container)
+
+            let tracks = try migratedService.fetchPlaylistTracks()
+            #expect(tracks.count == 1)
+            #expect(tracks.first?.title == "Legacy Track")
+
+            let albums = try migratedService.fetchAlbums()
+            #expect(albums.count == 1)
+            #expect(albums.first?.name == "Legacy Album")
+        }
+    }
     
     // MARK: - Generic CRUD 测试
     

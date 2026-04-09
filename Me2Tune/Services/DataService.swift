@@ -46,7 +46,7 @@ final class DataService: DataServiceProtocol {
             withIntermediateDirectories: true
         )
 
-        let schema = Schema(Me2TuneSchemaV1.models)
+        let schema = Schema(Me2TuneSchemaV2.models)
         let config = ModelConfiguration(schema: schema, url: storeURL)
 
         do {

@@ -11,12 +11,17 @@ enum Me2TuneMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
         [
             Me2TuneSchemaV1.self,
-            // 未来追加：Me2TuneSchemaV2.self
+            Me2TuneSchemaV2.self,
         ]
     }
 
     static var stages: [MigrationStage] {
-        []
+        [migrateV1toV2]
     }
-    // 未来追加：static let migrateV1toV2 = MigrationStage.lightweight(...)
+
+    // SDPlaybackState 从 schema 中移除后，使用 lightweight migration 自动清理旧表
+    static let migrateV1toV2 = MigrationStage.lightweight(
+        fromVersion: Me2TuneSchemaV1.self,
+        toVersion: Me2TuneSchemaV2.self
+    )
 }
