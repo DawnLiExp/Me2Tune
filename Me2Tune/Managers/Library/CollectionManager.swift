@@ -260,7 +260,11 @@ final class CollectionManager {
         guard let index = albums.firstIndex(where: { $0.id == id }) else { return }
 
         let oldName = albums[index].name
-        albums[index].name = newName
+        guard oldName != newName else { return }
+
+        var updatedAlbums = albums
+        updatedAlbums[index].name = newName
+        albums = updatedAlbums
 
         if let sdAlbum = sdAlbum(for: id) {
             sdAlbum.name = newName

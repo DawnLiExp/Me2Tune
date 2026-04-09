@@ -12,6 +12,8 @@ import UniformTypeIdentifiers
 struct AlbumCardView: View, Equatable {
     nonisolated static func == (lhs: AlbumCardView, rhs: AlbumCardView) -> Bool {
         lhs.album.id == rhs.album.id
+            && lhs.album.name == rhs.album.name
+            && lhs.album.tracks.count == rhs.album.tracks.count
             && lhs.isDragging == rhs.isDragging
     }
     
