@@ -232,7 +232,7 @@ final class PlaybackCoordinator {
         }
 
         playlistManager.removeTrack(at: index)
-        playbackStateManager.handlePlaylistTrackRemoved(at: index, wasPlaying: wasPlaying)
+        playbackStateManager.handlePlaylistTrackRemoved(removedTrackID: removedTrack.id, wasPlaying: wasPlaying)
         persistenceController.scheduleSave(volume: volume)
 
         if playlistManager.isEmpty, playbackStateManager.playingSource == .playlist {
@@ -513,10 +513,10 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
 
         let tracks = playbackStateManager.currentTracks
         if let index = tracks.firstIndex(where: { $0.id == track.id }) {
-            let indexChanged = (playbackStateManager.currentTrackIndex != index)
-            if indexChanged {
+            let idChanged = (playbackStateManager.currentTrackID != track.id)
+            if idChanged {
                 logger.info("Auto switched to track \(index + 1): \(track.title)")
-                playbackStateManager.setCurrentIndex(index)
+                playbackStateManager.setCurrentTrack(id: track.id)
             }
 
             Task { @MainActor in
@@ -528,7 +528,7 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
                 self.updateNowPlayingInfo()
                 self.playerCore.updateDockIcon(artwork)
 
-                if indexChanged {
+                if idChanged {
                     self.playbackProgressState.currentTime = 0
                     self.persistenceController.scheduleSave(volume: self.volume)
                 }

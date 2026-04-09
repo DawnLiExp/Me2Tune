@@ -95,6 +95,7 @@ struct PlaybackStateManagerTests {
         let (manager, _, _, _) = try setup()
         
         #expect(manager.currentTracks.isEmpty)
+        #expect(manager.currentTrackID == nil)
         #expect(manager.currentTrackIndex == nil)
         #expect(manager.playingSource == PlaybackStateManager.PlayingSource.playlist)
         #expect(manager.currentTrack == nil)
@@ -213,7 +214,7 @@ struct PlaybackStateManagerTests {
         #expect(manager.currentTrackIndex == nil)
         
         manager.setCurrentIndex(5)
-        #expect(manager.currentTrackIndex == 5)
+        #expect(manager.currentTrackIndex == nil)
         
         manager.setCurrentIndex(nil)
         #expect(manager.currentTrackIndex == nil)
@@ -259,8 +260,9 @@ struct PlaybackStateManagerTests {
         
         manager.switchToPlaylist()
         manager.setCurrentIndex(1)
+        let removedTrackID = manager.currentTracks[1].id
         
-        manager.handlePlaylistTrackRemoved(at: 1, wasPlaying: true)
+        manager.handlePlaylistTrackRemoved(removedTrackID: removedTrackID, wasPlaying: true)
         
         #expect(manager.currentTrackIndex == nil)
     }
@@ -272,10 +274,11 @@ struct PlaybackStateManagerTests {
         
         manager.switchToPlaylist()
         manager.setCurrentIndex(2)
+        let removedTrackID = manager.currentTracks[0].id
         
-        manager.handlePlaylistTrackRemoved(at: 0, wasPlaying: false)
+        manager.handlePlaylistTrackRemoved(removedTrackID: removedTrackID, wasPlaying: false)
         
-        #expect(manager.currentTrackIndex == 1)
+        #expect(manager.currentTrackIndex == 2)
     }
     
     @Test("处理播放列表删除曲目 - 删除之后的曲目")
@@ -285,8 +288,9 @@ struct PlaybackStateManagerTests {
         
         manager.switchToPlaylist()
         manager.setCurrentIndex(0)
+        let removedTrackID = manager.currentTracks[2].id
         
-        manager.handlePlaylistTrackRemoved(at: 2, wasPlaying: false)
+        manager.handlePlaylistTrackRemoved(removedTrackID: removedTrackID, wasPlaying: false)
         
         #expect(manager.currentTrackIndex == 0)
     }
@@ -299,7 +303,7 @@ struct PlaybackStateManagerTests {
         manager.switchToAlbum(album)
         manager.setCurrentIndex(1)
         
-        manager.handlePlaylistTrackRemoved(at: 0, wasPlaying: false)
+        manager.handlePlaylistTrackRemoved(removedTrackID: UUID(), wasPlaying: false)
         
         // 应该不受影响
         #expect(manager.currentTrackIndex == 1)
@@ -316,7 +320,7 @@ struct PlaybackStateManagerTests {
         manager.handlePlaylistCleared()
         
         #expect(manager.currentTrackIndex == nil)
-        #expect(manager.currentTracks.isEmpty)
+        #expect(manager.currentTracks.count == 3)
     }
     
     @Test("处理播放列表清空 - 非播放列表源")
@@ -344,7 +348,7 @@ struct PlaybackStateManagerTests {
         
         manager.handlePlaylistTrackMoved(from: 1, to: 3)
         
-        #expect(manager.currentTrackIndex == 3)
+        #expect(manager.currentTrackIndex == 1)
     }
     
     @Test("处理播放列表移动曲目 - 从前往后移")
@@ -357,7 +361,7 @@ struct PlaybackStateManagerTests {
         
         manager.handlePlaylistTrackMoved(from: 0, to: 2)
         
-        #expect(manager.currentTrackIndex == 1)
+        #expect(manager.currentTrackIndex == 2)
     }
     
     @Test("处理播放列表移动曲目 - 从后往前移")
@@ -370,7 +374,7 @@ struct PlaybackStateManagerTests {
         
         manager.handlePlaylistTrackMoved(from: 3, to: 1)
         
-        #expect(manager.currentTrackIndex == 2)
+        #expect(manager.currentTrackIndex == 1)
     }
     
     @Test("处理播放列表移动曲目 - 非播放列表源")

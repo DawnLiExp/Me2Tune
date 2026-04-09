@@ -16,8 +16,7 @@ private let logger = Logger.viewModel
 final class PlaybackStateManager {
     // MARK: - Published States
 
-    private(set) var currentTracks: [AudioTrack] = []
-    private(set) var currentTrackIndex: Int?
+    private(set) var currentTrackID: UUID?
     private(set) var playingSource: PlayingSource = .playlist
 
     // MARK: - Types
@@ -34,6 +33,7 @@ final class PlaybackStateManager {
     private let dataService: DataServiceProtocol
     private weak var playlistManager: PlaylistManager?
     private weak var collectionManager: CollectionManager?
+    private var currentAlbumSnapshot: Album?
 
     private var lastSavedSourceType: String?
     private var lastSavedIndex: Int?
@@ -41,11 +41,23 @@ final class PlaybackStateManager {
 
     // MARK: - Computed Properties
 
-    var currentTrack: AudioTrack? {
-        guard let index = currentTrackIndex, currentTracks.indices.contains(index) else {
-            return nil
+    var currentTracks: [AudioTrack] {
+        switch playingSource {
+        case .playlist:
+            return playlistManager?.tracks ?? []
+        case .album:
+            return currentAlbumSnapshot?.tracks ?? []
         }
-        return currentTracks[index]
+    }
+
+    var currentTrackIndex: Int? {
+        guard let id = currentTrackID else { return nil }
+        return currentTracks.firstIndex(where: { $0.id == id })
+    }
+
+    var currentTrack: AudioTrack? {
+        guard let id = currentTrackID else { return nil }
+        return currentTracks.first(where: { $0.id == id })
     }
 
     var canGoPrevious: Bool {
@@ -75,81 +87,61 @@ final class PlaybackStateManager {
     // MARK: - Playback Source Switching
 
     func switchToPlaylist() {
-        guard let playlistManager else { return }
-
         playingSource = .playlist
-        currentTracks = playlistManager.tracks
+        currentAlbumSnapshot = nil
 
         logger.debug("Switched to playlist source")
     }
 
     func switchToAlbum(_ album: Album) {
         playingSource = .album(album.id)
-        currentTracks = album.tracks
+        currentAlbumSnapshot = album
 
         logger.info("💿 Switched to album: \(album.name) (\(album.tracks.count) tracks)")
     }
 
     // MARK: - Index Management
 
+    func setCurrentTrack(id: UUID?) {
+        currentTrackID = id
+    }
+
     func setCurrentIndex(_ index: Int?) {
-        currentTrackIndex = index
+        guard let index else {
+            currentTrackID = nil
+            return
+        }
+        currentTrackID = currentTracks[safe: index]?.id
     }
 
     // MARK: - Playlist Updates Handling
 
-    func handlePlaylistTrackRemoved(at index: Int, wasPlaying: Bool) {
+    func handlePlaylistTrackRemoved(removedTrackID: UUID, wasPlaying _: Bool) {
         guard playingSource == .playlist else {
             return
         }
 
-        if let currentIndex = currentTrackIndex {
-            if index == currentIndex {
-                currentTrackIndex = nil
-            } else if index < currentIndex {
-                currentTrackIndex = currentIndex - 1
-            }
-        }
-
-        if let playlistManager {
-            currentTracks = playlistManager.tracks
+        if currentTrackID == removedTrackID {
+            currentTrackID = nil
         }
     }
 
     func handlePlaylistCleared() {
         if playingSource == .playlist {
-            currentTrackIndex = nil
-            currentTracks = []
+            currentTrackID = nil
         }
     }
 
-    func handlePlaylistTrackMoved(from source: Int, to destination: Int) {
-        guard playingSource == .playlist, let currentIndex = currentTrackIndex else {
+    func handlePlaylistTrackMoved(from _: Int, to _: Int) {
+        guard playingSource == .playlist else {
             return
-        }
-
-        if source == currentIndex {
-            currentTrackIndex = destination
-        } else if source < currentIndex, destination >= currentIndex {
-            currentTrackIndex = currentIndex - 1
-        } else if source > currentIndex, destination <= currentIndex {
-            currentTrackIndex = currentIndex + 1
-        }
-
-        if let playlistManager {
-            currentTracks = playlistManager.tracks
         }
     }
 
     func handlePlaylistTracksAdded() {
-        guard let playlistManager else { return }
-
-        if playingSource == .playlist {
-            currentTracks = playlistManager.tracks
-        }
-
-        if currentTrackIndex == nil, !currentTracks.isEmpty {
-            currentTrackIndex = 0
+        guard playingSource == .playlist else { return }
+        if currentTrackID == nil, let first = playlistManager?.tracks.first {
+            currentTrackID = first.id
         }
     }
 
@@ -211,20 +203,21 @@ final class PlaybackStateManager {
             guard let playlistManager else { return nil }
 
             playingSource = .playlist
-            currentTracks = playlistManager.tracks
-            currentTrackIndex = nil
+            currentAlbumSnapshot = nil
+            currentTrackID = nil
 
             if let savedIndex = sdState.playlistCurrentIndex,
                playlistManager.tracks.indices.contains(savedIndex)
             {
-                currentTrackIndex = savedIndex
+                let restoredTrack = playlistManager.tracks[savedIndex]
+                currentTrackID = restoredTrack.id
 
                 logger.info("📋 Restored playlist: track \(savedIndex + 1)/\(playlistManager.count)")
 
                 return RestoredState(
                     source: .playlist,
                     trackIndex: savedIndex,
-                    track: playlistManager.tracks[savedIndex],
+                    track: restoredTrack,
                     volume: sdState.volume
                 )
             }
@@ -250,8 +243,8 @@ final class PlaybackStateManager {
             }
 
             playingSource = .album(albumId)
-            currentTracks = album.tracks
-            currentTrackIndex = albumIndex
+            currentAlbumSnapshot = album
+            currentTrackID = album.tracks[albumIndex].id
 
             collectionManager?.populateWithSingleAlbum(album)
 
@@ -273,11 +266,9 @@ final class PlaybackStateManager {
     // MARK: - Private Helpers
 
     private func fallbackToPlaylist() {
-        if let playlistManager {
-            playingSource = .playlist
-            currentTracks = playlistManager.tracks
-            currentTrackIndex = nil
-        }
+        playingSource = .playlist
+        currentAlbumSnapshot = nil
+        currentTrackID = nil
     }
 
     /// Optimization: find album identifier (folderURL or name) by UUID.
