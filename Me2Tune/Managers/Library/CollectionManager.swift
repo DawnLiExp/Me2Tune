@@ -29,9 +29,6 @@ final class CollectionManager {
     private let dataService: DataServiceProtocol
     private var delayedLoadTask: Task<Void, Never>?
 
-    // In-memory index: UUID → SDAlbum for fast lookup during drag operations
-    private var albumIndex: [UUID: SDAlbum] = [:]
-
     // MARK: - Computed Properties
 
     var albumCount: Int {
@@ -98,17 +95,7 @@ final class CollectionManager {
             return cached
         }
 
-        if let sdAlbum = albumIndex[id] {
-            return sdAlbum.toAlbum()
-        }
-
-        // Precise query by stableId, avoid full scan
-        if let sdAlbum = dataService.findAlbum(byStableId: id) {
-            updateAlbumIndex(sdAlbum)
-            return sdAlbum.toAlbum()
-        }
-
-        return nil
+        return sdAlbum(for: id)?.toAlbum()
     }
 
     // MARK: - Album Management
@@ -150,8 +137,6 @@ final class CollectionManager {
         } catch {
             logger.logError(error, context: "addAlbumFromPlaylist")
         }
-
-        updateAlbumIndex(sdAlbum)
 
         // Build Album DTO directly from existing data, avoid re-conversion
         let album = Album(
@@ -244,8 +229,6 @@ final class CollectionManager {
             logger.logError(error, context: "createAlbum")
         }
 
-        updateAlbumIndex(sdAlbum)
-
         // Build Album DTO directly from existing data
         let album = Album(
             id: albumId,
@@ -259,14 +242,13 @@ final class CollectionManager {
     }
 
     func removeAlbum(id: UUID) {
-        if let sdAlbum = albumIndex[id] {
+        if let sdAlbum = sdAlbum(for: id) {
             for entry in sdAlbum.trackEntries {
                 if let track = entry.track, !track.isInPlaylist, track.albumEntries.count <= 1 {
                     dataService.delete(track)
                 }
             }
             dataService.delete(sdAlbum)
-            removeAlbumIndex(for: id)
             try? dataService.save()
         }
 
@@ -280,7 +262,7 @@ final class CollectionManager {
         let oldName = albums[index].name
         albums[index].name = newName
 
-        if let sdAlbum = albumIndex[id] {
+        if let sdAlbum = sdAlbum(for: id) {
             sdAlbum.name = newName
             try? dataService.save()
         }
@@ -299,7 +281,13 @@ final class CollectionManager {
         let movedAlbum = albums.remove(at: source)
         albums.insert(movedAlbum, at: destination)
 
-        reindexAlbumOrdersOptimized(source: source, destination: destination)
+        let start = min(source, destination)
+        let end = max(source, destination)
+        for i in start ... end {
+            if let sdAlbum = sdAlbum(for: albums[i].id) {
+                sdAlbum.displayOrder = i
+            }
+        }
 
         try? dataService.save()
     }
@@ -322,54 +310,22 @@ final class CollectionManager {
 
         let count = albums.count
         albums.removeAll()
-        clearAlbumIndex()
         logger.info("Cleared all \(count) albums")
-    }
-
-    // MARK: - Index Management
-
-    private func updateAlbumIndex(_ sdAlbum: SDAlbum) {
-        albumIndex[sdAlbum.stableId] = sdAlbum
-    }
-
-    private func removeAlbumIndex(for id: UUID) {
-        albumIndex.removeValue(forKey: id)
-    }
-
-    private func rebuildAlbumIndex(from sdAlbums: [SDAlbum]) {
-        albumIndex.removeAll(keepingCapacity: true)
-        for sdAlbum in sdAlbums {
-            albumIndex[sdAlbum.stableId] = sdAlbum
-        }
-    }
-
-    private func clearAlbumIndex() {
-        albumIndex.removeAll()
     }
 
     // MARK: - Private Methods
 
+    private func sdAlbum(for id: UUID) -> SDAlbum? {
+        dataService.findAlbum(byStableId: id)
+    }
+
     private func loadCollections() async {
         do {
             let sdAlbums = try dataService.fetchAlbums()
-            rebuildAlbumIndex(from: sdAlbums)
             self.albums = sdAlbums.map { $0.toAlbum() }
             logger.info("Loaded \(self.albums.count) albums")
         } catch {
             logger.notice("No existing collections to load")
-        }
-    }
-
-    // Only update affected range during drag, avoid full re-conversion
-    private func reindexAlbumOrdersOptimized(source: Int, destination: Int) {
-        let start = min(source, destination)
-        let end = max(source, destination)
-
-        for i in start ... end {
-            let albumId = albums[i].id
-            if let sdAlbum = albumIndex[albumId] {
-                sdAlbum.displayOrder = i
-            }
         }
     }
 
