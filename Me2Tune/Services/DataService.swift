@@ -50,11 +50,19 @@ final class DataService: DataServiceProtocol {
         let config = ModelConfiguration(schema: schema, url: storeURL)
 
         do {
-            let container = try ModelContainer(
-                for: schema,
-                migrationPlan: Me2TuneMigrationPlan.self,
-                configurations: [config]
-            )
+            // 优先按当前 Schema 直接打开，避免每次启动都触发迁移校验路径。
+            // 仅在旧库无法直接打开时，回退到带 migration plan 的升级流程。
+            let container: ModelContainer
+            do {
+                container = try ModelContainer(for: schema, configurations: [config])
+            } catch {
+                logger.notice("Direct open failed, trying migration path: \(error)")
+                container = try ModelContainer(
+                    for: schema,
+                    migrationPlan: Me2TuneMigrationPlan.self,
+                    configurations: [config]
+                )
+            }
             container.mainContext.autosaveEnabled = true
             logger.info("✅ DataService initialized - store: \(storeURL.path)")
             self.init(modelContainer: container, isMigrationFailed: false)

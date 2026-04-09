@@ -13,6 +13,11 @@ import OSLog
 @MainActor
 @Observable
 final class PlaybackCoordinator {
+    @MainActor
+    private final class VolumeProviderBox {
+        var provider: @MainActor () -> Double = { 0.7 }
+    }
+
     private(set) var isPlaying = false
     private(set) var currentArtwork: NSImage?
     private(set) var duration: TimeInterval = 0
@@ -81,16 +86,17 @@ final class PlaybackCoordinator {
         self.effectsController = PlaybackEffectsController(statisticsManager: statisticsManager)
 
         let playbackStateManager = self.playbackStateManager
-        var volumeProvider: @MainActor () -> Double = { 0.7 }
+        let volumeProviderBox = VolumeProviderBox()
         self.persistenceController = PlaybackPersistenceController(
-            saveHandler: { [weak playbackStateManager] in
-                playbackStateManager?.saveState(volume: volumeProvider())
+            saveHandler: { [weak playbackStateManager, weak volumeProviderBox] in
+                guard let volumeProviderBox else { return }
+                playbackStateManager?.saveState(volume: volumeProviderBox.provider())
             },
             volumeApplyHandler: { [weak playerCore] volume in
                 playerCore?.setVolume(volume)
             }
         )
-        volumeProvider = { [weak self] in
+        volumeProviderBox.provider = { [weak self] in
             self?.volume ?? 0.7
         }
 
