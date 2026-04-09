@@ -30,6 +30,7 @@ struct CollectionsGridView: View {
     @State private var selectedAlbumArtwork: NSImage?
     @State private var renamingAlbumId: UUID?
     @State private var renameText = ""
+    @State private var renameSessionID = UUID()
     @State private var albumToDelete: Album?
     @State private var preloadedAlbumIds = Set<UUID>()
     @State private var columns: [GridItem] = [
@@ -129,6 +130,7 @@ struct CollectionsGridView: View {
             set: { if !$0 { renamingAlbumId = nil } }
         )) {
             TextField("album_name", text: $renameText)
+                .id(renameSessionID)
             Button("cancel", role: .cancel) {
                 renamingAlbumId = nil
             }
@@ -188,8 +190,7 @@ struct CollectionsGridView: View {
                                         }
                                     },
                                     onRename: {
-                                        renamingAlbumId = album.id
-                                        renameText = album.name
+                                        presentRenameDialog(for: album.id)
                                     },
                                     onRemove: {
                                         albumToDelete = album
@@ -299,6 +300,13 @@ struct CollectionsGridView: View {
         Task.detached(priority: .utility) {
             await ArtworkCacheService.shared.preloadArtworks(for: urls, priority: .utility)
         }
+    }
+
+    private func presentRenameDialog(for albumID: UUID) {
+        guard let album = albums.first(where: { $0.id == albumID }) else { return }
+        renameSessionID = UUID()
+        renameText = album.name
+        renamingAlbumId = albumID
     }
 }
 
