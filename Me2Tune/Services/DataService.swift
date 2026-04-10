@@ -68,8 +68,10 @@ final class DataService: DataServiceProtocol {
             do {
                 container = try ModelContainer(for: schema, configurations: [config])
                 logger.info(
-                    "DataService open path=direct schema=\(Self.currentSchemaVersion) migrationMarker=\(Self.v1ToV2MarkerDescription(defaults: defaults))"
+                    "DataService open path=direct schema=\(Self.currentSchemaVersion)"
                 )
+                // 清理历史迁移标记：对新用户是空操作，对升级用户一次性回收死数据
+                Self.clearLegacyMigrationMarkers(defaults: defaults)
             } catch {
                 logger.notice(
                     "DataService open path=direct_failed schema=\(Self.currentSchemaVersion) migrateFrom=\(Self.migrationFromSchemaVersion) migrateTo=\(Self.migrationToSchemaVersion) error=\(error)"
@@ -79,9 +81,8 @@ final class DataService: DataServiceProtocol {
                     migrationPlan: Me2TuneMigrationPlan.self,
                     configurations: [config]
                 )
-                let markerAlreadyExists = Self.markV1ToV2MigrationCompleted(defaults: defaults)
                 logger.notice(
-                    "DataService open path=migration schemaBefore=\(Self.migrationFromSchemaVersion) schemaAfter=\(Self.migrationToSchemaVersion) migrationMarkerAlreadyExists=\(markerAlreadyExists)"
+                    "DataService open path=migration schemaBefore=\(Self.migrationFromSchemaVersion) schemaAfter=\(Self.migrationToSchemaVersion)"
                 )
             }
             container.mainContext.autosaveEnabled = true
@@ -98,19 +99,21 @@ final class DataService: DataServiceProtocol {
 
     // MARK: - Migration Marker Helpers
 
-    private static func markV1ToV2MigrationCompleted(defaults: UserDefaults) -> Bool {
-        let wasMarked = defaults.bool(forKey: v1ToV2MigrationCompletedKey)
-        if wasMarked { return true }
-
-        defaults.set(true, forKey: v1ToV2MigrationCompletedKey)
-        defaults.set(Date(), forKey: v1ToV2MigrationCompletedAtKey)
-        defaults.set(migrationFromSchemaVersion, forKey: v1ToV2MigrationFromVersionKey)
-        defaults.set(migrationToSchemaVersion, forKey: v1ToV2MigrationToVersionKey)
-        return false
-    }
-
-    private static func v1ToV2MarkerDescription(defaults: UserDefaults) -> String {
-        defaults.bool(forKey: v1ToV2MigrationCompletedKey) ? "set" : "unset"
+    /// 一次性清理旧版 V1→V2 迁移标记。
+    /// 新用户：这些 key 从不存在，本方法是空操作。
+    /// 升级用户：迁移完成后 direct open 成功，标记使命结束，在此回收。
+    private static func clearLegacyMigrationMarkers(defaults: UserDefaults) {
+        let keys = [
+            v1ToV2MigrationCompletedKey,
+            v1ToV2MigrationCompletedAtKey,
+            v1ToV2MigrationFromVersionKey,
+            v1ToV2MigrationToVersionKey,
+        ]
+        let hadMarkers = defaults.bool(forKey: v1ToV2MigrationCompletedKey)
+        keys.forEach { defaults.removeObject(forKey: $0) }
+        if hadMarkers {
+            logger.debug("🧹 Cleared legacy V1→V2 migration markers")
+        }
     }
 
     // MARK: - Generic CRUD
