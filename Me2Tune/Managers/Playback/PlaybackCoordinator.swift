@@ -18,6 +18,16 @@ final class PlaybackCoordinator {
         var provider: @MainActor () -> Double = { 0.7 }
     }
 
+    @MainActor
+    private final class RepeatModeProviderBox {
+        var provider: @MainActor () -> RepeatMode = { .off }
+    }
+
+    @MainActor
+    private final class PauseHandlerBox {
+        var handler: @MainActor () -> Void = {}
+    }
+
     private(set) var isPlaying = false
     private(set) var currentArtwork: NSImage?
     private(set) var duration: TimeInterval = 0
@@ -54,17 +64,14 @@ final class PlaybackCoordinator {
     @ObservationIgnored private let failedTrackRegistry: FailedTrackRegistry
     @ObservationIgnored private let persistenceController: PlaybackPersistenceController
     @ObservationIgnored private let effectsController: PlaybackEffectsController
+    @ObservationIgnored private let loadController: PlaybackLoadController
     @ObservationIgnored private var progressController: PlaybackProgressController!
 
-    @ObservationIgnored private var hasMarkedPlayCount = false
-    @ObservationIgnored private var currentStatTrackId: UUID?
-    @ObservationIgnored private var trackIndexBeforeGapless: Int?
     @ObservationIgnored private var windowStateMonitor: WindowStateMonitor?
     @ObservationIgnored private lazy var progressTimeProvider: () -> TimeInterval = { [weak self] in
         self?.playerCore.getCurrentPlaybackTime() ?? 0
     }
 
-    private let playCountThreshold: Double = 0.8
     private let logger = Logger.coordinator
 
     init(
@@ -87,17 +94,37 @@ final class PlaybackCoordinator {
 
         let playbackStateManager = self.playbackStateManager
         let volumeProviderBox = VolumeProviderBox()
+        let repeatModeProviderBox = RepeatModeProviderBox()
+        let pauseHandlerBox = PauseHandlerBox()
         self.persistenceController = PlaybackPersistenceController(
-            saveHandler: { [weak playbackStateManager, weak volumeProviderBox] in
-                guard let volumeProviderBox else { return }
+            saveHandler: { [weak playbackStateManager, volumeProviderBox] in
                 playbackStateManager?.saveState(volume: volumeProviderBox.provider())
             },
             volumeApplyHandler: { [weak playerCore] volume in
                 playerCore?.setVolume(volume)
             }
         )
+        self.loadController = PlaybackLoadController(
+            playerCore: playerCore,
+            stateManager: self.playbackStateManager,
+            registry: self.failedTrackRegistry,
+            persistenceController: self.persistenceController,
+            effectsController: self.effectsController,
+            repeatModeProvider: { [repeatModeProviderBox] in
+                repeatModeProviderBox.provider()
+            },
+            onPause: { [pauseHandlerBox] in
+                pauseHandlerBox.handler()
+            }
+        )
         volumeProviderBox.provider = { [weak self] in
             self?.volume ?? 0.7
+        }
+        repeatModeProviderBox.provider = { [weak self] in
+            self?.repeatMode ?? .off
+        }
+        pauseHandlerBox.handler = { [weak self] in
+            self?.pause()
         }
 
         playerCore.delegate = self
@@ -108,12 +135,7 @@ final class PlaybackCoordinator {
             tickHandler: { [weak self] time in
                 guard let self else { return }
                 self.playbackProgressState.currentTime = time
-                self.hasMarkedPlayCount = self.effectsController.handlePlaybackTimeUpdated(
-                    currentTime: time,
-                    duration: self.duration,
-                    playCountThreshold: self.playCountThreshold,
-                    hasMarkedPlayCount: self.hasMarkedPlayCount
-                )
+                self.loadController.handleProgressTick(time: time, duration: self.duration)
             }
         )
         logger.debug("PlaybackCoordinator initialized")
@@ -127,7 +149,7 @@ final class PlaybackCoordinator {
     func play() {
         if playbackStateManager.currentTrack == nil, !playlistManager.isEmpty {
             playbackStateManager.switchToPlaylist()
-            loadAndPlay(at: 0)
+            loadController.loadAndPlay(at: 0)
             return
         }
 
@@ -175,7 +197,7 @@ final class PlaybackCoordinator {
             return
         }
 
-        loadAndPlay(at: nextIndex)
+        loadController.loadAndPlay(at: nextIndex)
     }
 
     func previous() {
@@ -196,7 +218,7 @@ final class PlaybackCoordinator {
             tracks: tracks,
             failedIDs: failedTrackRegistry.snapshot()
         ) {
-            loadAndPlay(at: previousIndex)
+            loadController.loadAndPlay(at: previousIndex)
         }
     }
 
@@ -206,8 +228,8 @@ final class PlaybackCoordinator {
         playbackStateManager.switchToPlaylist()
         persistenceController.scheduleSave()
         let track = playlistManager.tracks[index]
-        retryIfFailed(track)
-        loadAndPlay(at: index)
+        loadController.retryIfFailed(track)
+        loadController.loadAndPlay(at: index)
     }
 
     func playAlbum(_ album: Album, startAt index: Int = 0) {
@@ -220,8 +242,8 @@ final class PlaybackCoordinator {
         playbackStateManager.switchToAlbum(album)
         persistenceController.scheduleSave()
         let track = album.tracks[index]
-        retryIfFailed(track)
-        loadAndPlay(at: index)
+        loadController.retryIfFailed(track)
+        loadController.loadAndPlay(at: index)
     }
 
     @discardableResult
@@ -370,106 +392,6 @@ final class PlaybackCoordinator {
         await playerCore.loadTrack(track)
     }
 
-    private func loadAndPlay(at index: Int, attempt: Int = 0) {
-        let tracks = playbackStateManager.currentTracks
-        guard tracks.indices.contains(index) else {
-            logger.warning("Index out of range: \(index)")
-            return
-        }
-
-        guard attempt < 10 else {
-            logger.error("Max retry attempts reached, stopping playback")
-            pause()
-            return
-        }
-
-        let track = tracks[index]
-
-        if currentStatTrackId != track.id {
-            currentStatTrackId = track.id
-            hasMarkedPlayCount = false
-        }
-
-        if failedTrackRegistry.isMarked(track.id) {
-            logger.debug("Skipping known failed track: \(track.title)")
-            handleLoadFailure(track: track, index: index, attempt: attempt)
-            return
-        }
-
-        playerCore.prepareForTrackSwitch()
-
-        Task { @MainActor in
-            let success = await self.loadTrack(track)
-            if !success {
-                self.handleLoadFailure(track: track, index: index, attempt: attempt)
-                return
-            }
-
-            self.playbackStateManager.setCurrentIndex(index)
-            self.playerCore.play()
-            self.persistenceController.scheduleSave()
-        }
-    }
-
-    private func handleLoadFailure(track: AudioTrack, index: Int, attempt: Int) {
-        logger.warning("Track load failed: \(track.title)")
-        failedTrackRegistry.mark(track.id)
-
-        if repeatMode == .one {
-            logger.info("Single repeat on failed track, stopping")
-            pause()
-            return
-        }
-
-        let tracks = playbackStateManager.currentTracks
-        guard let nextIndex = TrackNavigationPolicy.nextValidIndex(
-            after: index,
-            tracks: tracks,
-            repeatMode: repeatMode,
-            failedIDs: failedTrackRegistry.snapshot(),
-            maxAttempts: tracks.count
-        ) else {
-            logger.debug("No next valid track available")
-            pause()
-            return
-        }
-
-        loadAndPlay(at: nextIndex, attempt: attempt + 1)
-    }
-
-    private func enqueueNextTrack() {
-        guard let currentIndex = playbackStateManager.currentTrackIndex else { return }
-        let tracks = playbackStateManager.currentTracks
-        guard !tracks.isEmpty else { return }
-
-        guard let nextIndex = TrackNavigationPolicy.nextValidIndex(
-            after: currentIndex,
-            tracks: tracks,
-            repeatMode: repeatMode,
-            failedIDs: failedTrackRegistry.snapshot(),
-            maxAttempts: tracks.count
-        ) else {
-            logger.debug("No next track to enqueue")
-            return
-        }
-
-        let nextTrack = tracks[nextIndex]
-        Task { @MainActor in
-            let success = await self.playerCore.enqueueTrack(nextTrack)
-            if !success {
-                logger.warning("Enqueue failed, marking track: \(nextTrack.title)")
-                self.failedTrackRegistry.mark(nextTrack.id)
-            }
-        }
-    }
-
-    private func retryIfFailed(_ track: AudioTrack) {
-        if failedTrackRegistry.isMarked(track.id) {
-            logger.info("Retry failed track: \(track.title)")
-            failedTrackRegistry.clear(track.id)
-        }
-    }
-
     private func updateNowPlayingInfo() {
         guard let track = playbackStateManager.currentTrack else { return }
         effectsController.updateNowPlayingInfo(
@@ -546,59 +468,12 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
     }
 
     func playerCoreDecodingComplete(for track: AudioTrack) {
-        trackIndexBeforeGapless = playbackStateManager.currentTrackIndex
+        loadController.trackIndexBeforeGapless = playbackStateManager.currentTrackIndex
         logger.debug("Decoding complete, enqueuing next track")
-        enqueueNextTrack()
+        loadController.enqueueNextTrack()
     }
 
     func playerCoreDidReachEnd() {
-        let baseIndex = trackIndexBeforeGapless
-        trackIndexBeforeGapless = nil
-
-        if repeatMode == .one {
-            let index = baseIndex ?? playbackStateManager.currentTrackIndex
-            guard let index else { return }
-            let tracks = playbackStateManager.currentTracks
-            guard tracks.indices.contains(index) else { return }
-            let track = tracks[index]
-
-            if failedTrackRegistry.isMarked(track.id) {
-                logger.info("Single repeat on failed track, stopping")
-                pause()
-            } else {
-                loadAndPlay(at: index)
-            }
-            return
-        }
-
-        if baseIndex == nil {
-            logger.warning("trackIndexBeforeGapless missing, falling back to currentTrackIndex")
-        }
-
-        guard let effectiveIndex = baseIndex ?? playbackStateManager.currentTrackIndex else { return }
-        let tracks = playbackStateManager.currentTracks
-        guard !tracks.isEmpty else { return }
-
-        let expectedNext = TrackNavigationPolicy.nextIndex(
-            after: effectiveIndex,
-            count: tracks.count,
-            repeatMode: repeatMode
-        )
-
-        if TrackNavigationPolicy.isGaplessAlreadyHandled(
-            currentIndex: playbackStateManager.currentTrackIndex,
-            expectedNext: expectedNext
-        ) {
-            logger.debug("Gapless transition already handled, skipping manual load")
-            return
-        }
-
-        guard let nextIndex = expectedNext else {
-            logger.debug("Reached end of playlist")
-            return
-        }
-
-        logger.debug("End of track, loading next (base: \(effectiveIndex) -> next: \(nextIndex))")
-        loadAndPlay(at: nextIndex)
+        loadController.handleEndOfTrack()
     }
 }
