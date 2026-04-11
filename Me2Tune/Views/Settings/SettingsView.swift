@@ -12,6 +12,54 @@ import SwiftUI
 private let logger = Logger.persistence
 
 struct SettingsView: View {
+    private enum SettingsTab: CaseIterable, Identifiable {
+        case features
+        case appearance
+        case statistics
+        case about
+
+        var id: Self { self }
+
+        var titleKey: LocalizedStringKey {
+            switch self {
+            case .features:
+                "settings_features"
+            case .appearance:
+                "settings_appearance"
+            case .statistics:
+                "settings_statistics"
+            case .about:
+                "settings_about"
+            }
+        }
+
+        var iconName: String {
+            switch self {
+            case .features:
+                "slider.horizontal.3"
+            case .appearance:
+                "paintpalette"
+            case .statistics:
+                "chart.bar"
+            case .about:
+                "info.circle"
+            }
+        }
+
+        var windowHeight: CGFloat {
+            switch self {
+            case .features:
+                480
+            case .appearance:
+                340
+            case .statistics:
+                530
+            case .about:
+                340
+            }
+        }
+    }
+
     @State private var currentTheme = ThemeManager.shared.themeMode
     @State private var currentLanguage = LanguageManager.shared.currentLanguage
     
@@ -22,7 +70,7 @@ struct SettingsView: View {
     @State private var showThemeChangeAlert = false
     @State private var pendingLanguage: LanguageManager.AppLanguage?
     @State private var pendingTheme: ThemeManager.ThemeMode?
-    @State private var selectedTab = 0
+    @State private var selectedTab: SettingsTab = .features
     
     @State private var statisticsViewModel = StatisticsViewModel()
     @State private var showResetConfirmation = false
@@ -34,15 +82,6 @@ struct SettingsView: View {
     @AppStorage("glowBreathingRate") private var glowBreathingRate = GlowBreathingRate.medium.rawValue
     @AppStorage("glowBreathingIntensity") private var glowBreathingIntensity = GlowBreathingIntensity.medium.rawValue
     
-    // MARK: - Tab Heights
-    
-    private let tabHeights: [Int: CGFloat] = [
-        0: 480, // Features
-        1: 340, // Appearance
-        2: 530, // Statistics
-        3: 340 // About
-    ]
-
     var body: some View {
         VStack(spacing: 0) {
             customTabBar
@@ -52,7 +91,7 @@ struct SettingsView: View {
             tabContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(width: 500, height: tabHeights[selectedTab] ?? 340)
+        .frame(width: 500, height: selectedTab.windowHeight)
         .background(Color(NSColor.windowBackgroundColor))
         .onChange(of: selectedTab) { _, newTab in
             adjustWindowHeight(for: newTab)
@@ -110,32 +149,31 @@ struct SettingsView: View {
     
     private var customTabBar: some View {
         HStack(spacing: 0) {
-            tabButton(index: 0, title: String(localized: "settings_features"), icon: "slider.horizontal.3")
-            tabButton(index: 1, title: String(localized: "settings_appearance"), icon: "paintpalette")
-            tabButton(index: 2, title: String(localized: "settings_statistics"), icon: "chart.bar")
-            tabButton(index: 3, title: String(localized: "settings_about"), icon: "info.circle")
+            ForEach(SettingsTab.allCases) { tab in
+                tabButton(tab)
+            }
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .background(Color(NSColor.windowBackgroundColor))
     }
     
-    private func tabButton(index: Int, title: String, icon: String) -> some View {
+    private func tabButton(_ tab: SettingsTab) -> some View {
         Button(action: {
-            selectedTab = index
+            selectedTab = tab
         }) {
             HStack(spacing: 6) {
-                Image(systemName: icon)
+                Image(systemName: tab.iconName)
                     .font(.system(size: 13))
-                Text(title)
+                Text(tab.titleKey)
                     .font(.system(size: 13))
             }
-            .foregroundColor(selectedTab == index ? .accentColor : Color(NSColor.secondaryLabelColor))
+            .foregroundColor(selectedTab == tab ? .accentColor : Color(NSColor.secondaryLabelColor))
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(selectedTab == index ? Color.accentColor.opacity(0.1) : Color.clear)
+                    .fill(selectedTab == tab ? Color.accentColor.opacity(0.1) : Color.clear)
             )
             .contentShape(Rectangle())
         }
@@ -148,16 +186,14 @@ struct SettingsView: View {
         ScrollView {
             VStack(spacing: 24) {
                 switch selectedTab {
-                case 0:
+                case .features:
                     featuresSettings
-                case 1:
+                case .appearance:
                     appearanceSettings
-                case 2:
+                case .statistics:
                     StatisticsView(viewModel: statisticsViewModel)
-                case 3:
+                case .about:
                     aboutSettings
-                default:
-                    featuresSettings
                 }
             }
             .padding(24)
@@ -579,12 +615,12 @@ struct SettingsView: View {
         NSApp.terminate(nil)
     }
     
-    private func adjustWindowHeight(for tab: Int) {
+    private func adjustWindowHeight(for tab: SettingsTab) {
         guard let window = NSApp.keyWindow ?? NSApp.windows.first(where: { $0.isKeyWindow }) else {
             return
         }
         
-        let targetHeight = tabHeights[tab] ?? 340
+        let targetHeight = tab.windowHeight
         var frame = window.frame
         let heightDifference = targetHeight - frame.height
         
