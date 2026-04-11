@@ -224,9 +224,13 @@ final class PlaybackCoordinator {
         loadAndPlay(at: index)
     }
 
-    func addTracksToPlaylist(urls: [URL]) async {
-        await playlistManager.addTracks(urls: urls)
-        playbackStateManager.handlePlaylistTracksAdded()
+    @discardableResult
+    func addTracksToPlaylist(urls: [URL]) async -> AddTracksResult {
+        let result = await playlistManager.addTracks(urls: urls)
+        if result.newTracksCount > 0 {
+            playbackStateManager.handlePlaylistTracksAdded()
+        }
+        return result
     }
 
     func removeTrackFromPlaylist(at index: Int) {

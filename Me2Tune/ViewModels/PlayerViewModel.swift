@@ -143,14 +143,13 @@ final class PlayerViewModel {
         coordinator.toggleRepeatMode()
     }
 
-    func addTracksToPlaylist(urls: [URL]) {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            await self.coordinator.addTracksToPlaylist(urls: urls)
-            if !self.isPlaylistLoaded {
-                self.isPlaylistLoaded = true
-            }
+    @discardableResult
+    func addTracksToPlaylist(urls: [URL]) async -> AddTracksResult {
+        let result = await coordinator.addTracksToPlaylist(urls: urls)
+        if !isPlaylistLoaded {
+            isPlaylistLoaded = true
         }
+        return result
     }
 
     func removeTrackFromPlaylist(at index: Int) {

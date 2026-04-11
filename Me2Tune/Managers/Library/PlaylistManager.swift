@@ -18,6 +18,17 @@ private struct PlaylistEntry {
     let sdTrack: SDTrack
 }
 
+// MARK: - Add Tracks Result
+
+struct AddTracksResult {
+    /// 实际新增的曲目数量
+    let newTracksCount: Int
+    /// 第一首新增曲目在 entries 中的索引（nil 表示无新增）
+    let firstNewTrackIndex: Int?
+    /// 已有曲目的 URL 到 entries 索引的映射
+    let existingTrackIndices: [URL: Int]
+}
+
 @MainActor
 @Observable
 final class PlaylistManager {
@@ -65,9 +76,9 @@ final class PlaylistManager {
 
     // MARK: - Public Methods - Add
 
-    func addTracks(urls: [URL]) async {
+    @discardableResult
+    func addTracks(urls: [URL]) async -> AddTracksResult {
         let startTime = CFAbsoluteTimeGetCurrent()
-
         isLoading = true
 
         let allAudioURLs = expandAndFilterAudioURLs(urls)
@@ -75,15 +86,43 @@ final class PlaylistManager {
         guard !allAudioURLs.isEmpty else {
             logger.warning("No valid audio files found")
             isLoading = false
-            return
+            return AddTracksResult(newTracksCount: 0, firstNewTrackIndex: nil, existingTrackIndices: [:])
         }
 
         let sortedURLs = sortURLsByDirectory(allAudioURLs)
-        loadingCount = sortedURLs.count
 
-        logger.info("Adding \(sortedURLs.count) tracks")
+        // Build URL lookup for deduplication against current entries
+        let existingURLMap: [String: Int] = Dictionary(
+            entries.enumerated().map { ($1.sdTrack.urlString, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
 
-        let newDTOTracks = await loadTracksFromURLs(sortedURLs)
+        // Separate new URLs from existing ones
+        var existingTrackIndices: [URL: Int] = [:]
+        var newURLs: [URL] = []
+
+        for url in sortedURLs {
+            if let existingIndex = existingURLMap[url.absoluteString] {
+                existingTrackIndices[url] = existingIndex
+            } else {
+                newURLs.append(url)
+            }
+        }
+
+        // Only load metadata for truly new URLs
+        loadingCount = newURLs.count
+
+        guard !newURLs.isEmpty else {
+            // All files already exist in playlist
+            logger.info("All \(sortedURLs.count) tracks already in playlist")
+            isLoading = false
+            loadingCount = 0
+            return AddTracksResult(newTracksCount: 0, firstNewTrackIndex: nil, existingTrackIndices: existingTrackIndices)
+        }
+
+        logger.info("Adding \(newURLs.count) new tracks (\(existingTrackIndices.count) already in playlist)")
+
+        let newDTOTracks = await loadTracksFromURLs(newURLs)
         let baseOrder = entries.count
         var newEntries: [PlaylistEntry] = []
 
@@ -108,11 +147,19 @@ final class PlaylistManager {
 
         entries.append(contentsOf: newEntries)
 
+        let firstNewIndex = newEntries.isEmpty ? nil : baseOrder
+
         isLoading = false
         loadingCount = 0
 
         let elapsed = CFAbsoluteTimeGetCurrent() - startTime
         logger.logPerformance("Add \(newEntries.count) tracks", duration: elapsed)
+
+        return AddTracksResult(
+            newTracksCount: newEntries.count,
+            firstNewTrackIndex: firstNewIndex,
+            existingTrackIndices: existingTrackIndices
+        )
     }
 
     // MARK: - Public Methods - Remove

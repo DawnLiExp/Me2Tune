@@ -107,20 +107,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             activateMainWindow()
         }
         
-        // ✅ 异步添加文件并播放
+        // ✅ 添加文件并播放（去重 + 精确索引）
         Task { @MainActor in
-            let startIndex = playerViewModel.playlistManager.tracks.count
+            let result = await playerViewModel.addTracksToPlaylist(urls: audioFiles)
             
-            // 批量添加到播放列表
-            playerViewModel.addTracksToPlaylist(urls: audioFiles)
+            let firstFile = audioFiles[0]
+            let playIndex: Int? = if let existingIndex = result.existingTrackIndices[firstFile] {
+                existingIndex
+            } else {
+                result.firstNewTrackIndex
+            }
             
-            // 等待列表更新完成
-            try? await Task.sleep(for: .milliseconds(300))
-            
-            // 播放第一首新添加的曲目
-            if playerViewModel.playlistManager.tracks.indices.contains(startIndex) {
-                playerViewModel.playPlaylistTrack(at: startIndex)
-                logger.info("▶️ Started playing from index \(startIndex)")
+            if let index = playIndex,
+               playerViewModel.playlistManager.tracks.indices.contains(index)
+            {
+                playerViewModel.playPlaylistTrack(at: index)
+                logger.info("▶️ Playing track at index \(index)")
             }
         }
     }

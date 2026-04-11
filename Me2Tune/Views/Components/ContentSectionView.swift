@@ -98,7 +98,9 @@ struct ContentSectionView: View {
                     collectionManager.moveAlbum(from: from, to: to)
                 },
                 onTrackAddedToPlaylist: { track in
-                    viewModel.addTracksToPlaylist(urls: [track.url])
+                    Task { @MainActor in
+                        await viewModel.addTracksToPlaylist(urls: [track.url])
+                    }
                 },
                 onEnsureLoaded: {
                     await collectionManager.ensureLoaded()

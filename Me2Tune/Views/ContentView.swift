@@ -306,7 +306,9 @@ struct ContentView: View {
     
     private func handlePlaylistDrop(_ urls: [URL]) {
         let allURLs = expandFolders(urls)
-        playerViewModel.addTracksToPlaylist(urls: allURLs)
+        Task { @MainActor in
+            await playerViewModel.addTracksToPlaylist(urls: allURLs)
+        }
     }
     
     private func handleCollectionsDrop(_ urls: [URL]) {
