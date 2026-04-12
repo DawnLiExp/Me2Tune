@@ -23,11 +23,6 @@ final class DataService: DataServiceProtocol {
     private static let migrationFromSchemaVersion = "1.0.0"
     private static let migrationToSchemaVersion = "2.0.0"
 
-    private static let v1ToV2MigrationCompletedKey = "migration.v1_to_v2.completed"
-    private static let v1ToV2MigrationCompletedAtKey = "migration.v1_to_v2.completedAt"
-    private static let v1ToV2MigrationFromVersionKey = "migration.v1_to_v2.fromVersion"
-    private static let v1ToV2MigrationToVersionKey = "migration.v1_to_v2.toVersion"
-
     // MARK: - Properties
 
     let modelContainer: ModelContainer
@@ -51,7 +46,6 @@ final class DataService: DataServiceProtocol {
             .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         let storeDirectory = appSupportURL.appendingPathComponent("Me2Tune", isDirectory: true)
         let storeURL = storeDirectory.appendingPathComponent("Me2Tune.store")
-        let defaults = UserDefaults.standard
 
         try? FileManager.default.createDirectory(
             at: storeDirectory,
@@ -70,8 +64,6 @@ final class DataService: DataServiceProtocol {
                 logger.info(
                     "DataService open path=direct schema=\(Self.currentSchemaVersion)"
                 )
-                // 清理历史迁移标记：对新用户是空操作，对升级用户一次性回收死数据
-                Self.clearLegacyMigrationMarkers(defaults: defaults)
             } catch {
                 logger.notice(
                     "DataService open path=direct_failed schema=\(Self.currentSchemaVersion) migrateFrom=\(Self.migrationFromSchemaVersion) migrateTo=\(Self.migrationToSchemaVersion) error=\(error)"
@@ -94,25 +86,6 @@ final class DataService: DataServiceProtocol {
             // 内存容器初始化不应失败，force-try 可接受
             let fallback = try! ModelContainer(for: schema, configurations: [memConfig])
             self.init(modelContainer: fallback, isMigrationFailed: true)
-        }
-    }
-
-    // MARK: - Migration Marker Helpers
-
-    /// 一次性清理旧版 V1→V2 迁移标记。
-    /// 新用户：这些 key 从不存在，本方法是空操作。
-    /// 升级用户：迁移完成后 direct open 成功，标记使命结束，在此回收。
-    private static func clearLegacyMigrationMarkers(defaults: UserDefaults) {
-        let keys = [
-            v1ToV2MigrationCompletedKey,
-            v1ToV2MigrationCompletedAtKey,
-            v1ToV2MigrationFromVersionKey,
-            v1ToV2MigrationToVersionKey,
-        ]
-        let hadMarkers = defaults.bool(forKey: v1ToV2MigrationCompletedKey)
-        keys.forEach { defaults.removeObject(forKey: $0) }
-        if hadMarkers {
-            logger.debug("🧹 Cleared legacy V1→V2 migration markers")
         }
     }
 
