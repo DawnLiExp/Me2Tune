@@ -84,16 +84,18 @@ final class PlaybackStateManager {
 
     // MARK: - Playback Source Switching
 
-    func switchToPlaylist() {
+    func switchToPlaylist(selecting index: Int? = nil) {
         playingSource = .playlist
         currentAlbumSnapshot = nil
+        setCurrentIndex(index)
 
         logger.debug("Switched to playlist source")
     }
 
-    func switchToAlbum(_ album: Album) {
+    func switchToAlbum(_ album: Album, selecting index: Int? = nil) {
         playingSource = .album(album.id)
         currentAlbumSnapshot = album
+        setCurrentIndex(index)
 
         logger.info("💿 Switched to album: \(album.name) (\(album.tracks.count) tracks)")
     }
@@ -146,18 +148,16 @@ final class PlaybackStateManager {
     // MARK: - Persistence
 
     func saveState(volume: Double) {
-        let snapshot: PlaybackSessionSnapshot
-
-        switch playingSource {
+        let snapshot = switch playingSource {
         case .playlist:
-            snapshot = PlaybackSessionSnapshot(
+            PlaybackSessionSnapshot(
                 sourceKind: .playlist,
                 currentTrackID: currentTrackID,
                 albumID: nil,
                 volume: volume
             )
         case .album(let albumID):
-            snapshot = PlaybackSessionSnapshot(
+            PlaybackSessionSnapshot(
                 sourceKind: .album,
                 currentTrackID: currentTrackID,
                 albumID: albumID,

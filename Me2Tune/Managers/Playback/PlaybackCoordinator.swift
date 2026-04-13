@@ -148,7 +148,7 @@ final class PlaybackCoordinator {
 
     func play() {
         if playbackStateManager.currentTrack == nil, !playlistManager.isEmpty {
-            playbackStateManager.switchToPlaylist()
+            playbackStateManager.switchToPlaylist(selecting: 0)
             loadController.loadAndPlay(at: 0)
             return
         }
@@ -225,7 +225,7 @@ final class PlaybackCoordinator {
     func playPlaylistTrack(at index: Int) {
         guard playlistManager.tracks.indices.contains(index) else { return }
 
-        playbackStateManager.switchToPlaylist()
+        playbackStateManager.switchToPlaylist(selecting: index)
         persistenceController.scheduleSave()
         let track = playlistManager.tracks[index]
         loadController.retryIfFailed(track)
@@ -239,7 +239,7 @@ final class PlaybackCoordinator {
         }
         guard album.tracks.indices.contains(index) else { return }
 
-        playbackStateManager.switchToAlbum(album)
+        playbackStateManager.switchToAlbum(album, selecting: index)
         persistenceController.scheduleSave()
         let track = album.tracks[index]
         loadController.retryIfFailed(track)

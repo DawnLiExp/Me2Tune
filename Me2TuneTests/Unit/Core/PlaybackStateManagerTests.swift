@@ -136,6 +136,32 @@ struct PlaybackStateManagerTests {
         #expect(manager.currentTracks.count == 5)
         #expect(manager.currentTracks[0].title == "Test Album Track 0")
     }
+
+    @Test("跨来源切换到专辑时立即暴露目标曲目")
+    func testSwitchToAlbumSelectingTrackImmediatelyResolvesCurrentTrack() throws {
+        let (manager, _, dataService, _) = try setupWithPlaylistTracks(count: 3)
+        let (album, _) = createTestAlbum(name: "Target Album", trackCount: 4, dataService: dataService)
+
+        manager.switchToPlaylist(selecting: 0)
+        manager.switchToAlbum(album, selecting: 2)
+
+        #expect(manager.playingSource == .album(album.id))
+        #expect(manager.currentTrackIndex == 2)
+        #expect(manager.currentTrack?.id == album.tracks[2].id)
+    }
+
+    @Test("跨来源切换回播放列表时立即暴露目标曲目")
+    func testSwitchToPlaylistSelectingTrackImmediatelyResolvesCurrentTrack() throws {
+        let (manager, playlistManager, dataService, _) = try setupWithPlaylistTracks(count: 3)
+        let (album, _) = createTestAlbum(name: "Source Album", trackCount: 2, dataService: dataService)
+
+        manager.switchToAlbum(album, selecting: 1)
+        manager.switchToPlaylist(selecting: 2)
+
+        #expect(manager.playingSource == .playlist)
+        #expect(manager.currentTrackIndex == 2)
+        #expect(manager.currentTrack?.id == playlistManager.tracks[2].id)
+    }
     
     // MARK: - 计算属性测试
     
@@ -403,7 +429,6 @@ struct PlaybackStateManagerTests {
     @Test("保存状态 - 播放列表源")
     func testSaveStatePlaylist() throws {
         let dataService = try createTestDataService()
-        let playlistManager = PlaylistManager(dataService: dataService)
         let sessionStore = makeSessionStore()
 
         let track = SDTrack.makeSample(title: "Track", urlString: "file:///track.mp3")

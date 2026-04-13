@@ -178,6 +178,50 @@ struct PlaybackCoordinatorTests {
         #expect(coordinator.duration == 385)
     }
 
+    @Test("跨来源切换到专辑时加载完成前不出现空曲目")
+    func testPlayAlbumKeepsTargetTrackVisibleBeforeLoadCompletes() async throws {
+        let dataService = try createTestDataService()
+        for i in 0..<2 {
+            let track = SDTrack.makeSample(title: "Playlist \(i)", urlString: "file:///tmp/playlist-\(i).mp3")
+            track.isInPlaylist = true
+            track.playlistOrder = i
+            dataService.insert(track)
+        }
+        try dataService.save()
+
+        let collectionManager = CollectionManager(dataService: dataService)
+        let playerCore = MockAudioPlayerCore()
+        playerCore.loadDelay = .milliseconds(200)
+        let statistics = MockStatisticsManager()
+        let coordinator = PlaybackCoordinator(
+            collectionManager: collectionManager,
+            dataService: dataService,
+            statisticsManager: statistics,
+            playerCore: playerCore
+        )
+
+        coordinator.playPlaylistTrack(at: 0)
+        let playlistLoaded = await waitUntil {
+            coordinator.playbackStateManager.currentTrackIndex == 0 && playerCore.playCallCount == 1
+        }
+        #expect(playlistLoaded)
+
+        let albumTracks = makeTracks(count: 3)
+        let album = makeAlbum(with: albumTracks)
+
+        coordinator.playAlbum(album, startAt: 1)
+        try? await Task.sleep(for: .milliseconds(20))
+
+        #expect(coordinator.playbackStateManager.playingSource == .album(album.id))
+        #expect(coordinator.playbackStateManager.currentTrack?.id == albumTracks[1].id)
+        #expect(coordinator.playbackStateManager.currentTrackIndex == 1)
+
+        let albumLoaded = await waitUntil {
+            playerCore.loadTrackCallIDs.suffix(1).first == albumTracks[1].id && playerCore.playCallCount == 2
+        }
+        #expect(albumLoaded)
+    }
+
     private func makeTracks(count: Int) -> [AudioTrack] {
         (0..<count).map { index in
             AudioTrack(
@@ -244,6 +288,7 @@ private final class MockAudioPlayerCore: AudioPlayerCoreProtocol {
     var repeatMode: RepeatMode = .off
 
     var loadResults: [UUID: Bool] = [:]
+    var loadDelay: Duration?
     private(set) var loadTrackCallIDs: [UUID] = []
     private(set) var enqueueTrackCallIDs: [UUID] = []
     private(set) var playCallCount = 0
@@ -254,6 +299,9 @@ private final class MockAudioPlayerCore: AudioPlayerCoreProtocol {
     func loadTrack(_ track: AudioTrack) async -> Bool {
         loadTrackCallIDs.append(track.id)
         currentTime = 0
+        if let loadDelay {
+            try? await Task.sleep(for: loadDelay)
+        }
         return loadResults[track.id] ?? true
     }
 
