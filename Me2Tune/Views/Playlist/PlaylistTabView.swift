@@ -92,12 +92,12 @@ struct PlaylistTabView: View {
                 .tint(.accent)
             
             VStack(spacing: 4) {
-                Text("Adding Tracks...")
+                Text("playlist_loading_title")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.primaryText)
                 
                 if loadingTracksCount > 0 {
-                    Text("\(loadingTracksCount) files processing")
+                    Text(loadingFilesProcessingText)
                         .font(.system(size: 12))
                         .foregroundColor(.secondaryText)
                 }
@@ -113,6 +113,11 @@ struct PlaylistTabView: View {
                 )
                 .shadow(color: .black.opacity(0.5), radius: 20)
         )
+    }
+
+    private var loadingFilesProcessingText: String {
+        let format = String(localized: "playlist_loading_files_processing_format")
+        return String(format: format, locale: Locale.current, Int64(loadingTracksCount))
     }
     
     // MARK: - Drop Indicator

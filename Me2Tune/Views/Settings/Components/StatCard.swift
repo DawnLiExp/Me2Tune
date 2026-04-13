@@ -18,7 +18,7 @@ struct StatCard: View {
                 .font(.system(size: 20))
                 .foregroundColor(.accentColor.opacity(0.7))
             
-            Text("\(value)")
+            Text(value.formatted())
                 .font(.system(size: 24, weight: .semibold))
                 .foregroundColor(.primary)
                 .contentTransition(.numericText())

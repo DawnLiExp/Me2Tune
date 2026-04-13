@@ -181,7 +181,7 @@ struct SearchOverlayView: View {
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(.accent.opacity(0.9))
                     
-                Text("(\(results.count))")
+                Text(resultCountBadgeText(for: results.count))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.searchSecondaryText)
                     
@@ -311,10 +311,13 @@ struct SearchOverlayView: View {
             guard nameMatch || artistMatch else { continue }
                 
             let artist = album.tracks.first?.artist
-            let subtitle = if let artist, !artist.isEmpty {
-                "\(artist) · \(album.tracks.count) \(String(localized: "tracks"))"
+            let trackCountText = trackCountText(for: album.tracks.count)
+            let subtitle: String
+            if let artist, !artist.isEmpty {
+                let format = String(localized: "search_album_subtitle_with_artist_format")
+                subtitle = String(format: format, locale: Locale.current, artist, trackCountText)
             } else {
-                "\(album.tracks.count) \(String(localized: "tracks"))"
+                subtitle = trackCountText
             }
                 
             let relevance = nameMatch ? 3 : 2
@@ -349,7 +352,7 @@ struct SearchOverlayView: View {
                 
                 let subtitle = [
                     track.artist ?? String(localized: "unknown_artist"),
-                    String(localized: "in_album \(album.name)")
+                    inAlbumText(for: album.name)
                 ]
                 .joined(separator: " • ")
                 
@@ -366,6 +369,21 @@ struct SearchOverlayView: View {
         }
         
         return results
+    }
+
+    private func resultCountBadgeText(for count: Int) -> String {
+        let format = String(localized: "search_result_count_badge_format")
+        return String(format: format, locale: Locale.current, Int64(count))
+    }
+
+    private func trackCountText(for count: Int) -> String {
+        let format = String(localized: "track_count_format")
+        return String(format: format, locale: Locale.current, Int64(count))
+    }
+
+    private func inAlbumText(for albumName: String) -> String {
+        let format = String(localized: "search_in_album_format")
+        return String(format: format, locale: Locale.current, albumName)
     }
     
     // MARK: - Actions

@@ -69,7 +69,7 @@ struct AlbumCardView: View, Equatable {
                     .foregroundColor(.primaryText)
                     .lineLimit(1)
                 
-                Text("\(album.tracks.count) tracks")
+                Text(trackCountText)
                     .font(.system(size: 11))
                     .foregroundColor(.secondaryText)
             }
@@ -111,6 +111,11 @@ struct AlbumCardView: View, Equatable {
             color: (isHovered && !isDragging && !cleanMode) ? Color.accent.opacity(0.2) : .clear,
             radius: 8
         )
+    }
+
+    private var trackCountText: String {
+        let format = String(localized: "track_count_format")
+        return String(format: format, locale: Locale.current, Int64(album.tracks.count))
     }
     
     // MARK: - Artwork Loading

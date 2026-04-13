@@ -102,7 +102,7 @@ struct SongRowView: View {
                 .foregroundColor(.accent)
                 .font(.system(size: 13, weight: .semibold))
         } else {
-            Text("\(index + 1)")
+            Text((index + 1).formatted())
                 .font(.system(size: 13, weight: .medium))
                 .foregroundColor(.secondaryText)
         }

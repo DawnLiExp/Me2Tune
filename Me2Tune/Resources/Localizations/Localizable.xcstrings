@@ -1,18 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "(%lld)" : {
-      "shouldTranslate" : false
-    },
-    "%lld" : {
-      "shouldTranslate" : false
-    },
-    "%lld files processing" : {
-      "shouldTranslate" : false
-    },
-    "%lld tracks" : {
-      "shouldTranslate" : false
-    },
     "•" : {
       "localizations" : {
         "en" : {
@@ -89,22 +77,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "添加到播放列表"
-          }
-        }
-      }
-    },
-    "Adding Tracks..." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Adding Tracks..."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在添加曲目..."
           }
         }
       }
@@ -1200,6 +1172,38 @@
         }
       }
     },
+    "playlist_loading_files_processing_format" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld files processing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在处理 %lld 个文件"
+          }
+        }
+      }
+    },
+    "playlist_loading_title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adding Tracks..."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在添加歌曲..."
+          }
+        }
+      }
+    },
     "Plays" : {
       "shouldTranslate" : false
     },
@@ -1411,6 +1415,38 @@
         }
       }
     },
+    "search_album_subtitle_with_artist_format" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "search_in_album_format" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "in %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在「%@」中"
+          }
+        }
+      }
+    },
     "search_placeholder" : {
       "localizations" : {
         "en" : {
@@ -1423,6 +1459,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "输入关键词搜索..."
+          }
+        }
+      }
+    },
+    "search_result_count_badge_format" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(%lld)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "（%lld）"
           }
         }
       }
@@ -2125,6 +2177,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "石板蓝"
+          }
+        }
+      }
+    },
+    "track_count_format" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld tracks"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 首"
           }
         }
       }

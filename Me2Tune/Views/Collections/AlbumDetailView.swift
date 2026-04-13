@@ -106,7 +106,7 @@ struct AlbumDetailView: View {
                     .foregroundColor(.primaryText)
                     .lineLimit(2)
                 
-                Text("\(album.tracks.count) tracks")
+                Text(trackCountText)
                     .font(.system(size: 12))
                     .foregroundColor(.secondaryText)
             }
@@ -119,5 +119,10 @@ struct AlbumDetailView: View {
             RoundedRectangle(cornerRadius: 14)
                 .fill(Color.selectedBackground)
         )
+    }
+
+    private var trackCountText: String {
+        let format = String(localized: "track_count_format")
+        return String(format: format, locale: Locale.current, Int64(album.tracks.count))
     }
 }
