@@ -400,7 +400,7 @@ struct LyricLineView: View {
             if let translation = line.translation, !translation.isEmpty {
                 Text(translation)
                     .font(.system(
-                        size: isCurrent ? 14 : 13,
+                        size: isCurrent ? 16 : 14,
                         weight: .regular
                     ))
                     .foregroundColor(translationTextColor)
