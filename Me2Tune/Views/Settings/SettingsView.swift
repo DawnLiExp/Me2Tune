@@ -499,7 +499,7 @@ struct SettingsView: View {
                     if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String,
                        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String
                     {
-                        Text("Version \(version) (\(build))")
+                        Text(versionText(version: version, build: build))
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                     }
@@ -511,7 +511,7 @@ struct SettingsView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "link")
                             .font(.system(size: 12))
-                        Text("Website")
+                        Text("settings_website")
                             .font(.system(size: 13))
                     }
                     .foregroundColor(.accentColor)
@@ -530,6 +530,11 @@ struct SettingsView: View {
             }
         }
         .padding(.top, 10)
+    }
+
+    private func versionText(version: String, build: String) -> String {
+        let format = String(localized: "settings_version_format")
+        return String(format: format, locale: Locale.current, version, build)
     }
     
     // MARK: - Components

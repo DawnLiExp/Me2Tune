@@ -409,9 +409,11 @@ enum LyricsError: LocalizedError {
         case .notFound:
             return String(localized: "lyrics_not_found")
         case .apiError(let code):
-            return String(localized: "api_error \(code)")
+            let format = String(localized: "lyrics_api_error_format")
+            return String(format: format, locale: Locale.current, Int64(code))
         case .networkError(let error):
-            return String(localized: "network_error \(error.localizedDescription)")
+            let format = String(localized: "lyrics_network_error_format")
+            return String(format: format, locale: Locale.current, error.localizedDescription)
         case .fileReadError:
             return String(localized: "failed_to_load_lyrics")
         case .emptyFile:

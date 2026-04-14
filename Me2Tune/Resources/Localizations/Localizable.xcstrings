@@ -113,40 +113,6 @@
         }
       }
     },
-    "api_error %d" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Server error: %d"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "服务器错误: %d"
-          }
-        }
-      }
-    },
-    "api_error %lld" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Server error: %lld"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "服务器错误: %lld"
-          }
-        }
-      }
-    },
     "audio_buffering" : {
       "localizations" : {
         "en" : {
@@ -355,18 +321,18 @@
         }
       }
     },
-    "Date" : {
+    "collections_loading_title" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Date"
+            "value" : "Loading Collections..."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "日期"
+            "value" : "正在加载收藏..."
           }
         }
       }
@@ -788,22 +754,6 @@
         }
       }
     },
-    "in_album %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "in %@"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "在「%@」中"
-          }
-        }
-      }
-    },
     "instrumental_track" : {
       "localizations" : {
         "en" : {
@@ -884,22 +834,6 @@
         }
       }
     },
-    "Loading Collections..." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loading Collections..."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在加载收藏..."
-          }
-        }
-      }
-    },
     "loading_lyrics" : {
       "localizations" : {
         "en" : {
@@ -916,6 +850,22 @@
         }
       }
     },
+    "lyrics_api_error_format" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Server error: %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务器错误: %lld"
+          }
+        }
+      }
+    },
     "lyrics_menu_item" : {
       "localizations" : {
         "en" : {
@@ -928,6 +878,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "歌词"
+          }
+        }
+      }
+    },
+    "lyrics_network_error_format" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Network error: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "网络错误: %@"
           }
         }
       }
@@ -1028,7 +994,7 @@
         }
       }
     },
-    "Mute" : {
+    "mute" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1040,22 +1006,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "静音"
-          }
-        }
-      }
-    },
-    "network_error %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Network error: %@"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "网络错误: %@"
           }
         }
       }
@@ -1204,9 +1154,6 @@
         }
       }
     },
-    "Plays" : {
-      "shouldTranslate" : false
-    },
     "ready_to_play" : {
       "localizations" : {
         "en" : {
@@ -1303,7 +1250,7 @@
         }
       }
     },
-    "Repeat: All" : {
+    "repeat_mode_all" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1319,7 +1266,7 @@
         }
       }
     },
-    "Repeat: Off" : {
+    "repeat_mode_off" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1335,7 +1282,7 @@
         }
       }
     },
-    "Repeat: One" : {
+    "repeat_mode_one" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1816,6 +1763,38 @@
         }
       }
     },
+    "settings_version_format" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version %1$@ (%2$@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "版本 %1$@（%2$@）"
+          }
+        }
+      }
+    },
+    "settings_website" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Website"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "网站"
+          }
+        }
+      }
+    },
     "show_in_finder" : {
       "localizations" : {
         "en" : {
@@ -1862,6 +1841,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "艺术家总数"
+          }
+        }
+      }
+    },
+    "stat_axis_date" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日期"
           }
         }
       }
@@ -2069,7 +2064,7 @@
         }
       }
     },
-    "Switch to Mini Mode" : {
+    "switch_to_mini_mode" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2197,22 +2192,6 @@
         }
       }
     },
-    "tracks" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "tracks"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "首"
-          }
-        }
-      }
-    },
     "unknown_artist" : {
       "localizations" : {
         "en" : {
@@ -2245,7 +2224,7 @@
         }
       }
     },
-    "Unmute" : {
+    "unmute" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2257,38 +2236,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "取消静音"
-          }
-        }
-      }
-    },
-    "Version %@ (%@)" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Version %1$@ (%2$@)"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "版本 %1$@ (%2$@)"
-          }
-        }
-      }
-    },
-    "Website" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Website"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "网站"
           }
         }
       }

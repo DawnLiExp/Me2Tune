@@ -20,8 +20,8 @@ struct StatisticsChartView: View {
     var body: some View {
         Chart(data) { item in
             BarMark(
-                x: .value("Date", item.date, unit: xAxisUnit),
-                y: .value("Plays", isAnimating ? max(item.playCount, 1) : 0)
+                x: .value(String(localized: "stat_axis_date"), item.date, unit: xAxisUnit),
+                y: .value(String(localized: "stat_plays_count"), isAnimating ? max(item.playCount, 1) : 0)
             )
             .foregroundStyle(barStyle(for: item))
             .cornerRadius(period == .monthly ? 6 : 4)

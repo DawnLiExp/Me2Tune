@@ -277,7 +277,7 @@ struct CollectionsGridView: View {
             ProgressView()
                 .scaleEffect(1.2)
             
-            Text("Loading Collections...")
+            Text("collections_loading_title")
                 .font(.system(size: 14))
                 .foregroundColor(.secondaryText)
         }

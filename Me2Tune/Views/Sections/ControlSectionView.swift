@@ -145,7 +145,7 @@ struct ControlSectionView: View {
                 .frame(width: 24, height: 24)
         }
         .buttonStyle(.plain)
-        .help(String(localized: "Switch to Mini Mode"))
+        .help(String(localized: "switch_to_mini_mode"))
     }
         
     @AppStorage("displayMode") private var displayMode = DisplayMode.full.rawValue
@@ -183,11 +183,11 @@ struct ControlSectionView: View {
     private var repeatTooltip: LocalizedStringKey {
         switch repeatMode {
         case .off:
-            return "Repeat: Off"
+            return "repeat_mode_off"
         case .all:
-            return "Repeat: All"
+            return "repeat_mode_all"
         case .one:
-            return "Repeat: One"
+            return "repeat_mode_one"
         }
     }
 
@@ -206,7 +206,7 @@ struct ControlSectionView: View {
                     .frame(width: 24, height: 24)
             }
             .buttonStyle(.plain)
-            .help(volume > 0 ? String(localized: "Mute") : String(localized: "Unmute"))
+            .help(volume > 0 ? String(localized: "mute") : String(localized: "unmute"))
             
             Slider(value: $volume, in: 0 ... 1)
                 .frame(width: 100)
