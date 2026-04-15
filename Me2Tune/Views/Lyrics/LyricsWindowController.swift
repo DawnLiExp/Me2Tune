@@ -57,7 +57,7 @@ final class LyricsWindowController {
         
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 440, height: 800),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
@@ -71,6 +71,8 @@ final class LyricsWindowController {
         window.titleVisibility = .hidden
         window.backgroundColor = NSColor(ThemeManager.shared.currentTheme.colors.mainBackground)
         window.isMovableByWindowBackground = true
+        window.standardWindowButton(.zoomButton)?.isEnabled = false
+        window.standardWindowButton(.zoomButton)?.isHidden = true
         
         setupAlwaysOnTopObserver(for: window)
         

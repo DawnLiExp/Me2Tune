@@ -15,14 +15,38 @@ struct LyricsView: View {
     @State private var currentLineIndex: Int?
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var showLyricsSettings = false
     
-    // ✅ 独立刷新 Timer
     @State private var updateTimer: Timer?
     @State private var currentPlaybackTime: TimeInterval = 0
+
+    @AppStorage(LyricsDisplaySettingsKey.highlightSize)
+    private var highlightSizeRaw = LyricsHighlightSize.s18.rawValue
+
+    @AppStorage(LyricsDisplaySettingsKey.normalSize)
+    private var normalSizeRaw = LyricsNormalSize.s15.rawValue
+
+    @AppStorage(LyricsDisplaySettingsKey.translationOffset)
+    private var translationOffsetRaw = LyricsTranslationOffset.minus1.rawValue
+
+    @AppStorage(LyricsDisplaySettingsKey.highlightIntensity)
+    private var highlightIntensityRaw = LyricsHighlightIntensity.standard.rawValue
+
+    @AppStorage(LyricsDisplaySettingsKey.lineSpacing)
+    private var lineSpacingRaw = LyricsLineSpacing.normal.rawValue
     
-    // ✅ 直接访问主题颜色
     private var themeColors: ThemeColors {
         ThemeManager.shared.currentTheme.colors
+    }
+
+    private var displaySettings: LyricsDisplaySettings {
+        LyricsDisplaySettings(
+            highlightSizeRaw: highlightSizeRaw,
+            normalSizeRaw: normalSizeRaw,
+            translationOffsetRaw: translationOffsetRaw,
+            highlightIntensityRaw: highlightIntensityRaw,
+            lineSpacingRaw: lineSpacingRaw
+        )
     }
     
     var body: some View {
@@ -40,12 +64,20 @@ struct LyricsView: View {
                     .background(themeColors.borderGradientStart.opacity(0.3))
                     .padding(.top, 18)
                     .padding(.bottom, 20)
+
+                if showLyricsSettings {
+                    settingsPanel
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 18)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
                 
                 contentSection
                     .frame(maxHeight: .infinity)
             }
         }
         .frame(width: 440, height: 800)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showLyricsSettings)
         .contextMenu {
             @Bindable var settings = SettingsManager.shared
             Toggle(isOn: $settings.lyricsAlwaysOnTop) {
@@ -66,23 +98,45 @@ struct LyricsView: View {
     // MARK: - Header Section
     
     private var headerSection: some View {
-        VStack(spacing: 8) {
-            if let track = playerViewModel.currentTrack {
-                Text(track.title)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(themeColors.primaryText)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-                
-                Text(track.artist ?? String(localized: "unknown_artist"))
-                    .font(.system(size: 14))
-                    .foregroundColor(themeColors.secondaryText)
-                    .lineLimit(1)
-            } else {
-                Text(String(localized: "no_track"))
-                    .font(.system(size: 16))
-                    .foregroundColor(themeColors.secondaryText)
+        HStack(alignment: .top, spacing: 12) {
+            Color.clear
+                .frame(width: 28, height: 28)
+
+            VStack(spacing: 8) {
+                if let track = playerViewModel.currentTrack {
+                    Text(track.title)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(themeColors.primaryText)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.center)
+                    
+                    Text(track.artist ?? String(localized: "unknown_artist"))
+                        .font(.system(size: 14))
+                        .foregroundColor(themeColors.secondaryText)
+                        .lineLimit(1)
+                } else {
+                    Text(String(localized: "no_track"))
+                        .font(.system(size: 16))
+                        .foregroundColor(themeColors.secondaryText)
+                }
             }
+            .frame(maxWidth: .infinity)
+
+            Button {
+                showLyricsSettings.toggle()
+            } label: {
+                Image(systemName: showLyricsSettings ? "xmark.circle.fill" : "slider.horizontal.3")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(showLyricsSettings ? themeColors.accent : themeColors.secondaryText)
+                    .frame(width: 28, height: 28)
+                    .background(
+                        Circle()
+                            .fill(themeColors.controlBackground.opacity(showLyricsSettings ? 0.95 : 0.65))
+                    )
+            }
+            .buttonStyle(.plain)
+            .help(Text("lyrics_display_settings"))
+            .accessibilityLabel(Text("lyrics_display_settings"))
         }
     }
     
@@ -178,10 +232,11 @@ struct LyricsView: View {
                             line: line,
                             lineIndex: index,
                             currentLineIndex: currentLineIndex,
+                            displaySettings: displaySettings,
                             theme: themeColors
                         )
                         .id(index)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, displaySettings.blockVerticalPadding)
                     }
                     
                     Color.clear
@@ -204,13 +259,99 @@ struct LyricsView: View {
     private func plainLyricsView(text: String) -> some View {
         ScrollView(showsIndicators: false) {
             Text(text)
-                .font(.system(size: 15, weight: .regular))
+                .font(.system(size: displaySettings.plainTextFontSize, weight: .regular))
                 .foregroundColor(themeColors.primaryText)
-                .lineSpacing(8)
+                .lineSpacing(displaySettings.plainTextLineSpacing)
                 .multilineTextAlignment(.leading)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 20)
         }
+    }
+
+    private var settingsPanel: some View {
+        VStack(spacing: 12) {
+            settingsRow("lyrics_highlight_size") {
+                TickedSlider<LyricsHighlightSize>(
+                    selection: $highlightSizeRaw,
+                    leftLabel: "lyrics_size_small",
+                    rightLabel: "lyrics_size_large"
+                )
+            }
+
+            settingsRow("lyrics_normal_size") {
+                TickedSlider<LyricsNormalSize>(
+                    selection: $normalSizeRaw,
+                    leftLabel: "lyrics_size_small",
+                    rightLabel: "lyrics_size_large"
+                )
+            }
+
+            settingsRow("lyrics_translation_offset") {
+                TickedSlider<LyricsTranslationOffset>(
+                    selection: $translationOffsetRaw,
+                    leftLabel: "-1",
+                    rightLabel: "+1"
+                )
+            }
+
+            settingsRow("lyrics_focus_intensity") {
+                TickedSlider<LyricsHighlightIntensity>(
+                    selection: $highlightIntensityRaw,
+                    leftLabel: "lyrics_intensity_gentle",
+                    rightLabel: "lyrics_intensity_dramatic"
+                )
+            }
+
+            settingsRow("lyrics_line_spacing") {
+                TickedSlider<LyricsLineSpacing>(
+                    selection: $lineSpacingRaw,
+                    leftLabel: "lyrics_spacing_compact",
+                    rightLabel: "lyrics_spacing_relaxed"
+                )
+            }
+
+            HStack {
+                Spacer()
+
+                Button("lyrics_reset_defaults") {
+                    resetLyricsSettings()
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 11))
+                .foregroundStyle(themeColors.secondaryText)
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(themeColors.controlBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(themeColors.borderGradientStart.opacity(0.25), lineWidth: 1)
+                )
+        )
+    }
+
+    private func settingsRow(
+        _ label: LocalizedStringKey,
+        @ViewBuilder content: () -> some View
+    ) -> some View {
+        HStack(spacing: 10) {
+            Text(label)
+                .font(.system(size: 11))
+                .foregroundStyle(themeColors.secondaryText)
+                .frame(width: 86, alignment: .trailing)
+
+            content()
+        }
+    }
+
+    private func resetLyricsSettings() {
+        highlightSizeRaw = LyricsHighlightSize.s18.rawValue
+        normalSizeRaw = LyricsNormalSize.s15.rawValue
+        translationOffsetRaw = LyricsTranslationOffset.minus1.rawValue
+        highlightIntensityRaw = LyricsHighlightIntensity.standard.rawValue
+        lineSpacingRaw = LyricsLineSpacing.normal.rawValue
     }
     
     // MARK: - Independent Update Timer
@@ -218,12 +359,10 @@ struct LyricsView: View {
     private func startUpdateTimer() {
         stopUpdateTimer()
         
-        // ✅ 歌词窗口前台时：0.3s 高频刷新
         updateTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak playerViewModel] _ in
             guard let playerViewModel else { return }
             
             Task { @MainActor in
-                // ✅ 直接从播放器获取实时进度
                 currentPlaybackTime = playerViewModel.getCurrentPlaybackTime()
                 updateCurrentLine(time: currentPlaybackTime)
             }
@@ -328,6 +467,7 @@ struct LyricLineView: View {
     let line: LyricLine
     let lineIndex: Int
     let currentLineIndex: Int?
+    let displaySettings: LyricsDisplaySettings
     let theme: ThemeColors
     
     private var isCurrent: Bool {
@@ -346,20 +486,7 @@ struct LyricLineView: View {
     }
     
     private var distanceOpacity: Double {
-        switch distanceFromCurrent {
-        case 0:
-            return 1.0
-        case 1, 2:
-            return 0.85
-        case 3, 4:
-            return 0.6
-        case 5, 6:
-            return 0.4
-        case 7, 8:
-            return 0.25
-        default:
-            return 0.18
-        }
+        displaySettings.opacity(distance: distanceFromCurrent)
     }
     
     private var primaryTextColor: Color {
@@ -385,10 +512,9 @@ struct LyricLineView: View {
     
     var body: some View {
         VStack(spacing: 4) {
-            // 主文本（英文原文）
             Text(line.text.isEmpty ? "♪" : line.text)
                 .font(.system(
-                    size: isCurrent ? 17 : 15,
+                    size: displaySettings.mainFontSize(isCurrent: isCurrent),
                     weight: isCurrent ? .semibold : .regular
                 ))
                 .foregroundColor(primaryTextColor)
@@ -396,11 +522,10 @@ struct LyricLineView: View {
                 .lineSpacing(4)
                 .frame(maxWidth: .infinity)
             
-            // 译文（中文），仅双语时显示
             if let translation = line.translation, !translation.isEmpty {
                 Text(translation)
                     .font(.system(
-                        size: isCurrent ? 16 : 14,
+                        size: displaySettings.translationFontSize(isCurrent: isCurrent),
                         weight: .regular
                     ))
                     .foregroundColor(translationTextColor)
