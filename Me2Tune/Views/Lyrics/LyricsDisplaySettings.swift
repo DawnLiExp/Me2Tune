@@ -13,6 +13,7 @@ enum LyricsDisplaySettingsKey {
     static let translationOffset = "lyricsTranslationOffset"
     static let highlightIntensity = "lyricsHighlightIntensity"
     static let lineSpacing = "lyricsLineSpacing"
+    static let timeOffset = "lyricsTimeOffset"
 }
 
 enum LyricsHighlightSize: String, CaseIterable, Identifiable {
@@ -128,6 +129,30 @@ enum LyricsHighlightIntensity: String, CaseIterable, Identifiable {
     }
 }
 
+enum LyricsTimeOffset: String, CaseIterable, Identifiable {
+    case minus1_5 = "-1.5"
+    case minus1_0 = "-1.0"
+    case minus0_5 = "-0.5"
+    case zero     = "0.0"
+    case plus0_5  = "+0.5"
+    case plus1_0  = "+1.0"
+    case plus1_5  = "+1.5"
+
+    var id: String { rawValue }
+
+    var offsetValue: Double {
+        switch self {
+        case .minus1_5: -1.5
+        case .minus1_0: -1.0
+        case .minus0_5: -0.5
+        case .zero:      0.0
+        case .plus0_5:   0.5
+        case .plus1_0:   1.0
+        case .plus1_5:   1.5
+        }
+    }
+}
+
 enum LyricsLineSpacing: String, CaseIterable, Identifiable {
     case compact
     case normal
@@ -152,19 +177,22 @@ struct LyricsDisplaySettings {
     let translationOffset: LyricsTranslationOffset
     let highlightIntensity: LyricsHighlightIntensity
     let lineSpacing: LyricsLineSpacing
+    let timeOffset: LyricsTimeOffset
 
     init(
         highlightSizeRaw: String,
         normalSizeRaw: String,
         translationOffsetRaw: String,
         highlightIntensityRaw: String,
-        lineSpacingRaw: String
+        lineSpacingRaw: String,
+        timeOffsetRaw: String
     ) {
         highlightSize = LyricsHighlightSize(rawValue: highlightSizeRaw) ?? .s18
         normalSize = LyricsNormalSize(rawValue: normalSizeRaw) ?? .s15
         translationOffset = LyricsTranslationOffset(rawValue: translationOffsetRaw) ?? .minus1
         highlightIntensity = LyricsHighlightIntensity(rawValue: highlightIntensityRaw) ?? .standard
         lineSpacing = LyricsLineSpacing(rawValue: lineSpacingRaw) ?? .normal
+        timeOffset = LyricsTimeOffset(rawValue: timeOffsetRaw) ?? .zero
     }
 
     func mainFontSize(isCurrent: Bool) -> CGFloat {

@@ -34,6 +34,9 @@ struct LyricsView: View {
 
     @AppStorage(LyricsDisplaySettingsKey.lineSpacing)
     private var lineSpacingRaw = LyricsLineSpacing.normal.rawValue
+
+    @AppStorage(LyricsDisplaySettingsKey.timeOffset)
+    private var timeOffsetRaw = LyricsTimeOffset.zero.rawValue
     
     private var themeColors: ThemeColors {
         ThemeManager.shared.currentTheme.colors
@@ -45,7 +48,8 @@ struct LyricsView: View {
             normalSizeRaw: normalSizeRaw,
             translationOffsetRaw: translationOffsetRaw,
             highlightIntensityRaw: highlightIntensityRaw,
-            lineSpacingRaw: lineSpacingRaw
+            lineSpacingRaw: lineSpacingRaw,
+            timeOffsetRaw: timeOffsetRaw
         )
     }
     
@@ -88,6 +92,9 @@ struct LyricsView: View {
             await loadLyrics()
         }
         .onAppear {
+            if LyricsTimeOffset(rawValue: timeOffsetRaw) == nil {
+                timeOffsetRaw = LyricsTimeOffset.zero.rawValue
+            }
             startUpdateTimer()
         }
         .onDisappear {
@@ -313,6 +320,14 @@ struct LyricsView: View {
                     )
                 }
 
+                settingsRow("lyrics_time_offset", systemImage: "clock.arrow.2.circlepath") {
+                    TickedSlider<LyricsTimeOffset>(
+                        selection: $timeOffsetRaw,
+                        leftVerbatimLabel: "-1.5s",
+                        rightVerbatimLabel: "+1.5s"
+                    )
+                }
+
                 HStack {
                     Spacer()
 
@@ -368,6 +383,7 @@ struct LyricsView: View {
         translationOffsetRaw = LyricsTranslationOffset.minus1.rawValue
         highlightIntensityRaw = LyricsHighlightIntensity.standard.rawValue
         lineSpacingRaw = LyricsLineSpacing.normal.rawValue
+        timeOffsetRaw = LyricsTimeOffset.zero.rawValue
     }
     
     // MARK: - Independent Update Timer
@@ -455,24 +471,34 @@ struct LyricsView: View {
     }
     
     // MARK: - Update Current Line
-    
-    private func updateCurrentLine(time: TimeInterval) {
-        guard !lyricLines.isEmpty else {
-            currentLineIndex = nil
-            return
-        }
-        
+
+    /// 在给定歌词行列表中，找到最后一个 timestamp ≤ adjustedTime 的行索引
+    static func findCurrentLineIndex(
+        in lines: [LyricLine],
+        at time: TimeInterval,
+        offset: Double
+    ) -> Int? {
+        guard !lines.isEmpty else { return nil }
+        let adjustedTime = time - offset
         var foundIndex: Int?
-        for (index, line) in lyricLines.enumerated() {
-            if line.timestamp <= time {
+        for (index, line) in lines.enumerated() {
+            if line.timestamp <= adjustedTime {
                 foundIndex = index
             } else {
                 break
             }
         }
-        
-        if foundIndex != currentLineIndex {
-            currentLineIndex = foundIndex
+        return foundIndex
+    }
+
+    private func updateCurrentLine(time: TimeInterval) {
+        let newIndex = Self.findCurrentLineIndex(
+            in: lyricLines,
+            at: time,
+            offset: displaySettings.timeOffset.offsetValue
+        )
+        if newIndex != currentLineIndex {
+            currentLineIndex = newIndex
         }
     }
 }
