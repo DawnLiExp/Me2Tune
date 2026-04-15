@@ -9,16 +9,23 @@ import SwiftUI
 
 struct TickedSlider<T: RawRepresentable & CaseIterable & Equatable & Identifiable>: View where T.RawValue == String {
     @Binding var selection: T.RawValue
-    let leftLabel: LocalizedStringKey
-    let rightLabel: LocalizedStringKey
+    let leftLabel: Text
+    let rightLabel: Text
     
     private let allCases = Array(T.allCases)
     private let tickCount: Int
     
     init(selection: Binding<T.RawValue>, leftLabel: LocalizedStringKey, rightLabel: LocalizedStringKey) {
         self._selection = selection
-        self.leftLabel = leftLabel
-        self.rightLabel = rightLabel
+        self.leftLabel = Text(leftLabel)
+        self.rightLabel = Text(rightLabel)
+        self.tickCount = T.allCases.count
+    }
+
+    init(selection: Binding<T.RawValue>, leftVerbatimLabel: String, rightVerbatimLabel: String) {
+        self._selection = selection
+        self.leftLabel = Text(verbatim: leftVerbatimLabel)
+        self.rightLabel = Text(verbatim: rightVerbatimLabel)
         self.tickCount = T.allCases.count
     }
     
@@ -28,7 +35,7 @@ struct TickedSlider<T: RawRepresentable & CaseIterable & Equatable & Identifiabl
     
     var body: some View {
         HStack(spacing: 24) {
-            Text(leftLabel)
+            leftLabel
                 .font(.system(size: 10))
                 .foregroundColor(.secondary)
                 .fixedSize()
@@ -85,7 +92,7 @@ struct TickedSlider<T: RawRepresentable & CaseIterable & Equatable & Identifiabl
             }
             .frame(width: 140, height: 20)
             
-            Text(rightLabel)
+            rightLabel
                 .font(.system(size: 10))
                 .foregroundColor(.secondary)
                 .fixedSize()

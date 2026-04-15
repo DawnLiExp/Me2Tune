@@ -1,3 +1,8 @@
+//
+//  LyricsDisplaySettingsTests.swift
+//  Me2TuneTests
+//
+
 import CoreGraphics
 import Testing
 @testable import Me2Tune

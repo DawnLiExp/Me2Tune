@@ -292,8 +292,8 @@ struct LyricsView: View {
                 settingsRow("lyrics_translation_offset") {
                     TickedSlider<LyricsTranslationOffset>(
                         selection: $translationOffsetRaw,
-                        leftLabel: "-1",
-                        rightLabel: "+1"
+                        leftVerbatimLabel: "-1",
+                        rightVerbatimLabel: "+1"
                     )
                 }
 

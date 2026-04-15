@@ -978,22 +978,6 @@
         }
       }
     },
-    "lyrics_normal_size" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Other Lines"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "非当前行"
-          }
-        }
-      }
-    },
     "lyrics_network_error_format" : {
       "localizations" : {
         "en" : {
@@ -1006,6 +990,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "网络错误: %@"
+          }
+        }
+      }
+    },
+    "lyrics_normal_size" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other Lines"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "非当前行"
           }
         }
       }
