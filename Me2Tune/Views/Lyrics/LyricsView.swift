@@ -122,21 +122,23 @@ struct LyricsView: View {
             }
             .frame(maxWidth: .infinity)
 
-            Button {
-                showLyricsSettings.toggle()
-            } label: {
-                Image(systemName: showLyricsSettings ? "xmark.circle.fill" : "slider.horizontal.3")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(showLyricsSettings ? themeColors.accent : themeColors.secondaryText)
-                    .frame(width: 28, height: 28)
-                    .background(
-                        Circle()
-                            .fill(themeColors.controlBackground.opacity(showLyricsSettings ? 0.95 : 0.65))
-                    )
+            NonDraggableView {
+                Button {
+                    showLyricsSettings.toggle()
+                } label: {
+                    Image(systemName: showLyricsSettings ? "xmark.circle.fill" : "slider.horizontal.3")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(showLyricsSettings ? themeColors.accent : themeColors.secondaryText)
+                        .frame(width: 28, height: 28)
+                        .background(
+                            Circle()
+                                .fill(themeColors.controlBackground.opacity(showLyricsSettings ? 0.95 : 0.65))
+                        )
+                }
+                .buttonStyle(.plain)
+                .help(Text("lyrics_display_settings"))
+                .accessibilityLabel(Text("lyrics_display_settings"))
             }
-            .buttonStyle(.plain)
-            .help(Text("lyrics_display_settings"))
-            .accessibilityLabel(Text("lyrics_display_settings"))
         }
     }
     
@@ -269,67 +271,69 @@ struct LyricsView: View {
     }
 
     private var settingsPanel: some View {
-        VStack(spacing: 12) {
-            settingsRow("lyrics_highlight_size") {
-                TickedSlider<LyricsHighlightSize>(
-                    selection: $highlightSizeRaw,
-                    leftLabel: "lyrics_size_small",
-                    rightLabel: "lyrics_size_large"
-                )
-            }
-
-            settingsRow("lyrics_normal_size") {
-                TickedSlider<LyricsNormalSize>(
-                    selection: $normalSizeRaw,
-                    leftLabel: "lyrics_size_small",
-                    rightLabel: "lyrics_size_large"
-                )
-            }
-
-            settingsRow("lyrics_translation_offset") {
-                TickedSlider<LyricsTranslationOffset>(
-                    selection: $translationOffsetRaw,
-                    leftLabel: "-1",
-                    rightLabel: "+1"
-                )
-            }
-
-            settingsRow("lyrics_focus_intensity") {
-                TickedSlider<LyricsHighlightIntensity>(
-                    selection: $highlightIntensityRaw,
-                    leftLabel: "lyrics_intensity_gentle",
-                    rightLabel: "lyrics_intensity_dramatic"
-                )
-            }
-
-            settingsRow("lyrics_line_spacing") {
-                TickedSlider<LyricsLineSpacing>(
-                    selection: $lineSpacingRaw,
-                    leftLabel: "lyrics_spacing_compact",
-                    rightLabel: "lyrics_spacing_relaxed"
-                )
-            }
-
-            HStack {
-                Spacer()
-
-                Button("lyrics_reset_defaults") {
-                    resetLyricsSettings()
+        NonDraggableView {
+            VStack(spacing: 12) {
+                settingsRow("lyrics_highlight_size") {
+                    TickedSlider<LyricsHighlightSize>(
+                        selection: $highlightSizeRaw,
+                        leftLabel: "lyrics_size_small",
+                        rightLabel: "lyrics_size_large"
+                    )
                 }
-                .buttonStyle(.plain)
-                .font(.system(size: 11))
-                .foregroundStyle(themeColors.secondaryText)
+
+                settingsRow("lyrics_normal_size") {
+                    TickedSlider<LyricsNormalSize>(
+                        selection: $normalSizeRaw,
+                        leftLabel: "lyrics_size_small",
+                        rightLabel: "lyrics_size_large"
+                    )
+                }
+
+                settingsRow("lyrics_translation_offset") {
+                    TickedSlider<LyricsTranslationOffset>(
+                        selection: $translationOffsetRaw,
+                        leftLabel: "-1",
+                        rightLabel: "+1"
+                    )
+                }
+
+                settingsRow("lyrics_focus_intensity") {
+                    TickedSlider<LyricsHighlightIntensity>(
+                        selection: $highlightIntensityRaw,
+                        leftLabel: "lyrics_intensity_gentle",
+                        rightLabel: "lyrics_intensity_dramatic"
+                    )
+                }
+
+                settingsRow("lyrics_line_spacing") {
+                    TickedSlider<LyricsLineSpacing>(
+                        selection: $lineSpacingRaw,
+                        leftLabel: "lyrics_spacing_compact",
+                        rightLabel: "lyrics_spacing_relaxed"
+                    )
+                }
+
+                HStack {
+                    Spacer()
+
+                    Button("lyrics_reset_defaults") {
+                        resetLyricsSettings()
+                    }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11))
+                    .foregroundStyle(themeColors.secondaryText)
+                }
             }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(themeColors.controlBackground)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(themeColors.borderGradientStart.opacity(0.25), lineWidth: 1)
+                    )
+            )
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(themeColors.controlBackground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(themeColors.borderGradientStart.opacity(0.25), lineWidth: 1)
-                )
-        )
     }
 
     private func settingsRow(
