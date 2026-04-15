@@ -34,12 +34,12 @@ struct TickedSlider<T: RawRepresentable & CaseIterable & Equatable & Identifiabl
     }
     
     var body: some View {
-        HStack(spacing: 24) {
+        HStack(spacing: 16) {
             leftLabel
                 .font(.system(size: 10))
                 .foregroundColor(.secondary)
                 .fixedSize()
-                .frame(width: 35, alignment: .trailing)
+                .frame(width: 32, alignment: .trailing)
             
             GeometryReader { geometry in
                 let width = geometry.size.width
@@ -90,13 +90,13 @@ struct TickedSlider<T: RawRepresentable & CaseIterable & Equatable & Identifiabl
 
                 .frame(maxHeight: .infinity)
             }
-            .frame(width: 140, height: 20)
+            .frame(width: 132, height: 20)
             
             rightLabel
                 .font(.system(size: 10))
                 .foregroundColor(.secondary)
                 .fixedSize()
-                .frame(width: 45, alignment: .leading)
+                .frame(width: 42, alignment: .leading)
         }
     }
 }

@@ -273,7 +273,7 @@ struct LyricsView: View {
     private var settingsPanel: some View {
         NonDraggableView {
             VStack(spacing: 12) {
-                settingsRow("lyrics_highlight_size") {
+                settingsRow("lyrics_highlight_size", systemImage: "textformat.size.larger") {
                     TickedSlider<LyricsHighlightSize>(
                         selection: $highlightSizeRaw,
                         leftLabel: "lyrics_size_small",
@@ -281,7 +281,7 @@ struct LyricsView: View {
                     )
                 }
 
-                settingsRow("lyrics_normal_size") {
+                settingsRow("lyrics_normal_size", systemImage: "textformat.size.smaller") {
                     TickedSlider<LyricsNormalSize>(
                         selection: $normalSizeRaw,
                         leftLabel: "lyrics_size_small",
@@ -289,7 +289,7 @@ struct LyricsView: View {
                     )
                 }
 
-                settingsRow("lyrics_translation_offset") {
+                settingsRow("lyrics_translation_offset", systemImage: "globe") {
                     TickedSlider<LyricsTranslationOffset>(
                         selection: $translationOffsetRaw,
                         leftVerbatimLabel: "-1",
@@ -297,7 +297,7 @@ struct LyricsView: View {
                     )
                 }
 
-                settingsRow("lyrics_focus_intensity") {
+                settingsRow("lyrics_focus_intensity", systemImage: "viewfinder.circle") {
                     TickedSlider<LyricsHighlightIntensity>(
                         selection: $highlightIntensityRaw,
                         leftLabel: "lyrics_intensity_gentle",
@@ -305,7 +305,7 @@ struct LyricsView: View {
                     )
                 }
 
-                settingsRow("lyrics_line_spacing") {
+                settingsRow("lyrics_line_spacing", systemImage: "line.3.horizontal") {
                     TickedSlider<LyricsLineSpacing>(
                         selection: $lineSpacingRaw,
                         leftLabel: "lyrics_spacing_compact",
@@ -324,7 +324,9 @@ struct LyricsView: View {
                     .foregroundStyle(themeColors.secondaryText)
                 }
             }
-            .padding(16)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 16)
+            .frame(maxWidth: 392)
             .background(
                 RoundedRectangle(cornerRadius: 14)
                     .fill(themeColors.controlBackground)
@@ -338,13 +340,23 @@ struct LyricsView: View {
 
     private func settingsRow(
         _ label: LocalizedStringKey,
+        systemImage: String,
         @ViewBuilder content: () -> some View
     ) -> some View {
-        HStack(spacing: 10) {
-            Text(label)
-                .font(.system(size: 11))
-                .foregroundStyle(themeColors.secondaryText)
-                .frame(width: 86, alignment: .trailing)
+        HStack(spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(themeColors.accent.opacity(0.9))
+                    .frame(width: 12)
+
+                Text(label)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(themeColors.secondaryText)
+                    .multilineTextAlignment(.leading)
+            }
+            .padding(.leading, 6)
+            .frame(width: 112, alignment: .leading)
 
             content()
         }
