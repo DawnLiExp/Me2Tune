@@ -14,6 +14,7 @@ struct ControlSectionView: View {
     let canGoPrevious: Bool
     let canGoNext: Bool
     let repeatMode: PlayerViewModel.RepeatMode
+    var isRestoring: Bool = false
     
     let onPlayPause: () -> Void
     let onPrevious: () -> Void
@@ -59,19 +60,26 @@ struct ControlSectionView: View {
     
     // MARK: - Track Info Section
     
+    /// 恢复期间且无曲目时，隐藏 "no_track" 和 "ready_to_play"
+    private var isRestoringWithNoTrack: Bool {
+        isRestoring && currentTrack == nil
+    }
+
     private var trackInfoSection: some View {
         ZStack(alignment: .leading) {
             if !isHoveringTrackInfo || currentTrack == nil {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(currentTrack?.title ?? String(localized: "no_track"))
+                    Text(trackTitle)
                         .font(.system(size: 20, weight: .semibold))
                         .foregroundColor(.accent)
                         .lineLimit(1)
                     
-                    Text(trackSubtitle)
-                        .font(.system(size: 12, weight: .regular))
-                        .foregroundColor(.tertiaryText)
-                        .lineLimit(1)
+                    if !isRestoringWithNoTrack {
+                        Text(trackSubtitle)
+                            .font(.system(size: 12, weight: .regular))
+                            .foregroundColor(.tertiaryText)
+                            .lineLimit(1)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .transition(.opacity)
@@ -112,6 +120,14 @@ struct ControlSectionView: View {
         }
     }
     
+    /// 曲目标题：恢复期间且无曲目时显示空字符串，避免闪烁 "no_track"
+    private var trackTitle: String {
+        if let track = currentTrack {
+            return track.title
+        }
+        return isRestoring ? "" : String(localized: "no_track")
+    }
+
     private var trackSubtitle: String {
         guard let track = currentTrack else {
             return String(localized: "ready_to_play")
@@ -238,19 +254,26 @@ struct ControlSectionView: View {
     
     // MARK: - Control Buttons
     
+    /// 恢复期间 transport controls 是否应禁用（防止触发 fallback 播放路径）
+    private var transportDisabled: Bool {
+        isRestoringWithNoTrack
+    }
+
     private var controlButtons: some View {
         HStack(spacing: 20) {
             controlButton(
                 icon: "backward.end",
                 size: 20,
-                enabled: canGoPrevious,
+                enabled: transportDisabled ? false : canGoPrevious,
+                silent: transportDisabled,
                 action: onPrevious
             )
             
             controlButton(
                 icon: "forward.end",
                 size: 20,
-                enabled: canGoNext,
+                enabled: transportDisabled ? false : canGoNext,
+                silent: transportDisabled,
                 action: onNext
             )
             
@@ -272,15 +295,17 @@ struct ControlSectionView: View {
             }
         }
         .buttonStyle(PlainButtonStyle())
-        .disabled(currentTrack == nil)
-        .opacity(currentTrack == nil ? 0.5 : 1.0)
+        .disabled(transportDisabled || currentTrack == nil)
+        .opacity(transportDisabled ? 1.0 : (currentTrack == nil ? 0.5 : 1.0))
     }
     
-    private func controlButton(icon: String, size: CGFloat, enabled: Bool, action: @escaping () -> Void) -> some View {
+    /// - Parameters:
+    ///   - silent: 恢复期间保持静默外观（不灰掉），但仍然 disabled
+    private func controlButton(icon: String, size: CGFloat, enabled: Bool, silent: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: size, weight: .semibold))
-                .foregroundColor(enabled ? .controlButtonColor : .controlButtonColor.opacity(0.3))
+                .foregroundColor(silent ? .controlButtonColor : (enabled ? .controlButtonColor : .controlButtonColor.opacity(0.3)))
         }
         .buttonStyle(PlainButtonStyle())
         .disabled(!enabled)
@@ -343,7 +368,7 @@ struct ControlSectionView: View {
     }
 }
 
-#Preview {
+#Preview("Normal - No Track") {
     ControlSectionView(
         currentTrack: nil,
         duration: 240,
@@ -351,6 +376,26 @@ struct ControlSectionView: View {
         canGoPrevious: true,
         canGoNext: true,
         repeatMode: .off,
+        onPlayPause: {},
+        onPrevious: {},
+        onNext: {},
+        onSeek: { _ in },
+        onToggleRepeat: {},
+        volume: .constant(0.7)
+    )
+    .padding()
+    .background(Color.black)
+}
+
+#Preview("Restoring - Silent") {
+    ControlSectionView(
+        currentTrack: nil,
+        duration: 0,
+        isPlaying: false,
+        canGoPrevious: false,
+        canGoNext: false,
+        repeatMode: .off,
+        isRestoring: true,
         onPlayPause: {},
         onPrevious: {},
         onNext: {},
