@@ -14,6 +14,7 @@ struct VinylSectionView: View {
     let isRotationEnabled: Bool
     let duration: TimeInterval
     let isWindowVisible: Bool
+    var isRestoring: Bool = false
 
     @Environment(\.playbackProgressState) private var playbackProgressState
 
@@ -31,13 +32,24 @@ struct VinylSectionView: View {
 
     // MARK: - Vinyl Disc
 
+    /// 恢复期间且无封面时，不渲染 RotatingVinylLayer，避免显示灰色吉他默认图标
+    private var isRestoringWithNoArtwork: Bool {
+        isRestoring && artwork == nil
+    }
+
+    @ViewBuilder
     private var vinylDisc: some View {
-        RotatingVinylLayer(
-            artwork: artwork,
-            shouldRotate: isPlaying && isRotationEnabled && isWindowVisible,
-            vinylSize: vinylSize
-        )
-        .frame(width: vinylSize, height: vinylSize)
+        if isRestoringWithNoArtwork {
+            Color.clear
+                .frame(width: vinylSize, height: vinylSize)
+        } else {
+            RotatingVinylLayer(
+                artwork: artwork,
+                shouldRotate: isPlaying && isRotationEnabled && isWindowVisible,
+                vinylSize: vinylSize
+            )
+            .frame(width: vinylSize, height: vinylSize)
+        }
     }
 
     // MARK: - Time Overlay
@@ -68,13 +80,27 @@ struct VinylSectionView: View {
     }
 }
 
-#Preview {
+#Preview("Normal - No Artwork") {
     VinylSectionView(
         artwork: nil,
         isPlaying: true,
         isRotationEnabled: true,
         duration: 240,
         isWindowVisible: true
+    )
+    .frame(height: 160)
+    .padding()
+    .background(Color.black)
+}
+
+#Preview("Restoring - Blank") {
+    VinylSectionView(
+        artwork: nil,
+        isPlaying: false,
+        isRotationEnabled: true,
+        duration: 0,
+        isWindowVisible: true,
+        isRestoring: true
     )
     .frame(height: 160)
     .padding()
