@@ -7,25 +7,50 @@
 
 import SwiftUI
 
+struct TickedSliderAppearance {
+    let labelColor: Color
+    let railColor: Color
+    let tickColor: Color
+
+    static let automatic = TickedSliderAppearance(
+        labelColor: .secondary,
+        railColor: Color(NSColor.separatorColor).opacity(0.5),
+        tickColor: Color(NSColor.separatorColor)
+    )
+}
+
 struct TickedSlider<T: RawRepresentable & CaseIterable & Equatable & Identifiable>: View where T.RawValue == String {
     @Binding var selection: T.RawValue
     let leftLabel: Text
     let rightLabel: Text
+    let appearance: TickedSliderAppearance
     
     private let allCases = Array(T.allCases)
     private let tickCount: Int
     
-    init(selection: Binding<T.RawValue>, leftLabel: LocalizedStringKey, rightLabel: LocalizedStringKey) {
+    init(
+        selection: Binding<T.RawValue>,
+        leftLabel: LocalizedStringKey,
+        rightLabel: LocalizedStringKey,
+        appearance: TickedSliderAppearance = .automatic
+    ) {
         self._selection = selection
         self.leftLabel = Text(leftLabel)
         self.rightLabel = Text(rightLabel)
+        self.appearance = appearance
         self.tickCount = T.allCases.count
     }
 
-    init(selection: Binding<T.RawValue>, leftVerbatimLabel: String, rightVerbatimLabel: String) {
+    init(
+        selection: Binding<T.RawValue>,
+        leftVerbatimLabel: String,
+        rightVerbatimLabel: String,
+        appearance: TickedSliderAppearance = .automatic
+    ) {
         self._selection = selection
         self.leftLabel = Text(verbatim: leftVerbatimLabel)
         self.rightLabel = Text(verbatim: rightVerbatimLabel)
+        self.appearance = appearance
         self.tickCount = T.allCases.count
     }
     
@@ -37,7 +62,7 @@ struct TickedSlider<T: RawRepresentable & CaseIterable & Equatable & Identifiabl
         HStack(spacing: 16) {
             leftLabel
                 .font(.system(size: 10))
-                .foregroundColor(.secondary)
+                .foregroundStyle(appearance.labelColor)
                 .fixedSize()
                 .frame(width: 32, alignment: .trailing)
             
@@ -48,14 +73,14 @@ struct TickedSlider<T: RawRepresentable & CaseIterable & Equatable & Identifiabl
                 ZStack(alignment: .leading) {
                     // Rail
                     Rectangle()
-                        .fill(Color(NSColor.separatorColor).opacity(0.5))
+                        .fill(appearance.railColor)
                         .frame(height: 1)
                     
                     // Ticks
                     HStack(spacing: 0) {
                         ForEach(0 ..< tickCount, id: \.self) { index in
                             Rectangle()
-                                .fill(Color(NSColor.separatorColor))
+                                .fill(appearance.tickColor)
                                 .frame(width: 1, height: 6)
                             
                             if index < tickCount - 1 {
@@ -66,7 +91,7 @@ struct TickedSlider<T: RawRepresentable & CaseIterable & Equatable & Identifiabl
                     
                     // Knob
                     Circle()
-                        .fill(Color.white)
+                        .fill(Color.white.opacity(0.86))
                         .shadow(color: Color.black.opacity(0.15), radius: 1.5, y: 0.5)
                         .frame(width: 14, height: 14)
                         .overlay(
@@ -94,7 +119,7 @@ struct TickedSlider<T: RawRepresentable & CaseIterable & Equatable & Identifiabl
             
             rightLabel
                 .font(.system(size: 10))
-                .foregroundColor(.secondary)
+                .foregroundStyle(appearance.labelColor)
                 .fixedSize()
                 .frame(width: 42, alignment: .leading)
         }

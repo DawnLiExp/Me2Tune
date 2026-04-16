@@ -42,6 +42,14 @@ struct LyricsView: View {
         ThemeManager.shared.currentTheme.colors
     }
 
+    private var settingsSliderAppearance: TickedSliderAppearance {
+        TickedSliderAppearance(
+            labelColor: themeColors.primaryText.opacity(0.72),
+            railColor: themeColors.primaryText.opacity(0.18),
+            tickColor: themeColors.primaryText.opacity(0.3)
+        )
+    }
+
     private var displaySettings: LyricsDisplaySettings {
         LyricsDisplaySettings(
             highlightSizeRaw: highlightSizeRaw,
@@ -284,7 +292,8 @@ struct LyricsView: View {
                     TickedSlider<LyricsHighlightSize>(
                         selection: $highlightSizeRaw,
                         leftLabel: "lyrics_size_small",
-                        rightLabel: "lyrics_size_large"
+                        rightLabel: "lyrics_size_large",
+                        appearance: settingsSliderAppearance
                     )
                 }
 
@@ -292,7 +301,8 @@ struct LyricsView: View {
                     TickedSlider<LyricsNormalSize>(
                         selection: $normalSizeRaw,
                         leftLabel: "lyrics_size_small",
-                        rightLabel: "lyrics_size_large"
+                        rightLabel: "lyrics_size_large",
+                        appearance: settingsSliderAppearance
                     )
                 }
 
@@ -300,7 +310,8 @@ struct LyricsView: View {
                     TickedSlider<LyricsTranslationOffset>(
                         selection: $translationOffsetRaw,
                         leftVerbatimLabel: "-1",
-                        rightVerbatimLabel: "+1"
+                        rightVerbatimLabel: "+1",
+                        appearance: settingsSliderAppearance
                     )
                 }
 
@@ -308,7 +319,8 @@ struct LyricsView: View {
                     TickedSlider<LyricsHighlightIntensity>(
                         selection: $highlightIntensityRaw,
                         leftLabel: "lyrics_intensity_gentle",
-                        rightLabel: "lyrics_intensity_dramatic"
+                        rightLabel: "lyrics_intensity_dramatic",
+                        appearance: settingsSliderAppearance
                     )
                 }
 
@@ -316,7 +328,8 @@ struct LyricsView: View {
                     TickedSlider<LyricsLineSpacing>(
                         selection: $lineSpacingRaw,
                         leftLabel: "lyrics_spacing_compact",
-                        rightLabel: "lyrics_spacing_relaxed"
+                        rightLabel: "lyrics_spacing_relaxed",
+                        appearance: settingsSliderAppearance
                     )
                 }
 
@@ -324,7 +337,8 @@ struct LyricsView: View {
                     TickedSlider<LyricsTimeOffset>(
                         selection: $timeOffsetRaw,
                         leftVerbatimLabel: "-1.5s",
-                        rightVerbatimLabel: "+1.5s"
+                        rightVerbatimLabel: "+1.5s",
+                        appearance: settingsSliderAppearance
                     )
                 }
 
