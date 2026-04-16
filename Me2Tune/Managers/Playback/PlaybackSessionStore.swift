@@ -37,6 +37,11 @@ final class PlaybackSessionStore {
         self.key = key
     }
 
+    /// 同步探测是否存在已保存的会话快照（不解码完整数据）
+    var hasSnapshot: Bool {
+        defaults.data(forKey: key) != nil
+    }
+
     func load() -> PlaybackSessionSnapshot? {
         guard let data = defaults.data(forKey: key),
               let snapshot = try? JSONDecoder().decode(PlaybackSessionSnapshot.self, from: data)

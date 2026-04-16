@@ -48,6 +48,11 @@ final class PlaybackCoordinator {
     let playlistManager: PlaylistManager
     let playbackStateManager: PlaybackStateManager
 
+    /// 同步探测是否存在已保存的会话快照（转发 sessionStore）
+    var hasSessionSnapshot: Bool {
+        playbackStateManager.hasSessionSnapshot
+    }
+
     var canGoPrevious: Bool {
         guard playbackStateManager.currentTrackIndex != nil else { return false }
         if repeatMode == .all { return !playbackStateManager.currentTracks.isEmpty }

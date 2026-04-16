@@ -12,9 +12,32 @@ import Observation
 @MainActor
 @Observable
 final class PlayerViewModel {
-    private let coordinator: PlaybackCoordinator
 
-    private(set) var isPlaylistLoaded = false
+    // MARK: - Restoration Phase
+
+    /// 冷启动恢复阶段：区分"无快照的真实空态"、"有快照正在恢复"和"恢复已结束"
+    enum RestorationPhase: Equatable, Sendable {
+        /// 无快照，真实空态 — UI 应立即显示 no_track
+        case idle
+        /// 有快照，恢复进行中 — UI 应保持静默/空白，不渲染 no_track
+        case restoring
+        /// 恢复已结束（成功或失败）— UI 按实际状态渲染
+        case completed
+    }
+
+    private(set) var restorationPhase: RestorationPhase
+
+    /// 是否处于恢复阶段（UI 辅助计算属性）
+    var isRestoring: Bool {
+        restorationPhase == .restoring
+    }
+
+    /// 向后兼容：恢复中时为 false，其余情况为 true
+    var isPlaylistLoaded: Bool {
+        restorationPhase != .restoring
+    }
+
+    private let coordinator: PlaybackCoordinator
 
     // ⚠️ 双向绑定：ScrollView 会将顶部可见 item 的 ID 写回此字段。
     // 移动歌曲后如不清除，SwiftUI 会自动滚回锚点曲目，导致新第 1 首不可见。
@@ -96,6 +119,9 @@ final class PlayerViewModel {
         self.playlistManager = coordinator.playlistManager
         self.playbackStateManager = coordinator.playbackStateManager
 
+        // 同步探测快照：决定初始恢复阶段
+        self.restorationPhase = coordinator.hasSessionSnapshot ? .restoring : .idle
+
         if let monitor = windowStateMonitor {
             injectWindowStateMonitor(monitor)
         }
@@ -103,7 +129,7 @@ final class PlayerViewModel {
         Task { @MainActor [weak self] in
             guard let self else { return }
             _ = await self.coordinator.restoreState()
-            self.isPlaylistLoaded = true
+            self.restorationPhase = .completed
         }
     }
 
@@ -146,8 +172,8 @@ final class PlayerViewModel {
     @discardableResult
     func addTracksToPlaylist(urls: [URL]) async -> AddTracksResult {
         let result = await coordinator.addTracksToPlaylist(urls: urls)
-        if !isPlaylistLoaded {
-            isPlaylistLoaded = true
+        if restorationPhase == .restoring {
+            restorationPhase = .completed
         }
         return result
     }

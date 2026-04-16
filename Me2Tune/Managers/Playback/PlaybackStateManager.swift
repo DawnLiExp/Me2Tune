@@ -36,6 +36,11 @@ final class PlaybackStateManager {
     private var currentAlbumSnapshot: Album?
     private var lastSavedSnapshot: PlaybackSessionSnapshot?
 
+    /// 同步探测是否存在已保存的会话快照（转发 sessionStore）
+    var hasSessionSnapshot: Bool {
+        sessionStore.hasSnapshot
+    }
+
     // MARK: - Computed Properties
 
     var currentTracks: [AudioTrack] {
