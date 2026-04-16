@@ -1106,6 +1106,22 @@
         }
       }
     },
+    "lyrics_time_offset" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Time Offset"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "时间偏移"
+          }
+        }
+      }
+    },
     "lyrics_translation_offset" : {
       "localizations" : {
         "en" : {
