@@ -74,6 +74,10 @@ struct MiniPlayerView: View {
                 Image(nsImage: artwork)
                     .resizable()
                     .scaledToFill()
+            } else if playerViewModel.isRestoring {
+                // 恢复期间不显示默认音乐图标，保持空白
+                Rectangle()
+                    .fill(Color.white.opacity(0.1))
             } else {
                 Rectangle()
                     .fill(Color.white.opacity(0.1))
@@ -100,7 +104,7 @@ struct MiniPlayerView: View {
     private var trackInfoRow: some View {
         HStack(spacing: 6) {
             HStack(spacing: 6) {
-                Text(playerViewModel.currentTrack?.title ?? String(localized: "no_track"))
+                Text(miniTrackTitle)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(miniTheme.colors.primaryText)
                     .lineLimit(1)
@@ -128,6 +132,14 @@ struct MiniPlayerView: View {
         }
     }
     
+    /// 恢复期间且无曲目时，隐藏 "no_track"
+    private var miniTrackTitle: String {
+        if let track = playerViewModel.currentTrack {
+            return track.title
+        }
+        return playerViewModel.isRestoring ? "" : String(localized: "no_track")
+    }
+
     private var remainingTimeString: String {
         let remaining = max(0, playerViewModel.duration - miniCurrentTime)
         guard remaining.isFinite, !remaining.isNaN else { return "-0:00" }
@@ -202,6 +214,11 @@ struct MiniPlayerView: View {
     
     // MARK: - Play/Pause Button
     
+    /// 恢复期间 transport controls 是否应禁用
+    private var miniTransportDisabled: Bool {
+        playerViewModel.isRestoring && playerViewModel.currentTrack == nil
+    }
+
     private var playPauseButton: some View {
         Button(action: playerViewModel.togglePlayPause) {
             ZStack {
@@ -211,8 +228,8 @@ struct MiniPlayerView: View {
             }
         }
         .buttonStyle(.plain)
-        .disabled(playerViewModel.currentTrack == nil)
-        .opacity(playerViewModel.currentTrack == nil ? 0.5 : 1.0)
+        .disabled(miniTransportDisabled || playerViewModel.currentTrack == nil)
+        .opacity(miniTransportDisabled ? 1.0 : (playerViewModel.currentTrack == nil ? 0.5 : 1.0))
     }
     
     // MARK: - Volume Control
