@@ -99,6 +99,7 @@ struct ContentView: View {
         let canGoPrevious = viewModel.canGoPrevious
         let canGoNext = viewModel.canGoNext
         let repeatMode = viewModel.repeatMode
+        let isRestoring = viewModel.isRestoring
         
         return VStack(spacing: 0) {
             TopBarSectionView(
@@ -121,7 +122,8 @@ struct ContentView: View {
                 isPlaying: isPlaying,
                 isRotationEnabled: isRotationEnabled,
                 duration: duration,
-                isWindowVisible: isFullModeActive
+                isWindowVisible: isFullModeActive,
+                isRestoring: isRestoring
             )
             .frame(height: 160)
             .padding(.horizontal, 12)
@@ -133,6 +135,7 @@ struct ContentView: View {
                 canGoPrevious: canGoPrevious,
                 canGoNext: canGoNext,
                 repeatMode: repeatMode,
+                isRestoring: isRestoring,
                 onPlayPause: viewModel.togglePlayPause,
                 onPrevious: viewModel.previous,
                 onNext: viewModel.next,
