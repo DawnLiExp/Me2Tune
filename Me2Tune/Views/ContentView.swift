@@ -238,6 +238,8 @@ struct ContentView: View {
     }
     
     private func openFilePicker() {
+        let targetTab = selectedTab
+        
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = true
@@ -249,8 +251,8 @@ struct ContentView: View {
             guard response == .OK else { return }
             let urls = panel.urls
             
-            DispatchQueue.main.async {
-                if selectedTab == .playlist {
+            Task { @MainActor in
+                if targetTab == .playlist {
                     handlePlaylistDrop(urls)
                 } else {
                     handleCollectionsDrop(urls)
