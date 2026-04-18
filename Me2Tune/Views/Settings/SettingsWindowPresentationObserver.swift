@@ -51,6 +51,8 @@ extension SettingsWindowPresentationObserver {
 
         private weak var window: NSWindow?
         private var observers: [NSObjectProtocol] = []
+        private var visibilityObservation: NSKeyValueObservation?
+        private var miniaturizedObservation: NSKeyValueObservation?
         private var stateEvaluationTask: Task<Void, Never>?
         private var isPresentationSessionActive = false
 
@@ -67,6 +69,7 @@ extension SettingsWindowPresentationObserver {
                 detach()
                 window = newWindow
                 guard let newWindow else { return }
+                registerStateObservations(for: newWindow)
                 registerObservers(for: newWindow)
             }
 
@@ -77,8 +80,26 @@ extension SettingsWindowPresentationObserver {
             stateEvaluationTask?.cancel()
             stateEvaluationTask = nil
             endPresentationSessionIfNeeded()
+            visibilityObservation?.invalidate()
+            miniaturizedObservation?.invalidate()
+            visibilityObservation = nil
+            miniaturizedObservation = nil
             removeObservers()
             window = nil
+        }
+
+        private func registerStateObservations(for window: NSWindow) {
+            visibilityObservation = window.observe(\.isVisible, options: [.initial, .new]) { [weak self] _, _ in
+                Task { @MainActor [weak self] in
+                    self?.evaluatePresentationState()
+                }
+            }
+
+            miniaturizedObservation = window.observe(\.isMiniaturized, options: [.new]) { [weak self] _, _ in
+                Task { @MainActor [weak self] in
+                    self?.evaluatePresentationState()
+                }
+            }
         }
 
         private func registerObservers(for window: NSWindow) {
