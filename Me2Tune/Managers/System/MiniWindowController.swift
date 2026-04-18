@@ -51,6 +51,7 @@ final class MiniWindowController {
         let contentView = MiniPlayerView()
             .environment(playerViewModel) // ✅ 使用 .environment()
             .environment(monitor)
+            .environment(\.playbackProgressState, playerViewModel.playbackProgressState)
         
         let hostingView = NSHostingView(rootView: contentView)
         hostingView.frame = NSRect(x: 0, y: 0, width: 440, height: 78)

@@ -15,6 +15,12 @@ private let logger = Logger.application
 @MainActor
 @Observable
 final class StatisticsViewModel {
+    private struct OverviewSnapshot {
+        let totalTracks: Int
+        let totalAlbums: Int
+        let uniqueArtists: Int
+    }
+
     // MARK: - Properties
     
     private(set) var stats: [DailyStatItem] = []
@@ -42,6 +48,7 @@ final class StatisticsViewModel {
     
     private var statsCache: [StatPeriod: [DailyStatItem]] = [:]
     private var overviewLoaded = false
+    @ObservationIgnored private var presentationRefreshTask: Task<Void, Never>?
     
     // MARK: - Initialization
     
@@ -55,53 +62,52 @@ final class StatisticsViewModel {
     
     // MARK: - Actions
     
-    func preloadAll() async {
+    func loadOverviewIfNeeded() async {
+        guard !overviewLoaded else { return }
+
+        let snapshot = await fetchOverviewSnapshot()
+        applyOverviewSnapshot(snapshot)
+    }
+
+    func refreshPresentationSnapshot() async {
         guard !isLoading else { return }
-        
+
         isLoading = true
         defer { isLoading = false }
-    
-        if !overviewLoaded {
-            async let trackCount = fetchTotalTracks()
-            async let albumCount = fetchTotalAlbums()
-            async let artistCount = fetchUniqueArtists()
-            
-            let (tCount, aCount, rCount) = await (trackCount, albumCount, artistCount)
-            
-            self.totalTracks = tCount
-            self.totalAlbums = aCount
-            self.uniqueArtists = rCount
-            self.overviewLoaded = true
-        }
-        
-        await loadAllPeriods()
-        
-        if let cachedData = statsCache[selectedPeriod] {
-            stats = cachedData
+
+        async let overviewSnapshot = fetchOverviewSnapshot()
+        async let statsSnapshot = fetchAllPeriodsSnapshot()
+
+        let (overview, periodSnapshots) = await (overviewSnapshot, statsSnapshot)
+
+        applyOverviewSnapshot(overview)
+        statsCache = periodSnapshots
+        stats = statsCache[selectedPeriod] ?? []
+    }
+
+    func schedulePresentationRefresh(delay: Duration = .seconds(1)) {
+        presentationRefreshTask?.cancel()
+        presentationRefreshTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            try? await Task.sleep(for: delay, clock: .continuous)
+            guard !Task.isCancelled else { return }
+
+            await self.refreshPresentationSnapshot()
+            self.presentationRefreshTask = nil
         }
     }
 
-    func loadCurrentPeriodIfNeeded() async {
-        guard statsCache[selectedPeriod] == nil else {
-            if let cachedData = statsCache[selectedPeriod] {
-                stats = cachedData
-            }
-            return
-        }
-        
-        guard !isLoading else { return }
-        
-        isLoading = true
-        defer { isLoading = false }
-        
-        let sData = await statisticsManager.fetchAggregatedStats(period: selectedPeriod)
-        statsCache[selectedPeriod] = sData
-        stats = sData
+    func cancelScheduledPresentationRefresh() {
+        presentationRefreshTask?.cancel()
+        presentationRefreshTask = nil
     }
     
     // MARK: - Private Helpers
     
-    private func loadAllPeriods() async {
+    private func fetchAllPeriodsSnapshot() async -> [StatPeriod: [DailyStatItem]] {
+        var snapshots: [StatPeriod: [DailyStatItem]] = [:]
+
         await withTaskGroup(of: (StatPeriod, [DailyStatItem]).self) { group in
             for period in StatPeriod.allCases {
                 group.addTask {
@@ -111,9 +117,31 @@ final class StatisticsViewModel {
             }
             
             for await (period, data) in group {
-                statsCache[period] = data
+                snapshots[period] = data
             }
         }
+
+        return snapshots
+    }
+
+    private func fetchOverviewSnapshot() async -> OverviewSnapshot {
+        async let trackCount = fetchTotalTracks()
+        async let albumCount = fetchTotalAlbums()
+        async let artistCount = fetchUniqueArtists()
+
+        let (totalTracks, totalAlbums, uniqueArtists) = await (trackCount, albumCount, artistCount)
+        return OverviewSnapshot(
+            totalTracks: totalTracks,
+            totalAlbums: totalAlbums,
+            uniqueArtists: uniqueArtists
+        )
+    }
+
+    private func applyOverviewSnapshot(_ snapshot: OverviewSnapshot) {
+        totalTracks = snapshot.totalTracks
+        totalAlbums = snapshot.totalAlbums
+        uniqueArtists = snapshot.uniqueArtists
+        overviewLoaded = true
     }
     
     private func fetchTotalTracks() async -> Int {

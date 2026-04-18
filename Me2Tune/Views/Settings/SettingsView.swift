@@ -93,15 +93,24 @@ struct SettingsView: View {
         }
         .frame(width: 500, height: selectedTab.windowHeight)
         .background(Color(NSColor.windowBackgroundColor))
+        .background(
+            SettingsWindowPresentationObserver(
+                onPresented: {
+                    statisticsViewModel.schedulePresentationRefresh(delay: .seconds(1))
+                },
+                onClosed: {
+                    statisticsViewModel.cancelScheduledPresentationRefresh()
+                }
+            )
+        )
         .onChange(of: selectedTab) { _, newTab in
             adjustWindowHeight(for: newTab)
         }
         .onAppear {
             adjustWindowHeight(for: selectedTab)
-            
-            Task {
-                await statisticsViewModel.preloadAll()
-            }
+        }
+        .onDisappear {
+            statisticsViewModel.cancelScheduledPresentationRefresh()
         }
         .alert("language_change_title", isPresented: $showLanguageChangeAlert) {
             Button("restart_now") {
