@@ -91,6 +91,36 @@ struct StatisticsViewModelTests {
         #expect(statisticsManager.fetchCalls.count == StatPeriod.allCases.count)
     }
 
+    @Test("相同统计版本重复打开不会重复刷新")
+    func reopeningWithoutStatisticsChangesSkipsRefresh() async throws {
+        let dataService = try createTestDataService()
+        dataService.insert(SDTrack.makeSample(title: "Track 1", artist: "Artist A", albumTitle: "Album A", urlString: "file:///tmp/reopen-skip-track-1.mp3"))
+        try dataService.save()
+
+        let statisticsManager = MockStatisticsManager(
+            statisticsRevision: 1,
+            periodData: [
+                .daily: [DailyStatItem(id: "d1", date: Date(), playCount: 3)],
+                .weekly: [],
+                .monthly: []
+            ]
+        )
+        let viewModel = StatisticsViewModel(
+            dataService: dataService,
+            statisticsManager: statisticsManager
+        )
+
+        viewModel.beginPresentationSession(refreshDelay: .milliseconds(20))
+        try? await Task.sleep(for: .milliseconds(120))
+        let firstFetchCount = statisticsManager.fetchCalls.count
+
+        viewModel.endPresentationSession()
+        viewModel.beginPresentationSession(refreshDelay: .milliseconds(20))
+        try? await Task.sleep(for: .milliseconds(120))
+
+        #expect(statisticsManager.fetchCalls.count == firstFetchCount)
+    }
+
     @Test("结束展示会话后不会执行刷新")
     func endPresentationSessionPreventsExecution() async throws {
         let dataService = try createTestDataService()
@@ -120,11 +150,14 @@ struct StatisticsViewModelTests {
         dataService.insert(SDTrack.makeSample(title: "Track 1", artist: "Artist A", albumTitle: "Album A", urlString: "file:///tmp/reopen-track-1.mp3"))
         try dataService.save()
 
-        let statisticsManager = MockStatisticsManager(periodData: [
-            .daily: [DailyStatItem(id: "d1", date: Date(), playCount: 3)],
-            .weekly: [],
-            .monthly: []
-        ])
+        let statisticsManager = MockStatisticsManager(
+            statisticsRevision: 1,
+            periodData: [
+                .daily: [DailyStatItem(id: "d1", date: Date(), playCount: 3)],
+                .weekly: [],
+                .monthly: []
+            ]
+        )
         let viewModel = StatisticsViewModel(
             dataService: dataService,
             statisticsManager: statisticsManager
@@ -140,6 +173,7 @@ struct StatisticsViewModelTests {
             .weekly: [],
             .monthly: []
         ]
+        statisticsManager.statisticsRevision = 2
 
         viewModel.endPresentationSession()
         viewModel.beginPresentationSession(refreshDelay: .milliseconds(20))
@@ -152,10 +186,15 @@ struct StatisticsViewModelTests {
 
 @MainActor
 private final class MockStatisticsManager: StatisticsManagerProtocol {
+    var statisticsRevision: Int
     var periodData: [StatPeriod: [DailyStatItem]]
     private(set) var fetchCalls: [StatPeriod] = []
 
-    init(periodData: [StatPeriod: [DailyStatItem]] = [:]) {
+    init(
+        statisticsRevision: Int = 0,
+        periodData: [StatPeriod: [DailyStatItem]] = [:]
+    ) {
+        self.statisticsRevision = statisticsRevision
         self.periodData = periodData
     }
 

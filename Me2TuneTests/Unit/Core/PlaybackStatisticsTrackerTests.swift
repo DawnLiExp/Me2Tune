@@ -125,6 +125,7 @@ struct PlaybackStatisticsTrackerTests {
 
 @MainActor
 private final class MockTrackerStatisticsManager: StatisticsManagerProtocol {
+    let statisticsRevision = 0
     private(set) var incrementCount = 0
 
     func incrementTodayPlayCount() async {

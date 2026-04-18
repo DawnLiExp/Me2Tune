@@ -44,6 +44,20 @@ struct StatisticsManagerTests {
         let stats = await statsManager.fetchRecentStatistics(days: 1)
         #expect(stats.first?.playCount == 3)
     }
+
+    @Test("播放计数会立即保存到持久化上下文")
+    func testIncrementPersistsImmediately() async throws {
+        let dataService = try createTestDataService()
+        let statsManager = StatisticsManager(dataService: dataService)
+
+        await statsManager.incrementTodayPlayCount()
+
+        let freshContext = ModelContext(dataService.modelContainer)
+        let persistedStats = try freshContext.fetch(FetchDescriptor<SDStatistics>())
+
+        #expect(persistedStats.count == 1)
+        #expect(persistedStats.first?.playCount == 1)
+    }
     
     @Test("不同日期独立统计")
     func testDifferentDaysIndependentCount() async throws {

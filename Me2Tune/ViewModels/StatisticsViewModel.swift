@@ -50,6 +50,7 @@ final class StatisticsViewModel {
     private var overviewLoaded = false
     @ObservationIgnored private var presentationRefreshTask: Task<Void, Never>?
     @ObservationIgnored private var activePresentationSessionID: Int?
+    @ObservationIgnored private var loadedStatisticsRevision: Int?
     private var nextPresentationSessionID = 0
     
     // MARK: - Initialization
@@ -93,7 +94,7 @@ final class StatisticsViewModel {
                 guard !Task.isCancelled, self.activePresentationSessionID == sessionID else { return }
             }
 
-            await self.refreshPresentationSnapshot(for: sessionID)
+            await self.refreshPresentationSnapshotIfNeeded(for: sessionID)
 
             if self.activePresentationSessionID == sessionID {
                 self.presentationRefreshTask = nil
@@ -110,6 +111,8 @@ final class StatisticsViewModel {
     private func refreshPresentationSnapshot(for sessionID: Int?) async {
         guard !isLoading else { return }
 
+        let snapshotRevision = statisticsManager.statisticsRevision
+
         isLoading = true
         defer { isLoading = false }
 
@@ -125,6 +128,7 @@ final class StatisticsViewModel {
         applyOverviewSnapshot(overview)
         statsCache = periodSnapshots
         stats = statsCache[selectedPeriod] ?? []
+        loadedStatisticsRevision = snapshotRevision
     }
     
     // MARK: - Private Helpers
@@ -146,6 +150,23 @@ final class StatisticsViewModel {
         }
 
         return snapshots
+    }
+
+    private func refreshPresentationSnapshotIfNeeded(for sessionID: Int?) async {
+        guard shouldRefreshPresentationSnapshot() else { return }
+        await refreshPresentationSnapshot(for: sessionID)
+    }
+
+    private func shouldRefreshPresentationSnapshot() -> Bool {
+        if !overviewLoaded {
+            return true
+        }
+
+        if statsCache.count != StatPeriod.allCases.count {
+            return true
+        }
+
+        return loadedStatisticsRevision != statisticsManager.statisticsRevision
     }
 
     private func fetchOverviewSnapshot() async -> OverviewSnapshot {

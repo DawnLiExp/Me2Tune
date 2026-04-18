@@ -48,6 +48,7 @@ final class StatisticsManager: StatisticsManagerProtocol {
     static let shared = StatisticsManager()
     
     private let dataService: DataServiceProtocol
+    private(set) var statisticsRevision = 0
     private var modelContext: ModelContext {
         dataService.modelContext
     }
@@ -84,6 +85,9 @@ final class StatisticsManager: StatisticsManagerProtocol {
                 modelContext.insert(newStat)
                 logger.debug("📈 Created new statistics record for \(today)")
             }
+
+            try modelContext.save()
+            statisticsRevision += 1
             
             checkAndCleanupIfNeeded(today: today)
         } catch {
@@ -168,6 +172,8 @@ final class StatisticsManager: StatisticsManagerProtocol {
                 for stat in oldStats {
                     modelContext.delete(stat)
                 }
+                try modelContext.save()
+                statisticsRevision += 1
                 logger.info("🧹 Cleaned up \(oldStats.count) old statistics records")
             }
         } catch {

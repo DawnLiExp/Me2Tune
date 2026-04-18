@@ -251,6 +251,7 @@ private final class StubAudioPlayerCore: AudioPlayerCoreProtocol {
 /// 最小化 StatisticsManager stub
 @MainActor
 private final class StubStatisticsManager: StatisticsManagerProtocol {
+    let statisticsRevision = 0
     func incrementTodayPlayCount() async {}
     func fetchAggregatedStats(period: StatPeriod) async -> [DailyStatItem] { [] }
     func fetchRecentStatistics(days: Int) async -> [DailyStatItem] { [] }

@@ -365,6 +365,7 @@ struct PlaybackCoordinatorTests {
 
 @MainActor
 private final class MockStatisticsManager: StatisticsManagerProtocol {
+    let statisticsRevision = 0
     private(set) var incrementCount = 0
 
     func incrementTodayPlayCount() async {

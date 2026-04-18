@@ -12,6 +12,8 @@ import SwiftUI
 private let logger = Logger.persistence
 
 struct SettingsView: View {
+    @Environment(\.scenePhase) private var scenePhase
+
     private enum SettingsTab: CaseIterable, Identifiable {
         case features
         case appearance
@@ -106,8 +108,14 @@ struct SettingsView: View {
         .onChange(of: selectedTab) { _, newTab in
             adjustWindowHeight(for: newTab)
         }
+        .onChange(of: scenePhase) { _, newPhase in
+            handleScenePhaseChange(newPhase)
+        }
         .onAppear {
             adjustWindowHeight(for: selectedTab)
+            if scenePhase == .active {
+                statisticsViewModel.beginPresentationSession(refreshDelay: .seconds(1))
+            }
         }
         .onDisappear {
             statisticsViewModel.endPresentationSession()
@@ -165,6 +173,17 @@ struct SettingsView: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .background(Color(NSColor.windowBackgroundColor))
+    }
+
+    private func handleScenePhaseChange(_ newPhase: ScenePhase) {
+        switch newPhase {
+        case .active:
+            statisticsViewModel.beginPresentationSession(refreshDelay: .seconds(1))
+        case .inactive, .background:
+            statisticsViewModel.endPresentationSession()
+        @unknown default:
+            statisticsViewModel.endPresentationSession()
+        }
     }
     
     private func tabButton(_ tab: SettingsTab) -> some View {

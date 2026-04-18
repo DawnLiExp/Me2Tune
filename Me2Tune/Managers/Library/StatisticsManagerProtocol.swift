@@ -9,6 +9,9 @@ import Foundation
 
 @MainActor
 protocol StatisticsManagerProtocol: Sendable {
+    /// 当前统计快照版本，用于判断设置页缓存是否过期
+    var statisticsRevision: Int { get }
+
     /// 增加今天的播放计数
     func incrementTodayPlayCount() async
 
