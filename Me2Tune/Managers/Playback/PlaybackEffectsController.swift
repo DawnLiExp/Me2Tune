@@ -2,7 +2,7 @@
 //  PlaybackEffectsController.swift
 //  Me2Tune
 //
-//  Centralizes playback side effects: now playing, statistics, and media keys.
+//  Centralizes playback side effects: now playing and media keys.
 //
 
 import AppKit
@@ -24,7 +24,6 @@ struct PlaybackCommandHandlers {
 @MainActor
 final class PlaybackEffectsController {
     private let nowPlayingService: NowPlayingService
-    private let statisticsManager: any StatisticsManagerProtocol
     private let remoteCommandController: RemoteCommandController
 
     private let logger = Logger.effects
@@ -32,11 +31,9 @@ final class PlaybackEffectsController {
 
     init(
         nowPlayingService: NowPlayingService = .shared,
-        statisticsManager: any StatisticsManagerProtocol,
         remoteCommandController: RemoteCommandController = .shared
     ) {
         self.nowPlayingService = nowPlayingService
-        self.statisticsManager = statisticsManager
         self.remoteCommandController = remoteCommandController
     }
 
@@ -54,30 +51,6 @@ final class PlaybackEffectsController {
             isPlaying: isPlaying,
             currentTimeProvider: currentTimeProvider
         )
-    }
-
-    func handlePlaybackTimeUpdated(
-        currentTime: TimeInterval,
-        duration: TimeInterval,
-        playCountThreshold: Double,
-        hasMarkedPlayCount: Bool
-    ) -> Bool {
-        guard duration > 0 else { return hasMarkedPlayCount }
-
-        var nextMarkedState = hasMarkedPlayCount
-
-        if nextMarkedState, currentTime < 1.0 {
-            nextMarkedState = false
-        }
-
-        if !nextMarkedState, currentTime >= duration * playCountThreshold {
-            nextMarkedState = true
-            Task { @MainActor in
-                await self.statisticsManager.incrementTodayPlayCount()
-            }
-        }
-
-        return nextMarkedState
     }
 
     func ensureRemoteCommandsReady(handlers: PlaybackCommandHandlers) {

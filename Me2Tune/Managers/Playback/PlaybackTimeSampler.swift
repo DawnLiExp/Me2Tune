@@ -1,20 +1,22 @@
 //
-//  PlaybackProgressController.swift
+//  PlaybackTimeSampler.swift
 //  Me2Tune
 //
-//  Full 界面播放进度轮询控制器
+//  Samples playback time while audio is playing and routes the sample to UI and statistics handlers.
 //
 
 import Foundation
 
 @MainActor
-final class PlaybackProgressController {
+final class PlaybackTimeSampler {
     typealias TimeProvider = @MainActor () -> TimeInterval
-    typealias TickHandler = @MainActor (TimeInterval) -> Void
+    typealias UIHandler = @MainActor (TimeInterval) -> Void
+    typealias StatisticsHandler = @MainActor (TimeInterval) -> Void
     typealias IntervalResolver = @MainActor (WindowStateMonitor.WindowVisibilityState) -> TimeInterval
 
     private let timeProvider: TimeProvider
-    private let tickHandler: TickHandler
+    private let uiHandler: UIHandler
+    private let statisticsHandler: StatisticsHandler
     private let intervalResolver: IntervalResolver
 
     private var isPlaying = false
@@ -23,29 +25,24 @@ final class PlaybackProgressController {
 
     init(
         timeProvider: @escaping TimeProvider,
-        tickHandler: @escaping TickHandler
+        uiHandler: @escaping UIHandler,
+        statisticsHandler: @escaping StatisticsHandler
     ) {
         self.timeProvider = timeProvider
-        self.tickHandler = tickHandler
-        self.intervalResolver = { state in
-            switch state {
-            case .activeFocused:
-                return 0.3
-            case .inactive:
-                return 0.5
-            case .hidden, .miniVisible, .miniHidden:
-                return 0
-            }
-        }
+        self.uiHandler = uiHandler
+        self.statisticsHandler = statisticsHandler
+        self.intervalResolver = Self.defaultInterval(for:)
     }
 
     init(
         timeProvider: @escaping TimeProvider,
-        tickHandler: @escaping TickHandler,
+        uiHandler: @escaping UIHandler,
+        statisticsHandler: @escaping StatisticsHandler,
         intervalResolver: @escaping IntervalResolver
     ) {
         self.timeProvider = timeProvider
-        self.tickHandler = tickHandler
+        self.uiHandler = uiHandler
+        self.statisticsHandler = statisticsHandler
         self.intervalResolver = intervalResolver
     }
 
@@ -56,23 +53,24 @@ final class PlaybackProgressController {
     }
 
     func updateVisibilityState(_ state: WindowStateMonitor.WindowVisibilityState) {
-        let previousShouldPoll = shouldPoll
+        let previousShouldPublishUI = shouldPublishUI
         let previousInterval = currentInterval
 
         visibilityState = state
 
-        let nextShouldPoll = shouldPoll
-        if !previousShouldPoll && nextShouldPoll {
-            refreshNow()
+        if isPlaying, !previousShouldPublishUI, shouldPublishUI {
+            emitSample()
+            let intervalChanged = previousInterval != currentInterval
+            rebuildPollingTaskIfNeeded(force: intervalChanged)
             return
         }
 
-        let intervalChanged = previousShouldPoll && nextShouldPoll && previousInterval != currentInterval
+        let intervalChanged = isPlaying && previousInterval != currentInterval
         rebuildPollingTaskIfNeeded(force: intervalChanged)
     }
 
     func refreshNow() {
-        tickHandler(timeProvider())
+        emitSample()
         rebuildPollingTaskIfNeeded()
     }
 
@@ -87,17 +85,33 @@ final class PlaybackProgressController {
         }
     }
 
-    private var shouldPoll: Bool {
-        guard isPlaying else { return false }
-        return visibilityState == .activeFocused || visibilityState == .inactive
+    private var shouldSample: Bool {
+        isPlaying
+    }
+
+    private var shouldPublishUI: Bool {
+        switch visibilityState {
+        case .activeFocused, .inactive, .miniVisible:
+            true
+        case .hidden, .miniHidden:
+            false
+        }
     }
 
     private var currentInterval: TimeInterval {
         intervalResolver(visibilityState)
     }
 
+    private func emitSample() {
+        let time = timeProvider()
+        statisticsHandler(time)
+        if shouldPublishUI {
+            uiHandler(time)
+        }
+    }
+
     private func rebuildPollingTaskIfNeeded(force: Bool = false) {
-        let shouldStartPolling = shouldPoll
+        let shouldStartPolling = shouldSample
         let hasActivePollingTask = pollingTask != nil
 
         if !force, shouldStartPolling == hasActivePollingTask {
@@ -108,17 +122,28 @@ final class PlaybackProgressController {
         guard shouldStartPolling else { return }
 
         let interval = currentInterval
+        guard interval > 0 else { return }
+
         pollingTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(interval), clock: .continuous)
                 guard !Task.isCancelled, let self else { break }
-                guard self.shouldPoll else { break }
-
-                let time = self.timeProvider()
-                self.tickHandler(time)
+                guard self.shouldSample else { break }
+                self.emitSample()
             }
 
             self?.pollingTask = nil
+        }
+    }
+
+    private static func defaultInterval(for state: WindowStateMonitor.WindowVisibilityState) -> TimeInterval {
+        switch state {
+        case .activeFocused:
+            0.3
+        case .inactive:
+            0.5
+        case .hidden, .miniVisible, .miniHidden:
+            1.0
         }
     }
 }

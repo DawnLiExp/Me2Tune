@@ -69,8 +69,9 @@ final class PlaybackCoordinator {
     @ObservationIgnored private let failedTrackRegistry: FailedTrackRegistry
     @ObservationIgnored private let persistenceController: PlaybackPersistenceController
     @ObservationIgnored private let effectsController: PlaybackEffectsController
+    @ObservationIgnored private let statisticsTracker: PlaybackStatisticsTracker
     @ObservationIgnored private let loadController: PlaybackLoadController
-    @ObservationIgnored private var progressController: PlaybackProgressController!
+    @ObservationIgnored private var timeSampler: PlaybackTimeSampler!
 
     @ObservationIgnored private var windowStateMonitor: WindowStateMonitor?
     @ObservationIgnored private lazy var progressTimeProvider: () -> TimeInterval = { [weak self] in
@@ -95,7 +96,9 @@ final class PlaybackCoordinator {
         let playerCore = playerCore ?? AudioPlayerCore()
         self.playerCore = playerCore
         self.failedTrackRegistry = FailedTrackRegistry()
-        self.effectsController = PlaybackEffectsController(statisticsManager: statisticsManager)
+        self.effectsController = PlaybackEffectsController()
+        self.statisticsTracker = PlaybackStatisticsTracker(statisticsManager: statisticsManager)
+        let statisticsTracker = self.statisticsTracker
 
         let playbackStateManager = self.playbackStateManager
         let volumeProviderBox = VolumeProviderBox()
@@ -114,12 +117,14 @@ final class PlaybackCoordinator {
             stateManager: self.playbackStateManager,
             registry: self.failedTrackRegistry,
             persistenceController: self.persistenceController,
-            effectsController: self.effectsController,
             repeatModeProvider: { [repeatModeProviderBox] in
                 repeatModeProviderBox.provider()
             },
             onPause: { [pauseHandlerBox] in
                 pauseHandlerBox.handler()
+            },
+            onTrackRequested: { track in
+                statisticsTracker.prepareForRequestedTrack(track.id)
             }
         )
         volumeProviderBox.provider = { [weak self] in
@@ -133,21 +138,24 @@ final class PlaybackCoordinator {
         }
 
         playerCore.delegate = self
-        self.progressController = PlaybackProgressController(
+        self.timeSampler = PlaybackTimeSampler(
             timeProvider: { [weak self] in
                 self?.playerCore.getCurrentPlaybackTime() ?? 0
             },
-            tickHandler: { [weak self] time in
+            uiHandler: { [weak self] time in
                 guard let self else { return }
                 self.playbackProgressState.currentTime = time
-                self.loadController.handleProgressTick(time: time, duration: self.duration)
+            },
+            statisticsHandler: { [weak self] time in
+                guard let self else { return }
+                self.statisticsTracker.evaluate(currentTime: time, duration: self.duration)
             }
         )
         logger.debug("PlaybackCoordinator initialized")
     }
 
     deinit {
-        progressController.stopFromDeinit()
+        timeSampler.stopFromDeinit()
         persistenceController.cancelAllFromDeinit()
     }
 
@@ -173,6 +181,7 @@ final class PlaybackCoordinator {
     func seek(to time: TimeInterval) {
         playerCore.seek(to: time)
         effectsController.handleSeek(to: time)
+        statisticsTracker.handleSeek(to: time, duration: duration)
     }
 
     func toggleRepeatMode() {
@@ -389,7 +398,7 @@ final class PlaybackCoordinator {
     }
 
     private func handleWindowStateChanged(_ state: WindowStateMonitor.WindowVisibilityState) {
-        progressController.updateVisibilityState(state)
+        timeSampler.updateVisibilityState(state)
         logger.debug("Coordinator visibility: \(state.description)")
     }
 
@@ -412,7 +421,7 @@ final class PlaybackCoordinator {
 extension PlaybackCoordinator: AudioPlayerCoreDelegate {
     func playerCoreDidUpdatePlaybackState(_ isPlaying: Bool) {
         self.isPlaying = isPlaying
-        progressController.updatePlaybackState(isPlaying: isPlaying)
+        timeSampler.updatePlaybackState(isPlaying: isPlaying)
 
         effectsController.handlePlaybackStateChanged(
             isPlaying: isPlaying,
@@ -445,6 +454,7 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
             return
         }
 
+        statisticsTracker.synchronizeObservedTrack(track.id)
         let tracks = playbackStateManager.currentTracks
         if let index = tracks.firstIndex(where: { $0.id == track.id }) {
             let idChanged = (playbackStateManager.currentTrackID != track.id)

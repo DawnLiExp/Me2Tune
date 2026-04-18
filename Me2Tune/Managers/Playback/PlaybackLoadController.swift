@@ -2,7 +2,7 @@
 //  PlaybackLoadController.swift
 //  Me2Tune
 //
-//  Owns track loading, failure recovery, gapless flow, and playback statistics state.
+//  Owns track loading, failure recovery, and gapless flow.
 //  IMPORTANT: repeatModeProvider and onPause must not retain PlaybackCoordinator.
 //  IMPORTANT: loadAndPlay(at:attempt:) is the single entry point for programmatic track starts.
 //
@@ -16,16 +16,12 @@ final class PlaybackLoadController {
     private let stateManager: PlaybackStateManager
     private let registry: FailedTrackRegistry
     private let persistenceController: PlaybackPersistenceController
-    private let effectsController: PlaybackEffectsController
     private let repeatModeProvider: @MainActor () -> RepeatMode
     private let onPause: @MainActor () -> Void
+    private let onTrackRequested: @MainActor (AudioTrack) -> Void
 
     var trackIndexBeforeGapless: Int?
 
-    private var hasMarkedPlayCount = false
-    private var currentStatTrackId: UUID?
-
-    private let playCountThreshold: Double = 0.8
     private let maxLoadAttempts = 10
     private let logger = Logger.coordinator
 
@@ -34,17 +30,17 @@ final class PlaybackLoadController {
         stateManager: PlaybackStateManager,
         registry: FailedTrackRegistry,
         persistenceController: PlaybackPersistenceController,
-        effectsController: PlaybackEffectsController,
         repeatModeProvider: @escaping @MainActor () -> RepeatMode,
-        onPause: @escaping @MainActor () -> Void
+        onPause: @escaping @MainActor () -> Void,
+        onTrackRequested: @escaping @MainActor (AudioTrack) -> Void
     ) {
         self.playerCore = playerCore
         self.stateManager = stateManager
         self.registry = registry
         self.persistenceController = persistenceController
-        self.effectsController = effectsController
         self.repeatModeProvider = repeatModeProvider
         self.onPause = onPause
+        self.onTrackRequested = onTrackRequested
     }
 
     func loadAndPlay(at index: Int, attempt: Int = 0) {
@@ -62,17 +58,13 @@ final class PlaybackLoadController {
 
         let track = tracks[index]
 
-        if currentStatTrackId != track.id {
-            currentStatTrackId = track.id
-            hasMarkedPlayCount = false
-        }
-
         if registry.isMarked(track.id) {
             logger.debug("Skipping known failed track: \(track.title)")
             handleLoadFailure(track: track, index: index, attempt: attempt)
             return
         }
 
+        onTrackRequested(track)
         playerCore.prepareForTrackSwitch()
 
         Task { @MainActor [weak self] in
@@ -205,14 +197,5 @@ final class PlaybackLoadController {
             logger.info("Retry failed track: \(track.title)")
             registry.clear(track.id)
         }
-    }
-
-    func handleProgressTick(time: TimeInterval, duration: TimeInterval) {
-        hasMarkedPlayCount = effectsController.handlePlaybackTimeUpdated(
-            currentTime: time,
-            duration: duration,
-            playCountThreshold: playCountThreshold,
-            hasMarkedPlayCount: hasMarkedPlayCount
-        )
     }
 }

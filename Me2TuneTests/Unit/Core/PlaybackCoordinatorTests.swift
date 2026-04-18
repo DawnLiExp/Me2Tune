@@ -222,6 +222,107 @@ struct PlaybackCoordinatorTests {
         #expect(albumLoaded)
     }
 
+    @Test("seek 到 80% 会触发一次播放统计")
+    func testSeekBeyondThresholdIncrementsStatistics() async throws {
+        let dataService = try createTestDataService()
+        let collectionManager = CollectionManager(dataService: dataService)
+        let playerCore = MockAudioPlayerCore()
+        let statistics = MockStatisticsManager()
+        let coordinator = PlaybackCoordinator(
+            collectionManager: collectionManager,
+            dataService: dataService,
+            statisticsManager: statistics,
+            playerCore: playerCore
+        )
+
+        let track = AudioTrack(
+            id: UUID(),
+            url: URL(fileURLWithPath: "/tmp/test_seek_track.mp3"),
+            title: "Seek Track",
+            artist: nil,
+            albumTitle: nil,
+            duration: 100,
+            format: .unknown,
+            bookmark: nil
+        )
+
+        coordinator.playAlbum(makeAlbum(with: [track]), startAt: 0)
+
+        let loaded = await waitUntil {
+            coordinator.playbackStateManager.currentTrackIndex == 0
+        }
+        #expect(loaded)
+
+        coordinator.playerCoreDidLoadTrack(track, artwork: nil)
+        coordinator.seek(to: 80)
+
+        let didCount = await waitUntil {
+            statistics.incrementCount == 1
+        }
+        #expect(didCount)
+    }
+
+    @Test("自动切歌到新曲后可再次计数")
+    func testAutoSwitchedTrackCanCountAgain() async throws {
+        let dataService = try createTestDataService()
+        let collectionManager = CollectionManager(dataService: dataService)
+        let playerCore = MockAudioPlayerCore()
+        let statistics = MockStatisticsManager()
+        let coordinator = PlaybackCoordinator(
+            collectionManager: collectionManager,
+            dataService: dataService,
+            statisticsManager: statistics,
+            playerCore: playerCore
+        )
+
+        let tracks = [
+            AudioTrack(
+                id: UUID(),
+                url: URL(fileURLWithPath: "/tmp/test_track_a.mp3"),
+                title: "Track A",
+                artist: nil,
+                albumTitle: nil,
+                duration: 100,
+                format: .unknown,
+                bookmark: nil
+            ),
+            AudioTrack(
+                id: UUID(),
+                url: URL(fileURLWithPath: "/tmp/test_track_b.mp3"),
+                title: "Track B",
+                artist: nil,
+                albumTitle: nil,
+                duration: 100,
+                format: .unknown,
+                bookmark: nil
+            )
+        ]
+
+        coordinator.playAlbum(makeAlbum(with: tracks), startAt: 0)
+
+        let loadedFirst = await waitUntil {
+            coordinator.playbackStateManager.currentTrackIndex == 0
+        }
+        #expect(loadedFirst)
+
+        coordinator.playerCoreDidLoadTrack(tracks[0], artwork: nil)
+        coordinator.seek(to: 80)
+
+        let firstCounted = await waitUntil {
+            statistics.incrementCount == 1
+        }
+        #expect(firstCounted)
+
+        coordinator.playerCoreNowPlayingChanged(to: tracks[1])
+        coordinator.playerCoreDidLoadTrack(tracks[1], artwork: nil)
+        coordinator.seek(to: 80)
+
+        let secondCounted = await waitUntil {
+            statistics.incrementCount == 2
+        }
+        #expect(secondCounted)
+    }
+
     private func makeTracks(count: Int) -> [AudioTrack] {
         (0..<count).map { index in
             AudioTrack(
