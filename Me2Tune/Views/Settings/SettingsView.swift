@@ -96,10 +96,10 @@ struct SettingsView: View {
         .background(
             SettingsWindowPresentationObserver(
                 onPresented: {
-                    statisticsViewModel.schedulePresentationRefresh(delay: .seconds(1))
+                    statisticsViewModel.beginPresentationSession(refreshDelay: .seconds(1))
                 },
-                onClosed: {
-                    statisticsViewModel.cancelScheduledPresentationRefresh()
+                onDismissed: {
+                    statisticsViewModel.endPresentationSession()
                 }
             )
         )
@@ -110,7 +110,7 @@ struct SettingsView: View {
             adjustWindowHeight(for: selectedTab)
         }
         .onDisappear {
-            statisticsViewModel.cancelScheduledPresentationRefresh()
+            statisticsViewModel.endPresentationSession()
         }
         .alert("language_change_title", isPresented: $showLanguageChangeAlert) {
             Button("restart_now") {

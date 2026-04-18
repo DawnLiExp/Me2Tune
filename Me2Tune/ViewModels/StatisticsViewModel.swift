@@ -49,6 +49,8 @@ final class StatisticsViewModel {
     private var statsCache: [StatPeriod: [DailyStatItem]] = [:]
     private var overviewLoaded = false
     @ObservationIgnored private var presentationRefreshTask: Task<Void, Never>?
+    @ObservationIgnored private var activePresentationSessionID: Int?
+    private var nextPresentationSessionID = 0
     
     // MARK: - Initialization
     
@@ -70,6 +72,42 @@ final class StatisticsViewModel {
     }
 
     func refreshPresentationSnapshot() async {
+        await refreshPresentationSnapshot(for: nil)
+    }
+
+    func beginPresentationSession(refreshDelay: Duration = .seconds(1)) {
+        presentationRefreshTask?.cancel()
+
+        nextPresentationSessionID += 1
+        let sessionID = nextPresentationSessionID
+        activePresentationSessionID = sessionID
+
+        presentationRefreshTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            try? await Task.sleep(for: refreshDelay, clock: .continuous)
+            guard !Task.isCancelled, self.activePresentationSessionID == sessionID else { return }
+
+            while self.isLoading {
+                try? await Task.sleep(for: .milliseconds(50), clock: .continuous)
+                guard !Task.isCancelled, self.activePresentationSessionID == sessionID else { return }
+            }
+
+            await self.refreshPresentationSnapshot(for: sessionID)
+
+            if self.activePresentationSessionID == sessionID {
+                self.presentationRefreshTask = nil
+            }
+        }
+    }
+
+    func endPresentationSession() {
+        presentationRefreshTask?.cancel()
+        presentationRefreshTask = nil
+        activePresentationSessionID = nil
+    }
+
+    private func refreshPresentationSnapshot(for sessionID: Int?) async {
         guard !isLoading else { return }
 
         isLoading = true
@@ -80,27 +118,13 @@ final class StatisticsViewModel {
 
         let (overview, periodSnapshots) = await (overviewSnapshot, statsSnapshot)
 
+        if let sessionID, activePresentationSessionID != sessionID {
+            return
+        }
+
         applyOverviewSnapshot(overview)
         statsCache = periodSnapshots
         stats = statsCache[selectedPeriod] ?? []
-    }
-
-    func schedulePresentationRefresh(delay: Duration = .seconds(1)) {
-        presentationRefreshTask?.cancel()
-        presentationRefreshTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-
-            try? await Task.sleep(for: delay, clock: .continuous)
-            guard !Task.isCancelled else { return }
-
-            await self.refreshPresentationSnapshot()
-            self.presentationRefreshTask = nil
-        }
-    }
-
-    func cancelScheduledPresentationRefresh() {
-        presentationRefreshTask?.cancel()
-        presentationRefreshTask = nil
     }
     
     // MARK: - Private Helpers

@@ -69,8 +69,8 @@ struct StatisticsViewModelTests {
         #expect(statisticsManager.fetchCalls.isEmpty)
     }
 
-    @Test("schedulePresentationRefresh 会按延迟刷新快照")
-    func schedulePresentationRefreshRunsDelayedSnapshot() async throws {
+    @Test("beginPresentationSession 会按延迟刷新快照")
+    func beginPresentationSessionRunsDelayedSnapshot() async throws {
         let dataService = try createTestDataService()
         dataService.insert(SDTrack.makeSample(title: "Track 1", artist: "Artist A", albumTitle: "Album A", urlString: "file:///tmp/scheduled-track-1.mp3"))
         try dataService.save()
@@ -83,7 +83,7 @@ struct StatisticsViewModelTests {
             statisticsManager: statisticsManager
         )
 
-        viewModel.schedulePresentationRefresh(delay: .milliseconds(30))
+        viewModel.beginPresentationSession(refreshDelay: .milliseconds(30))
         try? await Task.sleep(for: .milliseconds(120))
 
         #expect(viewModel.totalTracks == 1)
@@ -91,8 +91,8 @@ struct StatisticsViewModelTests {
         #expect(statisticsManager.fetchCalls.count == StatPeriod.allCases.count)
     }
 
-    @Test("取消调度后不会执行刷新")
-    func cancelScheduledPresentationRefreshPreventsExecution() async throws {
+    @Test("结束展示会话后不会执行刷新")
+    func endPresentationSessionPreventsExecution() async throws {
         let dataService = try createTestDataService()
         dataService.insert(SDTrack.makeSample(title: "Track 1", artist: "Artist A", albumTitle: "Album A", urlString: "file:///tmp/cancel-track-1.mp3"))
         try dataService.save()
@@ -105,19 +105,54 @@ struct StatisticsViewModelTests {
             statisticsManager: statisticsManager
         )
 
-        viewModel.schedulePresentationRefresh(delay: .milliseconds(80))
-        viewModel.cancelScheduledPresentationRefresh()
+        viewModel.beginPresentationSession(refreshDelay: .milliseconds(80))
+        viewModel.endPresentationSession()
         try? await Task.sleep(for: .milliseconds(160))
 
         #expect(viewModel.totalTracks == 0)
         #expect(viewModel.stats.isEmpty)
         #expect(statisticsManager.fetchCalls.isEmpty)
     }
+
+    @Test("关闭后再次打开会刷新新快照")
+    func reopeningPresentationSessionRefreshesNewSnapshot() async throws {
+        let dataService = try createTestDataService()
+        dataService.insert(SDTrack.makeSample(title: "Track 1", artist: "Artist A", albumTitle: "Album A", urlString: "file:///tmp/reopen-track-1.mp3"))
+        try dataService.save()
+
+        let statisticsManager = MockStatisticsManager(periodData: [
+            .daily: [DailyStatItem(id: "d1", date: Date(), playCount: 3)],
+            .weekly: [],
+            .monthly: []
+        ])
+        let viewModel = StatisticsViewModel(
+            dataService: dataService,
+            statisticsManager: statisticsManager
+        )
+
+        viewModel.beginPresentationSession(refreshDelay: .milliseconds(20))
+        try? await Task.sleep(for: .milliseconds(120))
+
+        #expect(viewModel.stats == (statisticsManager.periodData[.daily] ?? []))
+
+        statisticsManager.periodData = [
+            .daily: [DailyStatItem(id: "d2", date: Date().addingTimeInterval(60), playCount: 8)],
+            .weekly: [],
+            .monthly: []
+        ]
+
+        viewModel.endPresentationSession()
+        viewModel.beginPresentationSession(refreshDelay: .milliseconds(20))
+        try? await Task.sleep(for: .milliseconds(120))
+
+        #expect(viewModel.stats == (statisticsManager.periodData[.daily] ?? []))
+        #expect(statisticsManager.fetchCalls.count == StatPeriod.allCases.count * 2)
+    }
 }
 
 @MainActor
 private final class MockStatisticsManager: StatisticsManagerProtocol {
-    let periodData: [StatPeriod: [DailyStatItem]]
+    var periodData: [StatPeriod: [DailyStatItem]]
     private(set) var fetchCalls: [StatPeriod] = []
 
     init(periodData: [StatPeriod: [DailyStatItem]] = [:]) {

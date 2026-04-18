@@ -10,10 +10,10 @@ import SwiftUI
 
 struct SettingsWindowPresentationObserver: NSViewRepresentable {
     let onPresented: @MainActor () -> Void
-    let onClosed: @MainActor () -> Void
+    let onDismissed: @MainActor () -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onPresented: onPresented, onClosed: onClosed)
+        Coordinator(onPresented: onPresented, onDismissed: onDismissed)
     }
 
     func makeNSView(context: Context) -> ObserverView {
@@ -47,61 +47,165 @@ extension SettingsWindowPresentationObserver {
     @MainActor
     final class Coordinator {
         private let onPresented: @MainActor () -> Void
-        private let onClosed: @MainActor () -> Void
+        private let onDismissed: @MainActor () -> Void
 
         private weak var window: NSWindow?
-        private var closeObserver: NSObjectProtocol?
-        private var didNotifyPresentation = false
+        private var observers: [NSObjectProtocol] = []
+        private var stateEvaluationTask: Task<Void, Never>?
+        private var isPresentationSessionActive = false
 
         init(
             onPresented: @escaping @MainActor () -> Void,
-            onClosed: @escaping @MainActor () -> Void
+            onDismissed: @escaping @MainActor () -> Void
         ) {
             self.onPresented = onPresented
-            self.onClosed = onClosed
+            self.onDismissed = onDismissed
         }
 
         func attach(to newWindow: NSWindow?) {
-            guard window !== newWindow else { return }
-
-            detach()
-            window = newWindow
-            guard newWindow != nil else { return }
-
-            closeObserver = NotificationCenter.default.addObserver(
-                forName: NSWindow.willCloseNotification,
-                object: newWindow,
-                queue: .main
-            ) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    self?.handleWindowClosed()
-                }
+            if window !== newWindow {
+                detach()
+                window = newWindow
+                guard let newWindow else { return }
+                registerObservers(for: newWindow)
             }
 
-            Task { @MainActor [weak self] in
-                await Task.yield()
-                self?.notifyPresentationIfNeeded()
-            }
+            scheduleStateEvaluation()
         }
 
         func detach() {
-            if let closeObserver {
-                NotificationCenter.default.removeObserver(closeObserver)
-            }
-            closeObserver = nil
+            stateEvaluationTask?.cancel()
+            stateEvaluationTask = nil
+            endPresentationSessionIfNeeded()
+            removeObservers()
             window = nil
-            didNotifyPresentation = false
+        }
+
+        private func registerObservers(for window: NSWindow) {
+            let center = NotificationCenter.default
+
+            observers.append(
+                center.addObserver(
+                    forName: NSWindow.didBecomeKeyNotification,
+                    object: window,
+                    queue: .main
+                ) { [weak self] _ in
+                    Task { @MainActor [weak self] in
+                        self?.scheduleStateEvaluation()
+                    }
+                }
+            )
+
+            observers.append(
+                center.addObserver(
+                    forName: NSWindow.didResignKeyNotification,
+                    object: window,
+                    queue: .main
+                ) { [weak self] _ in
+                    Task { @MainActor [weak self] in
+                        self?.scheduleStateEvaluation()
+                    }
+                }
+            )
+
+            observers.append(
+                center.addObserver(
+                    forName: NSWindow.didMiniaturizeNotification,
+                    object: window,
+                    queue: .main
+                ) { [weak self] _ in
+                    Task { @MainActor [weak self] in
+                        self?.endPresentationSessionIfNeeded()
+                    }
+                }
+            )
+
+            observers.append(
+                center.addObserver(
+                    forName: NSWindow.didDeminiaturizeNotification,
+                    object: window,
+                    queue: .main
+                ) { [weak self] _ in
+                    Task { @MainActor [weak self] in
+                        self?.scheduleStateEvaluation()
+                    }
+                }
+            )
+
+            observers.append(
+                center.addObserver(
+                    forName: NSWindow.didChangeOcclusionStateNotification,
+                    object: window,
+                    queue: .main
+                ) { [weak self] _ in
+                    Task { @MainActor [weak self] in
+                        self?.scheduleStateEvaluation()
+                    }
+                }
+            )
+
+            observers.append(
+                center.addObserver(
+                    forName: NSWindow.willCloseNotification,
+                    object: window,
+                    queue: .main
+                ) { [weak self] _ in
+                    Task { @MainActor [weak self] in
+                        self?.handleWindowClosed()
+                    }
+                }
+            )
+        }
+
+        private func removeObservers() {
+            let center = NotificationCenter.default
+            for observer in observers {
+                center.removeObserver(observer)
+            }
+            observers.removeAll()
         }
 
         private func handleWindowClosed() {
-            onClosed()
             detach()
         }
 
-        private func notifyPresentationIfNeeded() {
-            guard let window, window.isVisible, !didNotifyPresentation else { return }
-            didNotifyPresentation = true
+        private func scheduleStateEvaluation() {
+            stateEvaluationTask?.cancel()
+            stateEvaluationTask = Task { @MainActor [weak self] in
+                await Task.yield()
+                self?.evaluatePresentationState()
+            }
+        }
+
+        private func evaluatePresentationState() {
+            guard let window else { return }
+
+            if isWindowPresented(window) {
+                beginPresentationSessionIfNeeded()
+            } else if shouldEndPresentationSession(for: window) {
+                endPresentationSessionIfNeeded()
+            }
+        }
+
+        private func isWindowPresented(_ window: NSWindow) -> Bool {
+            guard window.isVisible, !window.isMiniaturized else { return false }
+            return window.isKeyWindow || window.occlusionState.contains(.visible)
+        }
+
+        private func shouldEndPresentationSession(for window: NSWindow) -> Bool {
+            !window.isVisible || window.isMiniaturized
+        }
+
+        private func beginPresentationSessionIfNeeded() {
+            guard !isPresentationSessionActive else { return }
+            isPresentationSessionActive = true
             onPresented()
+        }
+
+        private func endPresentationSessionIfNeeded() {
+            guard isPresentationSessionActive else { return }
+            isPresentationSessionActive = false
+            onDismissed()
         }
     }
 }
