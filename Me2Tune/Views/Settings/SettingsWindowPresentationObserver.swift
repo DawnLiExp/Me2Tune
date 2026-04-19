@@ -50,7 +50,7 @@ extension SettingsWindowPresentationObserver {
         private let onDismissed: @MainActor () -> Void
 
         private weak var window: NSWindow?
-        private var observers: [NSObjectProtocol] = []
+        private var closeObserver: NSObjectProtocol?
         private var visibilityObservation: NSKeyValueObservation?
         private var miniaturizedObservation: NSKeyValueObservation?
         private var stateEvaluationTask: Task<Void, Never>?
@@ -70,7 +70,7 @@ extension SettingsWindowPresentationObserver {
                 window = newWindow
                 guard let newWindow else { return }
                 registerStateObservations(for: newWindow)
-                registerObservers(for: newWindow)
+                registerCloseObserver(for: newWindow)
             }
 
             scheduleStateEvaluation()
@@ -84,7 +84,10 @@ extension SettingsWindowPresentationObserver {
             miniaturizedObservation?.invalidate()
             visibilityObservation = nil
             miniaturizedObservation = nil
-            removeObservers()
+            if let closeObserver {
+                NotificationCenter.default.removeObserver(closeObserver)
+            }
+            closeObserver = nil
             window = nil
         }
 
@@ -102,92 +105,16 @@ extension SettingsWindowPresentationObserver {
             }
         }
 
-        private func registerObservers(for window: NSWindow) {
-            let center = NotificationCenter.default
-
-            observers.append(
-                center.addObserver(
-                    forName: NSWindow.didBecomeKeyNotification,
-                    object: window,
-                    queue: .main
-                ) { [weak self] _ in
-                    Task { @MainActor [weak self] in
-                        self?.scheduleStateEvaluation()
-                    }
+        private func registerCloseObserver(for window: NSWindow) {
+            closeObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.willCloseNotification,
+                object: window,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.detach()
                 }
-            )
-
-            observers.append(
-                center.addObserver(
-                    forName: NSWindow.didResignKeyNotification,
-                    object: window,
-                    queue: .main
-                ) { [weak self] _ in
-                    Task { @MainActor [weak self] in
-                        self?.scheduleStateEvaluation()
-                    }
-                }
-            )
-
-            observers.append(
-                center.addObserver(
-                    forName: NSWindow.didMiniaturizeNotification,
-                    object: window,
-                    queue: .main
-                ) { [weak self] _ in
-                    Task { @MainActor [weak self] in
-                        self?.endPresentationSessionIfNeeded()
-                    }
-                }
-            )
-
-            observers.append(
-                center.addObserver(
-                    forName: NSWindow.didDeminiaturizeNotification,
-                    object: window,
-                    queue: .main
-                ) { [weak self] _ in
-                    Task { @MainActor [weak self] in
-                        self?.scheduleStateEvaluation()
-                    }
-                }
-            )
-
-            observers.append(
-                center.addObserver(
-                    forName: NSWindow.didChangeOcclusionStateNotification,
-                    object: window,
-                    queue: .main
-                ) { [weak self] _ in
-                    Task { @MainActor [weak self] in
-                        self?.scheduleStateEvaluation()
-                    }
-                }
-            )
-
-            observers.append(
-                center.addObserver(
-                    forName: NSWindow.willCloseNotification,
-                    object: window,
-                    queue: .main
-                ) { [weak self] _ in
-                    Task { @MainActor [weak self] in
-                        self?.handleWindowClosed()
-                    }
-                }
-            )
-        }
-
-        private func removeObservers() {
-            let center = NotificationCenter.default
-            for observer in observers {
-                center.removeObserver(observer)
             }
-            observers.removeAll()
-        }
-
-        private func handleWindowClosed() {
-            detach()
         }
 
         private func scheduleStateEvaluation() {

@@ -25,7 +25,9 @@ struct SettingsWindowPresentationObserverTests {
         )
 
         let window = TestSettingsWindow()
-        window.testIsVisible = true
+
+        // 第一次展示：先设置可见状态，再 attach（KVO .initial 会触发）
+        window.setTestVisible(true)
         window.testIsKeyWindow = true
 
         coordinator.attach(to: window)
@@ -34,17 +36,17 @@ struct SettingsWindowPresentationObserverTests {
         #expect(recorder.presentedCount == 1)
         #expect(recorder.dismissedCount == 0)
 
-        window.testIsVisible = false
+        // 隐藏窗口（KVO 触发 evaluatePresentationState）
+        window.setTestVisible(false)
         window.testIsKeyWindow = false
-        NotificationCenter.default.post(name: NSWindow.didResignKeyNotification, object: window)
         try? await Task.sleep(for: .milliseconds(50))
 
         #expect(recorder.presentedCount == 1)
         #expect(recorder.dismissedCount == 1)
 
-        window.testIsVisible = true
+        // 再次展示（KVO 触发）
+        window.setTestVisible(true)
         window.testIsKeyWindow = true
-        NotificationCenter.default.post(name: NSWindow.didBecomeKeyNotification, object: window)
         try? await Task.sleep(for: .milliseconds(50))
 
         #expect(recorder.presentedCount == 2)
@@ -59,7 +61,7 @@ private final class PresentationRecorder {
 }
 
 private final class TestSettingsWindow: NSWindow {
-    var testIsVisible = false
+    private var _testIsVisible = false
     var testIsMiniaturized = false
     var testIsKeyWindow = false
     var testOcclusionState: NSWindow.OcclusionState = []
@@ -74,7 +76,7 @@ private final class TestSettingsWindow: NSWindow {
     }
 
     override var isVisible: Bool {
-        testIsVisible
+        _testIsVisible
     }
 
     override var isMiniaturized: Bool {
@@ -87,5 +89,12 @@ private final class TestSettingsWindow: NSWindow {
 
     override var occlusionState: NSWindow.OcclusionState {
         testOcclusionState
+    }
+
+    /// KVO-compatible setter — 手动发送 willChange/didChange 以触发 KVO 观察
+    func setTestVisible(_ value: Bool) {
+        willChangeValue(forKey: "visible")
+        _testIsVisible = value
+        didChangeValue(forKey: "visible")
     }
 }
