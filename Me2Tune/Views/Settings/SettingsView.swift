@@ -20,7 +20,9 @@ struct SettingsView: View {
         case statistics
         case about
 
-        var id: Self { self }
+        var id: Self {
+            self
+        }
 
         var titleKey: LocalizedStringKey {
             switch self {
@@ -328,7 +330,7 @@ struct SettingsView: View {
             Divider()
             
             VStack(spacing: 16) {
-                settingRow(icon: "waveform.circle", label: "audio_buffering", helpText: "audio_buffering_footer") {
+                settingRow(icon: "waveform.circle", label: "audio_buffering", helpText: "audio_buffering_footer", helpMaxWidth: 290) {
                     Toggle(isOn: $audioBufferingEnabled) {
                         EmptyView()
                     }
@@ -337,7 +339,7 @@ struct SettingsView: View {
                     .controlSize(.small)
                 }
                 
-                settingRow(icon: "music.note.list", label: "now_playing_sync", helpText: "now_playing_sync_footer") {
+                settingRow(icon: "music.note.list", label: "now_playing_sync", helpText: "now_playing_sync_footer", helpMaxWidth: 300) {
                     Toggle(isOn: $nowPlayingEnabled) {
                         EmptyView()
                     }
@@ -488,7 +490,7 @@ struct SettingsView: View {
                 .disabled(backgroundGlowMode != BackgroundGlowMode.meshGradient.rawValue)
                 .opacity(backgroundGlowMode == BackgroundGlowMode.meshGradient.rawValue ? 1 : 0.4)
 
-                settingRow(icon: "sparkles", label: "settings_clean_mode", helpText: "settings_clean_mode_footer") {
+                settingRow(icon: "sparkles", label: "settings_clean_mode", helpText: "settings_clean_mode_footer", helpMaxWidth: 310) {
                     Toggle(isOn: $cleanMode) {
                         EmptyView()
                     }
@@ -571,6 +573,7 @@ struct SettingsView: View {
         icon: String,
         label: LocalizedStringKey,
         helpText: LocalizedStringKey? = nil,
+        helpMaxWidth: CGFloat? = nil,
         @ViewBuilder content: () -> some View
     ) -> some View {
         HStack(spacing: 12) {
@@ -586,7 +589,7 @@ struct SettingsView: View {
                     .fixedSize(horizontal: true, vertical: false)
                 
                 if let helpText {
-                    HelpPopoverButton(helpText: helpText)
+                    HelpPopoverButton(helpText: helpText, maxWidth: helpMaxWidth)
                 }
             }
             .layoutPriority(1)
@@ -668,6 +671,7 @@ struct SettingsView: View {
 
 private struct HelpPopoverButton: View {
     let helpText: LocalizedStringKey
+    var maxWidth: CGFloat?
     @State private var isPresented = false
 
     var body: some View {
@@ -681,13 +685,23 @@ private struct HelpPopoverButton: View {
         }
         .buttonStyle(.plain)
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {
-            Text(helpText)
-                .font(.system(size: 12))
-                .foregroundColor(.primary)
-                .multilineTextAlignment(.leading)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .fixedSize()
+            if let maxWidth {
+                Text(helpText)
+                    .font(.system(size: 12))
+                    .foregroundColor(.primary)
+                    .multilineTextAlignment(.leading)
+                    .frame(width: maxWidth, alignment: .leading)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+            } else {
+                Text(helpText)
+                    .font(.system(size: 12))
+                    .foregroundColor(.primary)
+                    .multilineTextAlignment(.leading)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .fixedSize()
+            }
         }
     }
 }
