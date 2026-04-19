@@ -8,21 +8,24 @@
 import SwiftUI
 
 struct StatCard: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     let title: String
     let value: Int
     let icon: String
-    
+
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.system(size: 20))
+                .frame(height: 24)
                 .foregroundColor(.accentColor.opacity(0.7))
-            
+
             Text(value.formatted())
                 .font(.system(size: 24, weight: .semibold))
                 .foregroundColor(.primary)
                 .contentTransition(.numericText())
-            
+
             Text(title)
                 .font(.system(size: 11))
                 .foregroundColor(.secondary)
@@ -30,9 +33,22 @@ struct StatCard: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(NSColor.controlBackgroundColor))
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(cardSurfaceFill)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(cardSurfaceBorder, lineWidth: 1)
+                }
         )
+    }
+
+    private var cardSurfaceFill: Color {
+        Color(nsColor: .underPageBackgroundColor)
+            .opacity(colorScheme == .dark ? 0.88 : 0.78)
+    }
+
+    private var cardSurfaceBorder: Color {
+        Color.primary.opacity(colorScheme == .dark ? 0.08 : 0.05)
     }
 }
 

@@ -55,7 +55,7 @@ struct SettingsView: View {
             case .appearance:
                 340
             case .statistics:
-                530
+                525
             case .about:
                 340
             }
