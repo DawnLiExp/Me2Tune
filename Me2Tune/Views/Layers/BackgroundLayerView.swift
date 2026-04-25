@@ -14,6 +14,10 @@ struct BackgroundLayerView: View {
     @AppStorage("backgroundGlowMode") private var glowMode = BackgroundGlowMode.legacy.rawValue
     @AppStorage("glowBreathingRate") private var breathingRate = GlowBreathingRate.medium.rawValue
     @AppStorage("glowBreathingIntensity") private var breathingIntensity = GlowBreathingIntensity.medium.rawValue
+
+    private var atmosphere: ThemeAtmosphere {
+        ThemeManager.shared.currentTheme.atmosphere
+    }
     
     var body: some View {
         ZStack {
@@ -38,17 +42,17 @@ struct BackgroundLayerView: View {
         if let mode = BackgroundGlowMode(rawValue: glowMode) {
             switch mode {
             case .legacy:
-                LegacyGlowView(albumGlowColor: albumGlowColor)
+                LegacyGlowView(albumGlowColor: albumGlowColor, atmosphere: atmosphere)
             case .meshGradient:
                 if #available(macOS 15.0, *) {
-                    MeshGradientGlowView(albumGlowColor: albumGlowColor)
+                    MeshGradientGlowView(albumGlowColor: albumGlowColor, atmosphere: atmosphere)
                 } else {
                     // Fallback to legacy for macOS < 15
-                    LegacyGlowView(albumGlowColor: albumGlowColor)
+                    LegacyGlowView(albumGlowColor: albumGlowColor, atmosphere: atmosphere)
                 }
             }
         } else {
-            LegacyGlowView(albumGlowColor: albumGlowColor)
+            LegacyGlowView(albumGlowColor: albumGlowColor, atmosphere: atmosphere)
         }
     }
 }
@@ -155,6 +159,7 @@ enum GlowBreathingIntensity: String, CaseIterable, Identifiable {
 
 private struct LegacyGlowView: View {
     let albumGlowColor: Color
+    let atmosphere: ThemeAtmosphere
     
     var body: some View {
         Group {
@@ -172,9 +177,9 @@ private struct LegacyGlowView: View {
                     .fill(
                         RadialGradient(
                             colors: [
-                                albumGlowColor.opacity(0.58),
-                                albumGlowColor.opacity(0.31),
-                                albumGlowColor.opacity(0.15),
+                                albumGlowColor.opacity(0.58 * atmosphere.legacyVinylGlowOpacityScale),
+                                albumGlowColor.opacity(0.31 * atmosphere.legacyVinylGlowOpacityScale),
+                                albumGlowColor.opacity(0.15 * atmosphere.legacyVinylGlowOpacityScale),
                                 Color.clear
                             ],
                             center: .center,
@@ -202,8 +207,8 @@ private struct LegacyGlowView: View {
                 .fill(
                     RadialGradient(
                         colors: [
-                            Color.accent.opacity(0.16),
-                            Color.accent.opacity(0.08),
+                            Color.accent.opacity(0.16 * atmosphere.legacyPlaylistGlowOpacityScale),
+                            Color.accent.opacity(0.08 * atmosphere.legacyPlaylistGlowOpacityScale),
                             Color.clear
                         ],
                         center: .center,
@@ -224,6 +229,7 @@ private struct LegacyGlowView: View {
 @available(macOS 15.0, *)
 private struct MeshGradientGlowView: View {
     let albumGlowColor: Color
+    let atmosphere: ThemeAtmosphere
     
     @AppStorage("glowBreathingRate") private var breathingRateRaw = GlowBreathingRate.medium.rawValue
     @AppStorage("glowBreathingIntensity") private var breathingIntensityRaw = GlowBreathingIntensity.medium.rawValue
@@ -298,8 +304,8 @@ private struct MeshGradientGlowView: View {
             let subtleWave = sin(accumulatedPhase * 2.5) * 0.05
             
             // 使用用户设置的强度
-            let amplitude = breathingIntensity.amplitude
-            let baseOpacity = breathingIntensity.baseOpacity
+            let amplitude = breathingIntensity.amplitude * atmosphere.meshBreathingAmplitudeScale
+            let baseOpacity = breathingIntensity.baseOpacity * atmosphere.meshIntensityScale
             let newIntensity = baseOpacity + (amplitude * (smoothPhase * 0.9 + subtleWave * 0.1))
             
             if abs(intensity - newIntensity) > 0.002 || abs(phase - smoothPhase) > 0.005 {
@@ -344,36 +350,36 @@ private struct MeshGradientGlowView: View {
     
     private var meshColors: [Color] {
         let normalizedPhase = (phase + 1.0) / 2.0
-        let pulse = normalizedPhase * breathingIntensity.amplitude
+        let pulse = normalizedPhase * breathingIntensity.amplitude * atmosphere.meshPulseScale
         
         return [
             // Row 0
-            .gradientTop.opacity(0.3),
-            .gradientTop.opacity(0.5),
-            .gradientTop.opacity(0.6),
-            .gradientTop.opacity(0.5),
-            .gradientTop.opacity(0.3),
+            .gradientTop.opacity(0.3 * atmosphere.meshBackgroundOpacityScale),
+            .gradientTop.opacity(0.5 * atmosphere.meshBackgroundOpacityScale),
+            .gradientTop.opacity(0.6 * atmosphere.meshBackgroundOpacityScale),
+            .gradientTop.opacity(0.5 * atmosphere.meshBackgroundOpacityScale),
+            .gradientTop.opacity(0.3 * atmosphere.meshBackgroundOpacityScale),
             
             // Row 1
-            albumGlowColor.opacity(0.06 + pulse * 0.4),
-            albumGlowColor.opacity(0.26 + pulse * 1.1),
-            albumGlowColor.opacity(0.44 + pulse),
-            albumGlowColor.opacity(0.26 + pulse * 1.1),
-            albumGlowColor.opacity(0.06 + pulse * 0.4),
+            albumGlowColor.opacity(0.06 * atmosphere.meshColorOpacityScale + pulse * 0.4),
+            albumGlowColor.opacity(0.26 * atmosphere.meshColorOpacityScale + pulse * 1.1),
+            albumGlowColor.opacity(0.44 * atmosphere.meshColorOpacityScale + pulse),
+            albumGlowColor.opacity(0.26 * atmosphere.meshColorOpacityScale + pulse * 1.1),
+            albumGlowColor.opacity(0.06 * atmosphere.meshColorOpacityScale + pulse * 0.4),
             
             // Row 2
-            albumGlowColor.opacity(0.12 + pulse * 0.4),
-            albumGlowColor.opacity(0.52 + pulse * 0.8),
-            albumGlowColor.opacity(0.62 + pulse),
-            albumGlowColor.opacity(0.52 + pulse * 0.8),
-            albumGlowColor.opacity(0.12 + pulse * 0.4),
+            albumGlowColor.opacity(0.12 * atmosphere.meshColorOpacityScale + pulse * 0.4),
+            albumGlowColor.opacity(0.52 * atmosphere.meshColorOpacityScale + pulse * 0.8),
+            albumGlowColor.opacity(0.62 * atmosphere.meshColorOpacityScale + pulse),
+            albumGlowColor.opacity(0.52 * atmosphere.meshColorOpacityScale + pulse * 0.8),
+            albumGlowColor.opacity(0.12 * atmosphere.meshColorOpacityScale + pulse * 0.4),
             
             // Row 3
-            .mainBackground.opacity(0.2),
-            albumGlowColor.opacity(0.10 + pulse * 0.2),
-            albumGlowColor.opacity(0.22 + pulse * 0.4),
-            albumGlowColor.opacity(0.10 + pulse * 0.2),
-            .mainBackground.opacity(0.2),
+            .mainBackground.opacity(0.2 * atmosphere.meshBackgroundOpacityScale),
+            albumGlowColor.opacity(0.10 * atmosphere.meshColorOpacityScale + pulse * 0.2),
+            albumGlowColor.opacity(0.22 * atmosphere.meshColorOpacityScale + pulse * 0.4),
+            albumGlowColor.opacity(0.10 * atmosphere.meshColorOpacityScale + pulse * 0.2),
+            .mainBackground.opacity(0.2 * atmosphere.meshBackgroundOpacityScale),
             
             // Row 4
             .mainBackground,

@@ -12,6 +12,13 @@ import SwiftUI
 protocol Theme {
     var name: String { get }
     var colors: ThemeColors { get }
+    var atmosphere: ThemeAtmosphere { get }
+}
+
+extension Theme {
+    var atmosphere: ThemeAtmosphere {
+        .standard
+    }
 }
 
 // MARK: - Theme Colors
@@ -69,4 +76,38 @@ struct ThemeColors {
     let searchPrimaryText: Color
     let searchSecondaryText: Color
     let searchIconColor: Color
+}
+
+// MARK: - Theme Atmosphere
+
+struct ThemeAtmosphere {
+    let legacyVinylGlowOpacityScale: Double
+    let legacyPlaylistGlowOpacityScale: Double
+    let meshBackgroundOpacityScale: Double
+    let meshColorOpacityScale: Double
+    let meshPulseScale: Double
+    let meshIntensityScale: Double
+    let meshBreathingAmplitudeScale: Double
+}
+
+extension ThemeAtmosphere {
+    static let standard = ThemeAtmosphere(
+        legacyVinylGlowOpacityScale: 1.0,
+        legacyPlaylistGlowOpacityScale: 1.0,
+        meshBackgroundOpacityScale: 1.0,
+        meshColorOpacityScale: 1.0,
+        meshPulseScale: 1.0,
+        meshIntensityScale: 1.0,
+        meshBreathingAmplitudeScale: 1.0
+    )
+
+    static let airyLight = ThemeAtmosphere(
+        legacyVinylGlowOpacityScale: 0.28,
+        legacyPlaylistGlowOpacityScale: 0.36,
+        meshBackgroundOpacityScale: 0.42,
+        meshColorOpacityScale: 0.30,
+        meshPulseScale: 0.24,
+        meshIntensityScale: 0.58,
+        meshBreathingAmplitudeScale: 0.42
+    )
 }

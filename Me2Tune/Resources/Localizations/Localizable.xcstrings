@@ -2384,6 +2384,22 @@
         }
       }
     },
+    "theme_pearl_dawn" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pearl Dawn"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "珠光晨曦"
+          }
+        }
+      }
+    },
     "theme_slate_blue" : {
       "localizations" : {
         "en" : {

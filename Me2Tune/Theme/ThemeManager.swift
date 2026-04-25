@@ -25,6 +25,7 @@ final class ThemeManager {
         case dark
         case slateBlue
         case emerald
+        case pearlDawn
         
         var id: String {
             rawValue
@@ -40,6 +41,8 @@ final class ThemeManager {
                 return "theme_slate_blue"
             case .emerald:
                 return "theme_emerald"
+            case .pearlDawn:
+                return "theme_pearl_dawn"
             }
         }
     }
@@ -50,7 +53,8 @@ final class ThemeManager {
     private let availableThemes: [Theme] = [
         DarkTheme(),
         SlateBlueTheme(),
-        EmeraldTheme()
+        EmeraldTheme(),
+        PearlDawnTheme()
     ]
     
     private init() {
@@ -69,13 +73,15 @@ final class ThemeManager {
         switch savedMode {
         case .auto:
             let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            self.currentTheme = isDark ? DarkTheme() : SlateBlueTheme()
+            self.currentTheme = isDark ? DarkTheme() : PearlDawnTheme()
         case .dark:
             self.currentTheme = DarkTheme()
         case .slateBlue:
             self.currentTheme = SlateBlueTheme()
         case .emerald:
             self.currentTheme = EmeraldTheme()
+        case .pearlDawn:
+            self.currentTheme = PearlDawnTheme()
         }
         
         logger.info("ThemeManager initialized with mode: \(self.themeMode.rawValue), theme: \(self.currentTheme.name)")
