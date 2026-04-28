@@ -22,17 +22,15 @@ struct PearlDawnTheme: Theme {
         // MARK: Album Glow Colors
 
         albumGlowColors: [
-            Color(hex: "#F26B5E"),
-            Color(hex: "#3A9AD9"),
-            Color(hex: "#E6A83A"),
+            Color(hex: "#3B82F6"),
+            Color(hex: "#06B6D4"),
+            Color(hex: "#6366F1"),
             Color(hex: "#8B5CF6"),
-            Color(hex: "#00A896"),
-            Color(hex: "#E85D75"),
-            Color(hex: "#4F46E5"),
-            Color(hex: "#2BB673"),
-            Color(hex: "#F97316"),
+            Color(hex: "#EC4899"),
+            Color(hex: "#F43F5E"),
+            Color(hex: "#14B8A6"),
         ],
-        defaultAlbumGlow: Color(hex: "#F26B5E"),
+        defaultAlbumGlow: Color(hex: "#6366F1"),
 
         // MARK: Background Colors
 

@@ -82,9 +82,12 @@ struct ThemeColors {
 
 struct ThemeAtmosphere {
     let legacyVinylGlowOpacityScale: Double
+    let legacyVinylGlowEdgeOpacityScale: Double
     let legacyPlaylistGlowOpacityScale: Double
     let meshBackgroundOpacityScale: Double
     let meshColorOpacityScale: Double
+    let meshCoreOpacityScale: Double
+    let meshEdgeOpacityScale: Double
     let meshPulseScale: Double
     let meshIntensityScale: Double
     let meshBreathingAmplitudeScale: Double
@@ -93,21 +96,27 @@ struct ThemeAtmosphere {
 extension ThemeAtmosphere {
     static let standard = ThemeAtmosphere(
         legacyVinylGlowOpacityScale: 1.0,
+        legacyVinylGlowEdgeOpacityScale: 1.0,
         legacyPlaylistGlowOpacityScale: 1.0,
         meshBackgroundOpacityScale: 1.0,
         meshColorOpacityScale: 1.0,
+        meshCoreOpacityScale: 1.0,
+        meshEdgeOpacityScale: 1.0,
         meshPulseScale: 1.0,
         meshIntensityScale: 1.0,
         meshBreathingAmplitudeScale: 1.0
     )
 
     static let airyLight = ThemeAtmosphere(
-        legacyVinylGlowOpacityScale: 0.28,
-        legacyPlaylistGlowOpacityScale: 0.36,
+        legacyVinylGlowOpacityScale: 0.72,
+        legacyVinylGlowEdgeOpacityScale: 0.46,
+        legacyPlaylistGlowOpacityScale: 0.58,
         meshBackgroundOpacityScale: 0.42,
-        meshColorOpacityScale: 0.30,
-        meshPulseScale: 0.24,
-        meshIntensityScale: 0.58,
-        meshBreathingAmplitudeScale: 0.42
+        meshColorOpacityScale: 0.70,
+        meshCoreOpacityScale: 1.25,
+        meshEdgeOpacityScale: 0.38,
+        meshPulseScale: 0.42,
+        meshIntensityScale: 0.72,
+        meshBreathingAmplitudeScale: 0.55
     )
 }

@@ -179,7 +179,7 @@ private struct LegacyGlowView: View {
                             colors: [
                                 albumGlowColor.opacity(0.58 * atmosphere.legacyVinylGlowOpacityScale),
                                 albumGlowColor.opacity(0.31 * atmosphere.legacyVinylGlowOpacityScale),
-                                albumGlowColor.opacity(0.15 * atmosphere.legacyVinylGlowOpacityScale),
+                                albumGlowColor.opacity(0.15 * atmosphere.legacyVinylGlowOpacityScale * atmosphere.legacyVinylGlowEdgeOpacityScale),
                                 Color.clear
                             ],
                             center: .center,
@@ -351,6 +351,8 @@ private struct MeshGradientGlowView: View {
     private var meshColors: [Color] {
         let normalizedPhase = (phase + 1.0) / 2.0
         let pulse = normalizedPhase * breathingIntensity.amplitude * atmosphere.meshPulseScale
+        let coreScale = atmosphere.meshColorOpacityScale * atmosphere.meshCoreOpacityScale
+        let edgeScale = atmosphere.meshColorOpacityScale * atmosphere.meshEdgeOpacityScale
         
         return [
             // Row 0
@@ -361,24 +363,24 @@ private struct MeshGradientGlowView: View {
             .gradientTop.opacity(0.3 * atmosphere.meshBackgroundOpacityScale),
             
             // Row 1
-            albumGlowColor.opacity(0.06 * atmosphere.meshColorOpacityScale + pulse * 0.4),
-            albumGlowColor.opacity(0.26 * atmosphere.meshColorOpacityScale + pulse * 1.1),
-            albumGlowColor.opacity(0.44 * atmosphere.meshColorOpacityScale + pulse),
-            albumGlowColor.opacity(0.26 * atmosphere.meshColorOpacityScale + pulse * 1.1),
-            albumGlowColor.opacity(0.06 * atmosphere.meshColorOpacityScale + pulse * 0.4),
+            albumGlowColor.opacity(0.06 * edgeScale + pulse * 0.4 * atmosphere.meshEdgeOpacityScale),
+            albumGlowColor.opacity(0.26 * coreScale + pulse * 1.1 * atmosphere.meshCoreOpacityScale),
+            albumGlowColor.opacity(0.44 * coreScale + pulse * atmosphere.meshCoreOpacityScale),
+            albumGlowColor.opacity(0.26 * coreScale + pulse * 1.1 * atmosphere.meshCoreOpacityScale),
+            albumGlowColor.opacity(0.06 * edgeScale + pulse * 0.4 * atmosphere.meshEdgeOpacityScale),
             
             // Row 2
-            albumGlowColor.opacity(0.12 * atmosphere.meshColorOpacityScale + pulse * 0.4),
-            albumGlowColor.opacity(0.52 * atmosphere.meshColorOpacityScale + pulse * 0.8),
-            albumGlowColor.opacity(0.62 * atmosphere.meshColorOpacityScale + pulse),
-            albumGlowColor.opacity(0.52 * atmosphere.meshColorOpacityScale + pulse * 0.8),
-            albumGlowColor.opacity(0.12 * atmosphere.meshColorOpacityScale + pulse * 0.4),
+            albumGlowColor.opacity(0.12 * edgeScale + pulse * 0.4 * atmosphere.meshEdgeOpacityScale),
+            albumGlowColor.opacity(0.52 * coreScale + pulse * 0.8 * atmosphere.meshCoreOpacityScale),
+            albumGlowColor.opacity(0.62 * coreScale + pulse * atmosphere.meshCoreOpacityScale),
+            albumGlowColor.opacity(0.52 * coreScale + pulse * 0.8 * atmosphere.meshCoreOpacityScale),
+            albumGlowColor.opacity(0.12 * edgeScale + pulse * 0.4 * atmosphere.meshEdgeOpacityScale),
             
             // Row 3
             .mainBackground.opacity(0.2 * atmosphere.meshBackgroundOpacityScale),
-            albumGlowColor.opacity(0.10 * atmosphere.meshColorOpacityScale + pulse * 0.2),
-            albumGlowColor.opacity(0.22 * atmosphere.meshColorOpacityScale + pulse * 0.4),
-            albumGlowColor.opacity(0.10 * atmosphere.meshColorOpacityScale + pulse * 0.2),
+            albumGlowColor.opacity(0.10 * edgeScale + pulse * 0.2 * atmosphere.meshEdgeOpacityScale),
+            albumGlowColor.opacity(0.22 * edgeScale + pulse * 0.4 * atmosphere.meshEdgeOpacityScale),
+            albumGlowColor.opacity(0.10 * edgeScale + pulse * 0.2 * atmosphere.meshEdgeOpacityScale),
             .mainBackground.opacity(0.2 * atmosphere.meshBackgroundOpacityScale),
             
             // Row 4
