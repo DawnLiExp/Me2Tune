@@ -157,7 +157,7 @@ struct LyricsDisplaySettingsTests {
         #expect(settings.mainTextScale(isCurrent: false) == CGFloat(0.8))
         #expect(settings.translationTextScale(isCurrent: true) == CGFloat(1))
         #expect(settings.translationTextScale(isCurrent: false) == CGFloat(15.0 / 19.0))
-        #expect(settings.lineBlockMinHeight(hasTranslation: false) == CGFloat(41))
-        #expect(settings.lineBlockMinHeight(hasTranslation: true) == CGFloat(67.8))
+        #expect(settings.lineBlockMinHeight(hasTranslation: false) == CGFloat(25))
+        #expect(settings.lineBlockMinHeight(hasTranslation: true) == CGFloat(51.8))
     }
 }

@@ -236,13 +236,12 @@ struct LyricsDisplaySettings {
 
     func lineBlockMinHeight(hasTranslation: Bool) -> CGFloat {
         let mainLineHeight = reservedMainFontSize * 1.25
-        let verticalPadding = blockVerticalPadding * 2
         guard hasTranslation else {
-            return mainLineHeight + verticalPadding
+            return mainLineHeight
         }
 
         let translationLineHeight = reservedTranslationFontSize * 1.2
-        return mainLineHeight + 4 + translationLineHeight + verticalPadding
+        return mainLineHeight + 4 + translationLineHeight
     }
 
     var plainTextFontSize: CGFloat {
