@@ -266,13 +266,6 @@ actor LyricsCacheService {
     // MARK: - Helper: Detect Synced Lyrics Format
     
     private func detectSyncedLyrics(_ content: String) -> Bool {
-        // 检测是否包含 LRC 时间戳格式：[mm:ss.xx] 或 [mm:ss]
-        let pattern = "\\[\\d{2}:\\d{2}[.:]?\\d*\\]"
-        guard let regex = try? NSRegularExpression(pattern: pattern) else {
-            return false
-        }
-        
-        let range = NSRange(content.startIndex..., in: content)
-        return regex.firstMatch(in: content, range: range) != nil
+        LRCTimestampParser.containsTimestamp(in: content)
     }
 }

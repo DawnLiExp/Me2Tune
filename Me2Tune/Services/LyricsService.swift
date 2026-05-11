@@ -84,9 +84,7 @@ actor LyricsService {
             throw LyricsError.emptyFile
         }
         
-        let hasSyncedTags = content.contains(where: { $0 == "[" }) &&
-            (try? NSRegularExpression(pattern: #"\[\d{2}:\d{2}\.\d{2}\]"#))
-            .map { $0.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)) != nil } ?? false
+        let hasSyncedTags = LRCTimestampParser.containsTimestamp(in: content)
                 
         return Lyrics(
             id: 0,

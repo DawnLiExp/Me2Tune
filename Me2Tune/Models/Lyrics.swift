@@ -42,6 +42,58 @@ struct LyricLine: Identifiable, Sendable {
     let translation: String?
 }
 
+enum LRCTimestampParser {
+    nonisolated private static var timestampDetectionRegex: NSRegularExpression? {
+        try? NSRegularExpression(
+            pattern: #"\[\d+:[0-5]\d(?:[.:,]\d{1,3})?\]"#,
+            options: []
+        )
+    }
+
+    nonisolated private static var timestampRegex: NSRegularExpression? {
+        try? NSRegularExpression(
+            pattern: #"\[(\d+):([0-5]\d)(?:[.:,](\d{1,3}))?\]\s*(.*)$"#,
+            options: []
+        )
+    }
+
+    nonisolated static func containsTimestamp(in content: String) -> Bool {
+        guard let timestampDetectionRegex else { return false }
+
+        return timestampDetectionRegex.firstMatch(
+            in: content,
+            range: NSRange(content.startIndex..., in: content)
+        ) != nil
+    }
+
+    nonisolated static func parseLine(_ line: String) -> (timestamp: TimeInterval, text: String)? {
+        guard let timestampRegex,
+              let match = timestampRegex.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
+              match.numberOfRanges == 5,
+              let minutesRange = Range(match.range(at: 1), in: line),
+              let secondsRange = Range(match.range(at: 2), in: line),
+              let textRange = Range(match.range(at: 4), in: line),
+              let minutes = Int(line[minutesRange]),
+              let seconds = Int(line[secondsRange])
+        else {
+            return nil
+        }
+
+        let fraction: TimeInterval
+        if let fractionRange = Range(match.range(at: 3), in: line),
+           let fractionValue = TimeInterval("0.\(line[fractionRange])")
+        {
+            fraction = fractionValue
+        } else {
+            fraction = 0
+        }
+
+        let timestamp = TimeInterval(minutes * 60) + TimeInterval(seconds) + fraction
+        let text = String(line[textRange]).trimmingCharacters(in: .whitespaces)
+        return (timestamp, text)
+    }
+}
+
 extension Lyrics {
     /// 解析同步歌词为时间轴数组
     /// 支持双语：相同时间戳的连续两行自动合并为 text + translation
@@ -57,30 +109,13 @@ extension Lyrics {
         }
 
         var rawLines: [RawLine] = []
-        let pattern = #"\[(\d{2}):(\d{2})\.(\d{2})\]\s*(.*)$"#
-        let regex = try? NSRegularExpression(pattern: pattern, options: [])
 
         syncedLyrics.enumerateLines { line, _ in
-            guard let match = regex?.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)) else {
+            guard let parsedLine = LRCTimestampParser.parseLine(line) else {
                 return
             }
 
-            guard match.numberOfRanges == 5,
-                  let minutesRange = Range(match.range(at: 1), in: line),
-                  let secondsRange = Range(match.range(at: 2), in: line),
-                  let centisecondsRange = Range(match.range(at: 3), in: line),
-                  let textRange = Range(match.range(at: 4), in: line),
-                  let minutes = Int(line[minutesRange]),
-                  let seconds = Int(line[secondsRange]),
-                  let centiseconds = Int(line[centisecondsRange])
-            else {
-                return
-            }
-
-            let timestamp = TimeInterval(minutes * 60) + TimeInterval(seconds) + TimeInterval(centiseconds) / 100.0
-            let text = String(line[textRange]).trimmingCharacters(in: .whitespaces)
-
-            rawLines.append(RawLine(timestamp: timestamp, text: text))
+            rawLines.append(RawLine(timestamp: parsedLine.timestamp, text: parsedLine.text))
         }
 
         rawLines.sort { $0.timestamp < $1.timestamp }
