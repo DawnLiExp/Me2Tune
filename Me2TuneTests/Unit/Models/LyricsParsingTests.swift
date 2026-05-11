@@ -94,6 +94,51 @@ struct LyricsParsingTests {
         #expect(LRCTimestampParser.containsTimestamp(in: content))
     }
 
+    @Test("offset 正值会整体延后歌词时间")
+    func appliesPositiveOffsetToDelayTimestamps() {
+        let lyrics = makeLyrics("""
+        [offset:+500]
+        [00:01.000]Delayed line
+        """)
+
+        let lines = lyrics.parseSyncedLyrics()
+
+        #expect(lines.count == 1)
+        guard let line = lines.first else { return }
+        expectTimestamp(line.timestamp, equals: 1.5)
+        #expect(line.text == "Delayed line")
+    }
+
+    @Test("offset 负值会整体提前歌词时间")
+    func appliesNegativeOffsetToAdvanceTimestamps() {
+        let lyrics = makeLyrics("""
+        [offset:-250]
+        [00:01.000]Advanced line
+        """)
+
+        let lines = lyrics.parseSyncedLyrics()
+
+        #expect(lines.count == 1)
+        guard let line = lines.first else { return }
+        expectTimestamp(line.timestamp, equals: 0.75)
+        #expect(line.text == "Advanced line")
+    }
+
+    @Test("offset 无符号数按正值处理")
+    func appliesUnsignedOffsetAsPositiveDelay() {
+        let lyrics = makeLyrics("""
+        [offset:250]
+        [00:01.000]Unsigned delay
+        """)
+
+        let lines = lyrics.parseSyncedLyrics()
+
+        #expect(lines.count == 1)
+        guard let line = lines.first else { return }
+        expectTimestamp(line.timestamp, equals: 1.25)
+        #expect(line.text == "Unsigned delay")
+    }
+
     private func expectTimestamps(_ actual: [Double], equalTo expected: [Double]) {
         #expect(actual.count == expected.count)
 

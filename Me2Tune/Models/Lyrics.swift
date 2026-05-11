@@ -57,6 +57,13 @@ enum LRCTimestampParser {
         )
     }
 
+    nonisolated private static var offsetRegex: NSRegularExpression? {
+        try? NSRegularExpression(
+            pattern: #"^\s*\[offset:\s*([+-]?\d+)\s*\]\s*$"#,
+            options: [.caseInsensitive]
+        )
+    }
+
     nonisolated static func containsTimestamp(in content: String) -> Bool {
         guard let timestampDetectionRegex else { return false }
 
@@ -92,6 +99,25 @@ enum LRCTimestampParser {
         let text = String(line[textRange]).trimmingCharacters(in: .whitespaces)
         return (timestamp, text)
     }
+
+    nonisolated static func parseOffset(in content: String) -> TimeInterval {
+        guard let offsetRegex else { return 0 }
+
+        var offset: TimeInterval = 0
+        content.enumerateLines { line, stop in
+            guard let match = offsetRegex.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
+                  match.numberOfRanges == 2,
+                  let valueRange = Range(match.range(at: 1), in: line),
+                  let milliseconds = Int(line[valueRange])
+            else {
+                return
+            }
+
+            offset = TimeInterval(milliseconds) / 1000.0
+            stop = true
+        }
+        return offset
+    }
 }
 
 extension Lyrics {
@@ -109,13 +135,14 @@ extension Lyrics {
         }
 
         var rawLines: [RawLine] = []
+        let globalOffset = LRCTimestampParser.parseOffset(in: syncedLyrics)
 
         syncedLyrics.enumerateLines { line, _ in
             guard let parsedLine = LRCTimestampParser.parseLine(line) else {
                 return
             }
 
-            rawLines.append(RawLine(timestamp: parsedLine.timestamp, text: parsedLine.text))
+            rawLines.append(RawLine(timestamp: parsedLine.timestamp + globalOffset, text: parsedLine.text))
         }
 
         rawLines.sort { $0.timestamp < $1.timestamp }
