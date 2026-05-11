@@ -42,6 +42,7 @@
 				<string>wv</string>
 				<string>tta</string>
 				<string>mpc</string>
+				<string>ogg</string>
 			</array>
 			<key>CFBundleTypeMIMETypes</key>
 			<array>
@@ -51,6 +52,7 @@
 				<string>audio/x-wav</string>
 				<string>audio/x-aiff</string>
 				<string>audio/flac</string>
+				<string>audio/ogg</string>
 			</array>
 		</dict>
 	</array>

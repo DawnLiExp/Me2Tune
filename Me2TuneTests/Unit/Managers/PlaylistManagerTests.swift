@@ -265,6 +265,27 @@ extension PlaylistManagerTests {
         #expect(manager.tracks[0].title == "inner")
     }
 
+    @Test("添加 OGG 曲目")
+    func testAddOggTrack() async throws {
+        let (manager, dataService) = try setup()
+
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let file = tempDir.appendingPathComponent("vorbis.ogg")
+        try "dummy".write(to: file, atomically: true, encoding: .utf8)
+
+        await manager.addTracks(urls: [file])
+
+        #expect(manager.count == 1)
+        #expect(manager.tracks[0].title == "vorbis")
+
+        let dbTracks = try dataService.fetchPlaylistTracks()
+        #expect(dbTracks.count == 1)
+        #expect(dbTracks.first?.urlString.hasSuffix("vorbis.ogg") == true)
+    }
+
     // MARK: - URL Processing Tests
 
     @Test("按目录排序URL")

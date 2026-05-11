@@ -327,7 +327,6 @@ struct ContentView: View {
     private func expandFolders(_ urls: [URL]) -> [URL] {
         var result: [URL] = []
         let fileManager = FileManager.default
-        let supportedExtensions = ["mp3", "m4a", "aac", "wav", "aiff", "aif", "flac", "ape", "wv", "tta", "mpc"]
         
         for url in urls {
             var isDirectory: ObjCBool = false
@@ -342,13 +341,13 @@ struct ContentView: View {
                     options: [.skipsHiddenFiles]
                 ) {
                     while let fileURL = enumerator.nextObject() as? URL {
-                        if supportedExtensions.contains(fileURL.pathExtension.lowercased()) {
+                        if AudioFileSupport.isSupportedAudioFile(fileURL) {
                             result.append(fileURL)
                         }
                     }
                 }
             } else {
-                if supportedExtensions.contains(url.pathExtension.lowercased()) {
+                if AudioFileSupport.isSupportedAudioFile(url) {
                     result.append(url)
                 }
             }

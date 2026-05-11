@@ -336,12 +336,11 @@ final class CollectionManager {
     // MARK: - File Scanning
 
     private func scanFolderOnly(_ folderURL: URL) -> [URL] {
-        let supportedExtensions = ["mp3", "m4a", "aac", "wav", "aiff", "aif", "flac", "ape", "wv", "tta", "mpc"]
         let fileManager = FileManager.default
         let contents = (try? fileManager.contentsOfDirectory(at: folderURL, includingPropertiesForKeys: nil)) ?? []
 
         return contents.filter { url in
-            supportedExtensions.contains(url.pathExtension.lowercased())
+            AudioFileSupport.isSupportedAudioFile(url)
         }.sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
 

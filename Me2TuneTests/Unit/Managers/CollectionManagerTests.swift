@@ -544,7 +544,7 @@ struct CollectionManagerTests {
         defer { try? FileManager.default.removeItem(at: tempDir) }
         
         // 测试多种格式
-        let formats = ["mp3", "m4a", "aac", "wav", "flac", "ape", "wv"]
+        let formats = ["mp3", "m4a", "aac", "wav", "flac", "ape", "wv", "ogg"]
         for format in formats {
             let file = tempDir.appendingPathComponent("track.\(format)")
             try "audio".write(to: file, atomically: true, encoding: .utf8)

@@ -83,11 +83,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         
-        let supportedExtensions = ["mp3", "m4a", "aac", "wav", "aiff", "aif", "flac", "ape", "wv", "tta", "mpc"]
-        
         // 过滤音频文件
         let audioFiles = urls.filter { url in
-            supportedExtensions.contains(url.pathExtension.lowercased())
+            AudioFileSupport.isSupportedAudioFile(url)
         }
         
         guard !audioFiles.isEmpty else {

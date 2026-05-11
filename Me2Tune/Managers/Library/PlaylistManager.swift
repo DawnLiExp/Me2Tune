@@ -241,7 +241,6 @@ final class PlaylistManager {
     // MARK: - Private Methods - URL Processing
 
     private func expandAndFilterAudioURLs(_ urls: [URL]) -> [URL] {
-        let supportedExtensions = ["mp3", "m4a", "aac", "wav", "aiff", "aif", "flac", "ape", "wv", "tta", "mpc"]
         let fileManager = FileManager.default
         var allAudioURLs: [URL] = []
 
@@ -255,12 +254,12 @@ final class PlaylistManager {
                         options: [.skipsHiddenFiles]
                     ) {
                         while let fileURL = enumerator.nextObject() as? URL {
-                            if supportedExtensions.contains(fileURL.pathExtension.lowercased()) {
+                            if AudioFileSupport.isSupportedAudioFile(fileURL) {
                                 allAudioURLs.append(fileURL)
                             }
                         }
                     }
-                } else if supportedExtensions.contains(url.pathExtension.lowercased()) {
+                } else if AudioFileSupport.isSupportedAudioFile(url) {
                     allAudioURLs.append(url)
                 }
             }

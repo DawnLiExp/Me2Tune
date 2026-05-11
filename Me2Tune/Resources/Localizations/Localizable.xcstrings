@@ -2277,13 +2277,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Supports MP3, AAC, WAV, AIFF, FLAC, APE, and more"
+            "value" : "Supports MP3, AAC, WAV, AIFF, FLAC, OGG, APE, and more"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "支持 MP3、AAC、WAV、AIFF、FLAC、APE 等格式"
+            "value" : "支持 MP3、AAC、WAV、AIFF、FLAC、OGG、APE 等格式"
           }
         }
       }
