@@ -218,6 +218,33 @@ struct LyricsDisplaySettings {
         lineSpacing.spacingValue
     }
 
+    var reservedMainFontSize: CGFloat {
+        highlightSize.fontSize
+    }
+
+    var reservedTranslationFontSize: CGFloat {
+        translationFontSize(isCurrent: true)
+    }
+
+    func mainTextScale(isCurrent: Bool) -> CGFloat {
+        mainFontSize(isCurrent: isCurrent) / reservedMainFontSize
+    }
+
+    func translationTextScale(isCurrent: Bool) -> CGFloat {
+        translationFontSize(isCurrent: isCurrent) / reservedTranslationFontSize
+    }
+
+    func lineBlockMinHeight(hasTranslation: Bool) -> CGFloat {
+        let mainLineHeight = reservedMainFontSize * 1.25
+        let verticalPadding = blockVerticalPadding * 2
+        guard hasTranslation else {
+            return mainLineHeight + verticalPadding
+        }
+
+        let translationLineHeight = reservedTranslationFontSize * 1.2
+        return mainLineHeight + 4 + translationLineHeight + verticalPadding
+    }
+
     var plainTextFontSize: CGFloat {
         normalSize.fontSize
     }

@@ -264,7 +264,7 @@ struct LyricsView: View {
             }
             .onChange(of: currentLineIndex) { _, newIndex in
                 guard let newIndex else { return }
-                withAnimation(.easeOut(duration: 0.3)) {
+                withAnimation(.easeOut(duration: 0.22)) {
                     proxy.scrollTo(newIndex, anchor: UnitPoint(x: 0.5, y: 0.4))
                 }
             }
@@ -565,34 +565,42 @@ struct LyricLineView: View {
             return theme.secondaryText.opacity(0.65)
         }
     }
+
+    private var hasTranslation: Bool {
+        guard let translation = line.translation else { return false }
+        return !translation.isEmpty
+    }
     
     var body: some View {
         VStack(spacing: 4) {
             Text(line.text.isEmpty ? "♪" : line.text)
                 .font(.system(
-                    size: displaySettings.mainFontSize(isCurrent: isCurrent),
+                    size: displaySettings.reservedMainFontSize,
                     weight: isCurrent ? .semibold : .regular
                 ))
                 .foregroundColor(primaryTextColor)
                 .multilineTextAlignment(.center)
                 .lineSpacing(4)
+                .scaleEffect(displaySettings.mainTextScale(isCurrent: isCurrent), anchor: .center)
                 .frame(maxWidth: .infinity)
             
             if let translation = line.translation, !translation.isEmpty {
                 Text(translation)
                     .font(.system(
-                        size: displaySettings.translationFontSize(isCurrent: isCurrent),
+                        size: displaySettings.reservedTranslationFontSize,
                         weight: .regular
                     ))
                     .foregroundColor(translationTextColor)
                     .multilineTextAlignment(.center)
                     .lineSpacing(3)
+                    .scaleEffect(displaySettings.translationTextScale(isCurrent: isCurrent), anchor: .center)
                     .frame(maxWidth: .infinity)
             }
         }
+        .frame(minHeight: displaySettings.lineBlockMinHeight(hasTranslation: hasTranslation))
         .opacity(distanceOpacity)
-        .animation(.easeOut(duration: 0.3), value: isCurrent)
-        .animation(.easeOut(duration: 0.3), value: distanceFromCurrent)
+        .animation(.easeOut(duration: 0.22), value: isCurrent)
+        .animation(.easeOut(duration: 0.22), value: distanceFromCurrent)
     }
 }
 

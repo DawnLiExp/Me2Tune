@@ -139,4 +139,25 @@ struct LyricsDisplaySettingsTests {
         #expect(settings.plainTextLineSpacing == CGFloat(14))
         #expect(settings.blockVerticalPadding == CGFloat(14))
     }
+
+    @Test("同步歌词布局按当前行字号预留稳定高度")
+    func syncedLyricsLayoutReservesHighlightedTextHeight() {
+        let settings = LyricsDisplaySettings(
+            highlightSizeRaw: LyricsHighlightSize.s20.rawValue,
+            normalSizeRaw: LyricsNormalSize.s16.rawValue,
+            translationOffsetRaw: LyricsTranslationOffset.minus1.rawValue,
+            highlightIntensityRaw: LyricsHighlightIntensity.standard.rawValue,
+            lineSpacingRaw: LyricsLineSpacing.normal.rawValue,
+            timeOffsetRaw: LyricsTimeOffset.zero.rawValue
+        )
+
+        #expect(settings.reservedMainFontSize == CGFloat(20))
+        #expect(settings.reservedTranslationFontSize == CGFloat(19))
+        #expect(settings.mainTextScale(isCurrent: true) == CGFloat(1))
+        #expect(settings.mainTextScale(isCurrent: false) == CGFloat(0.8))
+        #expect(settings.translationTextScale(isCurrent: true) == CGFloat(1))
+        #expect(settings.translationTextScale(isCurrent: false) == CGFloat(15.0 / 19.0))
+        #expect(settings.lineBlockMinHeight(hasTranslation: false) == CGFloat(41))
+        #expect(settings.lineBlockMinHeight(hasTranslation: true) == CGFloat(67.8))
+    }
 }
