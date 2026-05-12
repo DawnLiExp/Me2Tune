@@ -39,7 +39,7 @@ Me2Tune is a macOS local music player. The official one just didn't feel right, 
 ## 💡 Tips
 
 - **Drag & drop**: Both the song list and album list support manual reordering. You can drag audio files or albums into any part of the window to add them.
-- **Lyrics lookup order**: Local `.lrc` file with matching name (e.g. `a.lrc` for `a.mp3`) → cached lyrics directory → [LRCLIB](https://lrclib.net/) API.
+- **Lyrics lookup order**: Local `.lrc` file with matching name (e.g. `a.lrc` for `a.mp3`) → embedded lyrics metadata → cached lyrics directory → [LRCLIB](https://lrclib.net/) API.
 - **Cover art lookup order**: Memory cache → disk cache → embedded metadata → local image in the same directory (first supported image alphabetically, e.g. `.jpg`, `.png`).
 - **Window dragging**: The window can be dragged from any area other than the Playlist and Collections.
 - **Database backup/restore**: Located at `~/Library/Application Support/Me2Tune`. I use [PocketPrefs](https://github.com/DawnLiExp/PocketPrefs) for backup and restore.
@@ -67,4 +67,3 @@ codesign -fs - /Applications/Me2Tune.app
 ## 🙏 Acknowledgements
 
 This project is made possible by [SFBAudioEngine](https://github.com/sbooth/SFBAudioEngine) for audio processing, and the generously open [LRCLIB](https://lrclib.net/) API for synchronized lyrics.
-
