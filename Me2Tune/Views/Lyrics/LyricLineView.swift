@@ -11,6 +11,7 @@ struct LyricLineView: View {
     let line: LyricLine
     let lineIndex: Int
     let currentLineIndex: Int?
+    let currentPlaybackTime: TimeInterval
     let displaySettings: LyricsDisplaySettings
     let theme: ThemeColors
     
@@ -42,6 +43,10 @@ struct LyricLineView: View {
             return theme.secondaryText.opacity(0.8)
         }
     }
+
+    private var pendingWordTextColor: Color {
+        theme.primaryText.opacity(0.78)
+    }
     
     private var translationTextColor: Color {
         if isCurrent {
@@ -57,15 +62,30 @@ struct LyricLineView: View {
         guard let translation = line.translation else { return false }
         return !translation.isEmpty
     }
+
+    private var adjustedPlaybackTime: TimeInterval {
+        currentPlaybackTime - displaySettings.timeOffset.offsetValue
+    }
+
+    private var primaryLyricText: Text {
+        if isCurrent, !line.segments.isEmpty {
+            return line.segments.reduce(Text("")) { partial, segment in
+                let color = segment.timestamp <= adjustedPlaybackTime ? theme.accent : pendingWordTextColor
+                return partial + Text(segment.text).foregroundColor(color)
+            }
+        }
+
+        return Text(line.text.isEmpty ? "♪" : line.text)
+            .foregroundColor(primaryTextColor)
+    }
     
     var body: some View {
         VStack(spacing: 4) {
-            Text(line.text.isEmpty ? "♪" : line.text)
+            primaryLyricText
                 .font(.system(
                     size: displaySettings.reservedMainFontSize,
                     weight: isCurrent ? .semibold : .regular
                 ))
-                .foregroundColor(primaryTextColor)
                 .multilineTextAlignment(.center)
                 .lineSpacing(4)
                 .scaleEffect(displaySettings.mainTextScale(isCurrent: isCurrent), anchor: .center)
@@ -106,6 +126,7 @@ struct LyricLineView: View {
             line: LyricLine(timestamp: 0, text: "The current line stays visually stable", translation: "Highlighted line preview"),
             lineIndex: 1,
             currentLineIndex: 1,
+            currentPlaybackTime: 0,
             displaySettings: settings,
             theme: DarkTheme().colors
         )
@@ -114,6 +135,7 @@ struct LyricLineView: View {
             line: LyricLine(timestamp: 3, text: "A previous line scales down without relayout", translation: "Previous line preview"),
             lineIndex: 0,
             currentLineIndex: 1,
+            currentPlaybackTime: 0,
             displaySettings: settings,
             theme: DarkTheme().colors
         )

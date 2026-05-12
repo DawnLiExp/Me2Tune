@@ -60,6 +60,14 @@ struct LyricsView: View {
             timeOffsetRaw: timeOffsetRaw
         )
     }
+
+    private var hasWordTimedLyrics: Bool {
+        lyricLines.contains { !$0.segments.isEmpty }
+    }
+
+    private var updateTimerInterval: TimeInterval {
+        hasWordTimedLyrics && playerViewModel.isPlaying ? 1.0 / 30.0 : 0.3
+    }
     
     var body: some View {
         ZStack {
@@ -103,6 +111,9 @@ struct LyricsView: View {
             if LyricsTimeOffset(rawValue: timeOffsetRaw) == nil {
                 timeOffsetRaw = LyricsTimeOffset.zero.rawValue
             }
+            startUpdateTimer()
+        }
+        .onChange(of: playerViewModel.isPlaying) { _, _ in
             startUpdateTimer()
         }
         .onDisappear {
@@ -249,6 +260,7 @@ struct LyricsView: View {
                             line: line,
                             lineIndex: index,
                             currentLineIndex: currentLineIndex,
+                            currentPlaybackTime: index == currentLineIndex ? currentPlaybackTime : 0,
                             displaySettings: displaySettings,
                             theme: themeColors
                         )
@@ -404,8 +416,10 @@ struct LyricsView: View {
     
     private func startUpdateTimer() {
         stopUpdateTimer()
+        refreshPlaybackPosition()
         
-        updateTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak playerViewModel] _ in
+        let interval = updateTimerInterval
+        updateTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak playerViewModel] _ in
             guard let playerViewModel else { return }
             
             Task { @MainActor in
@@ -413,11 +427,17 @@ struct LyricsView: View {
                 updateCurrentLine(time: currentPlaybackTime)
             }
         }
+        updateTimer?.tolerance = interval * 0.2
     }
     
     private func stopUpdateTimer() {
         updateTimer?.invalidate()
         updateTimer = nil
+    }
+
+    private func refreshPlaybackPosition() {
+        currentPlaybackTime = playerViewModel.getCurrentPlaybackTime()
+        updateCurrentLine(time: currentPlaybackTime)
     }
     
     // MARK: - Load Lyrics
@@ -428,6 +448,7 @@ struct LyricsView: View {
             lyricLines = []
             currentLineIndex = nil
             errorMessage = nil
+            startUpdateTimer()
             return
         }
         
@@ -452,6 +473,7 @@ struct LyricsView: View {
                 lyricLines = result.parseSyncedLyrics()
                 currentLineIndex = nil
                 isLoading = false
+                startUpdateTimer()
                 
                 if playerViewModel.isPlaying {
                     currentPlaybackTime = playerViewModel.getCurrentPlaybackTime()
@@ -474,6 +496,7 @@ struct LyricsView: View {
                 lyricLines = []
                 currentLineIndex = nil
                 isLoading = false
+                startUpdateTimer()
                 
                 if let lyricsError = error as? LyricsError {
                     errorMessage = lyricsError.errorDescription
@@ -494,15 +517,20 @@ struct LyricsView: View {
     ) -> Int? {
         guard !lines.isEmpty else { return nil }
         let adjustedTime = time - offset
-        var foundIndex: Int?
-        for (index, line) in lines.enumerated() {
-            if line.timestamp <= adjustedTime {
-                foundIndex = index
+        var lowerBound = 0
+        var upperBound = lines.count
+
+        while lowerBound < upperBound {
+            let midpoint = (lowerBound + upperBound) / 2
+            if lines[midpoint].timestamp <= adjustedTime {
+                lowerBound = midpoint + 1
             } else {
-                break
+                upperBound = midpoint
             }
         }
-        return foundIndex
+
+        let foundIndex = lowerBound - 1
+        return foundIndex >= 0 ? foundIndex : nil
     }
 
     private func updateCurrentLine(time: TimeInterval) {

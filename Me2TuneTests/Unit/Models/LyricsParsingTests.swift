@@ -81,6 +81,80 @@ struct LyricsParsingTests {
         #expect(line.translation == "Translation line")
     }
 
+    @Test("解析 LDDC 逐字 LRC 行内时间戳")
+    func parsesLDDCWordTimedLine() {
+        let lyrics = makeLyrics("""
+        [00:00.910]と[00:01.120]ど[00:01.290]け [00:01.490]と[00:01.690]ど[00:01.900]け[00:02.240]
+        """)
+
+        let lines = lyrics.parseSyncedLyrics()
+
+        #expect(lines.count == 1)
+        guard let line = lines.first else { return }
+        expectTimestamp(line.timestamp, equals: 0.910)
+        #expect(line.text == "とどけ とどけ")
+        #expect(line.translation == nil)
+        #expect(line.segments.map(\.text) == ["と", "ど", "け ", "と", "ど", "け"])
+        expectTimestamps(line.segments.map(\.timestamp), equalTo: [
+            0.910,
+            1.120,
+            1.290,
+            1.490,
+            1.690,
+            1.900,
+        ])
+    }
+
+    @Test("LDDC 逐字歌词与同起点译文合并")
+    func mergesLDDCWordTimedLineWithTranslation() {
+        let lyrics = makeLyrics("""
+        [00:00.910]と[00:01.120]ど[00:01.290]け [00:01.490]と[00:01.690]ど[00:01.900]け[00:02.240]
+        [00:00.910]好想告诉你 告诉你[00:02.240]
+        """)
+
+        let lines = lyrics.parseSyncedLyrics()
+
+        #expect(lines.count == 1)
+        guard let line = lines.first else { return }
+        expectTimestamp(line.timestamp, equals: 0.910)
+        #expect(line.text == "とどけ とどけ")
+        #expect(line.translation == "好想告诉你 告诉你")
+        #expect(line.segments.map(\.text) == ["と", "ど", "け ", "と", "ど", "け"])
+    }
+
+    @Test("普通逐行 LRC 不产生逐字段")
+    func plainSyncedLineDoesNotCreateWordSegments() {
+        let lyrics = makeLyrics("""
+        [00:01.000]Line without inline word timing
+        """)
+
+        let lines = lyrics.parseSyncedLyrics()
+
+        #expect(lines.count == 1)
+        guard let line = lines.first else { return }
+        #expect(line.text == "Line without inline word timing")
+        #expect(line.segments.isEmpty)
+    }
+
+    @Test("offset 同步应用到逐字段时间")
+    func appliesOffsetToWordSegments() {
+        let lyrics = makeLyrics("""
+        [offset:+500]
+        [00:01.000]a[00:01.250]b[00:01.500]
+        """)
+
+        let lines = lyrics.parseSyncedLyrics()
+
+        #expect(lines.count == 1)
+        guard let line = lines.first else { return }
+        expectTimestamp(line.timestamp, equals: 1.5)
+        #expect(line.text == "ab")
+        expectTimestamps(line.segments.map(\.timestamp), equalTo: [
+            1.5,
+            1.75,
+        ])
+    }
+
     @Test("整段多行内容可检测到同步时间戳")
     func detectsTimestampInMultilineContent() {
         let content = """
