@@ -37,7 +37,15 @@ actor LyricsService {
             return local
         }
         
-        // 2. 缓存LRC
+        // 2. 文件内嵌歌词
+        try Task.checkCancellation()
+        if let embedded = await getEmbeddedLyrics(track: track) {
+            try Task.checkCancellation()
+            logger.info("✅ Embedded lyrics found")
+            return embedded
+        }
+
+        // 3. 缓存LRC
         try Task.checkCancellation()
         if let cached = await LyricsCacheService.shared.getCachedLyrics(audioURL: track.url) {
             try Task.checkCancellation()
@@ -45,7 +53,7 @@ actor LyricsService {
             return cached
         }
         
-        // 3. 网络API（带智能重试）
+        // 4. 网络API（带智能重试）
         try Task.checkCancellation()
         logger.info("🌐 Fetching from API with retry: \(track.title)")
         let lyrics = try await getLyricsWithRetry(track: track)
@@ -84,17 +92,31 @@ actor LyricsService {
             throw LyricsError.emptyFile
         }
         
-        let hasSyncedTags = LRCTimestampParser.containsTimestamp(in: content)
-                
-        return Lyrics(
-            id: 0,
+        return Lyrics.fromText(
+            content,
             trackName: audioURL.deletingPathExtension().lastPathComponent,
             artistName: "Local",
             albumName: nil,
-            duration: 0,
-            instrumental: false,
-            plainLyrics: hasSyncedTags ? nil : content,
-            syncedLyrics: hasSyncedTags ? content : nil
+            duration: 0
+        )
+    }
+
+    // MARK: - Embedded Lyrics
+
+    private func getEmbeddedLyrics(track: AudioTrack) async -> Lyrics? {
+        guard let text = await FileMetadataReader.shared.metadata(
+            for: track.url,
+            includingArtworkData: false
+        )?.lyricsText else {
+            return nil
+        }
+
+        return Lyrics.fromText(
+            text,
+            trackName: track.title,
+            artistName: track.artist ?? String(localized: "unknown_artist"),
+            albumName: track.albumTitle,
+            duration: track.duration
         )
     }
     
