@@ -139,6 +139,38 @@ struct LyricsParsingTests {
         #expect(line.text == "Unsigned delay")
     }
 
+    @Test("工厂方法将带时间戳文本归类为同步歌词")
+    func factoryClassifiesTimestampedTextAsSyncedLyrics() {
+        let lyrics = Lyrics.fromText(
+            "[00:01.000]Line",
+            trackName: "Local Track",
+            artistName: "Local",
+            albumName: nil,
+            duration: 0
+        )
+
+        #expect(lyrics.trackName == "Local Track")
+        #expect(lyrics.artistName == "Local")
+        #expect(lyrics.plainLyrics == nil)
+        #expect(lyrics.syncedLyrics == "[00:01.000]Line")
+    }
+
+    @Test("工厂方法将无时间戳文本归类为纯文本歌词")
+    func factoryClassifiesUntimestampedTextAsPlainLyrics() {
+        let lyrics = Lyrics.fromText(
+            "Plain lyric line",
+            trackName: "Cached Track",
+            artistName: "Cached Artist",
+            albumName: nil,
+            duration: 0
+        )
+
+        #expect(lyrics.trackName == "Cached Track")
+        #expect(lyrics.artistName == "Cached Artist")
+        #expect(lyrics.plainLyrics == "Plain lyric line")
+        #expect(lyrics.syncedLyrics == nil)
+    }
+
     private func expectTimestamps(_ actual: [Double], equalTo expected: [Double]) {
         #expect(actual.count == expected.count)
 

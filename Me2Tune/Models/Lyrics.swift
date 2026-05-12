@@ -30,6 +30,27 @@ struct Lyrics: Codable, Sendable {
         }
         return syncedLyrics ?? plainLyrics ?? String(localized: "no_lyrics")
     }
+
+    nonisolated static func fromText(
+        _ text: String,
+        trackName: String,
+        artistName: String,
+        albumName: String?,
+        duration: TimeInterval
+    ) -> Lyrics {
+        let hasSyncedTags = LRCTimestampParser.containsTimestamp(in: text)
+
+        return Lyrics(
+            id: 0,
+            trackName: trackName,
+            artistName: artistName,
+            albumName: albumName,
+            duration: duration,
+            instrumental: false,
+            plainLyrics: hasSyncedTags ? nil : text,
+            syncedLyrics: hasSyncedTags ? text : nil
+        )
+    }
 }
 
 // MARK: - LRC 解析

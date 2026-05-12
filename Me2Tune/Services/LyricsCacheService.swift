@@ -78,35 +78,17 @@ actor LyricsCacheService {
         
         await updateAccessTime(urlHash: urlHash)
         
-        // ✅ 智能识别内容类型：检测是否包含 LRC 时间轴格式
-        let hasSyncedFormat = detectSyncedLyrics(content)
-        
-        let lyrics: Lyrics
-        if hasSyncedFormat {
-            // 带时间轴的歌词
-            lyrics = Lyrics(
-                id: 0,
-                trackName: entry.trackName,
-                artistName: entry.artistName,
-                albumName: nil,
-                duration: 0,
-                instrumental: false,
-                plainLyrics: nil,
-                syncedLyrics: content
-            )
+        let lyrics = Lyrics.fromText(
+            content,
+            trackName: entry.trackName,
+            artistName: entry.artistName,
+            albumName: nil,
+            duration: 0
+        )
+
+        if lyrics.syncedLyrics != nil {
             logger.debug("📄 Loaded synced lyrics from cache")
         } else {
-            // 纯文本歌词
-            lyrics = Lyrics(
-                id: 0,
-                trackName: entry.trackName,
-                artistName: entry.artistName,
-                albumName: nil,
-                duration: 0,
-                instrumental: false,
-                plainLyrics: content,
-                syncedLyrics: nil
-            )
             logger.debug("📄 Loaded plain lyrics from cache")
         }
         
@@ -263,9 +245,4 @@ actor LyricsCacheService {
         try? data.write(to: metadataURL, options: .atomic)
     }
     
-    // MARK: - Helper: Detect Synced Lyrics Format
-    
-    private func detectSyncedLyrics(_ content: String) -> Bool {
-        LRCTimestampParser.containsTimestamp(in: content)
-    }
 }
