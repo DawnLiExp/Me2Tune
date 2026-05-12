@@ -9,7 +9,6 @@ import AppKit
 import CryptoKit
 import Foundation
 import OSLog
-import SFBAudioEngine
 
 actor ArtworkCacheService {
     // MARK: - Singleton
@@ -198,19 +197,16 @@ actor ArtworkCacheService {
     }
     
     private func extractArtwork(from url: URL) async -> NSImage? {
-        guard let audioFile = try? SFBAudioEngine.AudioFile(readingPropertiesAndMetadataFrom: url) else {
-            return await extractFolderArtwork(from: url)
+        if let artworkData = await FileMetadataReader.shared.metadata(
+            for: url,
+            includingArtworkData: true
+        )?.artworkData,
+           let image = NSImage(data: artworkData)
+        {
+            return resizeImage(image, to: thumbnailSize)
         }
-        
-        let attachedPictures = audioFile.metadata.attachedPictures
-        guard !attachedPictures.isEmpty,
-              let firstPicture = attachedPictures.first,
-              let image = NSImage(data: firstPicture.imageData)
-        else {
-            return await extractFolderArtwork(from: url)
-        }
-        
-        return resizeImage(image, to: thumbnailSize)
+
+        return await extractFolderArtwork(from: url)
     }
     
     private func extractFolderArtwork(from url: URL) async -> NSImage? {

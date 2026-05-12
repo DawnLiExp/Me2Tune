@@ -22,6 +22,7 @@ nonisolated extension Logger {
     static let failedTrack = Logger(subsystem: subsystem, category: "FailedTrack")
     static let language = Logger(subsystem: subsystem, category: "Language")
     static let lyrics = Logger(subsystem: subsystem, category: "Lyrics")
+    static let metadata = Logger(subsystem: subsystem, category: "Metadata")
     static let nowPlaying = Logger(subsystem: subsystem, category: "NowPlaying")
     static let persistence = Logger(subsystem: subsystem, category: "Persistence")
     static let player = Logger(subsystem: subsystem, category: "Player")
@@ -31,7 +32,7 @@ nonisolated extension Logger {
     static let vinyl = Logger(subsystem: subsystem, category: "Vinyl")
 }
 
-extension Logger {
+nonisolated extension Logger {
     func logError(_ error: Error, context: String = "") {
         if let appError = error as? AppError {
             self.error("[\(context)] \(appError)")
