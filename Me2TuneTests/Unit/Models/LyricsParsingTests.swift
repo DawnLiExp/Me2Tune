@@ -155,6 +155,47 @@ struct LyricsParsingTests {
         ])
     }
 
+    @Test("逐字高亮进度按当前播放时间计算")
+    func calculatesHighlightedSegmentCount() {
+        let line = LyricLine(
+            timestamp: 1.0,
+            text: "abc",
+            translation: nil,
+            segments: [
+                LyricSegment(timestamp: 1.0, text: "a"),
+                LyricSegment(timestamp: 1.25, text: "b"),
+                LyricSegment(timestamp: 1.5, text: "c"),
+            ]
+        )
+
+        #expect(line.highlightedSegmentCount(at: 0.99, offset: 0) == 0)
+        #expect(line.highlightedSegmentCount(at: 1.0, offset: 0) == 1)
+        #expect(line.highlightedSegmentCount(at: 1.3, offset: 0) == 2)
+        #expect(line.highlightedSegmentCount(at: 2.0, offset: 0) == 3)
+    }
+
+    @Test("逐字高亮进度应用用户时间偏移")
+    func calculatesHighlightedSegmentCountWithDisplayOffset() {
+        let line = LyricLine(
+            timestamp: 1.0,
+            text: "ab",
+            translation: nil,
+            segments: [
+                LyricSegment(timestamp: 1.0, text: "a"),
+                LyricSegment(timestamp: 1.5, text: "b"),
+            ]
+        )
+
+        #expect(line.highlightedSegmentCount(at: 1.2, offset: 0.3) == 0)
+        #expect(line.highlightedSegmentCount(at: 1.3, offset: 0.3) == 1)
+        if let nextActivationTime = line.nextSegmentActivationTime(after: 1.3, offset: 0.3) {
+            expectTimestamp(nextActivationTime, equals: 1.8)
+        } else {
+            #expect(Bool(false))
+        }
+        #expect(line.nextSegmentActivationTime(after: 2.0, offset: 0.3) == nil)
+    }
+
     @Test("整段多行内容可检测到同步时间戳")
     func detectsTimestampInMultilineContent() {
         let content = """

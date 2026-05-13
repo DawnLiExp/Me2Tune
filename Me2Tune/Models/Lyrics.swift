@@ -81,6 +81,39 @@ struct LyricLine: Identifiable, Sendable {
     }
 }
 
+extension LyricLine {
+    func highlightedSegmentCount(
+        at playbackTime: TimeInterval,
+        offset: TimeInterval
+    ) -> Int {
+        guard !segments.isEmpty else { return 0 }
+
+        let adjustedTime = playbackTime - offset
+        var lowerBound = 0
+        var upperBound = segments.count
+
+        while lowerBound < upperBound {
+            let midpoint = (lowerBound + upperBound) / 2
+            if segments[midpoint].timestamp <= adjustedTime {
+                lowerBound = midpoint + 1
+            } else {
+                upperBound = midpoint
+            }
+        }
+
+        return lowerBound
+    }
+
+    func nextSegmentActivationTime(
+        after playbackTime: TimeInterval,
+        offset: TimeInterval
+    ) -> TimeInterval? {
+        let nextIndex = highlightedSegmentCount(at: playbackTime, offset: offset)
+        guard nextIndex < segments.count else { return nil }
+        return segments[nextIndex].timestamp + offset
+    }
+}
+
 enum LRCTimestampParser {
     nonisolated private static var timestampDetectionRegex: NSRegularExpression? {
         try? NSRegularExpression(

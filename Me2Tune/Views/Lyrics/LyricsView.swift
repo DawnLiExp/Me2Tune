@@ -18,7 +18,6 @@ struct LyricsView: View {
     @State private var showLyricsSettings = false
     
     @State private var updateTimer: Timer?
-    @State private var currentPlaybackTime: TimeInterval = 0
 
     @AppStorage(LyricsDisplaySettingsKey.highlightSize)
     private var highlightSizeRaw = LyricsHighlightSize.s18.rawValue
@@ -61,14 +60,6 @@ struct LyricsView: View {
         )
     }
 
-    private var hasWordTimedLyrics: Bool {
-        lyricLines.contains { !$0.segments.isEmpty }
-    }
-
-    private var updateTimerInterval: TimeInterval {
-        hasWordTimedLyrics && playerViewModel.isPlaying ? 1.0 / 30.0 : 0.3
-    }
-    
     var body: some View {
         ZStack {
             themeColors.mainBackground
@@ -260,7 +251,6 @@ struct LyricsView: View {
                             line: line,
                             lineIndex: index,
                             currentLineIndex: currentLineIndex,
-                            currentPlaybackTime: index == currentLineIndex ? currentPlaybackTime : 0,
                             displaySettings: displaySettings,
                             theme: themeColors
                         )
@@ -418,13 +408,12 @@ struct LyricsView: View {
         stopUpdateTimer()
         refreshPlaybackPosition()
         
-        let interval = updateTimerInterval
+        let interval = 0.3
         updateTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak playerViewModel] _ in
             guard let playerViewModel else { return }
             
             Task { @MainActor in
-                currentPlaybackTime = playerViewModel.getCurrentPlaybackTime()
-                updateCurrentLine(time: currentPlaybackTime)
+                updateCurrentLine(time: playerViewModel.getCurrentPlaybackTime())
             }
         }
         updateTimer?.tolerance = interval * 0.2
@@ -436,8 +425,7 @@ struct LyricsView: View {
     }
 
     private func refreshPlaybackPosition() {
-        currentPlaybackTime = playerViewModel.getCurrentPlaybackTime()
-        updateCurrentLine(time: currentPlaybackTime)
+        updateCurrentLine(time: playerViewModel.getCurrentPlaybackTime())
     }
     
     // MARK: - Load Lyrics
@@ -476,8 +464,7 @@ struct LyricsView: View {
                 startUpdateTimer()
                 
                 if playerViewModel.isPlaying {
-                    currentPlaybackTime = playerViewModel.getCurrentPlaybackTime()
-                    updateCurrentLine(time: currentPlaybackTime)
+                    updateCurrentLine(time: playerViewModel.getCurrentPlaybackTime())
                 }
             }
         } catch is CancellationError {
