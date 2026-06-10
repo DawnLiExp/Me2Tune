@@ -147,7 +147,7 @@
 			mainGroup = FC1662212EEFAE2C00F01BCE;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				FC8A148A2F42F0AB00FADD0B /* XCRemoteSwiftPackageReference "SFBAudioEngine" */,
+				FC70B4592FD86D5E004DBD53 /* XCRemoteSwiftPackageReference "SFBAudioEngine" */,
 			);
 			preferredProjectObjectVersion = 90;
 			productRefGroup = FC16622B2EEFAE2C00F01BCE /* Products */;
@@ -516,12 +516,12 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		FC8A148A2F42F0AB00FADD0B /* XCRemoteSwiftPackageReference "SFBAudioEngine" */ = {
+		FC70B4592FD86D5E004DBD53 /* XCRemoteSwiftPackageReference "SFBAudioEngine" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sbooth/SFBAudioEngine";
 			requirement = {
 				kind = exactVersion;
-				version = 0.12.1;
+				version = 0.13.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -529,7 +529,7 @@
 /* Begin XCSwiftPackageProductDependency section */
 		FC8A148B2F42F0AB00FADD0B /* SFBAudioEngine */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FC8A148A2F42F0AB00FADD0B /* XCRemoteSwiftPackageReference "SFBAudioEngine" */;
+			package = FC70B4592FD86D5E004DBD53 /* XCRemoteSwiftPackageReference "SFBAudioEngine" */;
 			productName = SFBAudioEngine;
 		};
 /* End XCSwiftPackageProductDependency section */
