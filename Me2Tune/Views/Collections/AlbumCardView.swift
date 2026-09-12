@@ -38,8 +38,6 @@ struct AlbumCardView: View, Equatable {
                     .allowsHitTesting(false)
             }
         }
-        // Keep hit testing independent of the animated artwork and text geometry.
-        .contentShape(.interaction, Rectangle())
         .onTapGesture {
             onTap(artwork)
         }
