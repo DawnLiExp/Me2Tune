@@ -107,14 +107,10 @@ struct SettingsView: View {
                 }
             )
         )
-        .onChange(of: selectedTab) { _, newTab in
-            adjustWindowHeight(for: newTab)
-        }
         .onChange(of: scenePhase) { _, newPhase in
             handleScenePhaseChange(newPhase)
         }
         .onAppear {
-            adjustWindowHeight(for: selectedTab)
             if scenePhase == .active {
                 statisticsViewModel.beginPresentationSession(refreshDelay: .seconds(1))
             }
@@ -651,20 +647,7 @@ struct SettingsView: View {
         NSApp.terminate(nil)
     }
     
-    private func adjustWindowHeight(for tab: SettingsTab) {
-        guard let window = NSApp.keyWindow ?? NSApp.windows.first(where: { $0.isKeyWindow }) else {
-            return
-        }
-        
-        let targetHeight = tab.windowHeight
-        var frame = window.frame
-        let heightDifference = targetHeight - frame.height
-        
-        frame.origin.y -= heightDifference
-        frame.size.height = targetHeight
-   
-        window.setFrame(frame, display: true)
-    }
+
 }
 
 // MARK: - HelpPopoverButton
