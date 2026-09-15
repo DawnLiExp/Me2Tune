@@ -195,6 +195,66 @@ struct PlaybackLoadControllerTests {
         #expect(playerCore.loadTrackCallIDs.count == 1)
     }
 
+    @Test("旧加载稍后失败不会覆盖新请求或标记旧曲失败")
+    func staleLoadFailureDoesNotRecover() async throws {
+        let tracks = makeTracks(count: 2)
+        let core = MockLoadPlayerCore()
+        core.loadDelays[tracks[0].id] = .milliseconds(150)
+        core.loadResults[tracks[0].id] = false
+        let (controller, state, registry, _) = try makeController(tracks: tracks, playerCore: core)
+        controller.loadAndPlay(at: 0)
+        #expect(await waitUntil { core.loadTrackCallIDs.count == 1 })
+        controller.loadAndPlay(at: 1)
+        #expect(await waitUntil { core.playCallCount == 1 })
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(state.currentTrackIndex == 1)
+        #expect(core.playCallCount == 1)
+        #expect(!registry.isMarked(tracks[0].id))
+    }
+
+    @Test("同步预加载失败会尝试下一首")
+    func enqueueFailureTriesSuccessor() async throws {
+        let tracks = makeTracks(count: 3)
+        let core = MockLoadPlayerCore()
+        core.enqueueResults[tracks[1].id] = false
+        let (controller, _, registry, _) = try makeController(tracks: tracks, playerCore: core)
+        controller.enqueueNextTrack(after: tracks[0])
+        #expect(await waitUntil { core.enqueueTrackCallIDs.count == 2 })
+        #expect(core.enqueueTrackCallIDs == [tracks[1].id, tracks[2].id])
+        #expect(registry.isMarked(tracks[1].id))
+    }
+
+    @Test("异步预加载失败去重且不重载当前曲目")
+    func asynchronousPreloadFailure() async throws {
+        let tracks = makeTracks(count: 3)
+        let core = MockLoadPlayerCore()
+        let (controller, _, registry, _) = try makeController(tracks: tracks, playerCore: core)
+        controller.handleDecodingFailure(for: tracks[1], isCurrent: false)
+        controller.handleDecodingFailure(for: tracks[1], isCurrent: false)
+        #expect(await waitUntil { core.enqueueTrackCallIDs.count == 1 })
+        #expect(core.enqueueTrackCallIDs == [tracks[2].id])
+        #expect(core.loadTrackCallIDs.isEmpty)
+        #expect(registry.isMarked(tracks[1].id))
+        #expect(!registry.isMarked(tracks[0].id))
+    }
+
+    @Test("异步当前曲目失败使仍在等待的旧加载失效")
+    func asynchronousCurrentFailureInvalidatesLoad() async throws {
+        let tracks = makeTracks(count: 2)
+        let core = MockLoadPlayerCore()
+        core.loadDelays[tracks[0].id] = .milliseconds(150)
+        let (controller, state, registry, _) = try makeController(tracks: tracks, playerCore: core)
+        controller.loadAndPlay(at: 0)
+        #expect(await waitUntil { core.loadTrackCallIDs.count == 1 })
+        controller.handleDecodingFailure(for: tracks[0], isCurrent: true)
+        #expect(await waitUntil { core.playCallCount == 1 })
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(core.loadTrackCallIDs == tracks.map(\.id))
+        #expect(core.playCallCount == 1)
+        #expect(state.currentTrackIndex == 1)
+        #expect(registry.isMarked(tracks[0].id))
+    }
+
     private func makeTracks(count: Int) -> [AudioTrack] {
         (0..<count).map { index in
             AudioTrack(
@@ -233,6 +293,8 @@ private final class MockLoadPlayerCore: AudioPlayerCoreProtocol {
     var repeatMode: RepeatMode = .off
 
     var loadResults: [UUID: Bool] = [:]
+    var loadDelays: [UUID: Duration] = [:]
+    var enqueueResults: [UUID: Bool] = [:]
     private(set) var loadTrackCallIDs: [UUID] = []
     private(set) var enqueueTrackCallIDs: [UUID] = []
     private(set) var playCallCount = 0
@@ -240,12 +302,13 @@ private final class MockLoadPlayerCore: AudioPlayerCoreProtocol {
 
     func loadTrack(_ track: AudioTrack) async -> Bool {
         loadTrackCallIDs.append(track.id)
+        if let delay = loadDelays[track.id] { try? await Task.sleep(for: delay) }
         return loadResults[track.id] ?? true
     }
 
     func enqueueTrack(_ track: AudioTrack) async -> Bool {
         enqueueTrackCallIDs.append(track.id)
-        return true
+        return enqueueResults[track.id] ?? true
     }
 
     func play() {

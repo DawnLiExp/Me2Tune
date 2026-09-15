@@ -323,6 +323,31 @@ struct PlaybackCoordinatorTests {
         #expect(secondCounted)
     }
 
+    @Test("跳转请求不提前计数；仅实际确认位置触发统计")
+    func seekStatisticsWaitForConfirmation() async throws {
+        let dataService = try createTestDataService()
+        let collection = CollectionManager(dataService: dataService)
+        let core = MockAudioPlayerCore()
+        core.automaticallyConfirmsSeek = false
+        let statistics = MockStatisticsManager()
+        let coordinator = PlaybackCoordinator(collectionManager: collection, dataService: dataService,
+                                               statisticsManager: statistics, playerCore: core)
+        let track = AudioTrack(id: UUID(), url: URL(fileURLWithPath: "/tmp/confirmed.wav"), title: "Track",
+                               artist: nil, albumTitle: nil, duration: 100, format: .unknown, bookmark: nil)
+        coordinator.playAlbum(makeAlbum(with: [track]), startAt: 0)
+        #expect(await waitUntil { core.playCallCount == 1 })
+        coordinator.playerCoreDidLoadTrack(track, artwork: nil)
+        coordinator.seek(to: 95)
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(statistics.incrementCount == 0)
+        core.confirmSeek(to: 70)
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(statistics.incrementCount == 0)
+        coordinator.seek(to: 95)
+        core.confirmSeek(to: 85)
+        #expect(await waitUntil { statistics.incrementCount == 1 })
+    }
+
     private func makeTracks(count: Int) -> [AudioTrack] {
         (0..<count).map { index in
             AudioTrack(
@@ -391,6 +416,7 @@ private final class MockAudioPlayerCore: AudioPlayerCoreProtocol {
 
     var loadResults: [UUID: Bool] = [:]
     var loadDelay: Duration?
+    var automaticallyConfirmsSeek = true
     private(set) var loadTrackCallIDs: [UUID] = []
     private(set) var enqueueTrackCallIDs: [UUID] = []
     private(set) var playCallCount = 0
@@ -423,7 +449,12 @@ private final class MockAudioPlayerCore: AudioPlayerCoreProtocol {
     }
 
     func seek(to time: TimeInterval) {
+        if automaticallyConfirmsSeek { confirmSeek(to: time) }
+    }
+
+    func confirmSeek(to time: TimeInterval) {
         currentTime = time
+        delegate?.playerCoreDidConfirmSeek(to: time)
     }
 
     func setVolume(_ volume: Double) {}

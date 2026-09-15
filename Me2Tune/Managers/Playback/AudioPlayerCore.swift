@@ -20,6 +20,8 @@ protocol AudioPlayerCoreDelegate: AnyObject {
     func playerCoreDidUpdateTime(currentTime: TimeInterval, duration: TimeInterval)
     func playerCoreDidLoadTrack(_ track: AudioTrack, artwork: NSImage?)
     func playerCoreDidEncounterError(_ error: Error)
+    func playerCoreDidConfirmSeek(to time: TimeInterval)
+    func playerCoreDecodingFailed(for track: AudioTrack, isCurrent: Bool)
     func playerCoreDidReachEnd()
     func playerCoreDecodingComplete(for track: AudioTrack)
     func playerCoreNowPlayingChanged(to track: AudioTrack?)
@@ -37,7 +39,11 @@ final class AudioPlayerCore: NSObject {
     private(set) var currentTime: TimeInterval = 0
     private(set) var duration: TimeInterval = 0
     private(set) var currentTrack: AudioTrack?
-    private var queuedTracks: [AudioTrack] = []
+    private var decoderQueue = PlaybackDecoderQueue()
+    private let events = AudioPlayerEvents()
+    private var eventTask: Task<Void, Never>?
+    private var pendingSeek: TimeInterval?
+    private var seekingDecoderID: ObjectIdentifier?
     
     private var audioBufferingEnabled: Bool {
         UserDefaults.standard.bool(forKey: "audioBufferingEnabled")
@@ -50,114 +56,93 @@ final class AudioPlayerCore: NSObject {
     
     override init() {
         super.init()
+        let stream = events.stream
+        eventTask = Task { @MainActor [weak self] in
+            for await event in stream {
+                guard !Task.isCancelled else { break }
+                self?.handle(event)
+            }
+        }
         logger.debug("AudioPlayerCore initialized")
     }
     
     // MARK: - Playback Control
     
-    // ✅ 返回 Bool 表示是否成功
+    deinit { eventTask?.cancel() }
+
     func loadTrack(_ track: AudioTrack) async -> Bool {
         let startTime = CFAbsoluteTimeGetCurrent()
+        logger.info("Loading: \(track.title)")
         ensurePlayerInitialized()
         guard let player else { return false }
-        
-        if isPlaying {
-            player.pause()
-            isPlaying = false
-        }
-        
-        logger.info("Loading: \(track.title)")
-        
+        player.pause()
+        decoderQueue.reset()
+        pendingSeek = nil
+        seekingDecoderID = nil
+        let generation = decoderQueue.generation
+        isPlaying = false
+        currentTrack = track
+        currentTime = 0
+        duration = track.duration
+
         do {
-            // 检查是否启用缓冲
-            if audioBufferingEnabled {
-                let isNetwork = AudioBufferDetector.isNetworkStorage(url: track.url)
-                
-                if let _ = AudioBufferDetector.calculateBufferSize(track: track, isNetworkStorage: isNetwork) {
-                    logger.info("Using buffered playback (network: \(isNetwork))")
-                    
-                    do {
-                        let inputSource = try InputSource(for: track.url, flags: .loadFilesInMemory)
-                        let decoder = try AudioDecoder(inputSource: inputSource)
-                        try player.play(decoder)
-                    } catch {
-                        logger.warning("Buffering failed, fallback to direct: \(error)")
-                        try player.play(track.url)
-                    }
-                } else {
-                    try player.play(track.url)
-                }
-            } else {
-                try player.play(track.url)
-            }
-            
-            player.pause()
-            
-            duration = track.duration
-            currentTime = 0
-            isPlaying = false
-            currentTrack = track
-            queuedTracks.removeAll()
-            
+            let decoder = try makeDecoder(for: track)
+            decoderQueue.register(DecoderReference(decoder), track: track, current: true)
+            // Queue without briefly rendering the track while artwork is loading.
+            try player.enqueue(decoder, immediate: true)
+            delegate?.playerCoreDidUpdatePlaybackState(false)
             delegate?.playerCoreDidUpdateTime(currentTime: 0, duration: duration)
-            
             let artwork = await ArtworkCacheService.shared.artwork(for: track.url)
-            
+            guard decoderQueue.generation == generation, decoderQueue.currentID != nil else { return false }
             delegate?.playerCoreDidLoadTrack(track, artwork: artwork)
             updateDockIcon(artwork)
-            
-            let elapsed = CFAbsoluteTimeGetCurrent() - startTime
-            logger.logPerformance("Track load", duration: elapsed)
-            
-            return true // ✅ 成功
-        } catch {
-            let appError = AppError.audioLoadFailed(track.url)
-            logger.logError(appError, context: "loadTrack")
-            delegate?.playerCoreDidEncounterError(appError)
-            return false // ❌ 失败
-        }
-    }
-    
-    // ✅ 返回 Bool 表示是否成功
-    func enqueueTrack(_ track: AudioTrack) async -> Bool {
-        ensurePlayerInitialized()
-        guard let player else { return false }
-        
-        logger.info("Enqueuing: \(track.title)")
-        
-        do {
-            if audioBufferingEnabled {
-                let isNetwork = AudioBufferDetector.isNetworkStorage(url: track.url)
-                
-                if let _ = AudioBufferDetector.calculateBufferSize(track: track, isNetworkStorage: isNetwork) {
-                    logger.info("Enqueuing with buffer (network: \(isNetwork))")
-                    
-                    do {
-                        let inputSource = try InputSource(for: track.url, flags: .loadFilesInMemory)
-                        let decoder = try AudioDecoder(inputSource: inputSource)
-                        try player.enqueue(decoder)
-                        queuedTracks.append(track)
-                        logger.debug("✓ Enqueued next track (buffered)")
-                        return true
-                    } catch {
-                        logger.warning("Buffer enqueue failed, using direct: \(error)")
-                    }
-                }
-            }
-            
-            let decoder = try AudioDecoder(url: track.url)
-            try player.enqueue(decoder)
-            queuedTracks.append(track)
-            logger.debug("✓ Enqueued next track (direct)")
+            logger.logPerformance("Track load", duration: CFAbsoluteTimeGetCurrent() - startTime)
             return true
         } catch {
-            let appError = AppError.audioLoadFailed(track.url)
-            logger.logError(appError, context: "enqueueTrack")
-            delegate?.playerCoreDidEncounterError(appError)
+            decoderQueue.reset()
+            player.stop()
+            delegate?.playerCoreDidEncounterError(AppError.audioLoadFailed(track.url))
             return false
         }
     }
-    
+
+    func enqueueTrack(_ track: AudioTrack) async -> Bool {
+        guard let player else { return false }
+        logger.info("Enqueuing: \(track.title)")
+        // Exactly one future playback instance is owned by this core.
+        guard !decoderQueue.hasQueuedDecoder else { return true }
+        do {
+            let decoder = try makeDecoder(for: track)
+            let reference = DecoderReference(decoder)
+            decoderQueue.register(reference, track: track, current: false)
+            do {
+                try player.enqueue(decoder)
+            } catch {
+                _ = decoderQueue.remove(reference.id)
+                throw error
+            }
+            return true
+        } catch {
+            delegate?.playerCoreDidEncounterError(AppError.audioLoadFailed(track.url))
+            return false
+        }
+    }
+
+    private func makeDecoder(for track: AudioTrack) throws -> AudioDecoder {
+        if audioBufferingEnabled {
+            let isNetwork = AudioBufferDetector.isNetworkStorage(url: track.url)
+            if AudioBufferDetector.calculateBufferSize(track: track, isNetworkStorage: isNetwork) != nil {
+                do {
+                    let source = try InputSource(for: track.url, flags: .loadFilesInMemory)
+                    return try AudioDecoder(inputSource: source)
+                } catch {
+                    logger.warning("Buffering failed, using direct playback: \(error)")
+                }
+            }
+        }
+        return try AudioDecoder(url: track.url)
+    }
+
     func play() {
         ensurePlayerInitialized()
         guard let player else { return }
@@ -184,42 +169,39 @@ final class AudioPlayerCore: NSObject {
     }
     
     func seek(to time: TimeInterval) {
-        guard let player, player.supportsSeeking else {
-            logger.warning("Seek not supported for current track")
-            return
-        }
-        guard time.isFinite else {
-            logger.warning("Seek rejected: non-finite value \(time)")
-            return
-        }
-        
-        let wasPlaying = isPlaying
-        if wasPlaying {
-            player.pause()
-        }
-        
-        if player.seek(time: time) {
-            currentTime = time
-            delegate?.playerCoreDidUpdateTime(currentTime: currentTime, duration: duration)
-            let t = String(format: "%.1f", time)
-            logger.debug("⏩ Seeked to \(t)s")
-        } else {
-            logger.warning("Seek to \(time)s failed")
-        }
-        
-        if wasPlaying {
-            do {
-                try player.play()
-            } catch {
-                let appError = AppError.audioPlayFailed("Resume after seek failed")
-                logger.logError(appError, context: "seek")
-                isPlaying = false
-                delegate?.playerCoreDidUpdatePlaybackState(false)
-                delegate?.playerCoreDidEncounterError(appError)
-            }
+        guard time.isFinite, time >= 0, let player, player.supportsSeeking,
+              let current = player.currentDecoder,
+              ObjectIdentifier(current) == decoderQueue.currentID else { return }
+        pendingSeek = time
+        if seekingDecoderID == nil { submitPendingSeek() }
+    }
+
+    private func submitPendingSeek() {
+        guard let target = pendingSeek, let player else { return }
+        pendingSeek = nil
+        guard player.supportsSeeking, let current = player.currentDecoder,
+              ObjectIdentifier(current) == decoderQueue.currentID,
+              let snapshot = player.positionAndTime else { return }
+        let position = snapshot.position
+        let time = snapshot.time
+        guard position.frameLength > 0, time.totalTime > 0 else { return }
+        let sampleRate = Double(position.frameLength) / time.totalTime
+        let targetFrame = min(target * sampleRate, Double(position.frameLength - 1))
+        // Seeking to the existing frame succeeds without generating a callback.
+        if targetFrame >= 0, targetFrame < Double(Int64.max), Int64(targetFrame) == position.framePosition {
+            confirmSeek(time.currentTime)
+        } else if player.seek(time: target) {
+            seekingDecoderID = ObjectIdentifier(current)
         }
     }
-    
+
+    private func confirmSeek(_ time: TimeInterval) {
+        guard time.isFinite, time >= 0 else { return }
+        currentTime = time
+        delegate?.playerCoreDidUpdateTime(currentTime: time, duration: duration)
+        delegate?.playerCoreDidConfirmSeek(to: time)
+    }
+
     func setVolume(_ volume: Double) {
         guard let player else { return }
         
@@ -236,10 +218,16 @@ final class AudioPlayerCore: NSObject {
     // MARK: - Real-time Progress
     
     func getCurrentPlaybackTime() -> TimeInterval {
-        return player?.currentTime ?? currentTime
+        guard seekingDecoderID == nil else { return currentTime }
+        if let time = player?.currentTime, time.isFinite, time >= 0 { currentTime = time }
+        return currentTime
     }
     
     func prepareForTrackSwitch() {
+        player?.pause()
+        decoderQueue.reset()
+        pendingSeek = nil
+        seekingDecoderID = nil
         currentTime = 0
         delegate?.playerCoreDidUpdateTime(currentTime: 0, duration: duration)
         logger.debug("🧹 Prepared for track switch (progress reset)")
@@ -251,7 +239,7 @@ final class AudioPlayerCore: NSObject {
         guard player == nil else { return }
         
         player = AudioPlayer()
-        player?.delegate = self
+        player?.delegate = events
         logger.debug("Audio player initialized")
     }
     
@@ -283,56 +271,72 @@ final class AudioPlayerCore: NSObject {
     }
 }
 
-// MARK: - AudioPlayer.Delegate
+// MARK: - Ordered Player Events
 
-extension AudioPlayerCore: AudioPlayer.Delegate {
-    nonisolated func audioPlayer(_ audioPlayer: AudioPlayer, playbackStateChanged playbackState: AudioPlayer.PlaybackState) {
-        Task { @MainActor in
-            self.isPlaying = (playbackState == .playing)
-            self.delegate?.playerCoreDidUpdatePlaybackState(self.isPlaying)
+extension AudioPlayerCore {
+    private func handle(_ event: AudioPlayerEvent) {
+        switch event {
+        case .stateChanged:
+            // State notifications may be delayed; publish the current engine state.
+            isPlaying = player?.isPlaying ?? false
+            delegate?.playerCoreDidUpdatePlaybackState(isPlaying)
+        case .nowPlaying(let reference, let time):
+            guard let reference else {
+                // A nil event does not consume a queued track or erase the last displayed track.
+                return
+            }
+            let changed = decoderQueue.currentID != reference.id
+            guard let track = decoderQueue.activate(reference.id) else { return }
+            if changed {
+                pendingSeek = nil
+                seekingDecoderID = nil
+            }
+            currentTrack = track
+            duration = track.duration
+            currentTime = time
+            delegate?.playerCoreNowPlayingChanged(to: track)
+            delegate?.playerCoreDidUpdateTime(currentTime: time, duration: duration)
+            notifyDecodingCompleteIfNeeded()
+        case .decoded(let reference):
+            decoderQueue.decoded(reference.id)
+            notifyDecodingCompleteIfNeeded()
+        case .rendered(let reference):
+            decoderQueue.rendered(reference.id)
+        case .canceled(let reference):
+            _ = decoderQueue.remove(reference.id)
+        case .aborted(let reference, let error):
+            guard let failure = decoderQueue.remove(reference.id) else { return }
+            if failure.isCurrent {
+                pendingSeek = nil
+                seekingDecoderID = nil
+                decoderQueue.reset()
+                player?.stop()
+                isPlaying = false
+                delegate?.playerCoreDidUpdatePlaybackState(false)
+            }
+            delegate?.playerCoreDidEncounterError(error)
+            delegate?.playerCoreDecodingFailed(for: failure.track, isCurrent: failure.isCurrent)
+        case .sought(let reference, let time):
+            guard seekingDecoderID == reference.id, decoderQueue.currentID == reference.id else { return }
+            seekingDecoderID = nil
+            if pendingSeek != nil { submitPendingSeek() }
+            else { confirmSeek(time) }
+        case .end:
+            // Ignore unscoped end events from a previous load or while a successor is pending.
+            guard player?.currentDecoder == nil, player?.queueIsEmpty == true,
+                  decoderQueue.takeEnd() else { return }
+            pendingSeek = nil
+            seekingDecoderID = nil
+            pause()
+            delegate?.playerCoreDidReachEnd()
+        case .error(let error):
+            delegate?.playerCoreDidEncounterError(error)
         }
     }
-    
-    nonisolated func audioPlayer(_ audioPlayer: AudioPlayer, nowPlayingChanged nowPlaying: PCMDecoding?) {
-        let playbackTime = audioPlayer.currentTime ?? 0
-        Task { @MainActor in
-            if let nextTrack = self.queuedTracks.first {
-                self.currentTrack = nextTrack
-                self.queuedTracks.removeFirst()
-            }
 
-            if let currentTrack = self.currentTrack {
-                if currentTrack.duration > 0 {
-                    self.duration = currentTrack.duration
-                }
-                self.currentTime = playbackTime
-                self.delegate?.playerCoreDidUpdateTime(currentTime: self.currentTime, duration: self.duration)
-            }
-            
-            logger.debug("🔄 Now playing changed to: \(self.currentTrack?.title ?? "nil")")
-            self.delegate?.playerCoreNowPlayingChanged(to: self.currentTrack)
-        }
-    }
-    
-    nonisolated func audioPlayer(_ audioPlayer: AudioPlayer, decodingComplete decoder: PCMDecoding) {
-        Task { @MainActor in
-            guard let track = self.currentTrack else { return }
-            logger.debug("✓ Decoding complete for: \(track.title)")
-            self.delegate?.playerCoreDecodingComplete(for: track)
-        }
-    }
-    
-    nonisolated func audioPlayerEndOfAudio(_ audioPlayer: AudioPlayer) {
-        Task { @MainActor in
-            self.delegate?.playerCoreDidReachEnd()
-        }
-    }
-    
-    @objc nonisolated func audioPlayer(_ audioPlayer: AudioPlayer, encounteredError error: Error) {
-        Task { @MainActor in
-            logger.error("Player error: \(error)")
-            self.delegate?.playerCoreDidEncounterError(error)
-        }
+    private func notifyDecodingCompleteIfNeeded() {
+        guard let track = decoderQueue.takeCompletedCurrentTrack() else { return }
+        delegate?.playerCoreDecodingComplete(for: track)
     }
 }
 

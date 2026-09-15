@@ -180,8 +180,6 @@ final class PlaybackCoordinator {
 
     func seek(to time: TimeInterval) {
         playerCore.seek(to: time)
-        effectsController.handleSeek(to: time)
-        statisticsTracker.handleSeek(to: time, duration: duration)
     }
 
     func toggleRepeatMode() {
@@ -463,8 +461,11 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
                 playbackStateManager.setCurrentTrack(id: track.id)
             }
 
+            let generation = loadController.generation
             Task { @MainActor in
                 let artwork = await ArtworkCacheService.shared.artwork(for: track.url)
+                guard self.loadController.generation == generation,
+                      self.playbackStateManager.currentTrackID == track.id else { return }
 
                 self.currentArtwork = artwork
                 self.duration = track.duration
@@ -473,7 +474,6 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
                 self.playerCore.updateDockIcon(artwork)
 
                 if idChanged {
-                    self.playbackProgressState.currentTime = 0
                     self.persistenceController.scheduleSave()
                 }
             }
@@ -483,9 +483,18 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
     }
 
     func playerCoreDecodingComplete(for track: AudioTrack) {
-        loadController.trackIndexBeforeGapless = playbackStateManager.currentTrackIndex
+        loadController.trackIndexBeforeGapless = playbackStateManager.currentTracks.firstIndex { $0.id == track.id }
         logger.debug("Decoding complete, enqueuing next track")
-        loadController.enqueueNextTrack()
+        loadController.enqueueNextTrack(after: track)
+    }
+
+    func playerCoreDidConfirmSeek(to time: TimeInterval) {
+        effectsController.handleSeek(to: time)
+        statisticsTracker.handleSeek(to: time, duration: duration)
+    }
+
+    func playerCoreDecodingFailed(for track: AudioTrack, isCurrent: Bool) {
+        loadController.handleDecodingFailure(for: track, isCurrent: isCurrent)
     }
 
     func playerCoreDidReachEnd() {

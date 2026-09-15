@@ -21,6 +21,9 @@ final class PlaybackLoadController {
     private let onTrackRequested: @MainActor (AudioTrack) -> Void
 
     var trackIndexBeforeGapless: Int?
+    private(set) var generation = UUID()
+    private var enqueueRequest: UUID?
+    private var endWhileEnqueuing = false
 
     private let maxLoadAttempts = 10
     private let logger = Logger.coordinator
@@ -64,13 +67,19 @@ final class PlaybackLoadController {
             return
         }
 
+        generation = UUID()
+        let request = generation
+        enqueueRequest = nil
+        endWhileEnqueuing = false
+        trackIndexBeforeGapless = nil
         onTrackRequested(track)
         playerCore.prepareForTrackSwitch()
 
         Task { @MainActor [weak self] in
-            guard let self else { return }
+            guard let self, self.generation == request else { return }
 
             let success = await self.playerCore.loadTrack(track)
+            guard self.generation == request else { return }
             if !success {
                 self.handleLoadFailure(track: track, index: index, attempt: attempt)
                 return
@@ -83,6 +92,9 @@ final class PlaybackLoadController {
     }
 
     func handleLoadFailure(track: AudioTrack, index: Int, attempt: Int) {
+        generation = UUID()
+        enqueueRequest = nil
+        endWhileEnqueuing = false
         logger.warning("Track load failed: \(track.title)")
         registry.mark(track.id)
 
@@ -108,36 +120,59 @@ final class PlaybackLoadController {
         loadAndPlay(at: nextIndex, attempt: attempt + 1)
     }
 
-    func enqueueNextTrack() {
-        guard let currentIndex = stateManager.currentTrackIndex else { return }
-
+    func enqueueNextTrack(after track: AudioTrack? = nil) {
+        guard enqueueRequest == nil else { return }
         let tracks = stateManager.currentTracks
-        guard !tracks.isEmpty else { return }
+        let index = track.flatMap { item in tracks.firstIndex { $0.id == item.id } } ?? stateManager.currentTrackIndex
+        guard let index else { return }
+        let request = UUID()
+        let generation = generation
+        enqueueRequest = request
 
-        guard let nextIndex = TrackNavigationPolicy.nextValidIndex(
-            after: currentIndex,
-            tracks: tracks,
-            repeatMode: repeatModeProvider(),
-            failedIDs: registry.snapshot(),
-            maxAttempts: tracks.count
-        ) else {
-            logger.debug("No next track to enqueue")
-            return
-        }
-
-        let nextTrack = tracks[nextIndex]
         Task { @MainActor [weak self] in
-            guard let self else { return }
-
-            let success = await self.playerCore.enqueueTrack(nextTrack)
-            if !success {
-                self.logger.warning("Enqueue failed, marking track: \(nextTrack.title)")
-                self.registry.mark(nextTrack.id)
+            guard let self, self.generation == generation, self.enqueueRequest == request else { return }
+            var cursor = index
+            var enqueued = false
+            while let next = TrackNavigationPolicy.nextValidIndex(
+                after: cursor, tracks: tracks, repeatMode: self.repeatModeProvider(),
+                failedIDs: self.registry.snapshot(), maxAttempts: tracks.count
+            ) {
+                let track = tracks[next]
+                let success = await self.playerCore.enqueueTrack(track)
+                guard self.generation == generation, self.enqueueRequest == request else { return }
+                if success {
+                    enqueued = true
+                    break
+                }
+                self.registry.mark(track.id)
+                cursor = next
+            }
+            self.enqueueRequest = nil
+            if self.endWhileEnqueuing {
+                self.endWhileEnqueuing = false
+                if enqueued { self.playerCore.play() }
+                else { self.handleEndOfTrack() }
             }
         }
     }
 
+    func handleDecodingFailure(for track: AudioTrack, isCurrent: Bool) {
+        guard !registry.isMarked(track.id) else { return }
+        guard let index = stateManager.currentTracks.firstIndex(where: { $0.id == track.id }) else { return }
+        if isCurrent {
+            handleLoadFailure(track: track, index: index, attempt: 0)
+        } else {
+            registry.mark(track.id)
+            enqueueRequest = nil
+            enqueueNextTrack(after: track)
+        }
+    }
+
     func handleEndOfTrack() {
+        if enqueueRequest != nil {
+            endWhileEnqueuing = true
+            return
+        }
         let baseIndex = trackIndexBeforeGapless
         trackIndexBeforeGapless = nil
 
@@ -183,8 +218,12 @@ final class PlaybackLoadController {
             return
         }
 
-        guard let nextIndex = expectedNext else {
+        guard let nextIndex = TrackNavigationPolicy.nextValidIndex(
+            after: effectiveIndex, tracks: tracks, repeatMode: repeatMode,
+            failedIDs: registry.snapshot(), maxAttempts: tracks.count
+        ) else {
             logger.debug("Reached end of playlist")
+            onPause()
             return
         }
 
