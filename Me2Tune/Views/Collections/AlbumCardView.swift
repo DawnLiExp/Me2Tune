@@ -218,7 +218,9 @@ private final class AlbumCardContentView: NSView {
 
     private func refreshHover() {
         if let window, window.isKeyWindow, !isHiddenOrHasHiddenAncestor {
-            hovered = visibleRect.contains(convert(window.mouseLocationOutsideOfEventStream, from: nil))
+            // Non-clipping views can report a visibleRect larger than their own bounds.
+            let hoverRect = bounds.intersection(visibleRect)
+            hovered = hoverRect.contains(convert(window.mouseLocationOutsideOfEventStream, from: nil))
         } else {
             hovered = false
         }
