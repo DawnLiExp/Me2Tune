@@ -521,7 +521,7 @@
 			repositoryURL = "https://github.com/sbooth/SFBAudioEngine";
 			requirement = {
 				kind = exactVersion;
-				version = 0.13.0;
+				version = 0.14.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
