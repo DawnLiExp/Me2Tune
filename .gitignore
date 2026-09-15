@@ -37,3 +37,6 @@ Temporary Items
 debug.log*
 Tree.md
 /.kiro
+
+# Local build artifacts and reports
+/output/
