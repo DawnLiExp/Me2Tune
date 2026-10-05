@@ -14,6 +14,7 @@ struct ControlSectionView: View {
     let canGoPrevious: Bool
     let canGoNext: Bool
     let repeatMode: PlayerViewModel.RepeatMode
+    var isShuffleEnabled: Bool = false
     var isRestoring: Bool = false
     
     let onPlayPause: () -> Void
@@ -21,14 +22,13 @@ struct ControlSectionView: View {
     let onNext: () -> Void
     let onSeek: (TimeInterval) -> Void
     let onToggleRepeat: () -> Void
+    var onToggleShuffle: () -> Void = {}
     
     @Binding var volume: Double
     
     @State private var isSeekingManually = false
     @State private var manualSeekValue: TimeInterval = 0
-    @State private var isHoveringTrackInfo = false
     @State private var volumeBeforeMute: Double = 0.7
-    @State private var hoverDelayTask: Task<Void, Never>?
     @Environment(\.playbackProgressState) private var playbackProgressState
     
     var body: some View {
@@ -37,15 +37,34 @@ struct ControlSectionView: View {
                 .frame(height: 3)
                 .padding(.horizontal, 28)
             
-            HStack(spacing: 10) {
-                trackInfoSection
+            HStack(spacing: 12) {
+                // 左侧：Mini 模式与音量控制
+                NonDraggableView {
+                    HStack(spacing: 10) {
+                        switchToMiniButton
+                        volumeControl
+                    }
+                }
                 
-                Spacer()
+                Spacer(minLength: 8)
                 
-                controlButtons
+                // 中部：播放模式控制（随机与循环）
+                NonDraggableView {
+                    HStack(spacing: 8) {
+                        shuffleButton
+                        repeatButton
+                    }
+                }
+                
+                Spacer(minLength: 8)
+                
+                // 右侧：主控制按钮（上一首、下一首、播放/暂停）
+                NonDraggableView {
+                    controlButtons
+                }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 18)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
             .background(
                 RoundedRectangle(cornerRadius: 24)
                     .fill(Color.controlBackground)
@@ -53,105 +72,17 @@ struct ControlSectionView: View {
             )
             .padding(.horizontal, 12)
         }
-        .onDisappear {
-            hoverDelayTask?.cancel()
-        }
     }
     
-    // MARK: - Track Info Section
+    // MARK: - State Helpers
     
-    /// 恢复期间且无曲目时，隐藏 "no_track" 和 "ready_to_play"
+    /// 恢复期间且无曲目时，隐藏或禁用控件
     private var isRestoringWithNoTrack: Bool {
         isRestoring && currentTrack == nil
     }
+    
+    // MARK: - Controls
 
-    private var trackInfoSection: some View {
-        ZStack(alignment: .leading) {
-            if !isHoveringTrackInfo || currentTrack == nil {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(trackTitle)
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(.accent)
-                        .lineLimit(1)
-                    
-                    if !isRestoringWithNoTrack {
-                        Text(trackSubtitle)
-                            .font(.system(size: 12, weight: .regular))
-                            .foregroundColor(.tertiaryText)
-                            .lineLimit(1)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .transition(.opacity)
-            }
-            
-            if isHoveringTrackInfo, currentTrack != nil {
-                settingsControls
-                    .transition(.opacity)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
-        .onHover { hovering in
-            hoverDelayTask?.cancel()
-            hoverDelayTask = nil
-            
-            if hovering, currentTrack != nil {
-                hoverDelayTask = Task {
-                    do {
-                        try await Task.sleep(for: .milliseconds(500))
-                    } catch {
-                        return
-                    }
-                    
-                    guard !Task.isCancelled else { return }
-                    
-                    await MainActor.run {
-                        withAnimation(.easeInOut(duration: 0.5)) {
-                            isHoveringTrackInfo = true
-                        }
-                    }
-                }
-            } else {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    isHoveringTrackInfo = false
-                }
-            }
-        }
-    }
-    
-    /// 曲目标题：恢复期间且无曲目时显示空字符串，避免闪烁 "no_track"
-    private var trackTitle: String {
-        if let track = currentTrack {
-            return track.title
-        }
-        return isRestoring ? "" : String(localized: "no_track")
-    }
-
-    private var trackSubtitle: String {
-        guard let track = currentTrack else {
-            return String(localized: "ready_to_play")
-        }
-        
-        let artist = track.artist ?? String(localized: "unknown_artist")
-        let album = track.albumTitle ?? ""
-        
-        if album.isEmpty {
-            return artist
-        } else {
-            return "\(artist) • \(album)"
-        }
-    }
-    
-    // MARK: - Settings Controls (Repeat + Volume + Mini Switch)
-    
-    private var settingsControls: some View {
-        HStack(spacing: 12) {
-            switchToMiniButton
-            volumeControl
-            repeatButton
-        }
-    }
         
     private var switchToMiniButton: some View {
         Button(action: switchToMiniMode) {
@@ -209,6 +140,22 @@ struct ControlSectionView: View {
 
     private var rotationAngle: Double {
         repeatMode == .off ? 0 : 180
+    }
+    
+    // MARK: - Shuffle Button
+
+    private var shuffleButton: some View {
+        Button(action: {
+            onToggleShuffle()
+        }) {
+            Image(systemName: "shuffle")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(isShuffleEnabled ? .accent : .secondaryText)
+                .frame(width: 28, height: 28)
+        }
+        .buttonStyle(.plain)
+        .help(isShuffleEnabled ? LocalizedStringKey("shuffle_mode_on") : LocalizedStringKey("shuffle_mode_off"))
+        .animation(.spring(response: 0.4, dampingFraction: 0.6), value: isShuffleEnabled)
     }
     
     // MARK: - Volume Control

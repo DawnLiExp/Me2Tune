@@ -27,7 +27,7 @@ struct VinylSectionView: View {
                 .offset(y: -147)
         }
         .frame(height: vinylSize / 2)
-        .padding(.top, 166)
+        .padding(.top, 143)
     }
 
     // MARK: - Vinyl Disc
@@ -88,7 +88,7 @@ struct VinylSectionView: View {
         duration: 240,
         isWindowVisible: true
     )
-    .frame(height: 160)
+    .frame(height: 137)
     .padding()
     .background(Color.black)
 }
@@ -102,7 +102,7 @@ struct VinylSectionView: View {
         isWindowVisible: true,
         isRestoring: true
     )
-    .frame(height: 160)
+    .frame(height: 137)
     .padding()
     .background(Color.black)
 }

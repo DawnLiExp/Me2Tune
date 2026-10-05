@@ -309,6 +309,20 @@ actor ArtworkCacheService {
         }
     }
     
+    func invalidateArtwork(for url: URL) {
+        memoryCache.removeObject(forKey: url as NSURL)
+        let hash = hashURL(url)
+        var metadata = loadMetadata()
+        if let index = metadata.entries.firstIndex(where: { $0.urlHash == hash }) {
+            let entry = metadata.entries[index]
+            let fileURL = diskCacheURL.appendingPathComponent("\(entry.fileName).jpg")
+            try? FileManager.default.removeItem(at: fileURL)
+            metadata.entries.remove(at: index)
+            saveMetadata(metadata)
+            logger.debug("Invalidated artwork cache for: \(url.lastPathComponent)")
+        }
+    }
+
     private func cleanupIfNeeded() async {
         var metadata = loadMetadata()
         

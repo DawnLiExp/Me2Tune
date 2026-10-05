@@ -21,6 +21,7 @@ struct ContentSectionView: View {
     let onClearCollections: () -> Void
     let onOpenFilePicker: () -> Void
     let onPlaylistDrop: ([URL]) -> Void
+    let onShowTagEditor: (AudioTrack) -> Void
 
     var body: some View {
         NonDraggableView {
@@ -102,6 +103,7 @@ struct ContentSectionView: View {
                         await viewModel.addTracksToPlaylist(urls: [track.url])
                     }
                 },
+                onShowTagEditor: onShowTagEditor,
                 onEnsureLoaded: {
                     await collectionManager.ensureLoaded()
                 }
@@ -132,7 +134,8 @@ struct ContentSectionView: View {
                             viewModel.moveTrackInPlaylist(from: sourceIndex, to: to)
                         }
                     },
-                    onFilesDrop: onPlaylistDrop
+                    onFilesDrop: onPlaylistDrop,
+                    onShowTagEditor: onShowTagEditor
                 )
                 .padding(.horizontal, 12)
                 .padding(.top, 12)
@@ -354,7 +357,8 @@ struct TabSwitcherView: View {
         onClearPlaylist: {},
         onClearCollections: {},
         onOpenFilePicker: {},
-        onPlaylistDrop: { _ in }
+        onPlaylistDrop: { _ in },
+        onShowTagEditor: { _ in }
     )
     .padding()
     .background(Color.black)

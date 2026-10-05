@@ -9,7 +9,7 @@ import SwiftUI
 
 struct AlbumTrackRowView: View, Equatable {
     nonisolated static func == (lhs: AlbumTrackRowView, rhs: AlbumTrackRowView) -> Bool {
-        lhs.track.id == rhs.track.id &&
+        lhs.track == rhs.track &&
             lhs.index == rhs.index &&
             lhs.isPlaying == rhs.isPlaying &&
             lhs.isFailed == rhs.isFailed &&
@@ -24,6 +24,7 @@ struct AlbumTrackRowView: View, Equatable {
     let onTap: () -> Void
     let onShowInFinder: () -> Void
     let onAddToPlaylist: () -> Void
+    let onShowTagEditor: () -> Void
 
     private let timeString: String
     private let artistString: String
@@ -38,7 +39,8 @@ struct AlbumTrackRowView: View, Equatable {
         cleanMode: Bool,
         onTap: @escaping () -> Void,
         onShowInFinder: @escaping () -> Void,
-        onAddToPlaylist: @escaping () -> Void
+        onAddToPlaylist: @escaping () -> Void,
+        onShowTagEditor: @escaping () -> Void
     ) {
         self.track = track
         self.index = index
@@ -48,6 +50,7 @@ struct AlbumTrackRowView: View, Equatable {
         self.onTap = onTap
         self.onShowInFinder = onShowInFinder
         self.onAddToPlaylist = onAddToPlaylist
+        self.onShowTagEditor = onShowTagEditor
         self.timeString = Self.formatTime(track.duration)
         self.artistString = track.artist ?? String(localized: "unknown_artist")
     }
@@ -65,6 +68,12 @@ struct AlbumTrackRowView: View, Equatable {
             onTap()
         }
         .contextMenu {
+            Button {
+                onShowTagEditor()
+            } label: {
+                Label(String(localized: "show_track_info", defaultValue: "显示简介"), systemImage: "info.circle")
+            }
+
             Button("show_in_finder") {
                 onShowInFinder()
             }

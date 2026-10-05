@@ -135,8 +135,11 @@ struct MiniPlayerView: View {
         @Bindable var viewModel = playerViewModel // ✅ 在这里创建 Bindable
         
         return HStack(spacing: 0) {
-            HStack(spacing: 14) {
-                repeatButton
+            HStack(spacing: 12) {
+                HStack(spacing: 6) {
+                    shuffleButton
+                    repeatButton
+                }
                 
                 HStack(spacing: 8) {
                     controlButton(
@@ -164,6 +167,25 @@ struct MiniPlayerView: View {
                 switchToFullButton
             }
         }
+    }
+    
+    // MARK: - Shuffle Button
+
+    private var shuffleButton: some View {
+        Button(action: { playerViewModel.toggleShuffleMode() }) {
+            Image(systemName: "shuffle")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(shuffleColor)
+                .frame(width: 24, height: 24)
+        }
+        .buttonStyle(.plain)
+        .help(playerViewModel.isShuffleEnabled ? String(localized: "shuffle_mode_on") : String(localized: "shuffle_mode_off"))
+    }
+
+    private var shuffleColor: Color {
+        playerViewModel.isShuffleEnabled
+            ? miniTheme.colors.accent
+            : miniTheme.colors.controlButtonColor.opacity(0.5)
     }
     
     // MARK: - Repeat Button

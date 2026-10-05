@@ -69,6 +69,11 @@ final class PlayerViewModel {
         set { coordinator.repeatMode = newValue }
     }
 
+    var isShuffleEnabled: Bool {
+        get { coordinator.isShuffleEnabled }
+        set { coordinator.isShuffleEnabled = newValue }
+    }
+
     var volume: Double {
         get { coordinator.volume }
         set { coordinator.volume = newValue }
@@ -169,6 +174,10 @@ final class PlayerViewModel {
         coordinator.toggleRepeatMode()
     }
 
+    func toggleShuffleMode() {
+        coordinator.toggleShuffleMode()
+    }
+
     @discardableResult
     func addTracksToPlaylist(urls: [URL]) async -> AddTracksResult {
         let result = await coordinator.addTracksToPlaylist(urls: urls)
@@ -180,6 +189,10 @@ final class PlayerViewModel {
 
     func removeTrackFromPlaylist(at index: Int) {
         coordinator.removeTrackFromPlaylist(at: index)
+    }
+
+    func removeTracksFromPlaylist(urls: Set<URL>) {
+        coordinator.removeTracksFromPlaylist(urls: urls)
     }
 
     func clearPlaylist() {

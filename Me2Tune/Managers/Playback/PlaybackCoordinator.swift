@@ -28,6 +28,22 @@ final class PlaybackCoordinator {
         var handler: @MainActor () -> Void = {}
     }
 
+    @MainActor
+    private final class NavigationProviderBox {
+        var nextIndex: @MainActor (_ baseIndex: Int, _ tracks: [AudioTrack], _ repeatMode: RepeatMode) -> Int? = { baseIndex, tracks, repeatMode in
+            TrackNavigationPolicy.nextIndex(after: baseIndex, count: tracks.count, repeatMode: repeatMode)
+        }
+        var nextValidIndex: @MainActor (_ baseIndex: Int, _ tracks: [AudioTrack], _ repeatMode: RepeatMode, _ failedIDs: Set<UUID>) -> Int? = { baseIndex, tracks, repeatMode, failedIDs in
+            TrackNavigationPolicy.nextValidIndex(
+                after: baseIndex,
+                tracks: tracks,
+                repeatMode: repeatMode,
+                failedIDs: failedIDs,
+                maxAttempts: tracks.count
+            )
+        }
+    }
+
     private(set) var isPlaying = false
     private(set) var currentArtwork: NSImage?
     private(set) var duration: TimeInterval = 0
@@ -35,6 +51,20 @@ final class PlaybackCoordinator {
     var repeatMode: RepeatMode = .off {
         didSet {
             playerCore.repeatMode = repeatMode
+        }
+    }
+
+    var isShuffleEnabled: Bool {
+        didSet {
+            shuffleController.isEnabled = isShuffleEnabled
+            if isShuffleEnabled {
+                shuffleController.reshuffle(
+                    tracks: playbackStateManager.currentTracks,
+                    currentTrackID: playbackStateManager.currentTrackID
+                )
+            } else {
+                shuffleController.reset()
+            }
         }
     }
 
@@ -55,16 +85,25 @@ final class PlaybackCoordinator {
 
     var canGoPrevious: Bool {
         guard playbackStateManager.currentTrackIndex != nil else { return false }
+        if isShuffleEnabled {
+            if repeatMode == .all { return !playbackStateManager.currentTracks.isEmpty }
+            return !shuffleController.historyIDs.isEmpty
+        }
         if repeatMode == .all { return !playbackStateManager.currentTracks.isEmpty }
         return playbackStateManager.canGoPrevious
     }
 
     var canGoNext: Bool {
         guard playbackStateManager.currentTrackIndex != nil else { return false }
+        if isShuffleEnabled {
+            if repeatMode == .all { return !playbackStateManager.currentTracks.isEmpty }
+            return !shuffleController.upcomingIDs.isEmpty
+        }
         if repeatMode == .all { return !playbackStateManager.currentTracks.isEmpty }
         return playbackStateManager.canGoNext
     }
 
+    @ObservationIgnored let shuffleController: PlaybackShuffleController
     @ObservationIgnored private let playerCore: any AudioPlayerCoreProtocol
     @ObservationIgnored private let failedTrackRegistry: FailedTrackRegistry
     @ObservationIgnored private let persistenceController: PlaybackPersistenceController
@@ -112,6 +151,11 @@ final class PlaybackCoordinator {
                 playerCore?.setVolume(volume)
             }
         )
+        let navigationBox = NavigationProviderBox()
+        let shuffleController = PlaybackShuffleController()
+        self.shuffleController = shuffleController
+        self.isShuffleEnabled = shuffleController.isEnabled
+
         self.loadController = PlaybackLoadController(
             playerCore: playerCore,
             stateManager: self.playbackStateManager,
@@ -125,8 +169,52 @@ final class PlaybackCoordinator {
             },
             onTrackRequested: { track in
                 statisticsTracker.prepareForRequestedTrack(track.id)
+            },
+            nextIndexProvider: { [navigationBox] baseIndex, tracks, repeatMode in
+                navigationBox.nextIndex(baseIndex, tracks, repeatMode)
+            },
+            nextValidIndexProvider: { [navigationBox] baseIndex, tracks, repeatMode, failedIDs in
+                navigationBox.nextValidIndex(baseIndex, tracks, repeatMode, failedIDs)
             }
         )
+        navigationBox.nextIndex = { [weak self] baseIndex, tracks, repeatMode in
+            guard let self else { return nil }
+            if self.isShuffleEnabled {
+                let currentID = tracks.indices.contains(baseIndex) ? tracks[baseIndex].id : nil
+                if let nextID = self.shuffleController.peekNextValidTrackID(
+                    tracks: tracks,
+                    currentTrackID: currentID,
+                    repeatMode: repeatMode,
+                    failedIDs: self.failedTrackRegistry.snapshot()
+                ) {
+                    return tracks.firstIndex(where: { $0.id == nextID })
+                }
+                return nil
+            }
+            return TrackNavigationPolicy.nextIndex(after: baseIndex, count: tracks.count, repeatMode: repeatMode)
+        }
+        navigationBox.nextValidIndex = { [weak self] baseIndex, tracks, repeatMode, failedIDs in
+            guard let self else { return nil }
+            if self.isShuffleEnabled {
+                let currentID = tracks.indices.contains(baseIndex) ? tracks[baseIndex].id : nil
+                if let nextID = self.shuffleController.peekNextValidTrackID(
+                    tracks: tracks,
+                    currentTrackID: currentID,
+                    repeatMode: repeatMode,
+                    failedIDs: failedIDs
+                ) {
+                    return tracks.firstIndex(where: { $0.id == nextID })
+                }
+                return nil
+            }
+            return TrackNavigationPolicy.nextValidIndex(
+                after: baseIndex,
+                tracks: tracks,
+                repeatMode: repeatMode,
+                failedIDs: failedIDs,
+                maxAttempts: tracks.count
+            )
+        }
         volumeProviderBox.provider = { [weak self] in
             self?.volume ?? 0.7
         }
@@ -151,6 +239,30 @@ final class PlaybackCoordinator {
                 self.statisticsTracker.evaluate(currentTime: time, duration: self.duration)
             }
         )
+        effectsController.ensureRemoteCommandsReady(handlers: makePlaybackCommandHandlers())
+        if hasSessionSnapshot || !playlistManager.isEmpty {
+            NowPlayingService.shared.setPlaceholderInfo()
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: .audioTrackMetadataDidUpdate,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self,
+                  let url = notification.userInfo?["url"] as? URL,
+                  let metadata = notification.userInfo?["metadata"] as? DetailedAudioMetadata else { return }
+            self.playbackStateManager.updateTrackMetadata(for: url, metadata: metadata)
+            if self.playbackStateManager.currentTrack?.url == url {
+                Task { @MainActor in
+                    let artwork = await ArtworkCacheService.shared.artwork(for: url)
+                    self.currentArtwork = artwork
+                    self.updateNowPlayingInfo()
+                    self.playerCore.updateDockIcon(artwork)
+                }
+            }
+        }
+
         logger.debug("PlaybackCoordinator initialized")
     }
 
@@ -161,8 +273,15 @@ final class PlaybackCoordinator {
 
     func play() {
         if playbackStateManager.currentTrack == nil, !playlistManager.isEmpty {
-            playbackStateManager.switchToPlaylist(selecting: 0)
-            loadController.loadAndPlay(at: 0)
+            let tracks = playlistManager.tracks
+            let startingIndex: Int
+            if isShuffleEnabled, let rand = tracks.randomElement(), let idx = tracks.firstIndex(where: { $0.id == rand.id }) {
+                startingIndex = idx
+            } else {
+                startingIndex = 0
+            }
+            playbackStateManager.switchToPlaylist(selecting: startingIndex)
+            loadController.loadAndPlay(at: startingIndex)
             return
         }
 
@@ -194,13 +313,31 @@ final class PlaybackCoordinator {
         logger.debug("Repeat mode: \(String(describing: self.repeatMode))")
     }
 
+    func toggleShuffleMode() {
+        isShuffleEnabled.toggle()
+        logger.debug("Shuffle mode: \(self.isShuffleEnabled)")
+    }
+
     func next() {
-        guard let currentIndex = playbackStateManager.currentTrackIndex else { return }
+        guard playbackStateManager.currentTrackIndex != nil else { return }
         let tracks = playbackStateManager.currentTracks
         guard !tracks.isEmpty else { return }
 
+        if isShuffleEnabled {
+            guard let nextID = shuffleController.consumeNextValidTrackID(
+                tracks: tracks,
+                currentTrackID: playbackStateManager.currentTrackID,
+                repeatMode: repeatMode,
+                failedIDs: failedTrackRegistry.snapshot()
+            ), let nextIndex = tracks.firstIndex(where: { $0.id == nextID }) else {
+                return
+            }
+            loadController.loadAndPlay(at: nextIndex)
+            return
+        }
+
         guard let nextIndex = TrackNavigationPolicy.nextValidIndex(
-            after: currentIndex,
+            after: playbackStateManager.currentTrackIndex!,
             tracks: tracks,
             repeatMode: repeatMode,
             failedIDs: failedTrackRegistry.snapshot(),
@@ -216,6 +353,25 @@ final class PlaybackCoordinator {
         guard let currentIndex = playbackStateManager.currentTrackIndex else { return }
         let tracks = playbackStateManager.currentTracks
         guard !tracks.isEmpty else { return }
+
+        if isShuffleEnabled {
+            if let prevID = shuffleController.consumePreviousTrackID(
+                tracks: tracks,
+                currentTrackID: playbackStateManager.currentTrackID,
+                failedIDs: failedTrackRegistry.snapshot()
+            ), let prevIndex = tracks.firstIndex(where: { $0.id == prevID }) {
+                loadController.loadAndPlay(at: prevIndex)
+                return
+            }
+            if repeatMode == .all, let prevIndex = TrackNavigationPolicy.previousValidIndex(
+                before: currentIndex,
+                tracks: tracks,
+                failedIDs: failedTrackRegistry.snapshot()
+            ) {
+                loadController.loadAndPlay(at: prevIndex)
+            }
+            return
+        }
 
         guard let targetIndex = TrackNavigationPolicy.previousIndex(
             before: currentIndex,
@@ -237,9 +393,15 @@ final class PlaybackCoordinator {
     func playPlaylistTrack(at index: Int) {
         guard playlistManager.tracks.indices.contains(index) else { return }
 
+        let previousTrackID = playbackStateManager.currentTrackID
         playbackStateManager.switchToPlaylist(selecting: index)
         persistenceController.scheduleSave()
         let track = playlistManager.tracks[index]
+        shuffleController.handleTrackStarted(
+            newTrackID: track.id,
+            previousTrackID: previousTrackID,
+            tracks: playlistManager.tracks
+        )
         loadController.retryIfFailed(track)
         loadController.loadAndPlay(at: index)
     }
@@ -251,9 +413,15 @@ final class PlaybackCoordinator {
         }
         guard album.tracks.indices.contains(index) else { return }
 
+        let previousTrackID = playbackStateManager.currentTrackID
         playbackStateManager.switchToAlbum(album, selecting: index)
         persistenceController.scheduleSave()
         let track = album.tracks[index]
+        shuffleController.handleTrackStarted(
+            newTrackID: track.id,
+            previousTrackID: previousTrackID,
+            tracks: album.tracks
+        )
         loadController.retryIfFailed(track)
         loadController.loadAndPlay(at: index)
     }
@@ -263,6 +431,10 @@ final class PlaybackCoordinator {
         let result = await playlistManager.addTracks(urls: urls)
         if result.newTracksCount > 0 {
             playbackStateManager.handlePlaylistTracksAdded()
+            if isShuffleEnabled {
+                shuffleController.handleTracksAdded(newTracks: playlistManager.tracks)
+            }
+            effectsController.ensureRemoteCommandsReady(handlers: makePlaybackCommandHandlers())
         }
         return result
     }
@@ -273,6 +445,7 @@ final class PlaybackCoordinator {
         let wasPlaying = (playbackStateManager.playingSource == .playlist && playbackStateManager.currentTrackIndex == index)
         let removedTrack = playlistManager.tracks[index]
         failedTrackRegistry.clear(removedTrack.id)
+        shuffleController.handleTracksRemoved(removedIDs: [removedTrack.id])
 
         if wasPlaying {
             pause()
@@ -290,6 +463,23 @@ final class PlaybackCoordinator {
         }
     }
 
+    func removeTracksFromPlaylist(urls: Set<URL>) {
+        guard !urls.isEmpty else { return }
+        let pathsToRemove = Set(urls.map { $0.standardizedFileURL.path })
+
+        let matchingIndices = playlistManager.tracks.enumerated()
+            .filter { pathsToRemove.contains($0.element.url.standardizedFileURL.path) }
+            .map(\.offset)
+            .sorted(by: >)
+
+        let removedIDs = Set(matchingIndices.map { playlistManager.tracks[$0].id })
+        shuffleController.handleTracksRemoved(removedIDs: removedIDs)
+
+        for index in matchingIndices {
+            removeTrackFromPlaylist(at: index)
+        }
+    }
+
     func clearPlaylist() {
         let isClearingCurrentSource = (playbackStateManager.playingSource == .playlist)
 
@@ -300,6 +490,7 @@ final class PlaybackCoordinator {
         playlistManager.clearAll()
         playbackStateManager.handlePlaylistCleared()
         failedTrackRegistry.pruneStale(keeping: Set(playbackStateManager.currentTracks.map(\.id)))
+        shuffleController.reset()
 
         if isClearingCurrentSource {
             effectsController.disableRemoteCommands()
@@ -330,6 +521,13 @@ final class PlaybackCoordinator {
             playerCore.setVolume(savedVolume)
             let pct = String(format: "%.0f", savedVolume * 100)
             logger.debug("Restored volume: \(pct)%")
+        }
+
+        if isShuffleEnabled {
+            shuffleController.reshuffle(
+                tracks: playbackStateManager.currentTracks,
+                currentTrackID: restored.track.id
+            )
         }
 
         return await loadTrack(restored.track)
@@ -455,10 +653,16 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
         statisticsTracker.synchronizeObservedTrack(track.id)
         let tracks = playbackStateManager.currentTracks
         if let index = tracks.firstIndex(where: { $0.id == track.id }) {
-            let idChanged = (playbackStateManager.currentTrackID != track.id)
+            let previousID = playbackStateManager.currentTrackID
+            let idChanged = (previousID != track.id)
             if idChanged {
                 logger.info("Auto switched to track \(index + 1): \(track.title)")
                 playbackStateManager.setCurrentTrack(id: track.id)
+                shuffleController.handleTrackStarted(
+                    newTrackID: track.id,
+                    previousTrackID: previousID,
+                    tracks: tracks
+                )
             }
 
             let generation = loadController.generation

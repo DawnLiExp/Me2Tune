@@ -24,6 +24,7 @@ struct CollectionsGridView: View {
     let onAlbumRenamed: (UUID, String) -> Void
     let onAlbumMoved: (Int, Int) -> Void
     let onTrackAddedToPlaylist: (AudioTrack) -> Void
+    let onShowTagEditor: (AudioTrack) -> Void
     let onEnsureLoaded: () async -> Void
     
     @State private var selectedAlbum: Album?
@@ -75,7 +76,8 @@ struct CollectionsGridView: View {
                     },
                     onAddToPlaylist: { track in
                         onTrackAddedToPlaylist(track)
-                    }
+                    },
+                    onShowTagEditor: onShowTagEditor
                 )
                 .transition(.move(edge: .trailing).combined(with: .opacity))
                 .zIndex(1)
@@ -384,6 +386,7 @@ struct AlbumDropDelegate: DropDelegate {
         onAlbumRenamed: { _, _ in },
         onAlbumMoved: { _, _ in },
         onTrackAddedToPlaylist: { _ in },
+        onShowTagEditor: { _ in },
         onEnsureLoaded: {}
     )
     .padding()

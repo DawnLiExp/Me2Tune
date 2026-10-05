@@ -105,6 +105,32 @@ final class PlaybackStateManager {
         logger.info("💿 Switched to album: \(album.name) (\(album.tracks.count) tracks)")
     }
 
+    func updateTrackMetadata(for url: URL, metadata: DetailedAudioMetadata) {
+        if let album = currentAlbumSnapshot, album.tracks.contains(where: { $0.url == url }) {
+            var updatedTracks = album.tracks
+            for i in updatedTracks.indices {
+                if updatedTracks[i].url == url {
+                    let oldTrack = updatedTracks[i]
+                    let newTitle = metadata.title.isEmpty ? oldTrack.title : metadata.title
+                    let newArtist = metadata.artist.isEmpty ? nil : metadata.artist
+                    let newAlbum = metadata.album.isEmpty ? nil : metadata.album
+                    updatedTracks[i] = AudioTrack(
+                        id: oldTrack.id,
+                        url: oldTrack.url,
+                        title: newTitle,
+                        artist: newArtist,
+                        albumTitle: newAlbum,
+                        duration: oldTrack.duration,
+                        format: oldTrack.format,
+                        bookmark: oldTrack.bookmark
+                    )
+                }
+            }
+            currentAlbumSnapshot?.tracks = updatedTracks
+            logger.info("Updated current album snapshot track metadata for: \(url.lastPathComponent)")
+        }
+    }
+
     // MARK: - Index Management
 
     func setCurrentTrack(id: UUID?) {

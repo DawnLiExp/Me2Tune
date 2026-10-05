@@ -18,6 +18,7 @@ struct AlbumDetailView: View {
     let onTrackTap: (Int) -> Void
     let onShowInFinder: (AudioTrack) -> Void
     let onAddToPlaylist: (AudioTrack) -> Void
+    let onShowTagEditor: (AudioTrack) -> Void
     
     @Environment(PlayerViewModel.self) private var playerViewModel
     
@@ -51,7 +52,8 @@ struct AlbumDetailView: View {
                             cleanMode: cleanMode,
                             onTap: { onTrackTap(index) },
                             onShowInFinder: { onShowInFinder(track) },
-                            onAddToPlaylist: { onAddToPlaylist(track) }
+                            onAddToPlaylist: { onAddToPlaylist(track) },
+                            onShowTagEditor: { onShowTagEditor(track) }
                         )
                         .equatable()
                     }

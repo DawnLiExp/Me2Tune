@@ -61,7 +61,52 @@ final class PlaylistManager {
     init(dataService: DataServiceProtocol = DataService.shared) {
         self.dataService = dataService
         loadPlaylistContent()
+        setupMetadataUpdateObserver()
         logger.debug("✅ PlaylistManager initialized (SwiftData)")
+    }
+
+    private func setupMetadataUpdateObserver() {
+        NotificationCenter.default.addObserver(
+            forName: .audioTrackMetadataDidUpdate,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let url = notification.userInfo?["url"] as? URL,
+                  let metadata = notification.userInfo?["metadata"] as? DetailedAudioMetadata else { return }
+            self?.updateTrackMetadata(for: url, metadata: metadata)
+        }
+    }
+
+    func updateTrackMetadata(for url: URL, metadata: DetailedAudioMetadata) {
+        var didUpdate = false
+        for i in entries.indices {
+            if entries[i].track.url == url {
+                let oldTrack = entries[i].track
+                let newTitle = metadata.title.isEmpty ? oldTrack.title : metadata.title
+                let newArtist = metadata.artist.isEmpty ? nil : metadata.artist
+                let newAlbum = metadata.album.isEmpty ? nil : metadata.album
+
+                let updatedTrack = AudioTrack(
+                    id: oldTrack.id,
+                    url: oldTrack.url,
+                    title: newTitle,
+                    artist: newArtist,
+                    albumTitle: newAlbum,
+                    duration: oldTrack.duration,
+                    format: oldTrack.format,
+                    bookmark: oldTrack.bookmark
+                )
+                entries[i].track = updatedTrack
+                entries[i].sdTrack.title = newTitle
+                entries[i].sdTrack.artist = newArtist
+                entries[i].sdTrack.albumTitle = newAlbum
+                didUpdate = true
+            }
+        }
+        if didUpdate {
+            try? dataService.save()
+            logger.info("Updated playlist track metadata for \(url.lastPathComponent)")
+        }
     }
 
     // MARK: - Public Methods - Query
@@ -248,17 +293,7 @@ final class PlaylistManager {
             var isDirectory: ObjCBool = false
             if fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory) {
                 if isDirectory.boolValue {
-                    if let enumerator = fileManager.enumerator(
-                        at: url,
-                        includingPropertiesForKeys: [.isRegularFileKey],
-                        options: [.skipsHiddenFiles]
-                    ) {
-                        while let fileURL = enumerator.nextObject() as? URL {
-                            if AudioFileSupport.isSupportedAudioFile(fileURL) {
-                                allAudioURLs.append(fileURL)
-                            }
-                        }
-                    }
+                    allAudioURLs.append(contentsOf: AudioFileSupport.scanAudioFiles(in: url))
                 } else if AudioFileSupport.isSupportedAudioFile(url) {
                     allAudioURLs.append(url)
                 }

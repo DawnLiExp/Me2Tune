@@ -5,6 +5,7 @@
 //  Single synced lyric line rendering.
 //
 
+import AppKit
 import SwiftUI
 
 struct LyricLineView: View {
@@ -15,7 +16,10 @@ struct LyricLineView: View {
     let currentLineIndex: Int?
     let displaySettings: LyricsDisplaySettings
     let theme: ThemeColors
+    var onSeek: ((LyricLine, Int) -> Void)? = nil
 
+    @State private var isHovered = false
+    @State private var isCursorPushed = false
     @State private var highlightedSegmentCount = 0
     @State private var wordHighlightTimer: Timer?
 
@@ -88,35 +92,75 @@ struct LyricLineView: View {
             .foregroundColor(primaryTextColor)
     }
     
-    var body: some View {
-        VStack(spacing: 4) {
-            primaryLyricText
-                .font(.system(
-                    size: displaySettings.reservedMainFontSize,
-                    weight: isCurrent ? .semibold : .regular
-                ))
-                .multilineTextAlignment(.center)
-                .lineSpacing(4)
-                .scaleEffect(displaySettings.mainTextScale(isCurrent: isCurrent), anchor: .center)
-                .frame(maxWidth: .infinity)
-            
-            if let translation = line.translation, !translation.isEmpty {
-                Text(translation)
+    private var lineContent: some View {
+        ZStack(alignment: .trailing) {
+            VStack(spacing: 4) {
+                primaryLyricText
                     .font(.system(
-                        size: displaySettings.reservedTranslationFontSize,
-                        weight: .regular
+                        size: displaySettings.reservedMainFontSize,
+                        weight: isCurrent ? .semibold : .regular
                     ))
-                    .foregroundColor(translationTextColor)
                     .multilineTextAlignment(.center)
-                    .lineSpacing(3)
-                    .scaleEffect(displaySettings.translationTextScale(isCurrent: isCurrent), anchor: .center)
+                    .lineSpacing(4)
+                    .scaleEffect(displaySettings.mainTextScale(isCurrent: isCurrent), anchor: .center)
                     .frame(maxWidth: .infinity)
+                
+                if let translation = line.translation, !translation.isEmpty {
+                    Text(translation)
+                        .font(.system(
+                            size: displaySettings.reservedTranslationFontSize,
+                            weight: .regular
+                        ))
+                        .foregroundColor(translationTextColor)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(3)
+                        .scaleEffect(displaySettings.translationTextScale(isCurrent: isCurrent), anchor: .center)
+                        .frame(maxWidth: .infinity)
+                }
             }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 24)
+            
+            // 悬停时右侧淡入微型跳转播放提示
+            if isHovered && !isCurrent {
+                Image(systemName: "play.circle.fill")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(theme.accent)
+                    .padding(.trailing, 8)
+                    .transition(.opacity.combined(with: .scale(scale: 0.85)))
+            }
+        }
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(
+                    isCurrent
+                        ? theme.accent.opacity(isHovered ? 0.12 : 0.0)
+                        : theme.primaryText.opacity(isHovered ? 0.07 : 0.0)
+                )
+        )
+        .contentShape(Rectangle())
+    }
+
+    var body: some View {
+        NonDraggableView {
+            Button {
+                onSeek?(line, lineIndex)
+            } label: {
+                lineContent
+            }
+            .buttonStyle(LyricLineButtonStyle())
+            .accessibilityLabel(Text(line.text.isEmpty ? "♪" : line.text))
         }
         .frame(minHeight: displaySettings.lineBlockMinHeight(hasTranslation: hasTranslation))
         .opacity(distanceOpacity)
         .animation(.easeOut(duration: 0.22), value: isCurrent)
         .animation(.easeOut(duration: 0.22), value: distanceFromCurrent)
+        .animation(.easeOut(duration: 0.18), value: isHovered)
+        .onHover { hovering in
+            isHovered = hovering
+            updateCursor(hovering)
+        }
         .onAppear {
             refreshWordHighlight()
         }
@@ -134,6 +178,27 @@ struct LyricLineView: View {
         }
         .onDisappear {
             stopWordHighlightTimer()
+            resetCursor()
+        }
+    }
+
+    private func updateCursor(_ hovering: Bool) {
+        DispatchQueue.main.async {
+            if hovering {
+                if !isCursorPushed {
+                    NSCursor.pointingHand.push()
+                    isCursorPushed = true
+                }
+            } else {
+                resetCursor()
+            }
+        }
+    }
+
+    private func resetCursor() {
+        if isCursorPushed {
+            NSCursor.pop()
+            isCursorPushed = false
         }
     }
 
@@ -186,6 +251,17 @@ struct LyricLineView: View {
     private func stopWordHighlightTimer() {
         wordHighlightTimer?.invalidate()
         wordHighlightTimer = nil
+    }
+}
+
+// MARK: - Lyric Line Button Style
+
+private struct LyricLineButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.985 : 1.0)
+            .opacity(configuration.isPressed ? 0.82 : 1.0)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 

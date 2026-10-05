@@ -71,11 +71,13 @@ final class NowPlayingService {
         nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
         
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+        MPNowPlayingInfoCenter.default().playbackState = isPlaying ? .playing : .paused
         
         logger.debug("🎵 Updated Now Playing: \(track.title)")
     }
     
     func updatePlaybackState(isPlaying: Bool) {
+        MPNowPlayingInfoCenter.default().playbackState = isPlaying ? .playing : .paused
         guard var nowPlayingInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo else {
             return
         }
@@ -96,6 +98,7 @@ final class NowPlayingService {
     }
     
     func clearNowPlayingInfo() {
+        MPNowPlayingInfoCenter.default().playbackState = .stopped
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         stopUpdateTimer()
    
@@ -109,6 +112,7 @@ final class NowPlayingService {
         placeholderInfo[MPMediaItemPropertyTitle] = "Me2Tune"
         placeholderInfo[MPNowPlayingInfoPropertyPlaybackRate] = currentRate
         MPNowPlayingInfoCenter.default().nowPlayingInfo = placeholderInfo
+        MPNowPlayingInfoCenter.default().playbackState = (currentRate > 0) ? .playing : .paused
         stopUpdateTimer()
         logger.debug("🔑 Set placeholder info for media keys (rate: \(currentRate))")
     }

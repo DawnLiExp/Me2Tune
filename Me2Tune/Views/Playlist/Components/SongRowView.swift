@@ -133,10 +133,10 @@ struct SongRowView: View {
 // MARK: - Equatable
 
 extension SongRowView: Equatable {
-    static func == (lhs: SongRowView, rhs: SongRowView) -> Bool {
-        lhs.track.id == rhs.track.id &&
+    nonisolated static func == (lhs: SongRowView, rhs: SongRowView) -> Bool {
+        lhs.track == rhs.track &&
             lhs.index == rhs.index &&
             lhs.isPlaying == rhs.isPlaying &&
-            lhs.isFailed == rhs.isFailed // ✅ 新增比较
+            lhs.isFailed == rhs.isFailed
     }
 }

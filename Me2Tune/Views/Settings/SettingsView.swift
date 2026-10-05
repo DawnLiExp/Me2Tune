@@ -53,7 +53,7 @@ struct SettingsView: View {
         var windowHeight: CGFloat {
             switch self {
             case .features:
-                480
+                600
             case .appearance:
                 340
             case .statistics:
@@ -67,8 +67,9 @@ struct SettingsView: View {
     @State private var currentTheme = ThemeManager.shared.themeMode
     @State private var currentLanguage = LanguageManager.shared.currentLanguage
     
-    // CacheConfigManager
+    // Managers
     private let cacheManager = CacheConfigManager.shared
+    @State private var musicSourceManager = MusicSourceManager.shared
     
     @State private var showLanguageChangeAlert = false
     @State private var showThemeChangeAlert = false
@@ -230,6 +231,10 @@ struct SettingsView: View {
     
     private var featuresSettings: some View {
         VStack(spacing: 24) {
+            musicSourcesSection
+
+            Divider()
+
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
                     Image(systemName: "folder.badge.gearshape")
@@ -402,6 +407,138 @@ struct SettingsView: View {
                                 .stroke(Color.red.opacity(0.15), lineWidth: 1)
                         )
                 )
+            }
+        }
+    }
+
+    // MARK: - Music Sources Settings
+
+    private var musicSourcesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                Image(systemName: "music.note.list")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+                    .frame(width: 20)
+
+                Text("music_sources")
+                    .font(.system(size: 12, weight: .semibold))
+
+                Spacer()
+
+                Button(action: selectMusicSourceDirectory) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "folder.badge.plus")
+                            .font(.system(size: 12))
+                        Text("add_music_source")
+                            .font(.system(size: 12))
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.accentColor.opacity(0.1))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color.accentColor.opacity(0.2), lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                if musicSourceManager.sourceFolders.isEmpty {
+                    HStack {
+                        Spacer()
+                        Text("no_music_sources_hint")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                    .padding(.vertical, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                    )
+                } else {
+                    VStack(spacing: 6) {
+                        ForEach(musicSourceManager.sourceFolders, id: \.self) { folderURL in
+                            HStack(spacing: 8) {
+                                Image(systemName: "folder")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+
+                                Text(displayFolderPath(folderURL))
+                                    .font(.system(size: 11, design: .monospaced))
+                                    .foregroundColor(.primary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+
+                                Spacer()
+
+                                Button(action: {
+                                    NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: folderURL.path)
+                                }) {
+                                    Image(systemName: "magnifyingglass.circle")
+                                        .font(.system(size: 13))
+                                        .foregroundColor(.accentColor)
+                                }
+                                .buttonStyle(.plain)
+                                .help(Text("reveal_in_finder"))
+
+                                Button(action: {
+                                    musicSourceManager.removeFolder(folderURL)
+                                }) {
+                                    Image(systemName: "trash")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                                .help(Text("delete_music_source"))
+                            }
+                            .padding(.vertical, 6)
+                            .padding(.horizontal, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color(NSColor.controlBackgroundColor))
+                            )
+                        }
+                    }
+                }
+
+                if musicSourceManager.isScanning {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("scanning_music_source")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.leading, 8)
+                } else {
+                    Text("music_sources_description")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .padding(.leading, 8)
+                }
+            }
+
+            settingRow(
+                icon: "arrow.triangle.2.circlepath.circle",
+                label: "auto_watch_music_sources",
+                helpText: "auto_watch_music_sources_footer",
+                helpMaxWidth: 320
+            ) {
+                Toggle(isOn: Binding(
+                    get: { musicSourceManager.isAutoWatchEnabled },
+                    set: { musicSourceManager.setAutoWatchEnabled($0) }
+                )) {
+                    EmptyView()
+                }
+                .toggleStyle(.switch)
+                .labelsHidden()
+                .controlSize(.small)
             }
         }
     }
@@ -597,6 +734,29 @@ struct SettingsView: View {
     }
     
     // MARK: - Helpers
+
+    private func displayFolderPath(_ url: URL) -> String {
+        url.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
+    }
+
+    private func selectMusicSourceDirectory() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = false
+        panel.allowsMultipleSelection = true
+        panel.message = String(localized: "select_music_source_message")
+
+        panel.begin { response in
+            guard response == .OK else { return }
+            let urls = panel.urls
+            Task { @MainActor in
+                for url in urls {
+                    musicSourceManager.addFolder(url)
+                }
+            }
+        }
+    }
     
     private var displayCachePath: String {
         if let customPath = cacheManager.customCachePath {

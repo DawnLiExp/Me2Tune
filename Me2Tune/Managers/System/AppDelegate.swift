@@ -222,6 +222,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         
+        // 若歌词窗口吸附在主窗口且用户开启了始终置顶，切换 Mini 模式前解除吸附以保持歌词悬浮
+        if SettingsManager.shared.lyricsAlwaysOnTop {
+            LyricsWindowController.shared.undockIfDocked()
+        }
+        
         fullModeWindow?.orderOut(nil)
         
         windowStateMonitor?.forceSetState(.miniVisible)
@@ -245,6 +250,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             window.makeKeyAndOrderFront(nil)
             windowStateMonitor?.forceSetState(.activeFocused)
             logger.info("🖥️ Switched to Full mode")
+            
+            // 恢复全屏模式时保持歌词面板打开并吸附
+            DispatchQueue.main.async {
+                LyricsWindowController.shared.show()
+            }
         } else {
             logger.error("❌ Full mode window not available")
         }

@@ -26,4 +26,24 @@ enum AudioFileSupport {
     static func isSupportedAudioFile(_ url: URL) -> Bool {
         supportedExtensions.contains(url.pathExtension.lowercased())
     }
+
+    /// 递归扫描指定目录及其所有子目录中的受支持音频文件
+    static func scanAudioFiles(in directoryURL: URL) -> [URL] {
+        let fileManager = FileManager.default
+        var audioURLs: [URL] = []
+        guard let enumerator = fileManager.enumerator(
+            at: directoryURL,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return audioURLs
+        }
+
+        while let fileURL = enumerator.nextObject() as? URL {
+            if isSupportedAudioFile(fileURL) {
+                audioURLs.append(fileURL)
+            }
+        }
+        return audioURLs
+    }
 }

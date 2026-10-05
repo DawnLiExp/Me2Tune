@@ -163,8 +163,12 @@ struct AudioTrack: Identifiable, Equatable, Sendable {
         return resolved
     }
     
-    static func == (lhs: AudioTrack, rhs: AudioTrack) -> Bool {
-        lhs.id == rhs.id
+    nonisolated static func == (lhs: AudioTrack, rhs: AudioTrack) -> Bool {
+        lhs.id == rhs.id &&
+            lhs.title == rhs.title &&
+            lhs.artist == rhs.artist &&
+            lhs.albumTitle == rhs.albumTitle &&
+            lhs.duration == rhs.duration
     }
 }
 

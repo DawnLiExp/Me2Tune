@@ -19,6 +19,7 @@ struct PlaylistTabView: View {
     let onTrackRemoved: (Int) -> Void
     let onTrackMoved: (IndexSet, Int) -> Void
     let onFilesDrop: ([URL]) -> Void
+    let onShowTagEditor: (AudioTrack) -> Void
     
     @State private var draggingIndex: Int?
     @State private var dropTargetIndex: Int?
@@ -191,6 +192,12 @@ struct PlaylistTabView: View {
             onFilesDrop: onFilesDrop
         ))
         .contextMenu {
+            Button {
+                onShowTagEditor(track)
+            } label: {
+                Label(String(localized: "show_track_info", defaultValue: "显示简介"), systemImage: "info.circle")
+            }
+
             Button("show_in_finder") {
                 NSWorkspace.shared.activateFileViewerSelecting([track.url])
             }
@@ -350,7 +357,8 @@ enum PlaylistTab {
         onTrackSelected: { _ in },
         onTrackRemoved: { _ in },
         onTrackMoved: { _, _ in },
-        onFilesDrop: { _ in }
+        onFilesDrop: { _ in },
+        onShowTagEditor: { _ in }
     )
     .padding()
     .background(Color.black)

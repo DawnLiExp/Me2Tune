@@ -76,6 +76,10 @@ actor FileMetadataReader {
         return attributes?[.modificationDate] as? Date ?? .distantPast
     }
 
+    func invalidate(url: URL) {
+        cache.removeValue(forKey: url.path)
+    }
+
     private func evictIfNeeded() {
         guard cache.count >= maxCacheEntries else { return }
         cache.removeAll()

@@ -40,3 +40,5 @@ Tree.md
 
 # Local build artifacts and reports
 /output/
+/build/
+/dist/

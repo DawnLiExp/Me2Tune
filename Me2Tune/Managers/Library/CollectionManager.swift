@@ -39,7 +39,50 @@ final class CollectionManager {
 
     init(dataService: DataServiceProtocol = DataService.shared) {
         self.dataService = dataService
+        setupMetadataUpdateObserver()
         logger.debug("✅ CollectionManager initialized (SwiftData)")
+    }
+
+    private func setupMetadataUpdateObserver() {
+        NotificationCenter.default.addObserver(
+            forName: .audioTrackMetadataDidUpdate,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let url = notification.userInfo?["url"] as? URL,
+                  let metadata = notification.userInfo?["metadata"] as? DetailedAudioMetadata else { return }
+            self?.handleMetadataUpdate(url: url, metadata: metadata)
+        }
+    }
+
+    func handleMetadataUpdate(url: URL, metadata: DetailedAudioMetadata) {
+        var didUpdate = false
+        for i in albums.indices {
+            for j in albums[i].tracks.indices {
+                if albums[i].tracks[j].url == url {
+                    let oldTrack = albums[i].tracks[j]
+                    let newTitle = metadata.title.isEmpty ? oldTrack.title : metadata.title
+                    let newArtist = metadata.artist.isEmpty ? nil : metadata.artist
+                    let newAlbum = metadata.album.isEmpty ? nil : metadata.album
+
+                    let updatedTrack = AudioTrack(
+                        id: oldTrack.id,
+                        url: oldTrack.url,
+                        title: newTitle,
+                        artist: newArtist,
+                        albumTitle: newAlbum,
+                        duration: oldTrack.duration,
+                        format: oldTrack.format,
+                        bookmark: oldTrack.bookmark
+                    )
+                    albums[i].tracks[j] = updatedTrack
+                    didUpdate = true
+                }
+            }
+        }
+        if didUpdate {
+            logger.info("Updated collection track metadata for \(url.lastPathComponent)")
+        }
     }
 
     // MARK: - Delayed Loading

@@ -24,6 +24,7 @@ protocol DataServiceProtocol {
     
     func findTrack(byURL urlString: String) -> SDTrack?
     func findTrack(byStableId id: UUID) -> SDTrack?
+    func updateTrackMetadata(urlString: String, title: String, artist: String?, albumTitle: String?)
     func fetchPlaylistTracks() throws(AppError) -> [SDTrack]
     func playlistTrackCount() throws(AppError) -> Int
     

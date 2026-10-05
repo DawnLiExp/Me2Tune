@@ -19,6 +19,8 @@ final class PlaybackLoadController {
     private let repeatModeProvider: @MainActor () -> RepeatMode
     private let onPause: @MainActor () -> Void
     private let onTrackRequested: @MainActor (AudioTrack) -> Void
+    private let nextIndexProvider: @MainActor (_ baseIndex: Int, _ tracks: [AudioTrack], _ repeatMode: RepeatMode) -> Int?
+    private let nextValidIndexProvider: @MainActor (_ baseIndex: Int, _ tracks: [AudioTrack], _ repeatMode: RepeatMode, _ failedIDs: Set<UUID>) -> Int?
 
     var trackIndexBeforeGapless: Int?
     private(set) var generation = UUID()
@@ -35,7 +37,9 @@ final class PlaybackLoadController {
         persistenceController: PlaybackPersistenceController,
         repeatModeProvider: @escaping @MainActor () -> RepeatMode,
         onPause: @escaping @MainActor () -> Void,
-        onTrackRequested: @escaping @MainActor (AudioTrack) -> Void
+        onTrackRequested: @escaping @MainActor (AudioTrack) -> Void,
+        nextIndexProvider: (@MainActor (_ baseIndex: Int, _ tracks: [AudioTrack], _ repeatMode: RepeatMode) -> Int?)? = nil,
+        nextValidIndexProvider: (@MainActor (_ baseIndex: Int, _ tracks: [AudioTrack], _ repeatMode: RepeatMode, _ failedIDs: Set<UUID>) -> Int?)? = nil
     ) {
         self.playerCore = playerCore
         self.stateManager = stateManager
@@ -44,6 +48,18 @@ final class PlaybackLoadController {
         self.repeatModeProvider = repeatModeProvider
         self.onPause = onPause
         self.onTrackRequested = onTrackRequested
+        self.nextIndexProvider = nextIndexProvider ?? { baseIndex, tracks, repeatMode in
+            TrackNavigationPolicy.nextIndex(after: baseIndex, count: tracks.count, repeatMode: repeatMode)
+        }
+        self.nextValidIndexProvider = nextValidIndexProvider ?? { baseIndex, tracks, repeatMode, failedIDs in
+            TrackNavigationPolicy.nextValidIndex(
+                after: baseIndex,
+                tracks: tracks,
+                repeatMode: repeatMode,
+                failedIDs: failedIDs,
+                maxAttempts: tracks.count
+            )
+        }
     }
 
     func loadAndPlay(at index: Int, attempt: Int = 0) {
@@ -105,12 +121,11 @@ final class PlaybackLoadController {
         }
 
         let tracks = stateManager.currentTracks
-        guard let nextIndex = TrackNavigationPolicy.nextValidIndex(
-            after: index,
-            tracks: tracks,
-            repeatMode: repeatModeProvider(),
-            failedIDs: registry.snapshot(),
-            maxAttempts: tracks.count
+        guard let nextIndex = nextValidIndexProvider(
+            index,
+            tracks,
+            repeatModeProvider(),
+            registry.snapshot()
         ) else {
             logger.debug("No next valid track available")
             onPause()
@@ -133,9 +148,11 @@ final class PlaybackLoadController {
             guard let self, self.generation == generation, self.enqueueRequest == request else { return }
             var cursor = index
             var enqueued = false
-            while let next = TrackNavigationPolicy.nextValidIndex(
-                after: cursor, tracks: tracks, repeatMode: self.repeatModeProvider(),
-                failedIDs: self.registry.snapshot(), maxAttempts: tracks.count
+            while let next = self.nextValidIndexProvider(
+                cursor,
+                tracks,
+                self.repeatModeProvider(),
+                self.registry.snapshot()
             ) {
                 let track = tracks[next]
                 let success = await self.playerCore.enqueueTrack(track)
@@ -204,10 +221,10 @@ final class PlaybackLoadController {
         let tracks = stateManager.currentTracks
         guard !tracks.isEmpty else { return }
 
-        let expectedNext = TrackNavigationPolicy.nextIndex(
-            after: effectiveIndex,
-            count: tracks.count,
-            repeatMode: repeatMode
+        let expectedNext = nextIndexProvider(
+            effectiveIndex,
+            tracks,
+            repeatMode
         )
 
         if TrackNavigationPolicy.isGaplessAlreadyHandled(
@@ -218,9 +235,11 @@ final class PlaybackLoadController {
             return
         }
 
-        guard let nextIndex = TrackNavigationPolicy.nextValidIndex(
-            after: effectiveIndex, tracks: tracks, repeatMode: repeatMode,
-            failedIDs: registry.snapshot(), maxAttempts: tracks.count
+        guard let nextIndex = nextValidIndexProvider(
+            effectiveIndex,
+            tracks,
+            repeatMode,
+            registry.snapshot()
         ) else {
             logger.debug("Reached end of playlist")
             onPause()

@@ -141,6 +141,15 @@ final class DataService: DataServiceProtocol {
         return try? modelContext.fetch(descriptor).first
     }
 
+    func updateTrackMetadata(urlString: String, title: String, artist: String?, albumTitle: String?) {
+        if let track = findTrack(byURL: urlString) {
+            track.title = title
+            track.artist = artist
+            track.albumTitle = albumTitle
+            try? save()
+        }
+    }
+
     func fetchPlaylistTracks() throws(AppError) -> [SDTrack] {
         var descriptor = FetchDescriptor<SDTrack>(
             predicate: #Predicate { $0.isInPlaylist == true },

@@ -17,7 +17,14 @@ struct LyricsView: View {
     @State private var errorMessage: String?
     @State private var showLyricsSettings = false
     
+    // 吸附撞击微弹动效
+    @State private var snapBumpOffset: CGFloat = 0
+    @State private var snapScaleX: CGFloat = 1.0
+    @State private var dockHighlightOpacity: Double = 0.0
+    @State private var dockedEdge: LyricsDockEdge = .right
+    
     @State private var updateTimer: Timer?
+    @State private var ignoreTimerUntil: Date = .distantPast
 
     @AppStorage(LyricsDisplaySettingsKey.highlightSize)
     private var highlightSizeRaw = LyricsHighlightSize.s18.rawValue
@@ -86,13 +93,30 @@ struct LyricsView: View {
                 contentSection
                     .frame(maxHeight: .infinity)
             }
+            .offset(x: snapBumpOffset)
+            .scaleEffect(
+                x: snapScaleX,
+                y: 1.0,
+                anchor: dockedEdge == .right ? .leading : .trailing
+            )
+            
+            // 吸附接缝边缘微光闪现指示条
+            if dockHighlightOpacity > 0.001 {
+                dockSeamHighlight(edge: dockedEdge)
+                    .opacity(dockHighlightOpacity)
+            }
         }
-        .frame(width: 440, height: 800)
+        .frame(width: 440, height: 750)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showLyricsSettings)
         .contextMenu {
             @Bindable var settings = SettingsManager.shared
             Toggle(isOn: $settings.lyricsAlwaysOnTop) {
                 Label(String(localized: "always_on_top"), systemImage: "pin.fill")
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .lyricsWindowDidDock)) { notification in
+            if let edge = notification.userInfo?["edge"] as? LyricsDockEdge {
+                triggerMagneticBump(edge: edge)
             }
         }
         .task(id: playerViewModel.currentTrack?.id) {
@@ -110,6 +134,65 @@ struct LyricsView: View {
         .onDisappear {
             stopUpdateTimer()
         }
+    }
+    
+    // MARK: - Dock Animation Helpers
+    
+    private func triggerMagneticBump(edge: LyricsDockEdge) {
+        dockedEdge = edge
+        let bumpAmount: CGFloat = (edge == .right) ? -6.0 : 6.0
+        
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            snapBumpOffset = bumpAmount
+            snapScaleX = 0.985
+            dockHighlightOpacity = 0.85
+        }
+        
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated {
+                withAnimation(.spring(response: 0.30, dampingFraction: 0.52)) {
+                    snapBumpOffset = 0
+                    snapScaleX = 1.0
+                }
+                withAnimation(.easeOut(duration: 0.40)) {
+                    dockHighlightOpacity = 0.0
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func dockSeamHighlight(edge: LyricsDockEdge) -> some View {
+        HStack {
+            if edge == .right {
+                seamGlowBar
+                Spacer()
+            } else {
+                Spacer()
+                seamGlowBar
+            }
+        }
+        .allowsHitTesting(false)
+    }
+    
+    private var seamGlowBar: some View {
+        Rectangle()
+            .fill(
+                LinearGradient(
+                    colors: [
+                        themeColors.accent.opacity(0.0),
+                        themeColors.accent.opacity(0.95),
+                        themeColors.accent.opacity(0.0)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .frame(width: 3)
+            .blur(radius: 1.5)
+            .padding(.vertical, 20)
     }
     
     // MARK: - Header Section
@@ -252,7 +335,10 @@ struct LyricsView: View {
                             lineIndex: index,
                             currentLineIndex: currentLineIndex,
                             displaySettings: displaySettings,
-                            theme: themeColors
+                            theme: themeColors,
+                            onSeek: { line, index in
+                                seekToLine(line, at: index)
+                            }
                         )
                         .id(index)
                         .padding(.vertical, displaySettings.blockVerticalPadding)
@@ -494,6 +580,43 @@ struct LyricsView: View {
         }
     }
     
+    // MARK: - Seeking
+    
+    /// 计算某歌词行对应的实际跳转播放时间戳（已包含用户设置的时间偏移补偿与有效区间限制）
+    static func calculateSeekTime(
+        for line: LyricLine,
+        offset: Double,
+        duration: Double? = nil
+    ) -> TimeInterval {
+        let maxDuration = duration ?? .infinity
+        return max(0, min(line.timestamp + offset + 0.001, maxDuration))
+    }
+
+    private func seekToLine(_ line: LyricLine, at index: Int) {
+        let duration = playerViewModel.currentTrack?.duration
+        let targetTime = Self.calculateSeekTime(
+            for: line,
+            offset: displaySettings.timeOffset.offsetValue,
+            duration: duration
+        )
+        
+        // 1. 立即乐观更新当前高亮行
+        withAnimation(.easeOut(duration: 0.22)) {
+            currentLineIndex = index
+        }
+        
+        // 2. 短暂抑制定时器更新，防止底层解码延迟导致的高亮反向回跳
+        ignoreTimerUntil = Date().addingTimeInterval(0.5)
+        
+        // 3. 触发底层音频精准寻道
+        playerViewModel.seek(to: targetTime)
+        
+        // 4. 若当前处于暂停状态，自动恢复播放
+        if !playerViewModel.isPlaying {
+            playerViewModel.play()
+        }
+    }
+    
     // MARK: - Update Current Line
 
     /// 在给定歌词行列表中，找到最后一个 timestamp ≤ adjustedTime 的行索引
@@ -521,6 +644,7 @@ struct LyricsView: View {
     }
 
     private func updateCurrentLine(time: TimeInterval) {
+        guard Date() >= ignoreTimerUntil else { return }
         let newIndex = Self.findCurrentLineIndex(
             in: lyricLines,
             at: time,

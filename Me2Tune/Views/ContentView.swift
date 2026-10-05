@@ -33,6 +33,7 @@ struct ContentView: View {
     @State private var exportAlbumName = ""
     @State private var showClearPlaylistConfirm = false
     @State private var showClearCollectionsConfirm = false
+    @State private var tagEditorTrack: AudioTrack?
     
     // Full 窗口是否处于激活状态（非 Mini 模式）
     private var isFullModeActive: Bool {
@@ -44,7 +45,7 @@ struct ContentView: View {
             MigrationFailedView()
         } else {
             mainView
-                .frame(minHeight: 800, maxHeight: .infinity)
+                .frame(minHeight: 750, maxHeight: .infinity)
                 .preferredColorScheme(.dark)
                 .onDrop(of: [.fileURL], isTargeted: $isDragging) { providers in
                     handleDrop(providers: providers)
@@ -58,6 +59,20 @@ struct ContentView: View {
                     onClearPlaylist: playerViewModel.clearPlaylist,
                     onClearCollections: collectionManager.clearAllAlbums
                 ))
+                .sheet(item: $tagEditorTrack) { track in
+                    AudioTagEditorView(trackURL: track.url) {
+                        tagEditorTrack = nil
+                    }
+                }
+                .background {
+                    Button("") {
+                        if let track = playerViewModel.currentTrack {
+                            tagEditorTrack = track
+                        }
+                    }
+                    .keyboardShortcut("i", modifiers: .command)
+                    .opacity(0)
+                }
                 .onChange(of: playerViewModel.currentTrack?.id) { _, newID in
                     updateAlbumGlow(newID: newID)
                 }
@@ -99,23 +114,25 @@ struct ContentView: View {
         let canGoPrevious = viewModel.canGoPrevious
         let canGoNext = viewModel.canGoNext
         let repeatMode = viewModel.repeatMode
+        let isShuffleEnabled = viewModel.isShuffleEnabled
         let isRestoring = viewModel.isRestoring
         
         return VStack(spacing: 0) {
             TopBarSectionView(
+                currentTrack: currentTrack,
                 isRotationEnabled: $isRotationEnabled,
                 audioFormat: currentFormat,
                 onSearchTapped: {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         showSearchOverlay = true
                     }
+                },
+                onShowTagEditor: { track in
+                    tagEditorTrack = track
                 }
             )
-            .frame(height: 70)
+            .frame(height: 60)
             .padding(.horizontal, 12)
-            
-            Spacer()
-                .frame(height: 18)
             
             VinylSectionView(
                 artwork: currentArtwork,
@@ -125,7 +142,7 @@ struct ContentView: View {
                 isWindowVisible: isFullModeActive,
                 isRestoring: isRestoring
             )
-            .frame(height: 160)
+            .frame(height: 137)
             .padding(.horizontal, 12)
             
             ControlSectionView(
@@ -135,12 +152,14 @@ struct ContentView: View {
                 canGoPrevious: canGoPrevious,
                 canGoNext: canGoNext,
                 repeatMode: repeatMode,
+                isShuffleEnabled: isShuffleEnabled,
                 isRestoring: isRestoring,
                 onPlayPause: viewModel.togglePlayPause,
                 onPrevious: viewModel.previous,
                 onNext: viewModel.next,
                 onSeek: viewModel.seek,
                 onToggleRepeat: viewModel.toggleRepeatMode,
+                onToggleShuffle: viewModel.toggleShuffleMode,
                 volume: $viewModel.volume
             )
             .fixedSize(horizontal: false, vertical: true)
@@ -156,7 +175,10 @@ struct ContentView: View {
                 onClearPlaylist: { showClearPlaylistConfirm = true },
                 onClearCollections: { showClearCollectionsConfirm = true },
                 onOpenFilePicker: openFilePicker,
-                onPlaylistDrop: handlePlaylistDrop
+                onPlaylistDrop: handlePlaylistDrop,
+                onShowTagEditor: { track in
+                    tagEditorTrack = track
+                }
             )
             .padding(.horizontal, 12)
             .padding(.top, 12)
@@ -380,7 +402,7 @@ private struct MigrationFailedView: View {
             .buttonStyle(.borderedProminent)
         }
         .padding(40)
-        .frame(minWidth: 400, minHeight: 800)
+        .frame(minWidth: 400, minHeight: 750)
         .preferredColorScheme(.dark)
     }
 }
