@@ -14,6 +14,7 @@ private let logger = Logger.app
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    let dockingCoordinator = WindowDockingCoordinator()
     private var windowDelegate: WindowInterceptor?
     private var miniWindowController: MiniWindowController?
     
@@ -35,6 +36,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var windowStateMonitor: WindowStateMonitor?
     
     private var currentDisplayMode: DisplayMode = .full
+
+    func registerFullModeWindow(_ window: NSWindow) {
+        fullModeWindow = window
+        configureFullModeWindow()
+        if currentDisplayMode == .full {
+            dockingCoordinator.bindPlayer(window, mode: .full)
+        }
+    }
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         // ✅ 确保启动时总是Full模式
@@ -159,6 +168,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Cleanup
     
     private func cleanup() {
+        dockingCoordinator.shutdown()
         displayModeTask?.cancel()
         displayModeTask = nil
         
@@ -177,7 +187,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             miniWindowController?.show()
             logger.debug("🔄 Restored Mini window from Dock")
         } else {
+            if fullModeWindow?.isMiniaturized == true { fullModeWindow?.deminiaturize(nil) }
             fullModeWindow?.makeKeyAndOrderFront(nil)
+            dockingCoordinator.presentationChanged()
             logger.debug("🔄 Restored Full window from Dock")
         }
         
@@ -222,6 +234,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         
+        dockingCoordinator.prepareForPlayerChange()
         fullModeWindow?.orderOut(nil)
         
         windowStateMonitor?.forceSetState(.miniVisible)
@@ -229,7 +242,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if miniWindowController == nil {
             miniWindowController = MiniWindowController(
                 playerViewModel: playerViewModel,
-                windowStateMonitor: windowStateMonitor
+                windowStateMonitor: windowStateMonitor,
+                dockingCoordinator: dockingCoordinator
             )
         }
         miniWindowController?.show()
@@ -238,11 +252,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func switchToFullMode() {
+        dockingCoordinator.prepareForPlayerChange()
         miniWindowController?.close()
         miniWindowController = nil
         
         if let window = fullModeWindow {
+            if window.isMiniaturized { window.deminiaturize(nil) }
+            dockingCoordinator.bindPlayer(window, mode: .full)
             window.makeKeyAndOrderFront(nil)
+            dockingCoordinator.presentationChanged()
             windowStateMonitor?.forceSetState(.activeFocused)
             logger.info("🖥️ Switched to Full mode")
         } else {
@@ -298,12 +316,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// ✅ 优化：使用 switch 语句，更清晰的窗口类型判断
     private func handleCommandW(for window: NSWindow) {
+        if window === LyricsWindowController.shared.window {
+            dockingCoordinator.lyricsWillMiniaturize()
+            window.miniaturize(nil)
+            return
+        }
         switch window {
-        case let panel as NSPanel where panel.title.contains("歌词") || panel.title.contains("Lyrics"):
-            // 歌词窗口：隐藏而不是最小化（NSPanel 最小化不显示在 Dock）
-            window.orderOut(nil)
-            logger.debug("⌘+W → Hide Lyrics window")
-            
         case is NSPanel:
             // Mini 播放器窗口：隐藏
             window.orderOut(nil)

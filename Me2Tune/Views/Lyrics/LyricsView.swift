@@ -9,6 +9,8 @@ import SwiftUI
 
 struct LyricsView: View {
     @Environment(PlayerViewModel.self) private var playerViewModel
+    var windowState = LyricsWindowState()
+    var onDetach: () -> Void = {}
     
     @State private var lyrics: Lyrics?
     @State private var lyricLines: [LyricLine] = []
@@ -16,8 +18,6 @@ struct LyricsView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showLyricsSettings = false
-    
-    @State private var updateTimer: Timer?
 
     @AppStorage(LyricsDisplaySettingsKey.highlightSize)
     private var highlightSizeRaw = LyricsHighlightSize.s18.rawValue
@@ -91,8 +91,14 @@ struct LyricsView: View {
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showLyricsSettings)
         .contextMenu {
             @Bindable var settings = SettingsManager.shared
-            Toggle(isOn: $settings.lyricsAlwaysOnTop) {
-                Label(String(localized: "always_on_top"), systemImage: "pin.fill")
+            if windowState.isDocked {
+                Label(String(localized: "lyrics_follow_player_level"), systemImage: "pin.fill")
+                    .disabled(true)
+                Button(String(localized: "lyrics_detach"), action: onDetach)
+            } else {
+                Toggle(isOn: $settings.lyricsAlwaysOnTop) {
+                    Label(String(localized: "always_on_top"), systemImage: "pin.fill")
+                }
             }
         }
         .task(id: playerViewModel.currentTrack?.id) {
@@ -105,6 +111,9 @@ struct LyricsView: View {
             startUpdateTimer()
         }
         .onChange(of: playerViewModel.isPlaying) { _, _ in
+            startUpdateTimer()
+        }
+        .onChange(of: windowState.isVisible) { _, _ in
             startUpdateTimer()
         }
         .onDisappear {
@@ -405,23 +414,13 @@ struct LyricsView: View {
     // MARK: - Independent Update Timer
     
     private func startUpdateTimer() {
-        stopUpdateTimer()
-        refreshPlaybackPosition()
-        
-        let interval = 0.3
-        updateTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak playerViewModel] _ in
-            guard let playerViewModel else { return }
-            
-            Task { @MainActor in
-                updateCurrentLine(time: playerViewModel.getCurrentPlaybackTime())
-            }
+        windowState.refreshDriver.update(isVisible: windowState.isVisible) {
+            refreshPlaybackPosition()
         }
-        updateTimer?.tolerance = interval * 0.2
     }
     
     private func stopUpdateTimer() {
-        updateTimer?.invalidate()
-        updateTimer = nil
+        windowState.refreshDriver.stop()
     }
 
     private func refreshPlaybackPosition() {

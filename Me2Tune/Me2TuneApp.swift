@@ -41,9 +41,7 @@ struct Me2TuneApp: App {
                 .environment(playerViewModel)
                 .environment(\.playbackProgressState, playerViewModel.playbackProgressState)
                 .environment(collectionManager)
-                .onAppear {
-                    setupAppDelegate()
-                }
+                .background(MainWindowReader(onResolve: setupAppDelegate))
                 // ✅ 双保险：捕获 SwiftUI 层级的 URL 打开事件
                 // (AirDrop、Handoff、拖拽到 Dock 图标等场景可能走这里)
                 .onOpenURL { url in
@@ -76,17 +74,14 @@ struct Me2TuneApp: App {
     // MARK: - Setup
 
     /// ✅ 优化：更清晰的初始化顺序和日志
-    private func setupAppDelegate() {
-        guard let window = NSApp.windows.first else {
-            logger.error("❌ No main window found during setup")
-            return
-        }
+    private func setupAppDelegate(window: NSWindow) {
+        guard appDelegate.fullModeWindow !== window else { return }
 
         // 设置窗口标识符，用于后续查找
         window.identifier = NSUserInterfaceItemIdentifier("main")
 
         // ✅ 按依赖顺序设置 AppDelegate 属性
-        appDelegate.fullModeWindow = window
+        appDelegate.registerFullModeWindow(window)
         appDelegate.playerViewModel = playerViewModel
         appDelegate.collectionManager = collectionManager
 
@@ -98,8 +93,36 @@ struct Me2TuneApp: App {
         playerViewModel.injectWindowStateMonitor(monitor)
 
         // ✅ 设置歌词窗口控制器
-        LyricsWindowController.shared.setup(playerViewModel: playerViewModel)
+        LyricsWindowController.shared.setup(playerViewModel: playerViewModel, dockingCoordinator: appDelegate.dockingCoordinator)
 
         logger.info("🚀 App initialization complete - @Observable architecture active")
+    }
+}
+
+private struct MainWindowReader: NSViewRepresentable {
+    let onResolve: @MainActor (NSWindow) -> Void
+
+    func makeNSView(context: Context) -> ReaderView {
+        let view = ReaderView()
+        view.onResolve = onResolve
+        return view
+    }
+
+    func updateNSView(_ nsView: ReaderView, context: Context) {
+        nsView.onResolve = onResolve
+    }
+
+    final class ReaderView: NSView {
+        var onResolve: (@MainActor (NSWindow) -> Void)?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            guard let window else { return }
+            Task { @MainActor [weak self, weak window] in
+                await Task.yield()
+                guard let self, let window, self.window === window else { return }
+                self.onResolve?(window)
+            }
+        }
     }
 }

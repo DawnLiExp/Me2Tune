@@ -962,6 +962,38 @@
         }
       }
     },
+    "lyrics_detach" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Detach Lyrics"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "解除吸附"
+          }
+        }
+      }
+    },
+    "lyrics_follow_player_level" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Always on Top Follows Player"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "置顶跟随播放器"
+          }
+        }
+      }
+    },
     "lyrics_menu_item" : {
       "localizations" : {
         "en" : {

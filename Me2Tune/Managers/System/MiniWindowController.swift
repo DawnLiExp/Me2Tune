@@ -14,10 +14,12 @@ final class MiniWindowController {
     private var panel: NSPanel?
     private let playerViewModel: PlayerViewModel
     private weak var windowStateMonitor: WindowStateMonitor?
+    private weak var dockingCoordinator: WindowDockingCoordinator?
     
-    init(playerViewModel: PlayerViewModel, windowStateMonitor: WindowStateMonitor?) {
+    init(playerViewModel: PlayerViewModel, windowStateMonitor: WindowStateMonitor?, dockingCoordinator: WindowDockingCoordinator) {
         self.playerViewModel = playerViewModel
         self.windowStateMonitor = windowStateMonitor
+        self.dockingCoordinator = dockingCoordinator
     }
     
     // MARK: - Public Methods
@@ -38,10 +40,12 @@ final class MiniWindowController {
     
     func handleWindowHidden() {
         windowStateMonitor?.updateMiniWindowState(true)
+        dockingCoordinator?.presentationChanged()
     }
     
     func handleWindowVisible() {
         windowStateMonitor?.updateMiniWindowState(false)
+        dockingCoordinator?.presentationChanged()
     }
     
     // MARK: - Private Methods
@@ -64,6 +68,7 @@ final class MiniWindowController {
         )
         
         panel.controller = self
+        panel.identifier = NSUserInterfaceItemIdentifier("mini")
         
         panel.contentView = hostingView
         panel.isMovableByWindowBackground = true
@@ -80,26 +85,12 @@ final class MiniWindowController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenNone]
         panel.hidesOnDeactivate = false
         
-        setupAlwaysOnTopObserver(for: panel)
-        
         panel.center()
+        self.panel = panel
+        dockingCoordinator?.bindPlayer(panel, mode: .mini)
         panel.makeKeyAndOrderFront(nil)
         
         windowStateMonitor?.forceSetState(.miniVisible)
-        
-        self.panel = panel
-    }
-    
-    private func setupAlwaysOnTopObserver(for panel: NSPanel) {
-        withObservationTracking {
-            let alwaysOnTop = SettingsManager.shared.miniAlwaysOnTop
-            panel.level = alwaysOnTop ? .floating : .normal
-        } onChange: { [weak self, weak panel] in
-            Task { @MainActor in
-                guard let panel else { return }
-                self?.setupAlwaysOnTopObserver(for: panel)
-            }
-        }
     }
 }
 
@@ -128,23 +119,16 @@ private final class MiniPanel: NSPanel {
     
     override func orderOut(_ sender: Any?) {
         super.orderOut(sender)
-        // ✅ 在主线程调用controller方法
-        Task { @MainActor [weak controller] in
-            controller?.handleWindowHidden()
-        }
+        controller?.handleWindowHidden()
     }
     
     override func miniaturize(_ sender: Any?) {
         super.miniaturize(sender)
-        Task { @MainActor [weak controller] in
-            controller?.handleWindowHidden()
-        }
+        controller?.handleWindowHidden()
     }
     
     override func makeKeyAndOrderFront(_ sender: Any?) {
         super.makeKeyAndOrderFront(sender)
-        Task { @MainActor [weak controller] in
-            controller?.handleWindowVisible()
-        }
+        controller?.handleWindowVisible()
     }
 }

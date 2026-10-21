@@ -15,15 +15,18 @@ private let logger = Logger.lyrics
 final class LyricsWindowController {
     static let shared = LyricsWindowController()
     
-    private var window: NSWindow?
+    private(set) var window: NSWindow?
     private weak var playerViewModel: PlayerViewModel?
+    private weak var dockingCoordinator: WindowDockingCoordinator?
+    private var closeObserver: NSObjectProtocol?
     
     private init() {}
     
     // MARK: - Public Methods
     
-    func setup(playerViewModel: PlayerViewModel) {
+    func setup(playerViewModel: PlayerViewModel, dockingCoordinator: WindowDockingCoordinator) {
         self.playerViewModel = playerViewModel
+        self.dockingCoordinator = dockingCoordinator
     }
     
     func show() {
@@ -33,7 +36,9 @@ final class LyricsWindowController {
         }
         
         if let existingWindow = window {
+            if existingWindow.isMiniaturized { existingWindow.deminiaturize(nil) }
             existingWindow.makeKeyAndOrderFront(nil)
+            dockingCoordinator?.presentationChanged()
             return
         }
         
@@ -43,13 +48,16 @@ final class LyricsWindowController {
     
     func close() {
         window?.close()
-        window = nil
     }
     
     // MARK: - Private Methods
     
     private func createWindow(playerViewModel: PlayerViewModel) {
-        let contentView = LyricsView()
+        guard let dockingCoordinator else { return }
+        let windowState = LyricsWindowState()
+        let contentView = LyricsView(windowState: windowState, onDetach: { [weak dockingCoordinator] in
+            dockingCoordinator?.detach()
+        })
             .environment(playerViewModel)
         
         let hostingView = NSHostingView(rootView: contentView)
@@ -63,6 +71,7 @@ final class LyricsWindowController {
         )
         
         window.title = String(localized: "lyrics_window_title")
+        window.identifier = NSUserInterfaceItemIdentifier("lyrics")
         window.contentView = hostingView
         window.isReleasedWhenClosed = false
         window.center()
@@ -74,31 +83,26 @@ final class LyricsWindowController {
         window.standardWindowButton(.zoomButton)?.isEnabled = false
         window.standardWindowButton(.zoomButton)?.isHidden = true
         
-        setupAlwaysOnTopObserver(for: window)
-        
-        NotificationCenter.default.addObserver(
+        self.window = window
+        dockingCoordinator.bindLyrics(window, state: windowState)
+
+        closeObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification,
             object: window,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.window = nil
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.dockingCoordinator?.unbindLyrics()
+                self.window = nil
+                if let observer = self.closeObserver {
+                    NotificationCenter.default.removeObserver(observer)
+                    self.closeObserver = nil
+                }
             }
         }
         
         window.makeKeyAndOrderFront(nil)
-        self.window = window
-    }
-    
-    private func setupAlwaysOnTopObserver(for window: NSWindow) {
-        withObservationTracking {
-            let alwaysOnTop = SettingsManager.shared.lyricsAlwaysOnTop
-            window.level = alwaysOnTop ? .floating : .normal
-        } onChange: { [weak self, weak window] in
-            Task { @MainActor in
-                guard let window else { return }
-                self?.setupAlwaysOnTopObserver(for: window)
-            }
-        }
+        dockingCoordinator.presentationChanged()
     }
 }
