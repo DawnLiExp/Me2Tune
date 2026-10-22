@@ -147,14 +147,14 @@ final class TagEditorModel: Identifiable {
     }
 
     func requestClose() {
-        guard !isBusy else { return }
+        guard !isSaving else { return }
         if isDirty { showUnsavedPrompt = true }
         else { onDismiss() }
     }
 
     func requestTermination(reply: @escaping (Bool) -> Void) {
         terminationReply = reply
-        if isBusy { return }
+        if isSaving { return }
         if isDirty { showUnsavedPrompt = true }
         else { terminationReply = nil; reply(true) }
     }

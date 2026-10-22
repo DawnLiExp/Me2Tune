@@ -41,7 +41,7 @@ struct TagEditorView: View {
                 }
                 Spacer()
                 if model.isSaving { ProgressView().controlSize(.small) }
-                Button("cancel") { model.requestClose() }.keyboardShortcut(.cancelAction).disabled(model.isBusy)
+                Button("cancel") { model.requestClose() }.keyboardShortcut(.cancelAction).disabled(model.isSaving)
                 Button(model.player.hasPlaybackSession ? "tag_stop_save" : "tag_save") { model.save() }
                     .keyboardShortcut("s", modifiers: .command)
                     .disabled(!model.canSave)

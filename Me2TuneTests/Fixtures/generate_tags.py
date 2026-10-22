@@ -11,6 +11,7 @@ def chunk(kind, data):
     return struct.pack('>I',len(data)) + kind + data + struct.pack('>I',zlib.crc32(kind+data)&0xffffffff)
 png = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR',struct.pack('>2I5B',2,2,8,2,0,0,0)) + chunk(b'IDAT',zlib.compress((b'\0'+bytes([40,100,180])*2)*2)) + chunk(b'IEND',b'')
 (root / 'cover.png').write_bytes(png)
+subprocess.run(['ffmpeg','-v','error','-y','-i',str(root/'cover.png'),'-frames:v','1',str(root/'cover.jpg')],check=True)
 for name, codec, ext in [('id3v3','libmp3lame','mp3'),('id3v4','libmp3lame','mp3'),('vorbis','flac','flac'),('aac','aac','m4a'),('alac','alac','m4a')]:
     path = root / f'{name}.{ext}'
     subprocess.run(['ffmpeg','-v','error','-y','-f','lavfi','-i','sine=frequency=440:duration=0.2','-c:a',codec,str(path)],check=True)

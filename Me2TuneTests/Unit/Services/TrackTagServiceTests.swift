@@ -50,14 +50,22 @@ struct TrackTagServiceTests {
         let (url, service) = try setup(name)
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         let before = try await service.read(url: url)
-        let png = try Data(contentsOf: Self.fixtures.appendingPathComponent("cover.png"))
+        let jpeg = try Data(contentsOf: Self.fixtures.appendingPathComponent("cover.jpg"))
         let receipt = try await service.save(trackID: UUID(), baseline: before,
-            patch: TagPatch(fields: ["LYRICS":"[00:01.00] 新歌词\n[00:02.00] 第二行"], artworkChanged: true, artwork: png))
+            patch: TagPatch(fields: ["LYRICS":"[00:01.00] 新歌词\n[00:02.00] 第二行"], artworkChanged: true, artwork: jpeg))
         let after = try await service.read(url: url)
-        #expect(after.artwork == png)
+        #expect(after.artwork == jpeg)
         #expect(after.pictures.count == before.pictures.count)
         #expect(after.text(.lyrics).contains("新歌词"))
         try await service.finishSave(receipt: receipt)
+        let png = try Data(contentsOf: Self.fixtures.appendingPathComponent("cover.png"))
+        let cleared = try await service.save(trackID: UUID(), baseline: after,
+            patch: TagPatch(fields: ["LYRICS":""], artworkChanged: true, artwork: png))
+        let final = try await service.read(url: url)
+        #expect(final.artwork == png)
+        #expect(final.text(.lyrics).isEmpty)
+        #expect(final.pictures.dropFirst() == before.pictures.dropFirst())
+        try await service.finishSave(receipt: cleared)
     }
 
     @Test("Empty, invalid, multi-value, and conflicting patches never touch source")
