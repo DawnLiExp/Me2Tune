@@ -18,14 +18,13 @@ enum WindowDockingGeometry {
         case right, left, below, above
     }
 
-    static let gap: CGFloat = 6
     static let tolerance: CGFloat = 12
 
     static func edges(for mode: DisplayMode) -> [Edge] {
         mode == .full ? [.right, .left] : [.below, .above]
     }
 
-    static func frame(for edge: Edge, player: NSRect, lyricsSize: NSSize, scale: CGFloat) -> NSRect {
+    static func frame(for edge: Edge, player: NSRect, lyricsSize: NSSize, scale: CGFloat, gap: CGFloat = 6) -> NSRect {
         let origin: NSPoint
         switch edge {
         case .right: origin = NSPoint(x: player.maxX + gap, y: player.maxY - lyricsSize.height)
@@ -40,10 +39,10 @@ enum WindowDockingGeometry {
     }
 
     static func snapEdge(player: NSRect, lyrics: NSRect, mode: DisplayMode,
-                         visibleFrame: NSRect, scale: CGFloat) -> Edge? {
+                         visibleFrame: NSRect, scale: CGFloat, gap: CGFloat = 6) -> Edge? {
         var best: (edge: Edge, distance: CGFloat)?
         for edge in edges(for: mode) {
-            let target = frame(for: edge, player: player, lyricsSize: lyrics.size, scale: scale)
+            let target = frame(for: edge, player: player, lyricsSize: lyrics.size, scale: scale, gap: gap)
             let dx = abs(target.minX - lyrics.minX)
             let dy = abs(target.minY - lyrics.minY)
             guard visibleFrame.contains(target), dx <= tolerance, dy <= tolerance else { continue }
@@ -82,8 +81,12 @@ final class WindowDockingCoordinator {
     private var hiddenWithPlayer = false
     private var playerIsMinimizing = false
     private var transferDocking = false
+    private let settings: SettingsManager
+    private var observedSpacing: LyricsDockingSpacing
 
-    init() {
+    init(settings: SettingsManager = .shared) {
+        self.settings = settings
+        observedSpacing = settings.lyricsDockingSpacing
         observeWindowPolicy()
     }
 
@@ -151,26 +154,31 @@ final class WindowDockingCoordinator {
 
     func updateWindowPolicy() {
         if mode == .mini {
-            playerWindow?.level = SettingsManager.shared.miniAlwaysOnTop ? .floating : .normal
+            playerWindow?.level = settings.miniAlwaysOnTop ? .floating : .normal
         }
         guard let lyricsWindow else { return }
         if edge != nil, let playerWindow {
             lyricsWindow.level = playerWindow.level
             lyricsWindow.collectionBehavior = playerWindow.collectionBehavior
         } else {
-            lyricsWindow.level = SettingsManager.shared.lyricsAlwaysOnTop ? .floating : .normal
+            lyricsWindow.level = settings.lyricsAlwaysOnTop ? .floating : .normal
             lyricsWindow.collectionBehavior = originalCollectionBehavior
         }
     }
 
     private func observeWindowPolicy() {
         // One subscription per coordinator, not one lingering subscription per opened window.
-        withObservationTracking {
-            _ = SettingsManager.shared.lyricsAlwaysOnTop
-            _ = SettingsManager.shared.miniAlwaysOnTop
-            updateWindowPolicy()
+        let spacing = withObservationTracking {
+            _ = settings.lyricsAlwaysOnTop
+            _ = settings.miniAlwaysOnTop
+            return settings.lyricsDockingSpacing
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in self?.observeWindowPolicy() }
+        }
+        updateWindowPolicy()
+        if spacing != observedSpacing {
+            observedSpacing = spacing
+            revalidateDocking()
         }
     }
 
@@ -215,7 +223,7 @@ final class WindowDockingCoordinator {
               !lyricsWindow.isMiniaturized else { return }
         guard let edge = WindowDockingGeometry.snapEdge(
             player: playerWindow.frame, lyrics: lyricsWindow.frame, mode: mode,
-            visibleFrame: screen.visibleFrame, scale: screen.backingScaleFactor
+            visibleFrame: screen.visibleFrame, scale: screen.backingScaleFactor, gap: settings.lyricsDockingSpacing.gap
         ) else { return }
         attach(at: edge, screen: screen)
     }
@@ -234,7 +242,8 @@ final class WindowDockingCoordinator {
         }
         for edge in candidates {
             let frame = WindowDockingGeometry.frame(for: edge, player: playerWindow.frame,
-                                                    lyricsSize: lyricsWindow.frame.size, scale: screen.backingScaleFactor)
+                                                    lyricsSize: lyricsWindow.frame.size, scale: screen.backingScaleFactor,
+                                                    gap: settings.lyricsDockingSpacing.gap)
             if screen.visibleFrame.contains(frame) {
                 attach(at: edge, screen: screen)
                 return
@@ -247,7 +256,8 @@ final class WindowDockingCoordinator {
     private func attach(at edge: Edge, screen: NSScreen) {
         guard let playerWindow, let lyricsWindow else { return }
         let target = WindowDockingGeometry.frame(for: edge, player: playerWindow.frame,
-                                                 lyricsSize: lyricsWindow.frame.size, scale: screen.backingScaleFactor)
+                                                 lyricsSize: lyricsWindow.frame.size, scale: screen.backingScaleFactor,
+                                                 gap: settings.lyricsDockingSpacing.gap)
         moveLyrics(to: target.origin)
         self.edge = edge
         lyricsState.isDocked = true

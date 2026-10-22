@@ -978,6 +978,54 @@
         }
       }
     },
+    "lyrics_docking_spacing" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Docking Spacing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "吸附间距"
+          }
+        }
+      }
+    },
+    "lyrics_docking_spaced" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spaced"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "留间距"
+          }
+        }
+      }
+    },
+    "lyrics_docking_flush" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flush"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "紧贴"
+          }
+        }
+      }
+    },
     "lyrics_follow_player_level" : {
       "localizations" : {
         "en" : {

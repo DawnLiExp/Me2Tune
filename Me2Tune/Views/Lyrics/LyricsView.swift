@@ -91,6 +91,12 @@ struct LyricsView: View {
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showLyricsSettings)
         .contextMenu {
             @Bindable var settings = SettingsManager.shared
+            Picker(String(localized: "lyrics_docking_spacing"), selection: $settings.lyricsDockingSpacing) {
+                Text("lyrics_docking_spaced").tag(LyricsDockingSpacing.spaced)
+                Text("lyrics_docking_flush").tag(LyricsDockingSpacing.flush)
+            }
+            .pickerStyle(.menu)
+            Divider()
             if windowState.isDocked {
                 Label(String(localized: "lyrics_follow_player_level"), systemImage: "pin.fill")
                     .disabled(true)

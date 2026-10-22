@@ -20,14 +20,14 @@ struct WindowDockingCoordinatorTests {
         }
     }
 
-    @Test("吸附需要横纵都在 12 pt 内", arguments: [0.0, 12.0, 12.01, -12.0, -12.01])
-    func snapTolerance(offset: Double) {
+    @Test("两档吸附均需要横纵都在 12 pt 内", arguments: [0.0, 12.0, 12.01, -12.0, -12.01], [0.0, 6.0])
+    func snapTolerance(offset: Double, gap: Double) {
         let player = NSRect(x: 100, y: 500, width: 200, height: 150)
         let screen = NSRect(x: 0, y: 0, width: 1400, height: 1000)
         for delta in [NSPoint(x: offset, y: 0), NSPoint(x: 0, y: offset)] {
-            let lyrics = NSRect(x: 306 + delta.x, y: 550 + delta.y, width: 100, height: 100)
+            let lyrics = NSRect(x: 300 + gap + delta.x, y: 550 + delta.y, width: 100, height: 100)
             let result = WindowDockingGeometry.snapEdge(player: player, lyrics: lyrics, mode: .full,
-                                                        visibleFrame: screen, scale: 1)
+                                                        visibleFrame: screen, scale: 1, gap: gap)
             #expect(result == (abs(offset) <= 12 ? .right : nil))
         }
     }
@@ -86,7 +86,7 @@ struct WindowDockingCoordinatorTests {
         #expect(lyrics.parent == nil)
         #expect(!coordinator.lyricsState.isDocked)
         #expect(lyrics.collectionBehavior == independentBehavior)
-        #expect(lyrics.level == (SettingsManager.shared.lyricsAlwaysOnTop ? .floating : .normal))
+        #expect(lyrics.level == .normal)
     }
 
     @Test("程序定位不启动拖动，窗口缩放后重新顶部对齐")
@@ -189,7 +189,7 @@ struct WindowDockingCoordinatorTests {
         coordinator.unbindLyrics()
         player.level = .statusBar
         coordinator.bindPlayer(player, mode: .mini)
-        #expect(player.level == (SettingsManager.shared.miniAlwaysOnTop ? .floating : .normal))
+        #expect(player.level == .normal)
         #expect(coordinator.observationCount == 0)
     }
 
@@ -263,8 +263,8 @@ struct WindowDockingCoordinatorTests {
         }
     }
 
-    @Test("真实 AppKit 窗口原生跟随、隐藏和恢复", arguments: [false, true])
-    func nativeWindowGroup(isMini: Bool) throws {
+    @Test("两档间距的真实窗口跟随、隐藏和恢复", arguments: [false, true], LyricsDockingSpacing.allCases)
+    func nativeWindowGroup(isMini: Bool, spacing: LyricsDockingSpacing) throws {
         let screen = try #require(NSScreen.main).visibleFrame
         let playerFrame = NSRect(x: screen.midX - 220, y: screen.midY, width: 180, height: 100)
         let player: NSWindow
@@ -280,7 +280,12 @@ struct WindowDockingCoordinatorTests {
                               styleMask: [.titled, .miniaturizable], backing: .buffered, defer: false)
         player.isReleasedWhenClosed = false
         lyrics.isReleasedWhenClosed = false
-        let coordinator = WindowDockingCoordinator()
+        let suite = "Me2Tune.DockingTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SettingsManager(defaults: defaults)
+        settings.lyricsDockingSpacing = spacing
+        let coordinator = WindowDockingCoordinator(settings: settings)
         defer {
             coordinator.shutdown()
             lyrics.close()
@@ -290,11 +295,14 @@ struct WindowDockingCoordinatorTests {
         lyrics.orderFront(nil)
         lyrics.setFrameOrigin(WindowDockingGeometry.frame(for: isMini ? .below : .right, player: player.frame,
                                                            lyricsSize: lyrics.frame.size,
-                                                           scale: try #require(player.screen).backingScaleFactor).origin)
+                                                           scale: try #require(player.screen).backingScaleFactor,
+                                                           gap: spacing.gap).origin)
         coordinator.bindPlayer(player, mode: isMini ? .mini : .full)
         coordinator.bindLyrics(lyrics)
         coordinator.snapLyricsIfClose()
         #expect(lyrics.parent === player)
+        #expect(isMini ? player.frame.minY - lyrics.frame.maxY == spacing.gap
+                : lyrics.frame.minX - player.frame.maxX == spacing.gap)
         let oldOrigin = lyrics.frame.origin
         player.setFrameOrigin(NSPoint(x: player.frame.minX + 20, y: player.frame.minY - 20))
         #expect(lyrics.frame.origin == NSPoint(x: oldOrigin.x + 20, y: oldOrigin.y - 20))
@@ -308,14 +316,99 @@ struct WindowDockingCoordinatorTests {
         #expect(lyrics.parent === player)
     }
 
-    private func makePair() throws -> (WindowDockingCoordinator, DockingTestWindow, DockingTestWindow) {
+    @Test("间距默认留空、保存两档并在重新读取时恢复，无效值回退")
+    func spacingPersistence() throws {
+        let suite = "Me2Tune.DockingTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SettingsManager(defaults: defaults)
+        #expect(settings.lyricsDockingSpacing == .spaced)
+        settings.lyricsDockingSpacing = .flush
+        #expect(SettingsManager(defaults: defaults).lyricsDockingSpacing == .flush)
+        settings.lyricsDockingSpacing = .spaced
+        #expect(SettingsManager(defaults: defaults).lyricsDockingSpacing == .spaced)
+        defaults.set("unknown", forKey: "lyricsDockingSpacing")
+        #expect(SettingsManager(defaults: defaults).lyricsDockingSpacing == .spaced)
+    }
+
+    @Test("切换间距仅移动已吸附歌词，模式切换和重开沿用选择")
+    func spacingChangesWhileDocked() async throws {
+        let suite = "Me2Tune.DockingTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SettingsManager(defaults: defaults)
+        let (coordinator, player, lyrics) = try makePair(settings: settings)
+        defer { coordinator.shutdown() }
+        coordinator.snapLyricsIfClose()
+        let anchorFrame = player.frame
+        settings.lyricsDockingSpacing = .flush
+        // The Observation callback hops once to MainActor after the setter completes.
+        for _ in 0..<100 where lyrics.frame.minX != player.frame.maxX { await Task.yield() }
+        #expect(lyrics.frame.minX == player.frame.maxX)
+        #expect(player.frame == anchorFrame)
+        #expect(lyrics.parent === player)
+        #expect(!coordinator.isTrackingDrag)
+        let mini = DockingTestWindow(frame: anchorFrame)
+        coordinator.prepareForPlayerChange()
+        coordinator.bindPlayer(mini, mode: .mini)
+        #expect(lyrics.frame.maxY == mini.frame.minY)
+        settings.lyricsDockingSpacing = .spaced
+        for _ in 0..<100 where mini.frame.minY - lyrics.frame.maxY != 6 { await Task.yield() }
+        #expect(mini.frame.minY - lyrics.frame.maxY == 6)
+        #expect(mini.frame == anchorFrame)
+        coordinator.unbindLyrics()
+        coordinator.bindLyrics(lyrics)
+        #expect(coordinator.edge == nil)
+        #expect(settings.lyricsDockingSpacing == .spaced)
+        coordinator.snapLyricsIfClose()
+        #expect(coordinator.edge == .below)
+        #expect(mini.frame.minY - lyrics.frame.maxY == 6)
+    }
+
+    @Test("自由窗口修改偏好不移动、不主动吸附")
+    func spacingChangesWhileDetached() async throws {
+        let suite = "Me2Tune.DockingTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SettingsManager(defaults: defaults)
+        let (coordinator, player, lyrics) = try makePair(settings: settings)
+        defer { coordinator.shutdown() }
+        let original = lyrics.frame
+        settings.lyricsDockingSpacing = .flush
+        for _ in 0..<10 { await Task.yield() }
+        #expect(lyrics.frame == original)
+        #expect(coordinator.edge == nil)
+        #expect(lyrics.parent == nil)
+        coordinator.snapLyricsIfClose()
+        #expect(lyrics.frame.minX == player.frame.maxX)
+    }
+
+    @Test("四方向紧贴与屏幕边缘不多留六点空间")
+    func flushGeometryAndScreenEdge() {
+        let player = NSRect(x: 100, y: 200, width: 200, height: 100)
+        let size = NSSize(width: 100, height: 80)
+        for (edge, origin) in [(WindowDockingGeometry.Edge.right, NSPoint(x: 300, y: 220)),
+                               (.left, NSPoint(x: 0, y: 220)), (.below, NSPoint(x: 100, y: 120)),
+                               (.above, NSPoint(x: 100, y: 300))] {
+            #expect(WindowDockingGeometry.frame(for: edge, player: player, lyricsSize: size, scale: 2, gap: 0).origin == origin)
+        }
+        let lyrics = NSRect(x: 300, y: 220, width: 100, height: 80)
+        let screen = NSRect(x: 0, y: 0, width: 400, height: 400)
+        #expect(WindowDockingGeometry.snapEdge(player: player, lyrics: lyrics, mode: .full,
+                                               visibleFrame: screen, scale: 2, gap: 0) == .right)
+        #expect(WindowDockingGeometry.snapEdge(player: player, lyrics: lyrics, mode: .full,
+                                               visibleFrame: screen, scale: 2, gap: 6) == nil)
+    }
+
+    private func makePair(settings: SettingsManager? = nil) throws -> (WindowDockingCoordinator, DockingTestWindow, DockingTestWindow) {
         let screen = try #require(NSScreen.main).visibleFrame
         let player = DockingTestWindow(frame: NSRect(x: screen.minX + screen.width / 3,
                                                     y: screen.minY + screen.height / 2,
                                                     width: 180, height: 100))
         let lyrics = DockingTestWindow(frame: NSRect(x: player.frame.maxX + 6, y: player.frame.maxY - 80,
                                                     width: 100, height: 80))
-        let coordinator = WindowDockingCoordinator()
+        let defaults = try #require(UserDefaults(suiteName: "Me2Tune.DockingTests.\(UUID().uuidString)"))
+        let coordinator = WindowDockingCoordinator(settings: settings ?? SettingsManager(defaults: defaults))
         coordinator.bindPlayer(player, mode: .full)
         coordinator.bindLyrics(lyrics)
         return (coordinator, player, lyrics)
