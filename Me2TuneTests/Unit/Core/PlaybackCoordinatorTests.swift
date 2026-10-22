@@ -23,7 +23,8 @@ struct PlaybackCoordinatorTests {
             collectionManager: collectionManager,
             dataService: dataService,
             statisticsManager: statistics,
-            playerCore: playerCore
+            playerCore: playerCore,
+            defaults: try #require(UserDefaults(suiteName: "Me2TuneCoordinatorTests.\(UUID())"))
         )
 
         let tracks = makeTracks(count: 3)
@@ -51,7 +52,8 @@ struct PlaybackCoordinatorTests {
             collectionManager: collectionManager,
             dataService: dataService,
             statisticsManager: statistics,
-            playerCore: playerCore
+            playerCore: playerCore,
+            defaults: try #require(UserDefaults(suiteName: "Me2TuneCoordinatorTests.\(UUID())"))
         )
 
         let tracks = makeTracks(count: 1)
@@ -78,7 +80,8 @@ struct PlaybackCoordinatorTests {
             collectionManager: collectionManager,
             dataService: dataService,
             statisticsManager: statistics,
-            playerCore: playerCore
+            playerCore: playerCore,
+            defaults: try #require(UserDefaults(suiteName: "Me2TuneCoordinatorTests.\(UUID())"))
         )
 
         let tracks = makeTracks(count: 2)
@@ -104,7 +107,8 @@ struct PlaybackCoordinatorTests {
             collectionManager: collectionManager,
             dataService: dataService,
             statisticsManager: statistics,
-            playerCore: playerCore
+            playerCore: playerCore,
+            defaults: try #require(UserDefaults(suiteName: "Me2TuneCoordinatorTests.\(UUID())"))
         )
 
         let tracks = makeTracks(count: 3)
@@ -140,7 +144,8 @@ struct PlaybackCoordinatorTests {
             collectionManager: collectionManager,
             dataService: dataService,
             statisticsManager: statistics,
-            playerCore: playerCore
+            playerCore: playerCore,
+            defaults: try #require(UserDefaults(suiteName: "Me2TuneCoordinatorTests.\(UUID())"))
         )
 
         let trackA = AudioTrack(
@@ -197,7 +202,8 @@ struct PlaybackCoordinatorTests {
             collectionManager: collectionManager,
             dataService: dataService,
             statisticsManager: statistics,
-            playerCore: playerCore
+            playerCore: playerCore,
+            defaults: try #require(UserDefaults(suiteName: "Me2TuneCoordinatorTests.\(UUID())"))
         )
 
         coordinator.playPlaylistTrack(at: 0)
@@ -232,7 +238,8 @@ struct PlaybackCoordinatorTests {
             collectionManager: collectionManager,
             dataService: dataService,
             statisticsManager: statistics,
-            playerCore: playerCore
+            playerCore: playerCore,
+            defaults: try #require(UserDefaults(suiteName: "Me2TuneCoordinatorTests.\(UUID())"))
         )
 
         let track = AudioTrack(
@@ -272,7 +279,8 @@ struct PlaybackCoordinatorTests {
             collectionManager: collectionManager,
             dataService: dataService,
             statisticsManager: statistics,
-            playerCore: playerCore
+            playerCore: playerCore,
+            defaults: try #require(UserDefaults(suiteName: "Me2TuneCoordinatorTests.\(UUID())"))
         )
 
         let tracks = [
@@ -348,6 +356,152 @@ struct PlaybackCoordinatorTests {
         #expect(await waitUntil { statistics.incrementCount == 1 })
     }
 
+    @Test("随机只使用实际来源，切换来源保留开关并清除历史")
+    func shuffleSourceIsolation() async throws {
+        let (coordinator, core, _) = try playlistCoordinator(count: 4)
+        coordinator.toggleShuffle()
+        coordinator.playPlaylistTrack(at: 1)
+        #expect(await waitUntil { core.playCallCount == 1 })
+        let playlistIDs = Set(coordinator.playlistManager.tracks.map(\.id))
+        #expect(Set(coordinator.playbackOrder.ids) == playlistIDs)
+        let album = makeAlbum(with: makeTracks(count: 3))
+        coordinator.playAlbum(album, startAt: 2)
+        #expect(await waitUntil { core.playCallCount == 2 })
+        #expect(coordinator.isShuffling)
+        #expect(coordinator.playbackOrder.history == [album.tracks[2].id])
+        #expect(Set(coordinator.playbackOrder.ids) == Set(album.tracks.map(\.id)))
+        coordinator.clearPlaylist()
+        #expect(Set(coordinator.playbackOrder.ids) == Set(album.tracks.map(\.id)))
+        #expect(coordinator.isPlaying)
+    }
+
+    @Test("连续切换随机和循环保留同一已提交后继，手动切歌立即执行新模式")
+    func submittedSuccessorSurvivesModes() async throws {
+        let (coordinator, core, _) = try playlistCoordinator(count: 4)
+        let tracks = coordinator.playlistManager.tracks
+        coordinator.playPlaylistTrack(at: 0)
+        #expect(await waitUntil { core.playCallCount == 1 })
+        coordinator.playerCoreDecodingComplete(for: tracks[0])
+        #expect(await waitUntil { core.enqueueTrackCallIDs.count == 1 })
+        coordinator.toggleShuffle()
+        coordinator.repeatMode = .one
+        coordinator.toggleShuffle()
+        coordinator.toggleShuffle()
+        #expect(core.enqueueTrackCallIDs == [tracks[1].id])
+        #expect(core.loadTrackCallIDs == [tracks[0].id])
+        coordinator.playerCoreNowPlayingChanged(to: tracks[1])
+        #expect(coordinator.playbackOrder.currentID == tracks[1].id)
+        coordinator.next()
+        #expect(await waitUntil { core.playCallCount == 2 })
+        #expect(core.loadTrackCallIDs.last != tracks[1].id)
+        #expect(coordinator.playbackStateManager.playingSource == .playlist)
+    }
+
+    @Test("删除已提交后继恢复进度，删除当前曲目与清空使旧播放失效")
+    func deletionStopsQueuedPlayback() async throws {
+        let (coordinator, core, _) = try playlistCoordinator(count: 3)
+        let tracks = coordinator.playlistManager.tracks
+        coordinator.playPlaylistTrack(at: 0)
+        #expect(await waitUntil { core.playCallCount == 1 })
+        coordinator.playerCoreDecodingComplete(for: tracks[0])
+        #expect(await waitUntil { core.enqueueTrackCallIDs.count == 1 })
+        core.confirmSeek(to: 30)
+        coordinator.pause()
+        coordinator.removeTrackFromPlaylist(at: 1)
+        #expect(await waitUntil { core.loadTrackCallIDs.count == 2 })
+        #expect(core.loadTrackCallIDs == [tracks[0].id, tracks[0].id])
+        #expect(core.getCurrentPlaybackTime() == 30)
+        #expect(!core.isPlaying)
+        #expect(!coordinator.playbackOrder.ids.contains(tracks[1].id))
+        coordinator.removeTrackFromPlaylist(at: 0)
+        #expect(coordinator.playbackStateManager.currentTrackID == nil)
+        #expect(!core.isPlaying)
+        coordinator.clearPlaylist()
+        #expect(coordinator.playbackOrder.ids.isEmpty)
+    }
+
+    @Test("切歌等待时排序通过 ID 提交，连续下一首仅最后请求生效")
+    func rapidNavigationAndReorder() async throws {
+        let (coordinator, core, _) = try playlistCoordinator(count: 4)
+        let tracks = coordinator.playlistManager.tracks
+        coordinator.playPlaylistTrack(at: 0)
+        #expect(await waitUntil { core.playCallCount == 1 })
+        core.loadDelay = .milliseconds(80)
+        coordinator.next()
+        coordinator.next()
+        coordinator.moveTrackInPlaylist(from: 2, to: 0)
+        #expect(await waitUntil { core.playCallCount == 2 })
+        #expect(coordinator.playbackStateManager.currentTrackID == tracks[2].id)
+        #expect(core.loadTrackCallIDs.last == tracks[2].id)
+        #expect(coordinator.playbackOrder.history == [tracks[0].id, tracks[2].id])
+    }
+
+    @Test("只记住随机开关，首次播放加载曲目且不提前自动播放")
+    func shufflePreferenceAndFirstPlay() async throws {
+        let (coordinator, core, defaults) = try playlistCoordinator(count: 3)
+        #expect(!coordinator.isShuffling)
+        coordinator.toggleShuffle()
+        #expect(defaults.bool(forKey: "shuffleEnabled"))
+        #expect(core.playCallCount == 0)
+        coordinator.play()
+        #expect(await waitUntil { core.playCallCount == 1 })
+        #expect(core.loadTrackCallIDs.count == 1)
+        let data = try createTestDataService()
+        let restored = PlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
+                                           dataService: data, statisticsManager: MockStatisticsManager(),
+                                           playerCore: MockAudioPlayerCore(), defaults: defaults)
+        #expect(restored.isShuffling)
+        #expect(restored.playbackOrder.history.isEmpty)
+    }
+
+    @Test("恢复旧会话保持当前曲目与暂停状态，随机历史重新建立")
+    func restoredSessionStartsFreshRound() async throws {
+        let (original, core, defaults) = try playlistCoordinator(count: 3)
+        original.toggleShuffle()
+        original.playPlaylistTrack(at: 1)
+        #expect(await waitUntil { core.playCallCount == 1 })
+        original.saveState()
+        let data = try createTestDataService()
+        let tracks = original.playlistManager.tracks
+        for (index, track) in tracks.enumerated() {
+            let stored = SDTrack(from: track)
+            stored.isInPlaylist = true
+            stored.playlistOrder = index
+            data.insert(stored)
+        }
+        try data.save()
+        let restoredCore = MockAudioPlayerCore()
+        let restored = PlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
+                                           dataService: data, statisticsManager: MockStatisticsManager(),
+                                           playerCore: restoredCore, defaults: defaults)
+        #expect(await restored.restoreState())
+        #expect(restoredCore.playCallCount == 0)
+        #expect(restored.playbackStateManager.currentTrackID == tracks[1].id)
+        #expect(restored.isShuffling)
+        #expect(restored.playbackOrder.history.isEmpty)
+        restored.play()
+        #expect(restoredCore.playCallCount == 1)
+        #expect(restored.playbackOrder.history == [tracks[1].id])
+        #expect(restoredCore.loadTrackCallIDs == [tracks[1].id])
+    }
+
+    private func playlistCoordinator(count: Int) throws -> (PlaybackCoordinator, MockAudioPlayerCore, UserDefaults) {
+        let data = try createTestDataService()
+        for (index, track) in makeTracks(count: count).enumerated() {
+            let stored = SDTrack(from: track)
+            stored.isInPlaylist = true
+            stored.playlistOrder = index
+            data.insert(stored)
+        }
+        try data.save()
+        let defaults = try #require(UserDefaults(suiteName: "Me2TuneShuffleTests.\(UUID())"))
+        let core = MockAudioPlayerCore()
+        let coordinator = PlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
+                                              dataService: data, statisticsManager: MockStatisticsManager(),
+                                              playerCore: core, defaults: defaults)
+        return (coordinator, core, defaults)
+    }
+
     private func makeTracks(count: Int) -> [AudioTrack] {
         (0..<count).map { index in
             AudioTrack(
@@ -414,6 +568,7 @@ private final class MockAudioPlayerCore: AudioPlayerCoreProtocol {
     var isPlaying = false
     var repeatMode: RepeatMode = .off
 
+    private var loadedTrack: AudioTrack?
     var loadResults: [UUID: Bool] = [:]
     var loadDelay: Duration?
     var automaticallyConfirmsSeek = true
@@ -424,28 +579,35 @@ private final class MockAudioPlayerCore: AudioPlayerCoreProtocol {
 
     private var currentTime: TimeInterval = 0
 
-    func loadTrack(_ track: AudioTrack) async -> Bool {
+    func loadTrack(_ track: AudioTrack, startingAt time: TimeInterval = 0) async -> Bool {
+        loadedTrack = track
         loadTrackCallIDs.append(track.id)
-        currentTime = 0
+        currentTime = time
         if let loadDelay {
             try? await Task.sleep(for: loadDelay)
         }
         return loadResults[track.id] ?? true
     }
 
-    func enqueueTrack(_ track: AudioTrack) async -> Bool {
+    func enqueueTrack(_ track: AudioTrack) -> AudioEnqueueResult {
         enqueueTrackCallIDs.append(track.id)
-        return true
+        return .enqueued(track.id)
     }
 
     func play() {
         isPlaying = true
         playCallCount += 1
+        delegate?.playerCoreDidUpdatePlaybackState(true)
+        if let loadedTrack {
+            self.loadedTrack = nil
+            delegate?.playerCoreNowPlayingChanged(to: loadedTrack)
+        }
     }
 
     func pause() {
         isPlaying = false
         pauseCallCount += 1
+        delegate?.playerCoreDidUpdatePlaybackState(false)
     }
 
     func seek(to time: TimeInterval) {
@@ -461,6 +623,9 @@ private final class MockAudioPlayerCore: AudioPlayerCoreProtocol {
 
     func prepareForTrackSwitch() {
         currentTime = 0
+        loadedTrack = nil
+        isPlaying = false
+        delegate?.playerCoreDidUpdatePlaybackState(false)
     }
 
     func getCurrentPlaybackTime() -> TimeInterval {

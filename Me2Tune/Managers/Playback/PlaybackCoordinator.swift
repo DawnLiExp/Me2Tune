@@ -35,7 +35,19 @@ final class PlaybackCoordinator {
     var repeatMode: RepeatMode = .off {
         didSet {
             playerCore.repeatMode = repeatMode
+            loadController.modesChanged()
         }
+    }
+
+    let playbackOrder = PlaybackOrderState()
+    @ObservationIgnored private let defaults: UserDefaults
+    var isShuffling: Bool { playbackOrder.isShuffling }
+
+    func toggleShuffle() {
+        loadController.synchronizeOrder()
+        playbackOrder.setShuffling(!isShuffling)
+        defaults.set(isShuffling, forKey: "shuffleEnabled")
+        loadController.modesChanged()
     }
 
     var volume: Double = 0.7 {
@@ -54,15 +66,12 @@ final class PlaybackCoordinator {
     }
 
     var canGoPrevious: Bool {
-        guard playbackStateManager.currentTrackIndex != nil else { return false }
-        if repeatMode == .all { return !playbackStateManager.currentTracks.isEmpty }
-        return playbackStateManager.canGoPrevious
+        playbackOrder.previous(repeatMode: repeatMode, failed: failedTrackRegistry.snapshot()) != nil
     }
 
     var canGoNext: Bool {
-        guard playbackStateManager.currentTrackIndex != nil else { return false }
-        if repeatMode == .all { return !playbackStateManager.currentTracks.isEmpty }
-        return playbackStateManager.canGoNext
+        playbackOrder.next(repeatMode: repeatMode, automatic: false,
+                           failed: failedTrackRegistry.snapshot()) != nil
     }
 
     @ObservationIgnored private let playerCore: any AudioPlayerCoreProtocol
@@ -84,13 +93,16 @@ final class PlaybackCoordinator {
         collectionManager: CollectionManager,
         dataService: DataServiceProtocol = DataService.shared,
         statisticsManager: some StatisticsManagerProtocol = StatisticsManager.shared,
-        playerCore: (any AudioPlayerCoreProtocol)? = nil
+        playerCore: (any AudioPlayerCoreProtocol)? = nil,
+        defaults: UserDefaults = .standard
     ) {
+        self.defaults = defaults
         self.playlistManager = PlaylistManager(dataService: dataService)
         self.playbackStateManager = PlaybackStateManager(
             playlistManager: self.playlistManager,
             collectionManager: collectionManager,
-            dataService: dataService
+            dataService: dataService,
+            sessionStore: PlaybackSessionStore(defaults: defaults)
         )
 
         let playerCore = playerCore ?? AudioPlayerCore()
@@ -125,7 +137,8 @@ final class PlaybackCoordinator {
             },
             onTrackRequested: { track in
                 statisticsTracker.prepareForRequestedTrack(track.id)
-            }
+            },
+            order: playbackOrder
         )
         volumeProviderBox.provider = { [weak self] in
             self?.volume ?? 0.7
@@ -137,6 +150,7 @@ final class PlaybackCoordinator {
             self?.pause()
         }
 
+        self.playbackOrder.setShuffling(defaults.bool(forKey: "shuffleEnabled"))
         playerCore.delegate = self
         self.timeSampler = PlaybackTimeSampler(
             timeProvider: { [weak self] in
@@ -160,21 +174,22 @@ final class PlaybackCoordinator {
     }
 
     func play() {
-        if playbackStateManager.currentTrack == nil, !playlistManager.isEmpty {
-            playbackStateManager.switchToPlaylist(selecting: 0)
-            loadController.loadAndPlay(at: 0)
+        loadController.setPlaybackIntent(true)
+        if loadController.hasLoadedTrack, !loadController.hasEnded {
+            playerCore.play()
             return
         }
-
-        guard playbackStateManager.currentTrack != nil else {
-            logger.warning("No track loaded, cannot play")
-            return
+        if playbackStateManager.currentTrack == nil {
+            playbackStateManager.switchToPlaylist()
         }
-
-        playerCore.play()
+        let ids = playbackStateManager.currentTracks.map(\.id)
+        playbackOrder.reset(ids: ids, currentID: nil, shuffling: isShuffling)
+        guard let first = playbackOrder.first(failed: failedTrackRegistry.snapshot()) else { return }
+        loadController.start(first)
     }
 
     func pause() {
+        loadController.setPlaybackIntent(false)
         playerCore.pause()
     }
 
@@ -195,43 +210,22 @@ final class PlaybackCoordinator {
     }
 
     func next() {
-        guard let currentIndex = playbackStateManager.currentTrackIndex else { return }
-        let tracks = playbackStateManager.currentTracks
-        guard !tracks.isEmpty else { return }
-
-        guard let nextIndex = TrackNavigationPolicy.nextValidIndex(
-            after: currentIndex,
-            tracks: tracks,
-            repeatMode: repeatMode,
-            failedIDs: failedTrackRegistry.snapshot(),
-            maxAttempts: tracks.count
-        ) else {
-            return
-        }
-
-        loadController.loadAndPlay(at: nextIndex)
+        loadController.synchronizeOrder()
+        guard let target = playbackOrder.next(repeatMode: repeatMode, automatic: false,
+                                               failed: failedTrackRegistry.snapshot()) else { return }
+        loadController.start(target)
     }
 
     func previous() {
-        guard let currentIndex = playbackStateManager.currentTrackIndex else { return }
-        let tracks = playbackStateManager.currentTracks
-        guard !tracks.isEmpty else { return }
+        loadController.synchronizeOrder()
+        guard let target = playbackOrder.previous(repeatMode: repeatMode,
+                                                   failed: failedTrackRegistry.snapshot()) else { return }
+        loadController.start(target)
+    }
 
-        guard let targetIndex = TrackNavigationPolicy.previousIndex(
-            before: currentIndex,
-            count: tracks.count,
-            repeatMode: repeatMode
-        ) else {
-            return
-        }
-
-        if let previousIndex = TrackNavigationPolicy.previousValidIndex(
-            before: targetIndex + 1,
-            tracks: tracks,
-            failedIDs: failedTrackRegistry.snapshot()
-        ) {
-            loadController.loadAndPlay(at: previousIndex)
-        }
+    private func resetOrder() {
+        playbackOrder.reset(ids: playbackStateManager.currentTracks.map(\.id),
+                            currentID: playbackStateManager.currentTrackID, shuffling: isShuffling)
     }
 
     func playPlaylistTrack(at index: Int) {
@@ -241,7 +235,8 @@ final class PlaybackCoordinator {
         persistenceController.scheduleSave()
         let track = playlistManager.tracks[index]
         loadController.retryIfFailed(track)
-        loadController.loadAndPlay(at: index)
+        resetOrder()
+        loadController.start(playbackOrder.select(track.id))
     }
 
     func playAlbum(_ album: Album, startAt index: Int = 0) {
@@ -255,7 +250,8 @@ final class PlaybackCoordinator {
         persistenceController.scheduleSave()
         let track = album.tracks[index]
         loadController.retryIfFailed(track)
-        loadController.loadAndPlay(at: index)
+        resetOrder()
+        loadController.start(playbackOrder.select(track.id))
     }
 
     @discardableResult
@@ -263,28 +259,38 @@ final class PlaybackCoordinator {
         let result = await playlistManager.addTracks(urls: urls)
         if result.newTracksCount > 0 {
             playbackStateManager.handlePlaylistTracksAdded()
+            if playbackStateManager.playingSource == .playlist {
+                loadController.synchronizeOrder()
+                loadController.modesChanged()
+            }
         }
         return result
     }
 
     func removeTrackFromPlaylist(at index: Int) {
         guard playlistManager.tracks.indices.contains(index) else { return }
-
-        let wasPlaying = (playbackStateManager.playingSource == .playlist && playbackStateManager.currentTrackIndex == index)
+        let active = playbackStateManager.playingSource == .playlist
         let removedTrack = playlistManager.tracks[index]
+        let wasCurrent = active && playbackStateManager.currentTrackID == removedTrack.id
+        let wasRequested = active && playbackOrder.requested?.id == removedTrack.id
+        let wasSubmitted = active && loadController.submitted?.id == removedTrack.id
+        let resumeTime = playerCore.getCurrentPlaybackTime()
+        let resumePlayback = isPlaying
+        if wasCurrent || wasRequested || wasSubmitted { loadController.stop() }
         failedTrackRegistry.clear(removedTrack.id)
-
-        if wasPlaying {
-            pause()
-        }
-
         playlistManager.removeTrack(at: index)
-        playbackStateManager.handlePlaylistTrackRemoved(removedTrackID: removedTrack.id, wasPlaying: wasPlaying)
-        if wasPlaying {
+        playbackStateManager.handlePlaylistTrackRemoved(removedTrackID: removedTrack.id, wasPlaying: wasCurrent)
+        if active {
+            loadController.synchronizeOrder()
+            if wasCurrent {
+                resetOrder()
+                effectsController.clearNowPlayingInfo()
+            } else if wasSubmitted || wasRequested, let current = playbackStateManager.currentTrack {
+                loadController.start(playbackOrder.select(current.id), autoplay: resumePlayback, resumeTime: resumeTime)
+            }
             persistenceController.scheduleSave()
         }
-
-        if playlistManager.isEmpty, playbackStateManager.playingSource == .playlist {
+        if playlistManager.isEmpty, active {
             effectsController.disableRemoteCommands()
             effectsController.clearNowPlayingInfo()
         }
@@ -294,7 +300,7 @@ final class PlaybackCoordinator {
         let isClearingCurrentSource = (playbackStateManager.playingSource == .playlist)
 
         if isClearingCurrentSource {
-            pause()
+            loadController.stop()
         }
 
         playlistManager.clearAll()
@@ -302,6 +308,7 @@ final class PlaybackCoordinator {
         failedTrackRegistry.pruneStale(keeping: Set(playbackStateManager.currentTracks.map(\.id)))
 
         if isClearingCurrentSource {
+            resetOrder()
             effectsController.disableRemoteCommands()
             effectsController.clearNowPlayingInfo()
             persistenceController.scheduleSave()
@@ -311,6 +318,7 @@ final class PlaybackCoordinator {
     func moveTrackInPlaylist(from source: Int, to destination: Int) {
         playlistManager.moveTrack(from: source, to: destination)
         playbackStateManager.handlePlaylistTrackMoved(from: source, to: destination)
+        if playbackStateManager.playingSource == .playlist { loadController.synchronizeOrder() }
     }
 
     func injectWindowStateMonitor(_ monitor: WindowStateMonitor) {
@@ -332,7 +340,8 @@ final class PlaybackCoordinator {
             logger.debug("Restored volume: \(pct)%")
         }
 
-        return await loadTrack(restored.track)
+        resetOrder()
+        return await loadController.restore(restored.track)
     }
 
     func saveState() {
@@ -400,10 +409,6 @@ final class PlaybackCoordinator {
         logger.debug("Coordinator visibility: \(state.description)")
     }
 
-    private func loadTrack(_ track: AudioTrack) async -> Bool {
-        await playerCore.loadTrack(track)
-    }
-
     private func updateNowPlayingInfo() {
         guard let track = playbackStateManager.currentTrack else { return }
         effectsController.updateNowPlayingInfo(
@@ -452,6 +457,7 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
             return
         }
 
+        loadController.confirmStarted(track)
         statisticsTracker.synchronizeObservedTrack(track.id)
         let tracks = playbackStateManager.currentTracks
         if let index = tracks.firstIndex(where: { $0.id == track.id }) {
@@ -483,7 +489,6 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
     }
 
     func playerCoreDecodingComplete(for track: AudioTrack) {
-        loadController.trackIndexBeforeGapless = playbackStateManager.currentTracks.firstIndex { $0.id == track.id }
         logger.debug("Decoding complete, enqueuing next track")
         loadController.enqueueNextTrack(after: track)
     }

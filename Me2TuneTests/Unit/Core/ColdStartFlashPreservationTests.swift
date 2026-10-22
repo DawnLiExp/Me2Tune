@@ -199,8 +199,8 @@ private final class StubAudioPlayerCore: AudioPlayerCoreProtocol {
     var isPlaying = false
     var repeatMode: RepeatMode = .off
 
-    func loadTrack(_ track: AudioTrack) async -> Bool { true }
-    func enqueueTrack(_ track: AudioTrack) async -> Bool { true }
+    func loadTrack(_ track: AudioTrack, startingAt time: TimeInterval = 0) async -> Bool { true }
+    func enqueueTrack(_ track: AudioTrack) -> AudioEnqueueResult { .enqueued(track.id) }
     func play() { isPlaying = true }
     func pause() { isPlaying = false }
     func seek(to time: TimeInterval) {}

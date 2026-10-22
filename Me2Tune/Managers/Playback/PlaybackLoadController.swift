@@ -1,15 +1,6 @@
-//
-//  PlaybackLoadController.swift
-//  Me2Tune
-//
-//  Owns track loading, failure recovery, and gapless flow.
-//  IMPORTANT: repeatModeProvider and onPause must not retain PlaybackCoordinator.
-//  IMPORTANT: loadAndPlay(at:attempt:) is the single entry point for programmatic track starts.
-//
-
 import Foundation
-import OSLog
 
+/// Owns requests and the one successor already submitted to the audio engine.
 @MainActor
 final class PlaybackLoadController {
     private let playerCore: any AudioPlayerCoreProtocol
@@ -19,14 +10,18 @@ final class PlaybackLoadController {
     private let repeatModeProvider: @MainActor () -> RepeatMode
     private let onPause: @MainActor () -> Void
     private let onTrackRequested: @MainActor (AudioTrack) -> Void
+    let order: PlaybackOrderState
 
-    var trackIndexBeforeGapless: Int?
     private(set) var generation = UUID()
+    private(set) var submitted: PlaybackOrderState.Selection?
+    private(set) var hasLoadedTrack = false
+    private(set) var hasEnded = false
+    private var pendingStart: PlaybackOrderState.Selection?
     private var enqueueRequest: UUID?
     private var endWhileEnqueuing = false
-
-    private let maxLoadAttempts = 10
-    private let logger = Logger.coordinator
+    private var decodedCurrent = false
+    private var loadingAutomatic = true
+    private var wantsPlayback = true
 
     init(
         playerCore: any AudioPlayerCoreProtocol,
@@ -35,7 +30,8 @@ final class PlaybackLoadController {
         persistenceController: PlaybackPersistenceController,
         repeatModeProvider: @escaping @MainActor () -> RepeatMode,
         onPause: @escaping @MainActor () -> Void,
-        onTrackRequested: @escaping @MainActor (AudioTrack) -> Void
+        onTrackRequested: @escaping @MainActor (AudioTrack) -> Void,
+        order: PlaybackOrderState = PlaybackOrderState()
     ) {
         self.playerCore = playerCore
         self.stateManager = stateManager
@@ -44,197 +40,205 @@ final class PlaybackLoadController {
         self.repeatModeProvider = repeatModeProvider
         self.onPause = onPause
         self.onTrackRequested = onTrackRequested
+        self.order = order
     }
 
-    func loadAndPlay(at index: Int, attempt: Int = 0) {
-        let tracks = stateManager.currentTracks
-        guard tracks.indices.contains(index) else {
-            logger.warning("Index out of range: \(index)")
-            return
+    func synchronizeOrder() {
+        let ids = stateManager.currentTracks.map(\.id)
+        if order.ids.isEmpty {
+            order.reset(ids: ids, currentID: stateManager.currentTrackID, shuffling: order.isShuffling)
+        } else {
+            order.reconcile(ids: ids)
         }
+    }
 
-        guard attempt < maxLoadAttempts else {
-            logger.error("Max retry attempts reached, stopping playback")
-            onPause()
-            return
-        }
-
-        let track = tracks[index]
-
-        if registry.isMarked(track.id) {
-            logger.debug("Skipping known failed track: \(track.title)")
-            handleLoadFailure(track: track, index: index, attempt: attempt)
-            return
-        }
-
-        generation = UUID()
-        let request = generation
-        enqueueRequest = nil
-        endWhileEnqueuing = false
-        trackIndexBeforeGapless = nil
-        onTrackRequested(track)
+    func start(_ selection: PlaybackOrderState.Selection, automatic: Bool = false,
+               autoplay: Bool = true, resumeTime: TimeInterval? = nil) {
+        invalidate()
+        wantsPlayback = autoplay
+        loadingAutomatic = automatic
+        order.request(selection)
+        onTrackRequestedIfPresent(selection.id)
         playerCore.prepareForTrackSwitch()
-
+        let request = generation
+        let source = stateManager.playingSource
         Task { @MainActor [weak self] in
-            guard let self, self.generation == request else { return }
-
-            let success = await self.playerCore.loadTrack(track)
-            guard self.generation == request else { return }
-            if !success {
-                self.handleLoadFailure(track: track, index: index, attempt: attempt)
-                return
+            guard let self else { return }
+            var target = selection
+            var attempted: Set<UUID> = []
+            while self.generation == request, self.stateManager.playingSource == source,
+                  let track = self.stateManager.currentTracks.first(where: { $0.id == target.id }),
+                  attempted.insert(target.id).inserted {
+                self.order.request(target)
+                self.pendingStart = target
+                let success: Bool
+                if self.registry.isMarked(track.id) { success = false }
+                else { success = await self.playerCore.loadTrack(track, startingAt: resumeTime ?? 0) }
+                guard self.generation == request, self.stateManager.playingSource == source else { return }
+                self.synchronizeOrder()
+                guard self.order.ids.contains(track.id) else { return }
+                if success {
+                    self.hasLoadedTrack = true
+                    self.stateManager.setCurrentTrack(id: track.id)
+                    self.persistenceController.scheduleSave()
+                    if self.wantsPlayback { self.playerCore.play() }
+                    return
+                }
+                self.pendingStart = nil
+                if resumeTime != nil {
+                    self.order.cancelRequest()
+                    self.onPause()
+                    return
+                }
+                self.registry.mark(track.id)
+                if automatic && self.repeatModeProvider() == .one { break }
+                guard let next = self.order.next(repeatMode: self.repeatModeProvider(), automatic: false,
+                                                 failed: self.registry.snapshot().union(attempted)) else { break }
+                target = next
+                self.onTrackRequestedIfPresent(target.id)
             }
-
-            self.stateManager.setCurrentIndex(index)
-            self.playerCore.play()
-            self.persistenceController.scheduleSave()
+            guard self.generation == request else { return }
+            self.order.cancelRequest()
+            self.pendingStart = nil
+            self.hasEnded = true
+            self.onPause()
         }
     }
 
-    func handleLoadFailure(track: AudioTrack, index: Int, attempt: Int) {
+    private func onTrackRequestedIfPresent(_ id: UUID) {
+        if let track = stateManager.currentTracks.first(where: { $0.id == id }) { onTrackRequested(track) }
+    }
+
+    func restore(_ track: AudioTrack) async -> Bool {
+        invalidate()
+        wantsPlayback = false
+        let request = generation
+        pendingStart = order.select(track.id)
+        let success = await playerCore.loadTrack(track)
+        guard generation == request else { return false }
+        hasLoadedTrack = success
+        if !success { pendingStart = nil }
+        return success
+    }
+
+    func invalidate() {
         generation = UUID()
+        submitted = nil
+        pendingStart = nil
         enqueueRequest = nil
         endWhileEnqueuing = false
-        logger.warning("Track load failed: \(track.title)")
-        registry.mark(track.id)
+        decodedCurrent = false
+        hasEnded = false
+        hasLoadedTrack = false
+        order.cancelRequest()
+    }
 
-        if repeatModeProvider() == .one {
-            logger.info("Single repeat on failed track, stopping")
-            onPause()
-            return
-        }
+    func stop() {
+        invalidate()
+        wantsPlayback = false
+        playerCore.prepareForTrackSwitch()
+    }
 
-        let tracks = stateManager.currentTracks
-        guard let nextIndex = TrackNavigationPolicy.nextValidIndex(
-            after: index,
-            tracks: tracks,
-            repeatMode: repeatModeProvider(),
-            failedIDs: registry.snapshot(),
-            maxAttempts: tracks.count
-        ) else {
-            logger.debug("No next valid track available")
-            onPause()
-            return
-        }
+    func setPlaybackIntent(_ playing: Bool) {
+        wantsPlayback = playing
+    }
 
-        loadAndPlay(at: nextIndex, attempt: attempt + 1)
+    func confirmStarted(_ track: AudioTrack) {
+        let wasDecoded = decodedCurrent
+        let wasPending = pendingStart != nil
+        let selection: PlaybackOrderState.Selection
+        if let pendingStart, pendingStart.id == track.id {
+            selection = pendingStart
+            self.pendingStart = nil
+        } else if let submitted, submitted.id == track.id {
+            loadingAutomatic = true
+            selection = submitted
+            self.submitted = nil
+        } else { return }
+        order.confirm(selection)
+        hasLoadedTrack = true
+        hasEnded = false
+        decodedCurrent = false
+        if wasPending && wasDecoded { enqueueNextTrack() }
+    }
+
+    func modesChanged() {
+        // Once submitted, a decoder may already be in the engine's active ring buffer.
+        guard submitted == nil else { return }
+        enqueueRequest = nil
+        if decodedCurrent { enqueueNextTrack() }
     }
 
     func enqueueNextTrack(after track: AudioTrack? = nil) {
-        guard enqueueRequest == nil else { return }
-        let tracks = stateManager.currentTracks
-        let index = track.flatMap { item in tracks.firstIndex { $0.id == item.id } } ?? stateManager.currentTrackIndex
-        guard let index else { return }
+        decodedCurrent = true
+        guard pendingStart == nil, submitted == nil, enqueueRequest == nil else { return }
+        synchronizeOrder()
+        // Restored paused tracks may finish decoding before their first audible start.
+        if order.currentID == nil, let track {
+            order.reset(ids: order.ids, currentID: track.id, shuffling: order.isShuffling)
+        }
         let request = UUID()
         let generation = generation
         enqueueRequest = request
-
         Task { @MainActor [weak self] in
             guard let self, self.generation == generation, self.enqueueRequest == request else { return }
-            var cursor = index
-            var enqueued = false
-            while let next = TrackNavigationPolicy.nextValidIndex(
-                after: cursor, tracks: tracks, repeatMode: self.repeatModeProvider(),
-                failedIDs: self.registry.snapshot(), maxAttempts: tracks.count
-            ) {
-                let track = tracks[next]
-                let success = await self.playerCore.enqueueTrack(track)
+            var attempted: Set<UUID> = []
+            while let next = self.order.next(repeatMode: self.repeatModeProvider(), automatic: true,
+                                             failed: self.registry.snapshot().union(attempted)),
+                  attempted.insert(next.id).inserted,
+                  let track = self.stateManager.currentTracks.first(where: { $0.id == next.id }) {
+                let result = self.playerCore.enqueueTrack(track)
                 guard self.generation == generation, self.enqueueRequest == request else { return }
-                if success {
-                    enqueued = true
-                    break
+                switch result {
+                case .enqueued(let id), .occupied(let id):
+                    self.submitted = id == next.id ? next : self.order.select(id)
+                case .failed:
+                    self.registry.mark(track.id)
                 }
-                self.registry.mark(track.id)
-                cursor = next
+                if self.submitted != nil { break }
             }
             self.enqueueRequest = nil
             if self.endWhileEnqueuing {
                 self.endWhileEnqueuing = false
-                if enqueued { self.playerCore.play() }
+                if self.submitted != nil, self.wantsPlayback { self.playerCore.play() }
                 else { self.handleEndOfTrack() }
             }
         }
     }
 
     func handleDecodingFailure(for track: AudioTrack, isCurrent: Bool) {
-        guard !registry.isMarked(track.id) else { return }
-        guard let index = stateManager.currentTracks.firstIndex(where: { $0.id == track.id }) else { return }
+        synchronizeOrder()
+        guard !registry.isMarked(track.id), order.ids.contains(track.id) else { return }
+        registry.mark(track.id)
         if isCurrent {
-            handleLoadFailure(track: track, index: index, attempt: 0)
+            let automatic = loadingAutomatic
+            invalidate()
+            if automatic && repeatModeProvider() == .one { onPause(); return }
+            order.request(order.select(track.id))
+            guard let next = order.next(repeatMode: repeatModeProvider(), automatic: false,
+                                        failed: registry.snapshot()) else { onPause(); return }
+            start(next, automatic: automatic)
         } else {
-            registry.mark(track.id)
+            submitted = nil
             enqueueRequest = nil
-            enqueueNextTrack(after: track)
+            enqueueNextTrack()
         }
     }
 
     func handleEndOfTrack() {
-        if enqueueRequest != nil {
-            endWhileEnqueuing = true
-            return
-        }
-        let baseIndex = trackIndexBeforeGapless
-        trackIndexBeforeGapless = nil
-
-        let repeatMode = repeatModeProvider()
-
-        if repeatMode == .one {
-            let index = baseIndex ?? stateManager.currentTrackIndex
-            guard let index else { return }
-
-            let tracks = stateManager.currentTracks
-            guard tracks.indices.contains(index) else { return }
-
-            let track = tracks[index]
-            if registry.isMarked(track.id) {
-                logger.info("Single repeat on failed track, stopping")
-                onPause()
-            } else {
-                loadAndPlay(at: index)
-            }
-            return
-        }
-
-        if baseIndex == nil {
-            logger.warning("trackIndexBeforeGapless missing, falling back to currentTrackIndex")
-        }
-
-        guard let effectiveIndex = baseIndex ?? stateManager.currentTrackIndex else { return }
-
-        let tracks = stateManager.currentTracks
-        guard !tracks.isEmpty else { return }
-
-        let expectedNext = TrackNavigationPolicy.nextIndex(
-            after: effectiveIndex,
-            count: tracks.count,
-            repeatMode: repeatMode
-        )
-
-        if TrackNavigationPolicy.isGaplessAlreadyHandled(
-            currentIndex: stateManager.currentTrackIndex,
-            expectedNext: expectedNext
-        ) {
-            logger.debug("Gapless transition already handled, skipping manual load")
-            return
-        }
-
-        guard let nextIndex = TrackNavigationPolicy.nextValidIndex(
-            after: effectiveIndex, tracks: tracks, repeatMode: repeatMode,
-            failedIDs: registry.snapshot(), maxAttempts: tracks.count
-        ) else {
-            logger.debug("Reached end of playlist")
+        guard !hasEnded, decodedCurrent else { return }
+        if enqueueRequest != nil { endWhileEnqueuing = true; return }
+        // A successor owns the transition; a late end notification must not advance it twice.
+        guard submitted == nil else { return }
+        synchronizeOrder()
+        if let next = order.next(repeatMode: repeatModeProvider(), automatic: true, failed: registry.snapshot()) {
+            start(next, automatic: true)
+        } else {
+            hasEnded = true
+            hasLoadedTrack = false
             onPause()
-            return
-        }
-
-        logger.debug("End of track, loading next (base: \(effectiveIndex) -> next: \(nextIndex))")
-        loadAndPlay(at: nextIndex)
-    }
-
-    func retryIfFailed(_ track: AudioTrack) {
-        if registry.isMarked(track.id) {
-            logger.info("Retry failed track: \(track.title)")
-            registry.clear(track.id)
         }
     }
+
+    func retryIfFailed(_ track: AudioTrack) { registry.clear(track.id) }
 }

@@ -70,8 +70,8 @@ final class AudioPlayerCore: NSObject {
     
     deinit { eventTask?.cancel() }
 
-    func loadTrack(_ track: AudioTrack) async -> Bool {
-        let startTime = CFAbsoluteTimeGetCurrent()
+    func loadTrack(_ track: AudioTrack, startingAt time: TimeInterval = 0) async -> Bool {
+        let loadStartedAt = CFAbsoluteTimeGetCurrent()
         logger.info("Loading: \(track.title)")
         ensurePlayerInitialized()
         guard let player else { return false }
@@ -87,16 +87,26 @@ final class AudioPlayerCore: NSObject {
 
         do {
             let decoder = try makeDecoder(for: track)
+            if time > 0 {
+                // Seek before enqueueing: a paused engine may not yet expose a current decoder.
+                if !decoder.isOpen { try decoder.open() }
+                guard time.isFinite, decoder.supportsSeeking, decoder.length > 0 else {
+                    throw AppError.audioLoadFailed(track.url)
+                }
+                let frame = min(time * decoder.processingFormat.sampleRate, Double(decoder.length - 1))
+                try decoder.seek(to: Int64(frame))
+                currentTime = Double(decoder.position) / decoder.processingFormat.sampleRate
+            }
             decoderQueue.register(DecoderReference(decoder), track: track, current: true)
             // Queue without briefly rendering the track while artwork is loading.
             try player.enqueue(decoder, immediate: true)
             delegate?.playerCoreDidUpdatePlaybackState(false)
-            delegate?.playerCoreDidUpdateTime(currentTime: 0, duration: duration)
+            delegate?.playerCoreDidUpdateTime(currentTime: currentTime, duration: duration)
             let artwork = await ArtworkCacheService.shared.artwork(for: track.url)
             guard decoderQueue.generation == generation, decoderQueue.currentID != nil else { return false }
             delegate?.playerCoreDidLoadTrack(track, artwork: artwork)
             updateDockIcon(artwork)
-            logger.logPerformance("Track load", duration: CFAbsoluteTimeGetCurrent() - startTime)
+            logger.logPerformance("Track load", duration: CFAbsoluteTimeGetCurrent() - loadStartedAt)
             return true
         } catch {
             decoderQueue.reset()
@@ -106,11 +116,13 @@ final class AudioPlayerCore: NSObject {
         }
     }
 
-    func enqueueTrack(_ track: AudioTrack) async -> Bool {
-        guard let player else { return false }
+    var queuedTrackID: UUID? { decoderQueue.queuedTrack?.id }
+
+    func enqueueTrack(_ track: AudioTrack) -> AudioEnqueueResult {
+        guard let player else { return .failed }
         logger.info("Enqueuing: \(track.title)")
         // Exactly one future playback instance is owned by this core.
-        guard !decoderQueue.hasQueuedDecoder else { return true }
+        if let queued = decoderQueue.queuedTrack { return .occupied(queued.id) }
         do {
             let decoder = try makeDecoder(for: track)
             let reference = DecoderReference(decoder)
@@ -121,10 +133,10 @@ final class AudioPlayerCore: NSObject {
                 _ = decoderQueue.remove(reference.id)
                 throw error
             }
-            return true
+            return .enqueued(track.id)
         } catch {
             delegate?.playerCoreDidEncounterError(AppError.audioLoadFailed(track.url))
-            return false
+            return .failed
         }
     }
 
@@ -219,12 +231,15 @@ final class AudioPlayerCore: NSObject {
     
     func getCurrentPlaybackTime() -> TimeInterval {
         guard seekingDecoderID == nil else { return currentTime }
-        if let time = player?.currentTime, time.isFinite, time >= 0 { currentTime = time }
+        if let decoder = player?.currentDecoder, ObjectIdentifier(decoder) == decoderQueue.currentID,
+           let time = player?.currentTime, time.isFinite, time >= 0 { currentTime = time }
         return currentTime
     }
     
     func prepareForTrackSwitch() {
-        player?.pause()
+        player?.stop()
+        isPlaying = false
+        delegate?.playerCoreDidUpdatePlaybackState(false)
         decoderQueue.reset()
         pendingSeek = nil
         seekingDecoderID = nil

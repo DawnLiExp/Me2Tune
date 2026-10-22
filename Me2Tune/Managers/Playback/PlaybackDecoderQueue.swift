@@ -15,6 +15,7 @@ struct PlaybackDecoderQueue {
         var decoded = false
         var notified = false
         var rendered = false
+        var activated = false
     }
 
     private var entries: [ObjectIdentifier: Entry] = [:]
@@ -22,6 +23,7 @@ struct PlaybackDecoderQueue {
     private(set) var generation = UUID()
     private var ended = false
 
+    var queuedTrack: AudioTrack? { entries.first { $0.key != currentID }?.value.track }
     var hasQueuedDecoder: Bool { entries.keys.contains { $0 != currentID } }
     var currentTrack: AudioTrack? { currentID.flatMap { entries[$0]?.track } }
 
@@ -39,7 +41,9 @@ struct PlaybackDecoderQueue {
     }
 
     mutating func activate(_ id: ObjectIdentifier) -> AudioTrack? {
-        guard let entry = entries[id] else { return nil }
+        guard var entry = entries[id], !entry.activated else { return nil }
+        entry.activated = true
+        entries[id] = entry
         if let previous = currentID, previous != id { entries.removeValue(forKey: previous) }
         currentID = id
         return entry.track

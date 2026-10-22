@@ -60,10 +60,12 @@ struct PlaybackLoadControllerTests {
             }
         )
 
+        controller.synchronizeOrder()
+        playerCore.onStart = { [weak controller] track in controller?.confirmStarted(track) }
         return (controller, stateManager, registry, requestedTracks)
     }
 
-    @Test("loadAndPlay 成功后设置索引并调用 play")
+    @Test("start 成功后设置索引并调用 play")
     func testLoadAndPlaySuccessSetsIndexAndPlays() async throws {
         let tracks = makeTracks(count: 3)
         let playerCore = MockLoadPlayerCore()
@@ -72,7 +74,7 @@ struct PlaybackLoadControllerTests {
             playerCore: playerCore
         )
 
-        controller.loadAndPlay(at: 1)
+        controller.start(controller.order.select(tracks[1].id), automatic: true)
 
         let loaded = await waitUntil {
             stateManager.currentTrackIndex == 1 && playerCore.playCallCount == 1
@@ -82,7 +84,7 @@ struct PlaybackLoadControllerTests {
         #expect(playerCore.loadTrackCallIDs == [tracks[1].id])
     }
 
-    @Test("loadAndPlay 会在异步加载前上报请求曲目")
+    @Test("start 会在异步加载前上报请求曲目")
     func testLoadAndPlayReportsRequestedTrack() async throws {
         let tracks = makeTracks(count: 2)
         let playerCore = MockLoadPlayerCore()
@@ -91,7 +93,7 @@ struct PlaybackLoadControllerTests {
             playerCore: playerCore
         )
 
-        controller.loadAndPlay(at: 1)
+        controller.start(controller.order.select(tracks[1].id), automatic: true)
 
         #expect(requestedTracks.trackIDs == [tracks[1].id])
     }
@@ -108,7 +110,7 @@ struct PlaybackLoadControllerTests {
             playerCore: playerCore
         )
 
-        controller.loadAndPlay(at: 0)
+        controller.start(controller.order.select(tracks[0].id), automatic: true)
 
         let skipped = await waitUntil {
             playerCore.loadTrackCallIDs.count >= 2
@@ -135,7 +137,7 @@ struct PlaybackLoadControllerTests {
             onPause: { pauseCallCount += 1 }
         )
 
-        controller.loadAndPlay(at: 0)
+        controller.start(controller.order.select(tracks[0].id), automatic: true)
 
         let paused = await waitUntil {
             pauseCallCount == 1
@@ -159,7 +161,7 @@ struct PlaybackLoadControllerTests {
             onPause: { pauseCallCount += 1 }
         )
 
-        controller.loadAndPlay(at: 0)
+        controller.start(controller.order.select(tracks[0].id), automatic: true)
 
         let paused = await waitUntil {
             pauseCallCount == 1
@@ -178,7 +180,7 @@ struct PlaybackLoadControllerTests {
             playerCore: playerCore
         )
 
-        controller.loadAndPlay(at: 0)
+        controller.start(controller.order.select(tracks[0].id), automatic: true)
 
         let loadedFirst = await waitUntil {
             playerCore.loadTrackCallIDs.count == 1
@@ -186,9 +188,10 @@ struct PlaybackLoadControllerTests {
 
         #expect(loadedFirst)
 
-        controller.trackIndexBeforeGapless = 0
+        controller.enqueueNextTrack(after: tracks[0])
+        #expect(await waitUntil { controller.submitted != nil })
         stateManager.setCurrentTrack(id: tracks[1].id)
-
+        controller.confirmStarted(tracks[1])
         controller.handleEndOfTrack()
         try? await Task.sleep(for: .milliseconds(80))
 
@@ -202,9 +205,9 @@ struct PlaybackLoadControllerTests {
         core.loadDelays[tracks[0].id] = .milliseconds(150)
         core.loadResults[tracks[0].id] = false
         let (controller, state, registry, _) = try makeController(tracks: tracks, playerCore: core)
-        controller.loadAndPlay(at: 0)
+        controller.start(controller.order.select(tracks[0].id), automatic: true)
         #expect(await waitUntil { core.loadTrackCallIDs.count == 1 })
-        controller.loadAndPlay(at: 1)
+        controller.start(controller.order.select(tracks[1].id), automatic: true)
         #expect(await waitUntil { core.playCallCount == 1 })
         try await Task.sleep(for: .milliseconds(200))
         #expect(state.currentTrackIndex == 1)
@@ -229,11 +232,15 @@ struct PlaybackLoadControllerTests {
         let tracks = makeTracks(count: 3)
         let core = MockLoadPlayerCore()
         let (controller, _, registry, _) = try makeController(tracks: tracks, playerCore: core)
+        controller.start(controller.order.select(tracks[0].id), automatic: true)
+        #expect(await waitUntil { core.playCallCount == 1 })
+        controller.enqueueNextTrack(after: tracks[0])
+        #expect(await waitUntil { controller.submitted?.id == tracks[1].id })
         controller.handleDecodingFailure(for: tracks[1], isCurrent: false)
         controller.handleDecodingFailure(for: tracks[1], isCurrent: false)
-        #expect(await waitUntil { core.enqueueTrackCallIDs.count == 1 })
-        #expect(core.enqueueTrackCallIDs == [tracks[2].id])
-        #expect(core.loadTrackCallIDs.isEmpty)
+        #expect(await waitUntil { core.enqueueTrackCallIDs.count == 2 })
+        #expect(core.enqueueTrackCallIDs == [tracks[1].id, tracks[2].id])
+        #expect(core.loadTrackCallIDs == [tracks[0].id])
         #expect(registry.isMarked(tracks[1].id))
         #expect(!registry.isMarked(tracks[0].id))
     }
@@ -244,7 +251,7 @@ struct PlaybackLoadControllerTests {
         let core = MockLoadPlayerCore()
         core.loadDelays[tracks[0].id] = .milliseconds(150)
         let (controller, state, registry, _) = try makeController(tracks: tracks, playerCore: core)
-        controller.loadAndPlay(at: 0)
+        controller.start(controller.order.select(tracks[0].id), automatic: true)
         #expect(await waitUntil { core.loadTrackCallIDs.count == 1 })
         controller.handleDecodingFailure(for: tracks[0], isCurrent: true)
         #expect(await waitUntil { core.playCallCount == 1 })
@@ -292,6 +299,8 @@ private final class MockLoadPlayerCore: AudioPlayerCoreProtocol {
     var isPlaying = false
     var repeatMode: RepeatMode = .off
 
+    var onStart: ((AudioTrack) -> Void)?
+    private var loadedTrack: AudioTrack?
     var loadResults: [UUID: Bool] = [:]
     var loadDelays: [UUID: Duration] = [:]
     var enqueueResults: [UUID: Bool] = [:]
@@ -300,20 +309,25 @@ private final class MockLoadPlayerCore: AudioPlayerCoreProtocol {
     private(set) var playCallCount = 0
     private(set) var pauseCallCount = 0
 
-    func loadTrack(_ track: AudioTrack) async -> Bool {
+    func loadTrack(_ track: AudioTrack, startingAt time: TimeInterval = 0) async -> Bool {
+        loadedTrack = track
         loadTrackCallIDs.append(track.id)
         if let delay = loadDelays[track.id] { try? await Task.sleep(for: delay) }
         return loadResults[track.id] ?? true
     }
 
-    func enqueueTrack(_ track: AudioTrack) async -> Bool {
+    func enqueueTrack(_ track: AudioTrack) -> AudioEnqueueResult {
         enqueueTrackCallIDs.append(track.id)
-        return enqueueResults[track.id] ?? true
+        return (enqueueResults[track.id] ?? true) ? .enqueued(track.id) : .failed
     }
 
     func play() {
         isPlaying = true
         playCallCount += 1
+        if let loadedTrack {
+            self.loadedTrack = nil
+            onStart?(loadedTrack)
+        }
     }
 
     func pause() {

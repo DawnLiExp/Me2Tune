@@ -81,7 +81,7 @@ struct AudioEngineIntegrationTests {
         let core = AudioPlayerCore()
         core.delegate = spy
         #expect(await core.loadTrack(first))
-        #expect(await core.enqueueTrack(next))
+        #expect(core.enqueueTrack(next).enqueued)
         core.setVolume(0)
         core.play()
         defer { core.pause() }
@@ -126,7 +126,7 @@ struct AudioEngineIntegrationTests {
         core.delegate = spy
         spy.onDecoded = { [weak core] track in
             guard let index = tracks.firstIndex(where: { $0.id == track.id }), index + 1 < tracks.count else { return }
-            Task { @MainActor in _ = await core?.enqueueTrack(tracks[index + 1]) }
+            Task { @MainActor in _ = core?.enqueueTrack(tracks[index + 1]) }
         }
         #expect(await core.loadTrack(tracks[0]))
         core.setVolume(0)
@@ -147,7 +147,7 @@ struct AudioEngineIntegrationTests {
         var completed = 0
         spy.onDecoded = { [weak core] item in
             completed += 1
-            if completed < 3 { Task { @MainActor in _ = await core?.enqueueTrack(item) } }
+            if completed < 3 { Task { @MainActor in _ = core?.enqueueTrack(item) } }
         }
         #expect(await core.loadTrack(track))
         core.setVolume(0)
@@ -171,7 +171,7 @@ struct AudioEngineIntegrationTests {
         let core = AudioPlayerCore()
         core.delegate = spy
         #expect(await core.loadTrack(first))
-        #expect(await core.enqueueTrack(bad))
+        #expect(core.enqueueTrack(bad).enqueued)
         core.setVolume(0)
         core.play()
         defer { core.pause() }
@@ -180,7 +180,7 @@ struct AudioEngineIntegrationTests {
         #expect(spy.failures.first?.1 == false)
         #expect(core.isPlaying)
         #expect(core.currentTrack?.id == first.id)
-        #expect(await core.enqueueTrack(next))
+        #expect(core.enqueueTrack(next).enqueued)
         #expect(await waitUntil { spy.endCount == 1 })
         #expect(spy.nowPlayingIDs == [first.id, next.id])
     }
@@ -228,6 +228,87 @@ struct AudioEngineIntegrationTests {
         let reader = FileMetadataReader()
         let result = await reader.metadata(for: url, includingArtworkData: false)
         #expect(result?.lyricsText == "[00:00.00]Expected lyrics")
+    }
+
+    @Test("随机专辑真实播放一轮不重不漏，末尾停止且再次播放重新开始")
+    func shuffledAlbumRound() async throws {
+        let tracks = try (0..<4).map { _ in try makeSilentTrack(seconds: 0.2) }
+        defer { for track in tracks { try? FileManager.default.removeItem(at: track.url) } }
+        let data = try createTestDataService()
+        let defaults = try #require(UserDefaults(suiteName: "Me2TuneShuffleEngine.\(UUID())"))
+        let core = AudioPlayerCore()
+        let coordinator = PlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
+                                              dataService: data, statisticsManager: EngineTestStatistics(),
+                                              playerCore: core, defaults: defaults)
+        coordinator.toggleShuffle()
+        coordinator.playAlbum(Album(id: UUID(), name: "Shuffle", folderURL: nil, tracks: tracks), startAt: 1)
+        defer { core.prepareForTrackSwitch() }
+        #expect(await waitUntil { !coordinator.playbackOrder.history.isEmpty })
+        core.setVolume(0)
+        #expect(await waitUntil { coordinator.playbackOrder.history.count == 4 && !coordinator.isPlaying })
+        #expect(coordinator.playbackOrder.history.first == tracks[1].id)
+        #expect(Set(coordinator.playbackOrder.history) == Set(tracks.map(\.id)))
+        #expect(!coordinator.canGoNext)
+        coordinator.play()
+        #expect(await waitUntil { coordinator.isPlaying && coordinator.playbackOrder.history.count == 1 })
+    }
+
+    @Test("已预加载后切换随机不重载当前音频且只保留一首后继")
+    func shuffleToggleRetainsSubmittedAudio() async throws {
+        let tracks = try (0..<3).map { _ in try makeSilentTrack(seconds: 0.7) }
+        defer { for track in tracks { try? FileManager.default.removeItem(at: track.url) } }
+        let data = try createTestDataService()
+        let defaults = try #require(UserDefaults(suiteName: "Me2TuneShuffleEngine.\(UUID())"))
+        let core = AudioPlayerCore()
+        let coordinator = PlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
+                                              dataService: data, statisticsManager: EngineTestStatistics(),
+                                              playerCore: core, defaults: defaults)
+        coordinator.playAlbum(Album(id: UUID(), name: "Modes", folderURL: nil, tracks: tracks))
+        defer { core.prepareForTrackSwitch() }
+        #expect(await waitUntil { core.getCurrentPlaybackTime() > 0.15 })
+        core.setVolume(0)
+        #expect(await waitUntil { core.queuedTrackID == tracks[1].id })
+        let position = core.getCurrentPlaybackTime()
+        coordinator.toggleShuffle()
+        coordinator.toggleShuffle()
+        coordinator.toggleShuffle()
+        #expect(core.getCurrentPlaybackTime() >= position)
+        #expect(core.currentTrack?.id == tracks[0].id)
+        #expect(core.isPlaying)
+        #expect(await waitUntil { coordinator.playbackOrder.history.count == 3 && !coordinator.isPlaying })
+        #expect(coordinator.playbackOrder.history == tracks.map(\.id))
+    }
+
+    @Test("删除已预加载歌曲后真实引擎恢复暂停位置且不播放被删歌曲")
+    func removePreloadedTrackPreservesPausedPosition() async throws {
+        let tracks = try (0..<3).map { _ in try makeSilentTrack(seconds: 1.2) }
+        defer { for track in tracks { try? FileManager.default.removeItem(at: track.url) } }
+        let data = try createTestDataService()
+        for (index, track) in tracks.enumerated() {
+            let stored = SDTrack(from: track)
+            stored.isInPlaylist = true
+            stored.playlistOrder = index
+            data.insert(stored)
+        }
+        try data.save()
+        let defaults = try #require(UserDefaults(suiteName: "Me2TuneShuffleEngine.\(UUID())"))
+        let core = AudioPlayerCore()
+        let coordinator = PlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
+                                              dataService: data, statisticsManager: EngineTestStatistics(),
+                                              playerCore: core, defaults: defaults)
+        coordinator.playPlaylistTrack(at: 0)
+        defer { core.prepareForTrackSwitch() }
+        #expect(await waitUntil { core.getCurrentPlaybackTime() > 0.2 })
+        core.setVolume(0)
+        #expect(await waitUntil { core.queuedTrackID == tracks[1].id })
+        coordinator.pause()
+        let position = core.getCurrentPlaybackTime()
+        coordinator.removeTrackFromPlaylist(at: 1)
+        #expect(await waitUntil { abs(core.getCurrentPlaybackTime() - position) < 0.03 })
+        #expect(!core.isPlaying)
+        coordinator.play()
+        #expect(await waitUntil { coordinator.playbackOrder.history.last == tracks[2].id && !coordinator.isPlaying })
+        #expect(!coordinator.playbackOrder.history.contains(tracks[1].id))
     }
 
     private func makeSilentTrack(seconds: Double, sampleRate: Double = 44_100) throws -> AudioTrack {
@@ -280,4 +361,13 @@ private final class AudioCoreSpy: AudioPlayerCoreDelegate {
     func playerCoreNowPlayingChanged(to track: AudioTrack?) {
         if let track { nowPlayingIDs.append(track.id) }
     }
+}
+
+@MainActor
+private final class EngineTestStatistics: StatisticsManagerProtocol {
+    var statisticsRevision = 0
+    func incrementTodayPlayCount() async {}
+    func fetchAggregatedStats(period: StatPeriod) async -> [DailyStatItem] { [] }
+    func fetchRecentStatistics(days: Int) async -> [DailyStatItem] { [] }
+    func cleanupOldData(keepDays: Int) {}
 }

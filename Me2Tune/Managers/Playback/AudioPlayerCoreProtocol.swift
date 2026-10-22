@@ -8,6 +8,17 @@
 import AppKit
 import Foundation
 
+enum AudioEnqueueResult {
+    case enqueued(UUID)
+    case occupied(UUID)
+    case failed
+
+    var enqueued: Bool {
+        if case .enqueued = self { return true }
+        return false
+    }
+}
+
 /// IMPORTANT: All methods must be invoked on @MainActor.
 @MainActor
 protocol AudioPlayerCoreProtocol: AnyObject {
@@ -15,8 +26,8 @@ protocol AudioPlayerCoreProtocol: AnyObject {
     var isPlaying: Bool { get }
     var repeatMode: RepeatMode { get set }
 
-    func loadTrack(_ track: AudioTrack) async -> Bool
-    func enqueueTrack(_ track: AudioTrack) async -> Bool
+    func loadTrack(_ track: AudioTrack, startingAt time: TimeInterval) async -> Bool
+    func enqueueTrack(_ track: AudioTrack) -> AudioEnqueueResult
     func play()
     func pause()
     func seek(to time: TimeInterval)
@@ -24,4 +35,10 @@ protocol AudioPlayerCoreProtocol: AnyObject {
     func prepareForTrackSwitch()
     func getCurrentPlaybackTime() -> TimeInterval
     func updateDockIcon(_ artwork: NSImage?)
+}
+
+extension AudioPlayerCoreProtocol {
+    func loadTrack(_ track: AudioTrack) async -> Bool {
+        await loadTrack(track, startingAt: 0)
+    }
 }
