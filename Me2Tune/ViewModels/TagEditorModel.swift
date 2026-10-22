@@ -5,13 +5,17 @@ import UniformTypeIdentifiers
 @MainActor
 @Observable
 final class TagEditorModel: Identifiable {
+    enum ReadState {
+        case idle, reading, loaded, failed
+    }
+
     let id = UUID()
     let track: AudioTrack
     let player: PlayerViewModel
     private(set) var snapshot: TagSnapshot?
     var draft: [TagField: String] = [:]
     var artwork: Data?
-    private(set) var isReading = false
+    private(set) var readState: ReadState = .idle
     private(set) var isSaving = false
     private(set) var receipt: TagSaveReceipt?
     private(set) var fileWasSaved = false
@@ -27,6 +31,7 @@ final class TagEditorModel: Identifiable {
         self.track = track; self.player = player; self.receipt = recovery; self.service = service
     }
 
+    var isReading: Bool { readState == .reading }
     var isBusy: Bool { isReading || isSaving }
     var saveStopsPlayback: Bool { player.tagSaveStopsPlayback(for: snapshot?.url ?? track.url) }
     var patch: TagPatch {
@@ -69,15 +74,19 @@ final class TagEditorModel: Identifiable {
 
     func load() async {
         guard !isBusy, receipt == nil else { return }
-        isReading = true
-        defer { isReading = false }
+        readState = .reading
         do {
             let read = try await service.read(url: track.resolveURL() ?? track.url)
             snapshot = read
             draft = Dictionary(uniqueKeysWithValues: TagField.allCases.map { ($0, read.text($0)) })
             artwork = read.artwork
             message = nil
-        } catch { snapshot = nil; message = error.localizedDescription }
+            readState = .loaded
+        } catch {
+            snapshot = nil
+            message = error.localizedDescription
+            readState = .failed
+        }
     }
 
     func save() {

@@ -24,7 +24,7 @@ struct TagEditorModelTests {
         }
     }
 
-    private func setup(useAlias: Bool = false, core: (any AudioPlayerCoreProtocol)? = nil,
+    private func setup(useAlias: Bool = false, loadImmediately: Bool = true, core: (any AudioPlayerCoreProtocol)? = nil,
                        stage: (@Sendable (TagSaveStage) throws -> Void)? = nil) async throws
         -> (TagEditorModel, FailingTagDataService, SDTrack, URL) {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("EditorTest-\(UUID())")
@@ -45,8 +45,35 @@ struct TagEditorModelTests {
         while player.restorationPhase != .completed { await Task.yield() }
         let service = TrackTagService(recoveryURL: dir.appendingPathComponent("recovery.json"), beforeStage: stage ?? { _ in })
         let model = TagEditorModel(track: record.toAudioTrack(), player: player, service: service)
-        await model.load()
+        if loadImmediately { await model.load() }
         return (model, data, record, dir)
+    }
+
+    @Test("Opening the editor starts idle; only an actual read error fails, and retry recovers")
+    func initialReadAndRetry() async throws {
+        let (model, _, _, dir) = try await setup(loadImmediately: false)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        #expect(model.readState == .idle)
+        #expect(model.snapshot == nil)
+        #expect(model.message == nil)
+        #expect(!model.canSave)
+
+        let url = model.track.url
+        let original = try Data(contentsOf: url)
+        try Data("Unreadable tag fixture".utf8).write(to: url)
+        await model.load()
+        #expect(model.readState == .failed)
+        #expect(model.snapshot == nil)
+        #expect(model.message != nil)
+        #expect(!model.isBusy)
+
+        try original.write(to: url)
+        await model.load()
+        #expect(model.readState == .loaded)
+        #expect(model.snapshot != nil)
+        #expect(model.message == nil)
+        #expect(!model.isBusy)
+        #expect(!model.isDirty)
     }
 
     @Test("File commit survives database failure; retry only synchronizes and keeps stable identity")

@@ -9,10 +9,10 @@ struct TagEditorView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("tag_editor_title").font(.title2.bold())
             Text(model.receipt?.url.deletingPathExtension().lastPathComponent ?? model.track.title).font(.subheadline).lineLimit(2).foregroundStyle(.secondary)
-            if model.isReading {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if model.receipt != nil {
+            if model.receipt != nil {
                 recovery
+            } else if model.readState == .idle || model.isReading {
+                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let snapshot = model.snapshot {
                 if !snapshot.writableFormat { Text("tag_read_only_format").foregroundStyle(.secondary) }
                 TabView(selection: $selection) {
