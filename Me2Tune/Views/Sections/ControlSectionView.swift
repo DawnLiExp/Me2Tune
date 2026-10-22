@@ -202,8 +202,6 @@ struct ControlSectionView: View {
         }
         .buttonStyle(.plain)
         .help(repeatTooltip)
-        .rotationEffect(.degrees(rotationAngle))
-        .animation(.spring(response: 0.4, dampingFraction: 0.6), value: repeatMode)
     }
 
     private var repeatIcon: String {
@@ -226,10 +224,6 @@ struct ControlSectionView: View {
         }
     }
 
-    private var rotationAngle: Double {
-        repeatMode == .off ? 0 : 180
-    }
-    
     // MARK: - Volume Control
     
     private var volumeControl: some View {

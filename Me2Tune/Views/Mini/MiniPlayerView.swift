@@ -136,8 +136,10 @@ struct MiniPlayerView: View {
         
         return HStack(spacing: 0) {
             HStack(spacing: 14) {
-                shuffleButton
-                repeatButton
+                HStack(spacing: 8) {
+                    shuffleButton
+                    repeatButton
+                }
                 
                 HStack(spacing: 8) {
                     controlButton(
@@ -221,6 +223,7 @@ struct MiniPlayerView: View {
                     .font(.system(size: 18, weight: .bold))
                     .foregroundColor(miniTheme.colors.primaryText)
             }
+            .frame(width: 24, height: 24)
         }
         .buttonStyle(.plain)
         .disabled(miniTransportDisabled || !playerViewModel.canStartPlayback)
