@@ -207,8 +207,13 @@ NSString *pairValue(NSDictionary *existing, NSDictionary *patch, NSString *numbe
     NSString *t = patch[total] ?: [existing[total] firstObject] ?: @"";
     return t.length ? [NSString stringWithFormat:@"%@/%@", n, t] : n;
 }
-void patchID3(ID3v2::Tag *tag, NSDictionary *patch) {
-    NSDictionary *existing = id3Fields(tag);
+void patchID3(ID3v2::Tag *tag, NSDictionary *patch, NSDictionary *visibleFields) {
+    NSMutableDictionary *existing = id3Fields(tag);
+    // A pair may currently come only from APE/ID3v1. Creating its ID3v2 frame
+    // must preserve the unedited half instead of shadowing it with an empty value.
+    for (NSString *key in @[@"TRACKNUMBER", @"TRACKTOTAL", @"DISCNUMBER", @"DISCTOTAL"]) {
+        if (!existing[key] && visibleFields[key]) existing[key] = visibleFields[key];
+    }
     for (NSString *key in patch) {
         NSString *frameID = frameIDs()[key]; if (!frameID) throw std::runtime_error("Unknown field");
         NSString *value = patch[key];
@@ -273,7 +278,7 @@ void writeFile(NSURL *url, NSDictionary *patch, BOOL changeArt, NSData *art) {
         auto owner = std::make_unique<MPEG::File>(url.fileSystemRepresentation); auto &f = *owner; auto *tag = f.ID3v2Tag(true);
         auto version = tag->header()->majorVersion() == 3 ? ID3v2::v3 : ID3v2::v4;
         NSDictionary *before = id3Inventory(tag), *apeBefore = apeInventory(f.APETag());
-        patchID3(tag, patch); patchLegacy(f.ID3v1Tag(), patch);
+        patchID3(tag, patch, snapshot[@"fields"]); patchLegacy(f.ID3v1Tag(), patch);
         NSMutableSet *apeAllowed = [NSMutableSet set];
         if (auto *ape = f.APETag()) {
             auto items = ape->itemListMap();
@@ -332,7 +337,7 @@ void writeFile(NSURL *url, NSDictionary *patch, BOOL changeArt, NSData *art) {
             NSDictionary *aliases = @{@"COMMENT":@"DESCRIPTION", @"TRACKTOTAL":@"TOTALTRACKS", @"DISCTOTAL":@"TOTALDISCS"};
             if (NSString *alias = aliases[key]) { [allowed addObject:alias]; tag->removeFields(ts(alias)); }
         }
-        if (f.ID3v2Tag()) patchID3(f.ID3v2Tag(), patch);
+        if (f.ID3v2Tag()) patchID3(f.ID3v2Tag(), patch, snapshot[@"fields"]);
         patchLegacy(f.ID3v1Tag(), patch);
         if (changeArt) {
             auto list = f.pictureList(); FLAC::Picture *selected = primary >= 0 ? list[(unsigned int)primary] : nullptr;
@@ -400,15 +405,17 @@ void writeFile(NSURL *url, NSDictionary *patch, BOOL changeArt, NSData *art) {
     }
     if (![expectedPictures isEqual:after[@"pictures"]]) throw std::runtime_error("Artwork preservation check failed");
 }
-void fail(NSError **error, const char *message) {
-    if (error) *error = [NSError errorWithDomain:@"Me2Tune.TagLib" code:1 userInfo:@{NSLocalizedDescriptionKey:[NSString stringWithUTF8String:message] ?: @"Tag operation failed"}];
+void fail(NSError **error, const char *message, NSString *key) {
+    if (error) *error = [NSError errorWithDomain:@"Me2Tune.TagLib" code:1 userInfo:@{
+        NSLocalizedDescriptionKey:NSLocalizedString(key, @""),
+        NSDebugDescriptionErrorKey:[NSString stringWithUTF8String:message] ?: @"Tag operation failed"}];
 }
 }
 @implementation MTTagLibBridge
 + (NSDictionary *)readURL:(NSURL *)url error:(NSError **)error {
-    try { return readFile(url); } catch (const std::exception &e) { fail(error, e.what()); return nil; }
+    try { return readFile(url); } catch (const std::exception &e) { fail(error, e.what(), @"tag_error_read"); return nil; }
 }
 + (BOOL)writeURL:(NSURL *)url fields:(NSDictionary<NSString *,NSString *> *)fields artworkChanged:(BOOL)changed artwork:(NSData *)art error:(NSError **)error {
-    try { writeFile(url, fields, changed, art); return YES; } catch (const std::exception &e) { fail(error, e.what()); return NO; }
+    try { writeFile(url, fields, changed, art); return YES; } catch (const std::exception &e) { fail(error, e.what(), @"tag_error_write"); return NO; }
 }
 @end

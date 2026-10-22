@@ -68,6 +68,25 @@ struct TrackTagServiceTests {
         try await service.finishSave(receipt: cleared)
     }
 
+    @Test("Editing only a total preserves the number stored in legacy MP3 tags")
+    func legacyTrackPair() async throws {
+        let (url, service) = try setup("id3v4.mp3")
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let original = try Data(contentsOf: url)
+        // Remove the leading ID3v2 block, leaving the audio and existing APE/ID3v1 tags.
+        let size = original[6..<10].reduce(0) { ($0 << 7) | Int($1) }
+        try Data(original.dropFirst(10 + size)).write(to: url)
+        let before = try await service.read(url: url)
+        #expect(before.text(.trackNumber) == "2")
+        let receipt = try await service.save(trackID: UUID(), baseline: before,
+            patch: TagPatch(fields: ["TRACKTOTAL": "15"]))
+        let after = try await service.read(url: url)
+        #expect(after.text(.trackNumber) == "2")
+        #expect(after.text(.trackTotal) == "15")
+        #expect(after.text(.title) == before.text(.title))
+        try await service.finishSave(receipt: receipt)
+    }
+
     @Test("Empty, invalid, multi-value, and conflicting patches never touch source")
     func rejectedPatches() async throws {
         let (url, service) = try setup("multiple-lyrics.mp3")
