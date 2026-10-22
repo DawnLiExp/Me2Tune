@@ -12,6 +12,7 @@ import UniformTypeIdentifiers
 struct AlbumCardView: View, Equatable {
     nonisolated static func == (lhs: AlbumCardView, rhs: AlbumCardView) -> Bool {
         lhs.album.id == rhs.album.id
+            && lhs.album.tracks.first?.metadataRevision == rhs.album.tracks.first?.metadataRevision
             && lhs.album.name == rhs.album.name
             && lhs.album.tracks.count == rhs.album.tracks.count
             && lhs.isDragging == rhs.isDragging
@@ -56,7 +57,7 @@ struct AlbumCardView: View, Equatable {
                 onRemove()
             }
         }
-        .task(id: album.id) {
+        .task(id: album.tracks.first?.metadataRevision) {
             await loadArtwork()
         }
     }
@@ -69,8 +70,10 @@ struct AlbumCardView: View, Equatable {
     // MARK: - Artwork Loading
     
     private func loadArtwork() async {
-        guard artwork == nil, let firstTrack = album.tracks.first else { return }
-        artwork = await ArtworkCacheService.shared.artwork(for: firstTrack.url)
+        guard let firstTrack = album.tracks.first else { return }
+        let result = await ArtworkCacheService.shared.artwork(for: firstTrack.url)
+        guard !Task.isCancelled else { return }
+        artwork = result
     }
 }
 

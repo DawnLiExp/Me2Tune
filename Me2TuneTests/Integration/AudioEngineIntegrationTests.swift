@@ -15,6 +15,29 @@ import Testing
 @MainActor
 @Suite("SFBAudioEngine 0.14 实际播放", .serialized)
 struct AudioEngineIntegrationTests {
+    @Test("Tag save waits until current and preloaded native decoders are released", arguments: [false, true])
+    func releaseDecodersBeforeTagSave(playing: Bool) async throws {
+        let first = try makeSilentTrack(seconds: 4)
+        let next = try makeSilentTrack(seconds: 4)
+        defer {
+            try? FileManager.default.removeItem(at: first.url)
+            try? FileManager.default.removeItem(at: next.url)
+        }
+        let core = AudioPlayerCore()
+        #expect(await core.loadTrack(first))
+        #expect(core.enqueueTrack(next).enqueued)
+        core.setVolume(0)
+        if playing {
+            core.play()
+            #expect(await waitUntil { core.getCurrentPlaybackTime() > 0 })
+        }
+        core.prepareForTrackSwitch()
+        #expect(await core.waitForStoppedDecoders())
+        #expect(!core.isPlaying)
+        #expect(core.queuedTrackID == nil)
+        #expect(core.getCurrentPlaybackTime() == 0)
+    }
+
     @Test("暂停跳转、连续跳转及原地跳转均确认实际位置")
     func pausedAndRapidSeeking() async throws {
         let track = try makeSilentTrack(seconds: 4)

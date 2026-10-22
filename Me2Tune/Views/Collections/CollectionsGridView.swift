@@ -55,10 +55,11 @@ struct CollectionsGridView: View {
                 .offset(x: selectedAlbum != nil ? -100 : 0)
                 .disabled(selectedAlbum != nil)
             
-            if let album = selectedAlbum {
+            if let selected = selectedAlbum {
+                let album = collectionManager.albums.first { $0.id == selected.id } ?? selected
                 AlbumDetailView(
                     album: album,
-                    artwork: selectedAlbumArtwork,
+                    artwork: album.tracks.first?.metadataRevision == selected.tracks.first?.metadataRevision ? selectedAlbumArtwork : nil,
                     playingSource: playingSource,
                     currentIndex: currentIndex,
                     onBack: {

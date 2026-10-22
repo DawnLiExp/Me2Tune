@@ -107,7 +107,7 @@ struct LyricsView: View {
                 }
             }
         }
-        .task(id: playerViewModel.currentTrack?.id) {
+        .task(id: playerViewModel.currentTrack?.metadataRevision) {
             await loadLyrics()
         }
         .onAppear {
@@ -453,12 +453,14 @@ struct LyricsView: View {
         do {
             let result = try await LyricsService.shared.getLyricsWithCache(track: track)
             
-            guard playerViewModel.currentTrack?.id == trackID else {
+            guard !Task.isCancelled, playerViewModel.currentTrack?.id == trackID,
+                  playerViewModel.currentTrack?.metadataRevision == track.metadataRevision else {
                 return
             }
             
             await MainActor.run {
-                guard playerViewModel.currentTrack?.id == trackID else {
+                guard !Task.isCancelled, playerViewModel.currentTrack?.id == trackID,
+                  playerViewModel.currentTrack?.metadataRevision == track.metadataRevision else {
                     return
                 }
                 
@@ -475,12 +477,14 @@ struct LyricsView: View {
         } catch is CancellationError {
             return
         } catch {
-            guard playerViewModel.currentTrack?.id == trackID else {
+            guard !Task.isCancelled, playerViewModel.currentTrack?.id == trackID,
+                  playerViewModel.currentTrack?.metadataRevision == track.metadataRevision else {
                 return
             }
             
             await MainActor.run {
-                guard playerViewModel.currentTrack?.id == trackID else {
+                guard !Task.isCancelled, playerViewModel.currentTrack?.id == trackID,
+                  playerViewModel.currentTrack?.metadataRevision == track.metadataRevision else {
                     return
                 }
                 

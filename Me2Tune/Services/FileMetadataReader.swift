@@ -30,6 +30,12 @@ actor FileMetadataReader {
     }
 
     private var cache: [String: CachedResult] = [:]
+    private var revisions: [String: UUID] = [:]
+
+    func invalidate(url: URL) {
+        revisions[url.path] = UUID()
+        cache[url.path] = nil
+    }
     private let maxCacheEntries: Int
     private let loader: @Sendable (URL, Bool) async -> FileMetadataReadResult
 
@@ -44,6 +50,7 @@ actor FileMetadataReader {
     func metadata(for url: URL, includingArtworkData: Bool) async -> FileMetadataSnapshot? {
         let key = url.path
         let modDate = modificationDate(for: url)
+        let revision = revisions[key]
 
         if let cached = cache[key] {
             switch cached {
@@ -61,6 +68,7 @@ actor FileMetadataReader {
         evictIfNeeded()
 
         let result = await loader(url, includingArtworkData)
+        guard revisions[key] == revision else { return nil }
         switch result {
         case .readable(let snapshot):
             cache[key] = .readable(lyricsText: snapshot.lyricsText, modDate: modDate)
@@ -86,6 +94,12 @@ actor FileMetadataReader {
         url: URL,
         includingArtworkData: Bool
     ) async -> FileMetadataReadResult {
+        if ["mp3", "flac", "m4a"].contains(url.pathExtension.lowercased()),
+           let snapshot = try? await TrackTagService.shared.read(url: url) {
+            let lyrics = snapshot.values(.lyrics).first.flatMap { $0.isEmpty ? nil : $0 }
+            return .readable(FileMetadataSnapshot(artworkData: includingArtworkData ? snapshot.artwork : nil,
+                                                 lyricsText: lyrics))
+        }
         let task = Task.detached(priority: .utility) { () -> FileMetadataReadResult in
             let startTime = CFAbsoluteTimeGetCurrent()
             defer {

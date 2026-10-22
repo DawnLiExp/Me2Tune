@@ -671,6 +671,75 @@ struct PlaybackCoordinatorTests {
         return (coordinator, core, defaults)
     }
 
+
+    @Test("Tag saving blocks paused, playing and preloaded sessions; manual play starts original track at zero", arguments: [false, true])
+    func tagSavePlaybackGate(paused: Bool) async throws {
+        let (coordinator, core, _) = try playlistCoordinator(count: 3)
+        let tracks = coordinator.playlistManager.tracks
+        coordinator.playPlaylistTrack(at: 1)
+        #expect(await waitUntil { coordinator.isPlaying })
+        coordinator.seek(to: 50)
+        coordinator.playerCoreDecodingComplete(for: tracks[1])
+        #expect(await waitUntil { !core.enqueueTrackCallIDs.isEmpty })
+        if paused { coordinator.pause() }
+        coordinator.toggleShuffle()
+        coordinator.repeatMode = .one
+        #expect(coordinator.hasPlaybackSession)
+        let playCount = core.playCallCount
+        let loadCount = core.loadTrackCallIDs.count
+        #expect(await coordinator.beginTagSave())
+        #expect(await !coordinator.beginTagSave())
+        coordinator.play(); coordinator.next(); coordinator.previous(); coordinator.seek(to: 80)
+        coordinator.playPlaylistTrack(at: 0)
+        coordinator.playerCoreDecodingComplete(for: tracks[1])
+        coordinator.playerCoreDidReachEnd()
+        coordinator.playerCoreDecodingFailed(for: tracks[1], isCurrent: true)
+        #expect(core.loadTrackCallIDs.count == loadCount)
+        #expect(core.playCallCount == playCount)
+        #expect(core.getCurrentPlaybackTime() == 0)
+        #expect(!coordinator.isTrackFailed(tracks[1].id))
+        #expect(coordinator.playbackStateManager.currentTrackID == tracks[1].id)
+        coordinator.endTagSave()
+        #expect(!coordinator.isPlaying)
+        #expect(coordinator.isShuffling)
+        #expect(coordinator.repeatMode == .one)
+        #expect(coordinator.playbackOrder.history.isEmpty)
+        coordinator.play()
+        #expect(await waitUntil { core.playCallCount == playCount + 1 })
+        #expect(core.loadTrackCallIDs.last == tracks[1].id)
+        #expect(core.getCurrentPlaybackTime() == 0)
+    }
+
+    @Test("Tag saving invalidates a suspended load and explicit selection replaces restart target")
+    func tagSaveSuspendedLoad() async throws {
+        let (coordinator, core, _) = try playlistCoordinator(count: 3)
+        let tracks = coordinator.playlistManager.tracks
+        core.heldLoadIDs = [tracks[1].id]
+        coordinator.playPlaylistTrack(at: 1)
+        #expect(await waitUntil { core.loadTrackCallIDs.count == 1 })
+        #expect(coordinator.hasPlaybackSession)
+        #expect(await coordinator.beginTagSave())
+        core.releaseAllLoads()
+        #expect(await waitUntil { core.completedLoadIDs.count == 1 })
+        #expect(core.playCallCount == 0)
+        coordinator.endTagSave()
+        coordinator.playPlaylistTrack(at: 2)
+        #expect(await waitUntil { coordinator.isPlaying })
+        coordinator.pause(); coordinator.play()
+        #expect(core.loadTrackCallIDs == [tracks[1].id, tracks[2].id])
+        #expect(coordinator.playbackStateManager.currentTrackID == tracks[2].id)
+    }
+
+    @Test("Decoder release failure refuses save and releases the playback gate")
+    func tagSaveReleaseFailure() async throws {
+        let (coordinator, core, _) = try playlistCoordinator(count: 1)
+        core.decoderReleaseSucceeds = false
+        #expect(await !coordinator.beginTagSave())
+        #expect(!coordinator.isSavingTags)
+        coordinator.play()
+        #expect(await waitUntil { coordinator.isPlaying })
+    }
+
     private func makeTracks(count: Int) -> [AudioTrack] {
         (0..<count).map { index in
             AudioTrack(
@@ -739,6 +808,8 @@ private final class MockAudioPlayerCore: AudioPlayerCoreProtocol {
 
     private var loadedTrack: AudioTrack?
     var loadResults: [UUID: Bool] = [:]
+    var decoderReleaseSucceeds = true
+    func waitForStoppedDecoders() async -> Bool { decoderReleaseSucceeds }
     var loadDelay: Duration?
     var heldLoadIDs: Set<UUID> = []
     private var heldLoads: [UUID: [CheckedContinuation<Void, Never>]] = [:]

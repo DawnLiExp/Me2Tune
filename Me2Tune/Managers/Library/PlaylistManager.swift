@@ -74,6 +74,12 @@ final class PlaylistManager {
         entries.firstIndex(where: { $0.track.id == track.id })
     }
 
+    func refreshTrackMetadata(_ track: AudioTrack) {
+        for index in entries.indices where entries[index].track.id == track.id {
+            entries[index].track = track
+        }
+    }
+
     // MARK: - Public Methods - Add
 
     @discardableResult

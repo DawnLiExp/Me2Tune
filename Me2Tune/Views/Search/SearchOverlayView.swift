@@ -87,6 +87,9 @@ struct SearchOverlayView: View {
         .onChange(of: searchText) { _, newValue in
             debounceSearch(newValue)
         }
+        .onChange(of: (searchData.playlist + searchData.albums.flatMap(\.tracks)).map(\.metadataRevision)) { _, _ in
+            searchResults = performSearch()
+        }
         .onChange(of: debouncedSearchText) { _, _ in
             searchResults = performSearch()
         }

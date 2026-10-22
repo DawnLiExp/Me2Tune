@@ -1,7 +1,9 @@
 import Foundation
+import Observation
 
 /// Owns requests and the one successor already submitted to the audio engine.
 @MainActor
+@Observable
 final class PlaybackLoadController {
     private let playerCore: any AudioPlayerCoreProtocol
     private let stateManager: PlaybackStateManager

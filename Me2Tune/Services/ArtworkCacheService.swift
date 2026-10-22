@@ -27,6 +27,20 @@ actor ArtworkCacheService {
     // MARK: - Concurrent Loading Control
     
     private var loadingTasks: [URL: Task<NSImage?, Never>] = [:]
+    private var revisions: [URL: UUID] = [:]
+
+    func invalidate(url: URL) {
+        revisions[url] = UUID()
+        loadingTasks.removeValue(forKey: url)?.cancel()
+        memoryCache.removeObject(forKey: url as NSURL)
+        let hash = hashURL(url)
+        var metadata = loadMetadata()
+        for entry in metadata.entries where entry.urlHash == hash {
+            try? FileManager.default.removeItem(at: diskCacheURL.appendingPathComponent("\(entry.fileName).jpg"))
+        }
+        metadata.entries.removeAll { $0.urlHash == hash }
+        saveMetadata(metadata)
+    }
     
     // MARK: - Types
     
@@ -67,6 +81,7 @@ actor ArtworkCacheService {
     // MARK: - Public Methods
     
     func artwork(for url: URL) async -> NSImage? {
+        let revision = revisions[url]
         // 1. Check memory cache
         if let cached = memoryCache.object(forKey: url as NSURL) {
             return cached
@@ -74,20 +89,24 @@ actor ArtworkCacheService {
         
         // 2. Check if already loading
         if let existingTask = loadingTasks[url] {
-            return await existingTask.value
+            let result = await existingTask.value
+            return revisions[url] == revision ? result : nil
         }
         
         // 3. Create new loading task
         let task = Task<NSImage?, Never> {
             // Check disk cache
             if let diskCached = await loadFromDiskCache(url: url) {
+                guard revisions[url] == revision, !Task.isCancelled else { return nil }
                 cacheInMemory(diskCached, for: url)
                 return diskCached
             }
             
             // Extract from audio file
             if let extracted = await extractArtwork(from: url) {
-                await cacheToDisk(extracted, for: url)
+                guard revisions[url] == revision, !Task.isCancelled else { return nil }
+                cacheToDisk(extracted, for: url)
+                guard revisions[url] == revision, !Task.isCancelled else { return nil }
                 cacheInMemory(extracted, for: url)
                 return extracted
             }
@@ -103,7 +122,7 @@ actor ArtworkCacheService {
             loadingTasks[url] = nil
         }
         
-        return result
+        return revisions[url] == revision ? result : nil
     }
     
     func preloadArtworks(for urls: [URL], priority: TaskPriority = .utility) {
@@ -155,7 +174,7 @@ actor ArtworkCacheService {
         return image
     }
     
-    private func cacheToDisk(_ image: NSImage, for url: URL) async {
+    private func cacheToDisk(_ image: NSImage, for url: URL) {
         let urlHash = hashURL(url)
         let fileName = url.deletingPathExtension().lastPathComponent
         let finalFileName = findAvailableFileName(baseFileName: fileName, urlHash: urlHash)
@@ -189,7 +208,7 @@ actor ArtworkCacheService {
             
             logger.info("💾 Cached artwork: \(finalFileName).jpg (\(fileSize) bytes)")
             
-            await cleanupIfNeeded()
+            cleanupIfNeeded()
             
         } catch {
             logger.error("Failed to cache artwork: \(error)")
@@ -309,7 +328,7 @@ actor ArtworkCacheService {
         }
     }
     
-    private func cleanupIfNeeded() async {
+    private func cleanupIfNeeded() {
         var metadata = loadMetadata()
         
         let maxCount = CacheConfigManager.maxCacheCount

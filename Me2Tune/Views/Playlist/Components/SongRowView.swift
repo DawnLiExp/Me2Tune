@@ -134,7 +134,8 @@ struct SongRowView: View {
 
 extension SongRowView: Equatable {
     static func == (lhs: SongRowView, rhs: SongRowView) -> Bool {
-        lhs.track.id == rhs.track.id &&
+        lhs.track.id == rhs.track.id
+            && lhs.track.metadataRevision == rhs.track.metadataRevision &&
             lhs.index == rhs.index &&
             lhs.isPlaying == rhs.isPlaying &&
             lhs.isFailed == rhs.isFailed // ✅ 新增比较

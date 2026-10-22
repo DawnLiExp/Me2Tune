@@ -28,6 +28,7 @@ actor LyricsService {
     // MARK: - Unified Entry Point
     
     func getLyricsWithCache(track: AudioTrack) async throws -> Lyrics {
+        let revision = await LyricsCacheService.shared.revision(for: track.url)
         try Task.checkCancellation()
         
         // 1. 本地LRC文件
@@ -60,9 +61,8 @@ actor LyricsService {
         
         try Task.checkCancellation()
         
-        Task {
-            await LyricsCacheService.shared.saveLyrics(lyrics, audioURL: track.url)
-        }
+        guard await LyricsCacheService.shared.revision(for: track.url) == revision else { throw CancellationError() }
+        await LyricsCacheService.shared.saveLyrics(lyrics, audioURL: track.url, revision: revision)
         
         return lyrics
     }

@@ -68,9 +68,11 @@ struct AudioTrack: Identifiable, Equatable, Sendable {
     let duration: TimeInterval
     let format: AudioFormat
     let bookmark: Data?
+    let metadataRevision: UUID
     
     init(url: URL) async {
         self.id = UUID()
+        self.metadataRevision = UUID()
         self.url = url
         
         self.bookmark = try? url.bookmarkData(
@@ -135,7 +137,8 @@ struct AudioTrack: Identifiable, Equatable, Sendable {
         albumTitle: String?,
         duration: TimeInterval,
         format: AudioFormat,
-        bookmark: Data?
+        bookmark: Data?,
+        metadataRevision: UUID = UUID()
     ) {
         self.id = id
         self.url = url
@@ -145,6 +148,7 @@ struct AudioTrack: Identifiable, Equatable, Sendable {
         self.duration = duration
         self.format = format
         self.bookmark = bookmark
+        self.metadataRevision = metadataRevision
     }
 
     func resolveURL() -> URL? {

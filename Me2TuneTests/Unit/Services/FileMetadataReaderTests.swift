@@ -147,3 +147,50 @@ private actor MetadataLoaderSpy {
         return results.removeFirst()
     }
 }
+
+private actor SuspendedMetadataLoader {
+    var started = false
+    private var continuation: CheckedContinuation<Void, Never>?
+    func load(url: URL, artwork: Bool) async -> FileMetadataReadResult {
+        if !started {
+            started = true
+            await withCheckedContinuation { continuation = $0 }
+            return .readable(FileMetadataSnapshot(artworkData: Data([1]), lyricsText: "old"))
+        }
+        return .readable(FileMetadataSnapshot(artworkData: Data([2]), lyricsText: "new"))
+    }
+    func release() { continuation?.resume(); continuation = nil }
+}
+
+extension FileMetadataReaderTests {
+    @Test("Invalidation rejects an old asynchronous result before publishing or caching")
+    func staleResultIsDiscarded() async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("metadata-\(UUID()).mp3")
+        try Data([0]).write(to: url)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let loader = SuspendedMetadataLoader()
+        let reader = FileMetadataReader(loader: loader.load)
+        let old = Task { await reader.metadata(for: url, includingArtworkData: true) }
+        let deadline = ContinuousClock.now + .seconds(2)
+        while !(await loader.started), ContinuousClock.now < deadline { await Task.yield() }
+        #expect(await loader.started)
+        await reader.invalidate(url: url)
+        let new = await reader.metadata(for: url, includingArtworkData: true)
+        #expect(new?.lyricsText == "new")
+        await loader.release()
+        #expect(await old.value == nil)
+        let cached = await reader.metadata(for: url, includingArtworkData: false)
+        #expect(cached?.lyricsText == "new")
+    }
+
+    @Test("Old lyrics downloads cannot repopulate an invalidated disk cache")
+    func staleLyricsCacheWriteIsDiscarded() async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("lyrics-\(UUID()).mp3")
+        let cache = LyricsCacheService.shared
+        let old = await cache.revision(for: url)
+        await cache.invalidate(url: url)
+        let lyrics = await Lyrics.fromText("old lyrics", trackName: "test", artistName: "test", albumName: nil, duration: 1)
+        await cache.saveLyrics(lyrics, audioURL: url, revision: old)
+        #expect(await cache.getCachedLyrics(audioURL: url) == nil)
+    }
+}

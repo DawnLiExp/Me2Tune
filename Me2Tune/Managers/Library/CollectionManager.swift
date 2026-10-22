@@ -44,6 +44,14 @@ final class CollectionManager {
 
     // MARK: - Delayed Loading
 
+    func refreshTrackMetadata(_ track: AudioTrack) {
+        for albumIndex in albums.indices {
+            for trackIndex in albums[albumIndex].tracks.indices where albums[albumIndex].tracks[trackIndex].id == track.id {
+                albums[albumIndex].tracks[trackIndex] = track
+            }
+        }
+    }
+
     func scheduleDelayedLoad(delay: TimeInterval = 0.5) {
         guard delayedLoadTask == nil else {
             logger.debug("Delayed load already scheduled, skipping")

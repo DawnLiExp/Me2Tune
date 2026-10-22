@@ -34,6 +34,7 @@ final class PlaybackStateManager {
     private weak var playlistManager: PlaylistManager?
     private weak var collectionManager: CollectionManager?
     private var currentAlbumSnapshot: Album?
+    private var metadataRevision = UUID()
     private var lastSavedSnapshot: PlaybackSessionSnapshot?
 
     /// 同步探测是否存在已保存的会话快照（转发 sessionStore）
@@ -44,6 +45,7 @@ final class PlaybackStateManager {
     // MARK: - Computed Properties
 
     var currentTracks: [AudioTrack] {
+        _ = metadataRevision
         switch playingSource {
         case .playlist:
             return playlistManager?.tracks ?? []
@@ -88,6 +90,15 @@ final class PlaybackStateManager {
     }
 
     // MARK: - Playback Source Switching
+
+    func refreshTrackMetadata(_ track: AudioTrack) {
+        guard var album = currentAlbumSnapshot else { return }
+        for index in album.tracks.indices where album.tracks[index].id == track.id {
+            album.tracks[index] = track
+        }
+        currentAlbumSnapshot = album
+        metadataRevision = UUID()
+    }
 
     func switchToPlaylist(selecting index: Int? = nil) {
         playingSource = .playlist

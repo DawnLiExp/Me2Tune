@@ -34,6 +34,28 @@ final class AudioPlayerCore: NSObject {
     weak var delegate: (any AudioPlayerCoreDelegate)?
     
     private var player: AudioPlayer?
+    // Weak references also cover decoders retained temporarily by engine callbacks.
+    private final class DecoderReleaseProbe {
+        weak var decoder: AudioDecoder?
+        init(_ decoder: AudioDecoder) { self.decoder = decoder }
+    }
+    private var decoderReleaseProbes: [DecoderReleaseProbe] = []
+
+    func waitForStoppedDecoders() async -> Bool {
+        let deadline = ContinuousClock.now + .seconds(5)
+        while decoderReleaseProbes.contains(where: { $0.decoder != nil }) {
+            guard !Task.isCancelled, ContinuousClock.now < deadline else { return false }
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        decoderReleaseProbes.removeAll()
+        return true
+    }
+
+    private func trackDecoderLifetime(_ decoder: AudioDecoder) -> AudioDecoder {
+        decoderReleaseProbes.removeAll { $0.decoder == nil }
+        decoderReleaseProbes.append(DecoderReleaseProbe(decoder))
+        return decoder
+    }
     
     private(set) var isPlaying = false
     private(set) var currentTime: TimeInterval = 0
@@ -86,20 +108,7 @@ final class AudioPlayerCore: NSObject {
         duration = track.duration
 
         do {
-            let decoder = try makeDecoder(for: track)
-            if time > 0 {
-                // Seek before enqueueing: a paused engine may not yet expose a current decoder.
-                if !decoder.isOpen { try decoder.open() }
-                guard time.isFinite, decoder.supportsSeeking, decoder.length > 0 else {
-                    throw AppError.audioLoadFailed(track.url)
-                }
-                let frame = min(time * decoder.processingFormat.sampleRate, Double(decoder.length - 1))
-                try decoder.seek(to: Int64(frame))
-                currentTime = Double(decoder.position) / decoder.processingFormat.sampleRate
-            }
-            decoderQueue.register(DecoderReference(decoder), track: track, current: true)
-            // Queue without briefly rendering the track while artwork is loading.
-            try player.enqueue(decoder, immediate: true)
+            try enqueueCurrentDecoder(for: track, startingAt: time, player: player)
             delegate?.playerCoreDidUpdatePlaybackState(false)
             delegate?.playerCoreDidUpdateTime(currentTime: currentTime, duration: duration)
             let artwork = await ArtworkCacheService.shared.artwork(for: track.url)
@@ -114,6 +123,25 @@ final class AudioPlayerCore: NSObject {
             delegate?.playerCoreDidEncounterError(AppError.audioLoadFailed(track.url))
             return false
         }
+    }
+
+    // Keep the decoder's local strong reference out of the artwork suspension point.
+    // The save path waits for engine cancellation and callback ownership to finish.
+    private func enqueueCurrentDecoder(for track: AudioTrack, startingAt time: TimeInterval, player: AudioPlayer) throws {
+        let decoder = try makeDecoder(for: track)
+        if time > 0 {
+            // Seek before enqueueing: a paused engine may not yet expose a current decoder.
+            if !decoder.isOpen { try decoder.open() }
+            guard time.isFinite, decoder.supportsSeeking, decoder.length > 0 else {
+                throw AppError.audioLoadFailed(track.url)
+            }
+            let frame = min(time * decoder.processingFormat.sampleRate, Double(decoder.length - 1))
+            try decoder.seek(to: Int64(frame))
+            currentTime = Double(decoder.position) / decoder.processingFormat.sampleRate
+        }
+        decoderQueue.register(DecoderReference(decoder), track: track, current: true)
+        // Queue without briefly rendering the track while artwork is loading.
+        try player.enqueue(decoder, immediate: true)
     }
 
     var queuedTrackID: UUID? { decoderQueue.queuedTrack?.id }
@@ -146,13 +174,13 @@ final class AudioPlayerCore: NSObject {
             if AudioBufferDetector.calculateBufferSize(track: track, isNetworkStorage: isNetwork) != nil {
                 do {
                     let source = try InputSource(for: track.url, flags: .loadFilesInMemory)
-                    return try AudioDecoder(inputSource: source)
+                    return trackDecoderLifetime(try AudioDecoder(inputSource: source))
                 } catch {
                     logger.warning("Buffering failed, using direct playback: \(error)")
                 }
             }
         }
-        return try AudioDecoder(url: track.url)
+        return trackDecoderLifetime(try AudioDecoder(url: track.url))
     }
 
     func play() {

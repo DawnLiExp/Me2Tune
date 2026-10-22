@@ -29,13 +29,92 @@ final class PlaybackCoordinator {
     }
 
     private(set) var isPlaying = false
+    private(set) var isSavingTags = false
+    @ObservationIgnored private var tagSaveRestartID: UUID?
+    private let dataService: DataServiceProtocol
+    private let collectionManager: CollectionManager
+
+    var hasPlaybackSession: Bool {
+        isPlaying || loadController.hasLoadedTrack || loadController.hasPendingStart || loadController.submitted != nil
+    }
+
+    @discardableResult
+    func beginTagSave() async -> Bool {
+        guard !isSavingTags else { return false }
+        isSavingTags = true
+        tagSaveRestartID = playbackStateManager.currentTrackID
+        loadController.stop()
+        isPlaying = false
+        playbackProgressState.currentTime = 0
+        timeSampler.updatePlaybackState(isPlaying: false)
+        resetOrder()
+        updateNowPlayingInfo()
+        guard await playerCore.waitForStoppedDecoders() else {
+            isSavingTags = false
+            return false
+        }
+        return true
+    }
+
+    func endTagSave() { isSavingTags = false }
+
+    func refreshTrackMetadata(id: UUID, snapshot: TagSnapshot) async throws {
+        let old = playlistManager.tracks.first { $0.id == id }
+            ?? playbackStateManager.currentTracks.first { $0.id == id }
+            ?? collectionManager.albums.lazy.flatMap(\.tracks).first { $0.id == id }
+        for url in Set([snapshot.url, old?.url].compactMap { $0 }) {
+            await FileMetadataReader.shared.invalidate(url: url)
+            await ArtworkCacheService.shared.invalidate(url: url)
+            await LyricsCacheService.shared.invalidate(url: url)
+        }
+        let record = dataService.findTrack(byStableId: id)
+        let existingURL = old?.url ?? record.flatMap { URL(string: $0.urlString) }
+        let referenceURL = existingURL.flatMap { $0.resolvingSymlinksInPath() == snapshot.url ? $0 : nil } ?? snapshot.url
+        let title = snapshot.text(.title).trimmingCharacters(in: .whitespacesAndNewlines)
+        let artist = snapshot.values(.artist).joined(separator: "; ")
+        let album = snapshot.values(.album).joined(separator: "; ")
+        let bookmark = try referenceURL.bookmarkData(options: [.withSecurityScope, .securityScopeAllowOnlyReadAccess],
+                                                     includingResourceValuesForKeys: nil, relativeTo: nil)
+        let refreshed: AudioTrack?
+        if let record {
+            let previous = (record.title, record.artist, record.albumTitle, record.urlString, record.bookmark)
+            record.title = title.isEmpty ? referenceURL.deletingPathExtension().lastPathComponent : title
+            record.artist = artist.isEmpty ? nil : artist
+            record.albumTitle = album.isEmpty ? nil : album
+            record.urlString = referenceURL.absoluteString
+            record.bookmark = bookmark
+            do { try dataService.save() }
+            catch {
+                // Revert only this operation's properties; unrelated context changes remain intact.
+                (record.title, record.artist, record.albumTitle, record.urlString, record.bookmark) = previous
+                throw error
+            }
+            refreshed = record.toAudioTrack()
+        } else if let old {
+            refreshed = AudioTrack(id: id, url: referenceURL,
+                title: title.isEmpty ? referenceURL.deletingPathExtension().lastPathComponent : title,
+                artist: artist.isEmpty ? nil : artist, albumTitle: album.isEmpty ? nil : album,
+                duration: old.duration, format: old.format, bookmark: bookmark)
+        } else { refreshed = nil }
+        guard let refreshed else { return }
+        playlistManager.refreshTrackMetadata(refreshed)
+        collectionManager.refreshTrackMetadata(refreshed)
+        playbackStateManager.refreshTrackMetadata(refreshed)
+        if playbackStateManager.currentTrackID == id {
+            let artwork = await ArtworkCacheService.shared.artwork(for: snapshot.url)
+            guard playbackStateManager.currentTrack?.metadataRevision == refreshed.metadataRevision else { return }
+            currentArtwork = artwork
+            playerCore.updateDockIcon(artwork)
+            updateNowPlayingInfo()
+        }
+    }
     private(set) var currentArtwork: NSImage?
     private(set) var duration: TimeInterval = 0
 
     var repeatMode: RepeatMode = .off {
         didSet {
             playerCore.repeatMode = repeatMode
-            loadController.modesChanged()
+            if !isSavingTags { loadController.modesChanged() }
         }
     }
 
@@ -44,6 +123,7 @@ final class PlaybackCoordinator {
     var isShuffling: Bool { playbackOrder.isShuffling }
 
     func toggleShuffle() {
+        guard !isSavingTags else { return }
         loadController.synchronizeOrder()
         playbackOrder.setShuffling(!isShuffling)
         defaults.set(isShuffling, forKey: "shuffleEnabled")
@@ -66,11 +146,11 @@ final class PlaybackCoordinator {
     }
 
     var canGoPrevious: Bool {
-        playbackOrder.previous(repeatMode: repeatMode, failed: failedTrackRegistry.snapshot()) != nil
+        !isSavingTags && playbackOrder.previous(repeatMode: repeatMode, failed: failedTrackRegistry.snapshot()) != nil
     }
 
     var canGoNext: Bool {
-        playbackOrder.next(repeatMode: repeatMode, automatic: false,
+        !isSavingTags && playbackOrder.next(repeatMode: repeatMode, automatic: false,
                            failed: failedTrackRegistry.snapshot()) != nil
     }
 
@@ -97,6 +177,8 @@ final class PlaybackCoordinator {
         defaults: UserDefaults = .standard
     ) {
         self.defaults = defaults
+        self.dataService = dataService
+        self.collectionManager = collectionManager
         self.playlistManager = PlaylistManager(dataService: dataService)
         self.playbackStateManager = PlaybackStateManager(
             playlistManager: self.playlistManager,
@@ -174,6 +256,16 @@ final class PlaybackCoordinator {
     }
 
     func play() {
+        guard !isSavingTags else { return }
+        if let id = tagSaveRestartID {
+            tagSaveRestartID = nil
+            if let track = playbackStateManager.currentTracks.first(where: { $0.id == id }) {
+                resetOrder()
+                loadController.retryIfFailed(track)
+                loadController.start(playbackOrder.select(id))
+                return
+            }
+        }
         loadController.setPlaybackIntent(true)
         if loadController.hasLoadedTrack, !loadController.hasEnded {
             playerCore.play()
@@ -191,11 +283,13 @@ final class PlaybackCoordinator {
     }
 
     func pause() {
+        guard !isSavingTags else { return }
         loadController.setPlaybackIntent(false)
         playerCore.pause()
     }
 
     func seek(to time: TimeInterval) {
+        guard !isSavingTags else { return }
         playerCore.seek(to: time)
     }
 
@@ -212,6 +306,8 @@ final class PlaybackCoordinator {
     }
 
     func next() {
+        guard !isSavingTags else { return }
+        tagSaveRestartID = nil
         loadController.synchronizeOrder()
         guard let target = playbackOrder.next(repeatMode: repeatMode, automatic: false,
                                                failed: failedTrackRegistry.snapshot()) else { return }
@@ -219,6 +315,8 @@ final class PlaybackCoordinator {
     }
 
     func previous() {
+        guard !isSavingTags else { return }
+        tagSaveRestartID = nil
         loadController.synchronizeOrder()
         guard let target = playbackOrder.previous(repeatMode: repeatMode,
                                                    failed: failedTrackRegistry.snapshot()) else { return }
@@ -231,6 +329,8 @@ final class PlaybackCoordinator {
     }
 
     func playPlaylistTrack(at index: Int) {
+        guard !isSavingTags else { return }
+        tagSaveRestartID = nil
         guard playlistManager.tracks.indices.contains(index) else { return }
 
         playbackStateManager.switchToPlaylist(selecting: index)
@@ -242,6 +342,8 @@ final class PlaybackCoordinator {
     }
 
     func playAlbum(_ album: Album, startAt index: Int = 0) {
+        guard !isSavingTags else { return }
+        tagSaveRestartID = nil
         guard !album.tracks.isEmpty else {
             logger.warning("Cannot play empty album: \(album.name)")
             return
@@ -263,13 +365,14 @@ final class PlaybackCoordinator {
             playbackStateManager.handlePlaylistTracksAdded()
             if playbackStateManager.playingSource == .playlist {
                 loadController.synchronizeOrder()
-                loadController.modesChanged()
+                if !isSavingTags { loadController.modesChanged() }
             }
         }
         return result
     }
 
     func removeTrackFromPlaylist(at index: Int) {
+        guard !isSavingTags else { return }
         guard playlistManager.tracks.indices.contains(index) else { return }
         let active = playbackStateManager.playingSource == .playlist
         let removedTrack = playlistManager.tracks[index]
@@ -299,6 +402,7 @@ final class PlaybackCoordinator {
     }
 
     func clearPlaylist() {
+        guard !isSavingTags else { return }
         let isClearingCurrentSource = (playbackStateManager.playingSource == .playlist)
 
         if isClearingCurrentSource {
@@ -318,6 +422,7 @@ final class PlaybackCoordinator {
     }
 
     func moveTrackInPlaylist(from source: Int, to destination: Int) {
+        guard !isSavingTags else { return }
         playlistManager.moveTrack(from: source, to: destination)
         playbackStateManager.handlePlaylistTrackMoved(from: source, to: destination)
         if playbackStateManager.playingSource == .playlist { loadController.synchronizeOrder() }
@@ -331,10 +436,12 @@ final class PlaybackCoordinator {
 
     @discardableResult
     func restoreState() async -> Bool {
+        guard !isSavingTags else { return false }
         guard let restored = await playbackStateManager.restoreState() else {
             return false
         }
 
+        guard !isSavingTags else { return false }
         if let savedVolume = restored.volume {
             volume = savedVolume
             playerCore.setVolume(savedVolume)
@@ -425,6 +532,7 @@ final class PlaybackCoordinator {
 
 extension PlaybackCoordinator: AudioPlayerCoreDelegate {
     func playerCoreDidUpdatePlaybackState(_ isPlaying: Bool) {
+        guard !isSavingTags || !isPlaying else { return }
         self.isPlaying = isPlaying
         timeSampler.updatePlaybackState(isPlaying: isPlaying)
 
@@ -435,6 +543,7 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
     }
 
     func playerCoreDidUpdateTime(currentTime: TimeInterval, duration: TimeInterval) {
+        guard !isSavingTags else { return }
         playbackProgressState.currentTime = currentTime
         let knownTrackDuration = playbackStateManager.currentTrack?.duration ?? 0
         let resolvedDuration = knownTrackDuration > 0 ? knownTrackDuration : duration
@@ -444,6 +553,7 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
     }
 
     func playerCoreDidLoadTrack(_ track: AudioTrack, artwork: NSImage?) {
+        guard !isSavingTags else { return }
         currentArtwork = artwork
         duration = track.duration
         effectsController.ensureRemoteCommandsReady(handlers: makePlaybackCommandHandlers())
@@ -454,6 +564,7 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
     }
 
     func playerCoreNowPlayingChanged(to track: AudioTrack?) {
+        guard !isSavingTags else { return }
         guard let track else {
             logger.debug("Now playing changed to nil")
             return
@@ -473,7 +584,8 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
             Task { @MainActor in
                 let artwork = await ArtworkCacheService.shared.artwork(for: track.url)
                 guard self.loadController.generation == generation,
-                      self.playbackStateManager.currentTrackID == track.id else { return }
+                      self.playbackStateManager.currentTrackID == track.id,
+                      self.playbackStateManager.currentTrack?.metadataRevision == track.metadataRevision else { return }
 
                 self.currentArtwork = artwork
                 self.duration = track.duration
@@ -491,20 +603,24 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
     }
 
     func playerCoreDecodingComplete(for track: AudioTrack) {
+        guard !isSavingTags else { return }
         logger.debug("Decoding complete, enqueuing next track")
         loadController.enqueueNextTrack(after: track)
     }
 
     func playerCoreDidConfirmSeek(to time: TimeInterval) {
+        guard !isSavingTags else { return }
         effectsController.handleSeek(to: time)
         statisticsTracker.handleSeek(to: time, duration: duration)
     }
 
     func playerCoreDecodingFailed(for track: AudioTrack, isCurrent: Bool) {
+        guard !isSavingTags else { return }
         loadController.handleDecodingFailure(for: track, isCurrent: isCurrent)
     }
 
     func playerCoreDidReachEnd() {
+        guard !isSavingTags else { return }
         loadController.handleEndOfTrack()
     }
 }

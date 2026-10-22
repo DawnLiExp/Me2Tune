@@ -59,12 +59,12 @@ struct AlbumDetailView: View {
                 .padding(.bottom, 20)
             }
         }
-        .task(id: album.id) {
-            // 正常路径：artwork 由 onTap 传入，此处直接跳过
-            // 冷启动路径：artwork == nil 时异步加载
-            guard artwork == nil, resolvedArtwork == nil,
-                  let firstTrack = album.tracks.first else { return }
-            resolvedArtwork = await ArtworkCacheService.shared.artwork(for: firstTrack.url)
+        .task(id: album.tracks.first?.metadataRevision) {
+            resolvedArtwork = nil
+            guard let firstTrack = album.tracks.first else { return }
+            let result = await ArtworkCacheService.shared.artwork(for: firstTrack.url)
+            guard !Task.isCancelled else { return }
+            resolvedArtwork = result
         }
     }
     
@@ -72,7 +72,7 @@ struct AlbumDetailView: View {
     
     private var albumHeader: some View {
         // 优先使用同步传入的 artwork，冷启动时退回到异步加载的 resolvedArtwork
-        let displayArtwork = artwork ?? resolvedArtwork
+        let displayArtwork = resolvedArtwork ?? artwork
         
         return HStack(spacing: 12) {
             Button(action: onBack) {

@@ -18,6 +18,25 @@ actor LyricsCacheService {
     
     private let cacheDirectory: URL
     private let metadataURL: URL
+    private var revisions: [URL: UUID] = [:]
+
+    func revision(for url: URL) -> UUID {
+        if let value = revisions[url] { return value }
+        let value = UUID()
+        revisions[url] = value
+        return value
+    }
+
+    func invalidate(url: URL) {
+        revisions[url] = UUID()
+        let hash = cacheKey(audioURL: url)
+        var metadata = loadMetadata()
+        for entry in metadata.entries where entry.urlHash == hash {
+            try? FileManager.default.removeItem(at: cacheDirectory.appendingPathComponent("\(entry.fileName).lrc"))
+        }
+        metadata.entries.removeAll { $0.urlHash == hash }
+        saveMetadata(metadata)
+    }
     
     // MARK: - Types
     
@@ -76,7 +95,7 @@ actor LyricsCacheService {
             return nil
         }
         
-        await updateAccessTime(urlHash: urlHash)
+        updateAccessTime(urlHash: urlHash)
         
         let lyrics = Lyrics.fromText(
             content,
@@ -95,7 +114,8 @@ actor LyricsCacheService {
         return lyrics
     }
     
-    func saveLyrics(_ lyrics: Lyrics, audioURL: URL) async {
+    func saveLyrics(_ lyrics: Lyrics, audioURL: URL, revision expected: UUID) async {
+        guard revision(for: audioURL) == expected else { return }
         if Task.isCancelled { return }
         
         // ✅ 优先使用同步歌词，兜底使用纯文本歌词
@@ -145,7 +165,7 @@ actor LyricsCacheService {
             
             logger.info("💾 Saved: \(finalFileName).lrc (\(fileSize) bytes)")
             
-            await cleanupIfNeeded()
+            cleanupIfNeeded()
             
         } catch {
             logger.error("Failed to save cache: \(error)")
@@ -192,7 +212,7 @@ actor LyricsCacheService {
         return String(urlHash.prefix(8))
     }
     
-    private func updateAccessTime(urlHash: String) async {
+    private func updateAccessTime(urlHash: String) {
         var metadata = loadMetadata()
         
         if let index = metadata.entries.firstIndex(where: { $0.urlHash == urlHash }) {
@@ -201,7 +221,7 @@ actor LyricsCacheService {
         }
     }
     
-    private func cleanupIfNeeded() async {
+    private func cleanupIfNeeded() {
         var metadata = loadMetadata()
         
         let maxCount = CacheConfigManager.maxCacheCount
