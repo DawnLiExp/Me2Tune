@@ -174,6 +174,12 @@ final class PlayerViewModel {
         coordinator.next()
     }
 
+    var canSeek: Bool { coordinator.canSeek }
+
+    func seek(to time: TimeInterval, trackID: UUID, metadataRevision: UUID) {
+        coordinator.seek(to: time, trackID: trackID, metadataRevision: metadataRevision)
+    }
+
     func seek(to time: TimeInterval) {
         coordinator.seek(to: time)
     }

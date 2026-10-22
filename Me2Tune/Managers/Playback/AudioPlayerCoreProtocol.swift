@@ -24,6 +24,7 @@ enum AudioEnqueueResult {
 protocol AudioPlayerCoreProtocol: AnyObject {
     var delegate: (any AudioPlayerCoreDelegate)? { get set }
     var isPlaying: Bool { get }
+    var canSeek: Bool { get }
     var repeatMode: RepeatMode { get set }
 
     func loadTrack(_ track: AudioTrack, startingAt time: TimeInterval) async -> Bool

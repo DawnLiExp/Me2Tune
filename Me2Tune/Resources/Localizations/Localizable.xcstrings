@@ -1,6 +1,18 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "lyrics_return_to_current" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Back to Current" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "回到当前" } }
+      }
+    },
+    "lyrics_seek_to_time" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Seek to %@" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "定位到 %@" } }
+      }
+    },
     "quit_app" : {
       "localizations" : {
         "en" : {

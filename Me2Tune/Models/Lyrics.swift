@@ -82,6 +82,16 @@ struct LyricLine: Identifiable, Sendable {
 }
 
 extension LyricLine {
+    func seekTime(offset: TimeInterval, duration: TimeInterval) -> TimeInterval? {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || !(translation ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              timestamp.isFinite, offset.isFinite, duration.isFinite, duration > 0 else { return nil }
+        let adjusted = timestamp + offset
+        guard adjusted.isFinite else { return nil }
+        let target = max(0, adjusted)
+        return target < duration ? target : nil
+    }
+
     func highlightedSegmentCount(
         at playbackTime: TimeInterval,
         offset: TimeInterval

@@ -295,6 +295,7 @@ struct PlaybackLoadControllerTests {
 
 @MainActor
 private final class MockLoadPlayerCore: AudioPlayerCoreProtocol {
+    var canSeek = true
     weak var delegate: (any AudioPlayerCoreDelegate)?
     var isPlaying = false
     var repeatMode: RepeatMode = .off

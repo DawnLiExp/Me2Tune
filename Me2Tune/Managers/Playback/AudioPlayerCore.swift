@@ -44,6 +44,14 @@ final class AudioPlayerCore: NSObject {
     private var pendingSeek: TimeInterval?
     private var seekingDecoderID: ObjectIdentifier?
     
+    var canSeek: Bool {
+        guard let player, player.supportsSeeking,
+              let decoder = player.currentDecoder,
+              ObjectIdentifier(decoder) == decoderQueue.currentID,
+              let snapshot = player.positionAndTime else { return false }
+        return snapshot.position.frameLength > 0 && snapshot.time.totalTime.isFinite && snapshot.time.totalTime > 0
+    }
+
     private var audioBufferingEnabled: Bool {
         UserDefaults.standard.bool(forKey: "audioBufferingEnabled")
     }

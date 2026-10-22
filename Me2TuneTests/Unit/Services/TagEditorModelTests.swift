@@ -269,6 +269,7 @@ private final class TagInputCommitDelegate: NSObject, NSTextFieldDelegate {
 
 @MainActor
 private final class TagEditorPlaybackCore: AudioPlayerCoreProtocol {
+    var canSeek = true
     weak var delegate: (any AudioPlayerCoreDelegate)?
     var isPlaying = false
     var repeatMode: RepeatMode = .off

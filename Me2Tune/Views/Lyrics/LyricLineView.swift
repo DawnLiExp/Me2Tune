@@ -10,11 +10,19 @@ import SwiftUI
 struct LyricLineView: View {
     @Environment(PlayerViewModel.self) private var playerViewModel
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @FocusState private var isFocused: Bool
+
     let line: LyricLine
     let lineIndex: Int
     let currentLineIndex: Int?
     let displaySettings: LyricsDisplaySettings
     let theme: ThemeColors
+    var isBrowsing = false
+    var seekRevision: UInt64 = 0
+    var seekTarget: TimeInterval?
+    var onSeek: () -> Void = {}
+    var onFocus: () -> Void = {}
 
     @State private var highlightedSegmentCount = 0
     @State private var wordHighlightTimer: Timer?
@@ -37,7 +45,7 @@ struct LyricLineView: View {
     }
     
     private var distanceOpacity: Double {
-        displaySettings.opacity(distance: distanceFromCurrent)
+        isBrowsing ? 1 : displaySettings.opacity(distance: distanceFromCurrent)
     }
     
     private var primaryTextColor: Color {
@@ -89,6 +97,44 @@ struct LyricLineView: View {
     }
     
     var body: some View {
+        Group {
+            if let seekTarget {
+                NonDraggableView {
+                    Button(action: onSeek) {
+                        lyricContent
+                            .contentShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                    .buttonStyle(LyricSeekButtonStyle(theme: theme))
+                    .focused($isFocused)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(theme.accent, lineWidth: isFocused ? 1.5 : 0)
+                            .allowsHitTesting(false)
+                    }
+                    .help(seekLabel(for: seekTarget))
+                    .accessibilityLabel(Text("\(line.text) \(line.translation ?? ""), \(seekLabel(for: seekTarget))"))
+                }
+            } else {
+                lyricContent
+            }
+        }
+        .onAppear { refreshWordHighlight() }
+        .onChange(of: isFocused) { _, focused in if focused { onFocus() } }
+        .onChange(of: isCurrent) { _, _ in refreshWordHighlight() }
+        .onChange(of: seekRevision) { _, _ in refreshWordHighlight() }
+        .onChange(of: playerViewModel.isPlaying) { _, _ in refreshWordHighlight() }
+        .onChange(of: displaySettings.timeOffset.offsetValue) { _, _ in refreshWordHighlight() }
+        .onChange(of: line.id) { _, _ in refreshWordHighlight() }
+        .onDisappear { stopWordHighlightTimer() }
+    }
+
+    private func seekLabel(for time: TimeInterval) -> String {
+        let seconds = Int(min(time, Double(Int.max / 2)))
+        let timestamp = String(format: "%02d:%02d", seconds / 60, seconds % 60)
+        return String(format: String(localized: "lyrics_seek_to_time"), timestamp)
+    }
+
+    private var lyricContent: some View {
         VStack(spacing: 4) {
             primaryLyricText
                 .font(.system(
@@ -115,26 +161,10 @@ struct LyricLineView: View {
         }
         .frame(minHeight: displaySettings.lineBlockMinHeight(hasTranslation: hasTranslation))
         .opacity(distanceOpacity)
-        .animation(.easeOut(duration: 0.22), value: isCurrent)
-        .animation(.easeOut(duration: 0.22), value: distanceFromCurrent)
-        .onAppear {
-            refreshWordHighlight()
-        }
-        .onChange(of: isCurrent) { _, _ in
-            refreshWordHighlight()
-        }
-        .onChange(of: playerViewModel.isPlaying) { _, _ in
-            refreshWordHighlight()
-        }
-        .onChange(of: displaySettings.timeOffset.offsetValue) { _, _ in
-            refreshWordHighlight()
-        }
-        .onChange(of: line.id) { _, _ in
-            refreshWordHighlight()
-        }
-        .onDisappear {
-            stopWordHighlightTimer()
-        }
+        .padding(.vertical, displaySettings.blockVerticalPadding)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.22), value: isCurrent)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.22), value: distanceFromCurrent)
+        .animation(nil, value: seekRevision)
     }
 
     private func refreshWordHighlight() {
@@ -186,6 +216,21 @@ struct LyricLineView: View {
     private func stopWordHighlightTimer() {
         wordHighlightTimer?.invalidate()
         wordHighlightTimer = nil
+    }
+}
+
+private struct LyricSeekButtonStyle: ButtonStyle {
+    let theme: ThemeColors
+    @State private var isHovered = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(theme.primaryText.opacity(configuration.isPressed ? 0.10 : (isHovered ? 0.06 : 0)))
+                    .transaction { $0.animation = nil }
+            }
+            .onHover { isHovered = $0 }
     }
 }
 

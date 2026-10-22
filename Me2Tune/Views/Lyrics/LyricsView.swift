@@ -9,9 +9,14 @@ import SwiftUI
 
 struct LyricsView: View {
     @Environment(PlayerViewModel.self) private var playerViewModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var windowState = LyricsWindowState()
     var onDetach: () -> Void = {}
     
+    @State private var lyricsTrack: AudioTrack?
+    @State private var isFollowingPlayback = true
+    @State private var playbackCanSeek = false
+    @State private var lastScrolledLineIndex: Int?
     @State private var lyrics: Lyrics?
     @State private var lyricLines: [LyricLine] = []
     @State private var currentLineIndex: Int?
@@ -260,34 +265,120 @@ struct LyricsView: View {
                     Color.clear
                         .frame(height: 300)
                         .id("top-spacer")
-                    
-                    ForEach(Array(lyricLines.enumerated()), id: \.offset) { index, line in
+
+                    ForEach(Array(lyricLines.enumerated()), id: \.element.id) { index, line in
                         LyricLineView(
                             line: line,
                             lineIndex: index,
                             currentLineIndex: currentLineIndex,
                             displaySettings: displaySettings,
-                            theme: themeColors
+                            theme: themeColors,
+                            isBrowsing: !isFollowingPlayback,
+                            seekRevision: playerViewModel.playbackProgressState.seekRevision,
+                            seekTarget: seekTarget(for: line),
+                            onSeek: { seek(to: line) },
+                            onFocus: { withoutLyricsAnimation { isFollowingPlayback = false } }
                         )
                         .id(index)
-                        .padding(.vertical, displaySettings.blockVerticalPadding)
                     }
-                    
+
                     Color.clear
                         .frame(height: 300)
                         .id("bottom-spacer")
                 }
                 .padding(.horizontal, 20)
             }
+            .onScrollPhaseChange { _, phase in
+                if phase == .tracking || phase == .interacting || phase == .decelerating {
+                    withAnimation(returnButtonAnimation) {
+                        isFollowingPlayback = false
+                    }
+                }
+            }
+            .overlay(alignment: .bottom) {
+                if !isFollowingPlayback {
+                    NonDraggableView {
+                        Button {
+                            withoutLyricsAnimation {
+                                refreshPlaybackPosition()
+                                isFollowingPlayback = true
+                                scrollToPlayback(using: proxy, animated: false)
+                            }
+                        } label: {
+                            Label("lyrics_return_to_current", systemImage: "location.fill")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(themeColors.primaryText)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 7)
+                                .background(themeColors.controlBackground, in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.bottom, 16)
+                    .transition(.opacity)
+                }
+            }
+            .onAppear {
+                scrollToPlayback(using: proxy, animated: false)
+            }
             .onChange(of: currentLineIndex) { _, newIndex in
-                guard let newIndex else { return }
-                withAnimation(.easeOut(duration: 0.22)) {
-                    proxy.scrollTo(newIndex, anchor: UnitPoint(x: 0.5, y: 0.4))
+                guard isFollowingPlayback, newIndex != lastScrolledLineIndex else { return }
+                scrollToPlayback(using: proxy, animated: !reduceMotion)
+            }
+            .onChange(of: playerViewModel.playbackProgressState.seekRevision) { _, _ in
+                guard lyricsMatchCurrentTrack else { return }
+                withoutLyricsAnimation {
+                    refreshPlaybackPosition()
+                    isFollowingPlayback = true
+                    scrollToPlayback(using: proxy, animated: false)
                 }
             }
         }
     }
-    
+
+    private var returnButtonAnimation: Animation {
+        .timingCurve(0.23, 1, 0.32, 1, duration: 0.16)
+    }
+
+    private var lyricsMatchCurrentTrack: Bool {
+        guard let lyricsTrack, let track = playerViewModel.currentTrack else { return false }
+        return lyricsTrack.id == track.id && lyricsTrack.metadataRevision == track.metadataRevision
+    }
+
+    private func seekTarget(for line: LyricLine) -> TimeInterval? {
+        guard !isLoading, lyricsMatchCurrentTrack, playbackCanSeek else { return nil }
+        return line.seekTime(offset: displaySettings.timeOffset.offsetValue, duration: playerViewModel.duration)
+    }
+
+    private func seek(to line: LyricLine) {
+        guard lyricLines.contains(where: { $0.id == line.id }),
+              let track = lyricsTrack, let target = seekTarget(for: line) else { return }
+        playerViewModel.seek(to: target, trackID: track.id, metadataRevision: track.metadataRevision)
+    }
+
+    private func scrollToPlayback(using proxy: ScrollViewProxy, animated: Bool) {
+        let index = currentLineIndex
+        lastScrolledLineIndex = index
+        let scroll = {
+            if let index {
+                proxy.scrollTo(index, anchor: UnitPoint(x: 0.5, y: 0.4))
+            } else {
+                proxy.scrollTo("top-spacer", anchor: .top)
+            }
+        }
+        if animated {
+            withAnimation(.easeOut(duration: 0.22), scroll)
+        } else {
+            withoutLyricsAnimation(scroll)
+        }
+    }
+
+    private func withoutLyricsAnimation(_ action: () -> Void) {
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction, action)
+    }
+
     // MARK: - Plain Lyrics View
     
     private func plainLyricsView(text: String) -> some View {
@@ -430,13 +521,18 @@ struct LyricsView: View {
     }
 
     private func refreshPlaybackPosition() {
+        playbackCanSeek = playerViewModel.canSeek
         updateCurrentLine(time: playerViewModel.getCurrentPlaybackTime())
     }
     
     // MARK: - Load Lyrics
     
     private func loadLyrics() async {
+        lyricsTrack = nil
+        isFollowingPlayback = true
+        lastScrolledLineIndex = nil
         guard let track = playerViewModel.currentTrack else {
+            isLoading = false
             lyrics = nil
             lyricLines = []
             currentLineIndex = nil
@@ -464,6 +560,7 @@ struct LyricsView: View {
                     return
                 }
                 
+                lyricsTrack = track
                 lyrics = result
                 lyricLines = result.parseSyncedLyrics()
                 currentLineIndex = nil

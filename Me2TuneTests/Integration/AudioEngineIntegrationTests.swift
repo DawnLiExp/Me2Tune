@@ -102,6 +102,36 @@ struct AudioEngineIntegrationTests {
         core.prepareForTrackSwitch()
     }
 
+    @Test("真实引擎歌词定位：暂停重播与连续点击以最终确认位置为准")
+    func lyricSeekingThroughCoordinator() async throws {
+        let track = try makeSilentTrack(seconds: 4)
+        defer { try? FileManager.default.removeItem(at: track.url) }
+        let data = try createTestDataService()
+        let core = AudioPlayerCore()
+        let coordinator = PlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
+            dataService: data, statisticsManager: EngineTestStatistics(), playerCore: core,
+            defaults: try #require(UserDefaults(suiteName: "LyricSeeking.\(UUID())")))
+        #expect(!coordinator.canSeek)
+        coordinator.playAlbum(Album(id: UUID(), name: "Lyrics", folderURL: nil, tracks: [track]))
+        defer { core.prepareForTrackSwitch() }
+        core.setVolume(0)
+        try #require(await waitUntil { coordinator.canSeek && core.getCurrentPlaybackTime() > 0.05 })
+        coordinator.pause()
+        let revision = coordinator.playbackProgressState.seekRevision
+        coordinator.seek(to: 1, trackID: track.id, metadataRevision: track.metadataRevision)
+        try #require(await waitUntil { coordinator.playbackProgressState.seekRevision == revision + 1 })
+        #expect(abs(coordinator.playbackProgressState.currentTime - 1) < 0.02)
+        #expect(!coordinator.isPlaying)
+        coordinator.seek(to: 1, trackID: track.id, metadataRevision: track.metadataRevision)
+        try #require(await waitUntil { coordinator.playbackProgressState.seekRevision == revision + 2 })
+        coordinator.seek(to: 2, trackID: track.id, metadataRevision: track.metadataRevision)
+        coordinator.seek(to: 3, trackID: track.id, metadataRevision: track.metadataRevision)
+        try #require(await waitUntil { abs(coordinator.playbackProgressState.currentTime - 3) < 0.02 })
+        #expect(!core.isPlaying)
+        core.prepareForTrackSwitch()
+        #expect(!coordinator.canSeek)
+    }
+
     @Test("暂停跳转、连续跳转及原地跳转均确认实际位置")
     func pausedAndRapidSeeking() async throws {
         let track = try makeSilentTrack(seconds: 4)

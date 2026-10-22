@@ -12,4 +12,10 @@ import Observation
 @Observable
 final class PlaybackProgressState {
     var currentTime: TimeInterval = 0
+    private(set) var seekRevision: UInt64 = 0
+
+    func confirmSeek(at time: TimeInterval) {
+        currentTime = time
+        seekRevision &+= 1
+    }
 }

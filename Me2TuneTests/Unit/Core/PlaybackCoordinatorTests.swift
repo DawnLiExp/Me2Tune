@@ -654,6 +654,60 @@ struct PlaybackCoordinatorTests {
         #expect(!coordinator.canGoNext)
     }
 
+    @Test("歌词定位保留暂停状态，确认后才更新进度，同句重播也通知")
+    func lyricSeekConfirmation() async throws {
+        let (coordinator, core, _) = try playlistCoordinator(count: 2)
+        coordinator.playPlaylistTrack(at: 0)
+        try #require(await waitUntil { coordinator.isPlaying })
+        let track = try #require(coordinator.playbackStateManager.currentTrack)
+        coordinator.playerCoreDidLoadTrack(track, artwork: nil)
+        coordinator.pause()
+        core.automaticallyConfirmsSeek = false
+        let revision = coordinator.playbackProgressState.seekRevision
+        let playCount = core.playCallCount
+        coordinator.seek(to: 20, trackID: track.id, metadataRevision: track.metadataRevision)
+        #expect(core.seekRequests == [20])
+        #expect(coordinator.playbackProgressState.seekRevision == revision)
+        #expect(coordinator.playbackProgressState.currentTime == 0)
+        core.confirmSeek(to: 20)
+        #expect(coordinator.playbackProgressState.seekRevision == revision + 1)
+        #expect(coordinator.playbackProgressState.currentTime == 20)
+        coordinator.seek(to: 20, trackID: track.id, metadataRevision: track.metadataRevision)
+        core.confirmSeek(to: 20)
+        #expect(coordinator.playbackProgressState.seekRevision == revision + 2)
+        #expect(!coordinator.isPlaying)
+        #expect(core.playCallCount == playCount)
+    }
+
+    @Test("歌词定位拒绝过期曲目、版本、无效时间及不可定位状态")
+    func lyricSeekValidation() async throws {
+        let (coordinator, core, _) = try playlistCoordinator(count: 2)
+        #expect(!coordinator.canSeek)
+        coordinator.playPlaylistTrack(at: 0)
+        try #require(await waitUntil { coordinator.isPlaying })
+        let track = try #require(coordinator.playbackStateManager.currentTrack)
+        coordinator.playerCoreDidLoadTrack(track, artwork: nil)
+        #expect(coordinator.canSeek)
+        coordinator.seek(to: 20, trackID: UUID(), metadataRevision: track.metadataRevision)
+        coordinator.seek(to: 20, trackID: track.id, metadataRevision: UUID())
+        for time in [-1.0, .nan, .infinity, track.duration] {
+            coordinator.seek(to: time, trackID: track.id, metadataRevision: track.metadataRevision)
+        }
+        core.canSeek = false
+        #expect(!coordinator.canSeek)
+        coordinator.seek(to: 20, trackID: track.id, metadataRevision: track.metadataRevision)
+        core.canSeek = true
+        #expect(coordinator.beginTagSave(for: track.url))
+        #expect(!coordinator.canSeek)
+        coordinator.seek(to: 20, trackID: track.id, metadataRevision: track.metadataRevision)
+        coordinator.endTagSave()
+        coordinator.playPlaylistTrack(at: 1)
+        #expect(!coordinator.canSeek)
+        try #require(await waitUntil { coordinator.playbackStateManager.currentTrackID != track.id })
+        coordinator.seek(to: 20, trackID: track.id, metadataRevision: track.metadataRevision)
+        #expect(core.seekRequests.isEmpty)
+    }
+
     private func playlistCoordinator(count: Int) throws -> (PlaybackCoordinator, MockAudioPlayerCore, UserDefaults) {
         let data = try createTestDataService()
         for (index, track) in makeTracks(count: count).enumerated() {
@@ -839,6 +893,7 @@ private final class MockStatisticsManager: StatisticsManagerProtocol {
 
 @MainActor
 private final class MockAudioPlayerCore: AudioPlayerCoreProtocol {
+    var canSeek = true
     weak var delegate: (any AudioPlayerCoreDelegate)?
     var isPlaying = false
     var repeatMode: RepeatMode = .off
@@ -860,6 +915,7 @@ private final class MockAudioPlayerCore: AudioPlayerCoreProtocol {
     }
 
     var automaticallyConfirmsSeek = true
+    private(set) var seekRequests: [TimeInterval] = []
     private(set) var loadTrackCallIDs: [UUID] = []
     private(set) var enqueueTrackCallIDs: [UUID] = []
     private(set) var playCallCount = 0
@@ -904,6 +960,7 @@ private final class MockAudioPlayerCore: AudioPlayerCoreProtocol {
     }
 
     func seek(to time: TimeInterval) {
+        seekRequests.append(time)
         if automaticallyConfirmsSeek { confirmSeek(to: time) }
     }
 

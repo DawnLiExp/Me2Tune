@@ -195,6 +195,7 @@ struct ColdStartFlashPreservationTests {
 /// 最小化 AudioPlayerCore stub — 不执行任何实际音频操作
 @MainActor
 private final class StubAudioPlayerCore: AudioPlayerCoreProtocol {
+    var canSeek = true
     weak var delegate: (any AudioPlayerCoreDelegate)?
     var isPlaying = false
     var repeatMode: RepeatMode = .off

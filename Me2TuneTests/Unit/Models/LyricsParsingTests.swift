@@ -9,6 +9,24 @@ import Testing
 @MainActor
 @Suite("Lyrics 解析单元测试")
 struct LyricsParsingTests {
+    @Test("定位仅叠加界面偏移，并限制到有效曲目范围")
+    func lyricSeekTargets() throws {
+        let lyrics = makeLyrics("[offset:+500]\n[00:02.00]Hello")
+        let line = try #require(lyrics.parseSyncedLyrics().first)
+        #expect(line.seekTime(offset: 0.3, duration: 10) == 2.8)
+        #expect(line.seekTime(offset: -0.5, duration: 10) == 2)
+        #expect(line.seekTime(offset: -3, duration: 10) == 0)
+        #expect(line.seekTime(offset: 0, duration: 2.5) == nil)
+        for duration in [0.0, -1, .nan, .infinity] {
+            #expect(line.seekTime(offset: 0, duration: duration) == nil)
+        }
+        #expect(line.seekTime(offset: .nan, duration: 10) == nil)
+        #expect(line.seekTime(offset: .infinity, duration: 10) == nil)
+        #expect(LyricLine(timestamp: .nan, text: "Invalid", translation: nil).seekTime(offset: 0, duration: 10) == nil)
+        #expect(LyricLine(timestamp: 1, text: "  ", translation: nil).seekTime(offset: 0, duration: 10) == nil)
+        #expect(LyricLine(timestamp: 1, text: "", translation: "译文").seekTime(offset: 0, duration: 10) == 1)
+    }
+
     @Test("解析多种 LRC 时间戳精度")
     func parsesCommonTimestampPrecisions() {
         let lyrics = makeLyrics("""

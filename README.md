@@ -46,7 +46,7 @@ Me2Tune is a macOS local music player. The official one just didn't feel right, 
 
 ## 🖥 Requirements
 
-- macOS 14.0+ (some features require macOS 15+)
+- macOS 15.0+
 
 ## 📦 Installation
 

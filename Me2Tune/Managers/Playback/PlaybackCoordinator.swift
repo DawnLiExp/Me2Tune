@@ -301,6 +301,18 @@ final class PlaybackCoordinator {
         playerCore.pause()
     }
 
+    var canSeek: Bool {
+        !isPlaybackBlockedForTagSave && loadController.hasLoadedTrack
+            && !loadController.hasEnded && playerCore.canSeek
+    }
+
+    func seek(to time: TimeInterval, trackID: UUID, metadataRevision: UUID) {
+        guard canSeek, let track = playbackStateManager.currentTrack,
+              track.id == trackID, track.metadataRevision == metadataRevision,
+              time.isFinite, time >= 0, duration.isFinite, time < duration else { return }
+        seek(to: time)
+    }
+
     func seek(to time: TimeInterval) {
         guard !isPlaybackBlockedForTagSave else { return }
         playerCore.seek(to: time)
@@ -628,7 +640,8 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
     }
 
     func playerCoreDidConfirmSeek(to time: TimeInterval) {
-        guard !isPlaybackBlockedForTagSave else { return }
+        guard !isPlaybackBlockedForTagSave, time.isFinite, time >= 0 else { return }
+        playbackProgressState.confirmSeek(at: time)
         effectsController.handleSeek(to: time)
         statisticsTracker.handleSeek(to: time, duration: duration)
     }
