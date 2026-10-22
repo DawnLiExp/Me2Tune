@@ -151,6 +151,15 @@ struct LyricsView: View {
                         .font(.system(size: 14))
                         .foregroundColor(themeColors.secondaryText)
                         .lineLimit(1)
+
+                    if !isLoading, lyricsMatchCurrentTrack, playbackCanSeek,
+                       lyricLines.contains(where: { $0.seekTime(offset: displaySettings.timeOffset.offsetValue,
+                                                               duration: playerViewModel.duration) != nil }) {
+                        Text("lyrics_seek_hint")
+                            .font(.system(size: 11))
+                            .foregroundStyle(themeColors.secondaryText)
+                            .accessibilityIdentifier("lyrics.seek.hint")
+                    }
                 } else {
                     Text(String(localized: "no_track"))
                         .font(.system(size: 16))
@@ -311,8 +320,10 @@ struct LyricsView: View {
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 7)
                                 .background(themeColors.controlBackground, in: Capsule())
+                                .background(themeColors.mainBackground, in: Capsule())
                         }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier("lyrics.return")
                     }
                     .padding(.bottom, 16)
                     .transition(.opacity)

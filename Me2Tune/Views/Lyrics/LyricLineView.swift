@@ -104,8 +104,9 @@ struct LyricLineView: View {
                         lyricContent
                             .contentShape(RoundedRectangle(cornerRadius: 10))
                     }
-                    .buttonStyle(LyricSeekButtonStyle(theme: theme))
+                    .buttonStyle(LyricSeekButtonStyle(theme: theme, isFocused: isFocused))
                     .focused($isFocused)
+                    .accessibilityIdentifier("lyrics.seek.\(lineIndex)")
                     .overlay {
                         RoundedRectangle(cornerRadius: 10)
                             .stroke(theme.accent, lineWidth: isFocused ? 1.5 : 0)
@@ -159,6 +160,7 @@ struct LyricLineView: View {
                     .frame(maxWidth: .infinity)
             }
         }
+        .padding(.horizontal, 18)
         .frame(minHeight: displaySettings.lineBlockMinHeight(hasTranslation: hasTranslation))
         .opacity(distanceOpacity)
         .padding(.vertical, displaySettings.blockVerticalPadding)
@@ -221,6 +223,7 @@ struct LyricLineView: View {
 
 private struct LyricSeekButtonStyle: ButtonStyle {
     let theme: ThemeColors
+    let isFocused: Bool
     @State private var isHovered = false
 
     func makeBody(configuration: Configuration) -> some View {
@@ -228,6 +231,16 @@ private struct LyricSeekButtonStyle: ButtonStyle {
             .background {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(theme.primaryText.opacity(configuration.isPressed ? 0.10 : (isHovered ? 0.06 : 0)))
+                    .transaction { $0.animation = nil }
+            }
+            .overlay(alignment: .trailing) {
+                Image(systemName: "arrow.right.to.line")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(theme.secondaryText)
+                    .frame(width: 18)
+                    .opacity(isHovered || isFocused ? 1 : 0)
+                    .accessibilityHidden(true)
+                    .allowsHitTesting(false)
                     .transaction { $0.animation = nil }
             }
             .onHover { isHovered = $0 }

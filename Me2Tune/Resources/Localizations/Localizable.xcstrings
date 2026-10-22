@@ -1,6 +1,12 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "lyrics_seek_hint" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Click a lyric to seek" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "点击歌词可定位" } }
+      }
+    },
     "lyrics_return_to_current" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Back to Current" } },
