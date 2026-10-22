@@ -8,8 +8,10 @@
 import SwiftUI
 
 struct AlbumTrackRowView: View, Equatable {
+    @Environment(\.openTagEditor) private var openTagEditor
     nonisolated static func == (lhs: AlbumTrackRowView, rhs: AlbumTrackRowView) -> Bool {
-        lhs.track.id == rhs.track.id &&
+        lhs.track.id == rhs.track.id
+            && lhs.track.metadataRevision == rhs.track.metadataRevision &&
             lhs.index == rhs.index &&
             lhs.isPlaying == rhs.isPlaying &&
             lhs.isFailed == rhs.isFailed &&
@@ -65,6 +67,8 @@ struct AlbumTrackRowView: View, Equatable {
             onTap()
         }
         .contextMenu {
+            Button("tag_edit") { openTagEditor(track) }
+            Divider()
             Button("show_in_finder") {
                 onShowInFinder()
             }

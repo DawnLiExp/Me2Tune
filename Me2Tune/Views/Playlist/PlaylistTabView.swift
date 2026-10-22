@@ -9,6 +9,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct PlaylistTabView: View {
+    @Environment(\.openTagEditor) private var openTagEditor
     @Binding var selectedTab: PlaylistTab
     let tracks: [AudioTrack]
     let currentIndex: Int?
@@ -191,6 +192,8 @@ struct PlaylistTabView: View {
             onFilesDrop: onFilesDrop
         ))
         .contextMenu {
+            Button("tag_edit") { openTagEditor(track) }
+            Divider()
             Button("show_in_finder") {
                 NSWorkspace.shared.activateFileViewerSelecting([track.url])
             }

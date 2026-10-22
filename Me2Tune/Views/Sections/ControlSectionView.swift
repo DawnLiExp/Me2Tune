@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct ControlSectionView: View {
+    @Environment(\.openTagEditor) private var openTagEditor
     let currentTrack: AudioTrack?
     let duration: TimeInterval
     let isPlaying: Bool
@@ -42,6 +43,9 @@ struct ControlSectionView: View {
             
             HStack(spacing: 10) {
                 trackInfoSection
+                    .contextMenu {
+                        if let currentTrack { Button("tag_edit") { openTagEditor(currentTrack) } }
+                    }
                 
                 Spacer()
                 

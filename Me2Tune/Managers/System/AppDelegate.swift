@@ -20,6 +20,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     
     private var commandWMonitor: Any?
     
+    weak var tagEditor: TagEditorModel?
+
     weak var fullModeWindow: NSWindow?
     weak var playerViewModel: PlayerViewModel?
     weak var collectionManager: CollectionManager? {
@@ -60,6 +62,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return false
     }
     
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let tagEditor else { return .terminateNow }
+        Task { @MainActor in
+            tagEditor.requestTermination { allowed in sender.reply(toApplicationShouldTerminate: allowed) }
+        }
+        return .terminateLater
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         RemoteCommandController.shared.disable()
         
@@ -275,7 +285,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         
-        windowDelegate = WindowInterceptor()
+        windowDelegate = WindowInterceptor { [weak self] in
+            guard let editor = self?.tagEditor else { return false }
+            editor.requestClose()
+            return true
+        }
         window.delegate = windowDelegate
         window.isMovableByWindowBackground = true
         window.tabbingMode = .disallowed
@@ -295,6 +309,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // 只处理 Command+W 组合 (keyCode 13 = 'w')
             guard event.keyCode == 13 || event.charactersIgnoringModifiers == "w" else { return event }
             
+            if let editor = self.tagEditor {
+                // Leave native file panels and alert sheets their own close behavior.
+                if NSApp.keyWindow is NSOpenPanel { return event }
+                if editor.showUnsavedPrompt { return nil }
+                editor.requestClose()
+                return nil
+            }
             // 优先处理鼠标位置所在的窗口
             let mouseLocation = NSEvent.mouseLocation
             for window in NSApp.windows where window.isVisible && window.frame.contains(mouseLocation) {
@@ -338,7 +359,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 // MARK: - Window Interceptor
 
 final class WindowInterceptor: NSObject, NSWindowDelegate {
+    private let closeEditor: () -> Bool
+    init(closeEditor: @escaping () -> Bool = { false }) { self.closeEditor = closeEditor }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if closeEditor() { return false }
         sender.miniaturize(nil)
         return false
     }

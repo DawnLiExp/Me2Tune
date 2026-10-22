@@ -11,6 +11,9 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     let isMigrationFailed: Bool
+    var onTagEditorChanged: (TagEditorModel?) -> Void = { _ in }
+    @State private var tagEditor: TagEditorModel?
+    @State private var tagRecoveryError: String?
 
     @Environment(PlayerViewModel.self) private var playerViewModel
     @Environment(CollectionManager.self) private var collectionManager
@@ -44,6 +47,14 @@ struct ContentView: View {
             MigrationFailedView()
         } else {
             mainView
+                .environment(\.openTagEditor, openTagEditor)
+                .sheet(item: $tagEditor, onDismiss: { onTagEditorChanged(nil) }) { editor in
+                    TagEditorView(model: editor)
+                }
+                .task { await showPendingTagRecovery() }
+                .alert("tag_recovery_needed", isPresented: Binding(
+                    get: { tagRecoveryError != nil }, set: { if !$0 { tagRecoveryError = nil } }
+                )) { Button("ok") { tagRecoveryError = nil } } message: { Text(tagRecoveryError ?? "") }
                 .frame(minHeight: 800, maxHeight: .infinity)
                 .preferredColorScheme(.dark)
                 .onDrop(of: [.fileURL], isTargeted: $isDragging) { providers in
@@ -64,6 +75,32 @@ struct ContentView: View {
         }
     }
     
+    private func presentTagEditor(track: AudioTrack, recovery: TagSaveReceipt? = nil) {
+        guard tagEditor == nil else { return }
+        let editor = TagEditorModel(track: track, player: playerViewModel, recovery: recovery)
+        editor.onDismiss = { tagEditor = nil; onTagEditorChanged(nil) }
+        tagEditor = editor
+        onTagEditorChanged(editor)
+    }
+
+    private func showPendingTagRecovery() async {
+        do {
+            if let receipt = try await TrackTagService.shared.pendingRecovery() {
+                let track = AudioTrack(id: receipt.trackID, url: receipt.url,
+                    title: receipt.url.deletingPathExtension().lastPathComponent,
+                    artist: nil, albumTitle: nil, duration: 0, format: .unknown, bookmark: nil)
+                presentTagEditor(track: track, recovery: receipt)
+            }
+        } catch { tagRecoveryError = error.localizedDescription }
+    }
+
+    private func openTagEditor(_ track: AudioTrack) {
+        Task {
+            await showPendingTagRecovery()
+            if tagRecoveryError == nil { presentTagEditor(track: track) }
+        }
+    }
+
     // MARK: - Main View
     
     private var mainView: some View {

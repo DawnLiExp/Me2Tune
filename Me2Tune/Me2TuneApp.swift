@@ -36,7 +36,7 @@ struct Me2TuneApp: App {
 
     var body: some Scene {
         Window("Me2Tune", id: "main") {
-            ContentView(isMigrationFailed: isMigrationFailed)
+            ContentView(isMigrationFailed: isMigrationFailed, onTagEditorChanged: { appDelegate.tagEditor = $0 })
                 .frame(minWidth: 495)
                 .environment(playerViewModel)
                 .environment(\.playbackProgressState, playerViewModel.playbackProgressState)

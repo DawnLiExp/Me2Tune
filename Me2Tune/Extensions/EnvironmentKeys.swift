@@ -19,3 +19,14 @@ extension EnvironmentValues {
         set { self[PlaybackProgressStateKey.self] = newValue }
     }
 }
+
+private struct OpenTagEditorKey: EnvironmentKey {
+    static let defaultValue: @MainActor (AudioTrack) -> Void = { _ in }
+}
+
+extension EnvironmentValues {
+    var openTagEditor: @MainActor (AudioTrack) -> Void {
+        get { self[OpenTagEditorKey.self] }
+        set { self[OpenTagEditorKey.self] = newValue }
+    }
+}
