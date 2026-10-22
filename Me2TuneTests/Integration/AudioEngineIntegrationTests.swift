@@ -15,8 +15,67 @@ import Testing
 @MainActor
 @Suite("SFBAudioEngine 0.14 实际播放", .serialized)
 struct AudioEngineIntegrationTests {
-    @Test("Tag save waits until current and preloaded native decoders are released", arguments: [false, true])
-    func releaseDecodersBeforeTagSave(playing: Bool) async throws {
+    @Test("Saving preloaded tags preserves playback and activation uses refreshed metadata", arguments: TrackTagServiceTests.names)
+    func savePreloadedTags(_ name: String) async throws {
+        let first = try makeSilentTrack(seconds: 4)
+        let (url, service) = try TrackTagServiceTests().setup(name)
+        defer {
+            try? FileManager.default.removeItem(at: first.url)
+            try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+        }
+        if url.pathExtension == "m4a" {
+            // Use the platform encoder for native playback; metadata-only fixtures also
+            // contain very short ffmpeg streams that CoreAudio's callback reader rejects.
+            let format = try #require(AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 2))
+            let codec = name == "aac.m4a" ? kAudioFormatMPEG4AAC : kAudioFormatAppleLossless
+            let output = try AVAudioFile(forWriting: url, settings: [AVFormatIDKey: codec,
+                AVSampleRateKey: 44_100, AVNumberOfChannelsKey: 2])
+            let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 13_230))
+            buffer.frameLength = buffer.frameCapacity
+            for channel in 0..<2 { buffer.floatChannelData?[channel].initialize(repeating: 0, count: Int(buffer.frameLength)) }
+            try output.write(from: buffer)
+        }
+        let next = await AudioTrack(url: url)
+        let data = try createTestDataService()
+        for (index, track) in [first, next].enumerated() {
+            let stored = SDTrack(from: track)
+            stored.isInPlaylist = true; stored.playlistOrder = index
+            data.insert(stored)
+        }
+        try data.save()
+        let core = AudioPlayerCore()
+        let coordinator = PlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
+            dataService: data, statisticsManager: EngineTestStatistics(), playerCore: core,
+            defaults: try #require(UserDefaults(suiteName: "TagSaveEngine.\(UUID())")))
+        coordinator.playPlaylistTrack(at: 0)
+        defer { core.prepareForTrackSwitch() }
+        try #require(await waitUntil { coordinator.isPlaying })
+        // Submit the successor early so the test does not depend on catching the
+        // final audio buffer's brief preload interval during host-app startup.
+        coordinator.playerCoreDecodingComplete(for: first)
+        try #require(await waitUntil { core.queuedTrackID == next.id && core.getCurrentPlaybackTime() > 0 })
+        core.setVolume(0)
+        let position = core.getCurrentPlaybackTime()
+        #expect(coordinator.beginTagSave(for: url))
+        #expect(!coordinator.isPlaybackBlockedForTagSave)
+        let snapshot = try await service.read(url: url)
+        let jpeg = try Data(contentsOf: TrackTagServiceTests.fixtures.appendingPathComponent("cover.jpg"))
+        let receipt = try await service.save(trackID: next.id, baseline: snapshot,
+            patch: TagPatch(fields: ["TITLE": "Saved while queued"], artworkChanged: true, artwork: jpeg))
+        let saved = try await service.read(url: url)
+        try await coordinator.refreshTrackMetadata(id: next.id, snapshot: saved)
+        try await service.finishSave(receipt: receipt)
+        coordinator.endTagSave()
+        #expect(core.isPlaying)
+        #expect(core.getCurrentPlaybackTime() >= position)
+        #expect(await waitUntil { coordinator.playbackOrder.history == [first.id, next.id] && !coordinator.isPlaying })
+        #expect(coordinator.playbackStateManager.currentTrack?.title == "Saved while queued")
+        #expect(await waitUntil { coordinator.currentArtwork != nil })
+        #expect(!coordinator.isTrackFailed(next.id))
+    }
+
+    @Test("Tag save stops current and preloaded playback; manual replay starts a fresh session", arguments: [false, true])
+    func stopBeforeTagSave(playing: Bool) async throws {
         let first = try makeSilentTrack(seconds: 4)
         let next = try makeSilentTrack(seconds: 4)
         defer {
@@ -32,10 +91,15 @@ struct AudioEngineIntegrationTests {
             #expect(await waitUntil { core.getCurrentPlaybackTime() > 0 })
         }
         core.prepareForTrackSwitch()
-        #expect(await core.waitForStoppedDecoders())
         #expect(!core.isPlaying)
         #expect(core.queuedTrackID == nil)
         #expect(core.getCurrentPlaybackTime() == 0)
+        // A new session must remain usable and keep the user's volume.
+        #expect(await core.loadTrack(first))
+        #expect(core.volume == 0)
+        core.play()
+        #expect(await waitUntil { core.getCurrentPlaybackTime() > 0 })
+        core.prepareForTrackSwitch()
     }
 
     @Test("暂停跳转、连续跳转及原地跳转均确认实际位置")

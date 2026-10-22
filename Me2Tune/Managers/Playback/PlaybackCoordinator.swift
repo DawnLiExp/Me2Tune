@@ -30,6 +30,7 @@ final class PlaybackCoordinator {
 
     private(set) var isPlaying = false
     private(set) var isSavingTags = false
+    private(set) var isPlaybackBlockedForTagSave = false
     @ObservationIgnored private var tagSaveRestartID: UUID?
     private let dataService: DataServiceProtocol
     private let collectionManager: CollectionManager
@@ -38,10 +39,23 @@ final class PlaybackCoordinator {
         isPlaying || loadController.hasLoadedTrack || loadController.hasPendingStart || loadController.submitted != nil
     }
 
+    func tagSaveStopsPlayback(for url: URL) -> Bool {
+        guard hasPlaybackSession else { return false }
+        let target = url.resolvingSymlinksInPath()
+        let ids = [playbackStateManager.currentTrackID, playbackOrder.requested?.id].compactMap { $0 }
+        return playbackStateManager.currentTracks.contains {
+            ids.contains($0.id) && ($0.resolveURL() ?? $0.url).resolvingSymlinksInPath() == target
+        }
+    }
+
     @discardableResult
-    func beginTagSave() async -> Bool {
+    func beginTagSave(for url: URL) -> Bool {
         guard !isSavingTags else { return false }
         isSavingTags = true
+        isPlaybackBlockedForTagSave = tagSaveStopsPlayback(for: url)
+        // Copy-and-replace never mutates an open decoder's file. Unrelated playback,
+        // including a preloaded successor, can continue using its original file handle.
+        guard isPlaybackBlockedForTagSave else { return true }
         tagSaveRestartID = playbackStateManager.currentTrackID
         loadController.stop()
         isPlaying = false
@@ -49,14 +63,13 @@ final class PlaybackCoordinator {
         timeSampler.updatePlaybackState(isPlaying: false)
         resetOrder()
         updateNowPlayingInfo()
-        guard await playerCore.waitForStoppedDecoders() else {
-            isSavingTags = false
-            return false
-        }
         return true
     }
 
-    func endTagSave() { isSavingTags = false }
+    func endTagSave() {
+        isSavingTags = false
+        isPlaybackBlockedForTagSave = false
+    }
 
     func refreshTrackMetadata(id: UUID, snapshot: TagSnapshot) async throws {
         let old = playlistManager.tracks.first { $0.id == id }
@@ -114,7 +127,7 @@ final class PlaybackCoordinator {
     var repeatMode: RepeatMode = .off {
         didSet {
             playerCore.repeatMode = repeatMode
-            if !isSavingTags { loadController.modesChanged() }
+            if !isPlaybackBlockedForTagSave { loadController.modesChanged() }
         }
     }
 
@@ -123,7 +136,7 @@ final class PlaybackCoordinator {
     var isShuffling: Bool { playbackOrder.isShuffling }
 
     func toggleShuffle() {
-        guard !isSavingTags else { return }
+        guard !isPlaybackBlockedForTagSave else { return }
         loadController.synchronizeOrder()
         playbackOrder.setShuffling(!isShuffling)
         defaults.set(isShuffling, forKey: "shuffleEnabled")
@@ -146,11 +159,11 @@ final class PlaybackCoordinator {
     }
 
     var canGoPrevious: Bool {
-        !isSavingTags && playbackOrder.previous(repeatMode: repeatMode, failed: failedTrackRegistry.snapshot()) != nil
+        !isPlaybackBlockedForTagSave && playbackOrder.previous(repeatMode: repeatMode, failed: failedTrackRegistry.snapshot()) != nil
     }
 
     var canGoNext: Bool {
-        !isSavingTags && playbackOrder.next(repeatMode: repeatMode, automatic: false,
+        !isPlaybackBlockedForTagSave && playbackOrder.next(repeatMode: repeatMode, automatic: false,
                            failed: failedTrackRegistry.snapshot()) != nil
     }
 
@@ -256,7 +269,7 @@ final class PlaybackCoordinator {
     }
 
     func play() {
-        guard !isSavingTags else { return }
+        guard !isPlaybackBlockedForTagSave else { return }
         if let id = tagSaveRestartID {
             tagSaveRestartID = nil
             if let track = playbackStateManager.currentTracks.first(where: { $0.id == id }) {
@@ -283,13 +296,13 @@ final class PlaybackCoordinator {
     }
 
     func pause() {
-        guard !isSavingTags else { return }
+        guard !isPlaybackBlockedForTagSave else { return }
         loadController.setPlaybackIntent(false)
         playerCore.pause()
     }
 
     func seek(to time: TimeInterval) {
-        guard !isSavingTags else { return }
+        guard !isPlaybackBlockedForTagSave else { return }
         playerCore.seek(to: time)
     }
 
@@ -306,7 +319,7 @@ final class PlaybackCoordinator {
     }
 
     func next() {
-        guard !isSavingTags else { return }
+        guard !isPlaybackBlockedForTagSave else { return }
         tagSaveRestartID = nil
         loadController.synchronizeOrder()
         guard let target = playbackOrder.next(repeatMode: repeatMode, automatic: false,
@@ -315,7 +328,7 @@ final class PlaybackCoordinator {
     }
 
     func previous() {
-        guard !isSavingTags else { return }
+        guard !isPlaybackBlockedForTagSave else { return }
         tagSaveRestartID = nil
         loadController.synchronizeOrder()
         guard let target = playbackOrder.previous(repeatMode: repeatMode,
@@ -329,7 +342,7 @@ final class PlaybackCoordinator {
     }
 
     func playPlaylistTrack(at index: Int) {
-        guard !isSavingTags else { return }
+        guard !isPlaybackBlockedForTagSave else { return }
         tagSaveRestartID = nil
         guard playlistManager.tracks.indices.contains(index) else { return }
 
@@ -342,7 +355,7 @@ final class PlaybackCoordinator {
     }
 
     func playAlbum(_ album: Album, startAt index: Int = 0) {
-        guard !isSavingTags else { return }
+        guard !isPlaybackBlockedForTagSave else { return }
         tagSaveRestartID = nil
         guard !album.tracks.isEmpty else {
             logger.warning("Cannot play empty album: \(album.name)")
@@ -365,14 +378,14 @@ final class PlaybackCoordinator {
             playbackStateManager.handlePlaylistTracksAdded()
             if playbackStateManager.playingSource == .playlist {
                 loadController.synchronizeOrder()
-                if !isSavingTags { loadController.modesChanged() }
+                if !isPlaybackBlockedForTagSave { loadController.modesChanged() }
             }
         }
         return result
     }
 
     func removeTrackFromPlaylist(at index: Int) {
-        guard !isSavingTags else { return }
+        guard !isPlaybackBlockedForTagSave else { return }
         guard playlistManager.tracks.indices.contains(index) else { return }
         let active = playbackStateManager.playingSource == .playlist
         let removedTrack = playlistManager.tracks[index]
@@ -402,7 +415,7 @@ final class PlaybackCoordinator {
     }
 
     func clearPlaylist() {
-        guard !isSavingTags else { return }
+        guard !isPlaybackBlockedForTagSave else { return }
         let isClearingCurrentSource = (playbackStateManager.playingSource == .playlist)
 
         if isClearingCurrentSource {
@@ -422,7 +435,7 @@ final class PlaybackCoordinator {
     }
 
     func moveTrackInPlaylist(from source: Int, to destination: Int) {
-        guard !isSavingTags else { return }
+        guard !isPlaybackBlockedForTagSave else { return }
         playlistManager.moveTrack(from: source, to: destination)
         playbackStateManager.handlePlaylistTrackMoved(from: source, to: destination)
         if playbackStateManager.playingSource == .playlist { loadController.synchronizeOrder() }
@@ -436,12 +449,12 @@ final class PlaybackCoordinator {
 
     @discardableResult
     func restoreState() async -> Bool {
-        guard !isSavingTags else { return false }
+        guard !isPlaybackBlockedForTagSave else { return false }
         guard let restored = await playbackStateManager.restoreState() else {
             return false
         }
 
-        guard !isSavingTags else { return false }
+        guard !isPlaybackBlockedForTagSave else { return false }
         if let savedVolume = restored.volume {
             volume = savedVolume
             playerCore.setVolume(savedVolume)
@@ -532,7 +545,7 @@ final class PlaybackCoordinator {
 
 extension PlaybackCoordinator: AudioPlayerCoreDelegate {
     func playerCoreDidUpdatePlaybackState(_ isPlaying: Bool) {
-        guard !isSavingTags || !isPlaying else { return }
+        guard !isPlaybackBlockedForTagSave || !isPlaying else { return }
         self.isPlaying = isPlaying
         timeSampler.updatePlaybackState(isPlaying: isPlaying)
 
@@ -543,7 +556,7 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
     }
 
     func playerCoreDidUpdateTime(currentTime: TimeInterval, duration: TimeInterval) {
-        guard !isSavingTags else { return }
+        guard !isPlaybackBlockedForTagSave else { return }
         playbackProgressState.currentTime = currentTime
         let knownTrackDuration = playbackStateManager.currentTrack?.duration ?? 0
         let resolvedDuration = knownTrackDuration > 0 ? knownTrackDuration : duration
@@ -553,8 +566,12 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
     }
 
     func playerCoreDidLoadTrack(_ track: AudioTrack, artwork: NSImage?) {
-        guard !isSavingTags else { return }
-        currentArtwork = artwork
+        guard !isPlaybackBlockedForTagSave else { return }
+        // A tag save can finish while this load is awaiting artwork.
+        if playbackStateManager.currentTracks.first(where: { $0.id == track.id })?.metadataRevision == track.metadataRevision {
+            currentArtwork = artwork
+            playerCore.updateDockIcon(artwork)
+        }
         duration = track.duration
         effectsController.ensureRemoteCommandsReady(handlers: makePlaybackCommandHandlers())
     }
@@ -564,12 +581,14 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
     }
 
     func playerCoreNowPlayingChanged(to track: AudioTrack?) {
-        guard !isSavingTags else { return }
-        guard let track else {
+        guard !isPlaybackBlockedForTagSave else { return }
+        guard let reportedTrack = track else {
             logger.debug("Now playing changed to nil")
             return
         }
 
+        // Queued decoders retain the old DTO; resolve metadata from the library at activation.
+        let track = playbackStateManager.currentTracks.first { $0.id == reportedTrack.id } ?? reportedTrack
         loadController.confirmStarted(track)
         statisticsTracker.synchronizeObservedTrack(track.id)
         let tracks = playbackStateManager.currentTracks
@@ -603,24 +622,24 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
     }
 
     func playerCoreDecodingComplete(for track: AudioTrack) {
-        guard !isSavingTags else { return }
+        guard !isPlaybackBlockedForTagSave else { return }
         logger.debug("Decoding complete, enqueuing next track")
         loadController.enqueueNextTrack(after: track)
     }
 
     func playerCoreDidConfirmSeek(to time: TimeInterval) {
-        guard !isSavingTags else { return }
+        guard !isPlaybackBlockedForTagSave else { return }
         effectsController.handleSeek(to: time)
         statisticsTracker.handleSeek(to: time, duration: duration)
     }
 
     func playerCoreDecodingFailed(for track: AudioTrack, isCurrent: Bool) {
-        guard !isSavingTags else { return }
+        guard !isPlaybackBlockedForTagSave else { return }
         loadController.handleDecodingFailure(for: track, isCurrent: isCurrent)
     }
 
     func playerCoreDidReachEnd() {
-        guard !isSavingTags else { return }
+        guard !isPlaybackBlockedForTagSave else { return }
         loadController.handleEndOfTrack()
     }
 }

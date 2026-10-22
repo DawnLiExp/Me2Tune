@@ -53,8 +53,8 @@ final class PlayerViewModel {
     typealias RepeatMode = Me2Tune.RepeatMode
 
     var isSavingTags: Bool { coordinator.isSavingTags }
-    var hasPlaybackSession: Bool { coordinator.hasPlaybackSession }
-    func beginTagSave() async -> Bool { await coordinator.beginTagSave() }
+    func tagSaveStopsPlayback(for url: URL) -> Bool { coordinator.tagSaveStopsPlayback(for: url) }
+    func beginTagSave(for url: URL) -> Bool { coordinator.beginTagSave(for: url) }
     func endTagSave() { coordinator.endTagSave() }
     func refreshTrackMetadata(id: UUID, snapshot: TagSnapshot) async throws {
         try await coordinator.refreshTrackMetadata(id: id, snapshot: snapshot)
@@ -73,7 +73,7 @@ final class PlayerViewModel {
     }
 
     var isShuffling: Bool { coordinator.isShuffling }
-    var canStartPlayback: Bool { !isSavingTags && (currentTrack != nil || !playlistManager.isEmpty) }
+    var canStartPlayback: Bool { !coordinator.isPlaybackBlockedForTagSave && (currentTrack != nil || !playlistManager.isEmpty) }
 
     func toggleShuffle() { coordinator.toggleShuffle() }
 

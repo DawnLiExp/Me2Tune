@@ -3017,36 +3017,19 @@
         }
       }
     },
-    "tag_stop_save" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stop Playback and Save"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "停止播放并保存"
-          }
-        }
-      }
-    },
     "tag_stop_hint" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saving stops playback. Press Play afterward to start again from the beginning."
+            "value" : "This song is loaded in the player. Saving will stop it; press Play afterward to start from the beginning."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "保存会停止播放，完成后需手动从头播放。"
+            "value" : "此歌曲已在播放器中加载。保存会停止它，完成后需手动从头播放。"
           }
         }
       }
@@ -3285,6 +3268,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "放弃修改"
+          }
+        }
+      }
+    },
+    "tag_error_write" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tag writing or verification failed. The original file has not been replaced."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标签写入或回读校验失败，原文件尚未替换。"
           }
         }
       }
@@ -3567,13 +3567,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The audio engine has not finished releasing the file. Playback remains stopped; please try again."
+            "value" : "Another tag save is in progress. Please try again when it finishes."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "音频引擎尚未完成文件释放。播放已停止，请稍后重试。"
+            "value" : "另一次标签保存尚未完成，请稍后重试。"
           }
         }
       }

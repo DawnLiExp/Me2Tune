@@ -27,6 +27,7 @@ final class TagEditorModel: Identifiable {
     }
 
     var isBusy: Bool { isReading || isSaving }
+    var saveStopsPlayback: Bool { player.tagSaveStopsPlayback(for: snapshot?.url ?? track.url) }
     var patch: TagPatch {
         guard let snapshot else { return TagPatch() }
         var fields: [String: String] = [:]
@@ -60,7 +61,8 @@ final class TagEditorModel: Identifiable {
         return result
     }
     var localLyricsURL: URL? {
-        let url = (snapshot?.url ?? track.url).deletingPathExtension().appendingPathExtension("lrc")
+        // LyricsService searches beside the library reference, including symbolic links.
+        let url = track.url.deletingPathExtension().appendingPathExtension("lrc")
         return FileManager.default.fileExists(atPath: url.path) ? url : nil
     }
 
@@ -94,7 +96,7 @@ final class TagEditorModel: Identifiable {
             do {
                 try changes.validate(baseline: baseline)
                 try await service.preflight(baseline: baseline)
-                guard await player.beginTagSave() else { throw TagEditError.playbackBusy }
+                guard player.beginTagSave(for: baseline.url) else { throw TagEditError.playbackBusy }
                 playbackLocked = true
                 let saved = try await service.save(trackID: track.id, baseline: baseline, patch: changes)
                 receipt = saved
@@ -115,15 +117,11 @@ final class TagEditorModel: Identifiable {
         guard let receipt, !isBusy, !player.isRestoring else { return }
         isSaving = true; message = nil
         Task {
-            var playbackLocked = false
             defer {
-                if playbackLocked { player.endTagSave() }
                 isSaving = false
                 if let reply = terminationReply { terminationReply = nil; reply(false) }
             }
             do {
-                guard await player.beginTagSave() else { throw TagEditError.playbackBusy }
-                playbackLocked = true
                 try await synchronize(receipt)
                 complete()
             } catch {

@@ -32,14 +32,12 @@ protocol AudioPlayerCoreProtocol: AnyObject {
     func pause()
     func seek(to time: TimeInterval)
     func setVolume(_ volume: Double)
-    func waitForStoppedDecoders() async -> Bool
     func prepareForTrackSwitch()
     func getCurrentPlaybackTime() -> TimeInterval
     func updateDockIcon(_ artwork: NSImage?)
 }
 
 extension AudioPlayerCoreProtocol {
-    func waitForStoppedDecoders() async -> Bool { true }
     func loadTrack(_ track: AudioTrack) async -> Bool {
         await loadTrack(track, startingAt: 0)
     }

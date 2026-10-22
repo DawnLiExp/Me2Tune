@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import SwiftData
 import Testing
@@ -6,7 +7,25 @@ import Testing
 @MainActor
 @Suite("Tag editor synchronization and close protection")
 struct TagEditorModelTests {
-    private func setup(useAlias: Bool = false, stage: (@Sendable (TagSaveStage) throws -> Void)? = nil) async throws
+    @Test("Tag field labels resolve actual keys and both shipped languages contain editor translations")
+    func localizedLabels() throws {
+        for field in TagField.allCases {
+            #expect(field.label == Bundle.main.localizedString(forKey: field.localizationKey, value: nil, table: nil))
+            #expect(!field.label.hasPrefix("tag_"))
+        }
+        for language in ["en", "zh-Hans"] {
+            let path = try #require(Bundle.main.path(forResource: language, ofType: "lproj"))
+            let bundle = try #require(Bundle(path: path))
+            for key in TagField.allCases.map(\.localizationKey) + ["tag_editor_title", "tag_save", "tag_stop_hint",
+                "tag_saved_sync_failed", "tag_recovery_needed", "tag_retry_sync", "tag_read_current", "tag_error_write"] {
+                #expect(bundle.localizedString(forKey: key, value: nil, table: nil) != key)
+            }
+            #expect(bundle.localizedString(forKey: "tag_title", value: nil, table: nil) == (language == "en" ? "Title" : "标题"))
+        }
+    }
+
+    private func setup(useAlias: Bool = false, core: (any AudioPlayerCoreProtocol)? = nil,
+                       stage: (@Sendable (TagSaveStage) throws -> Void)? = nil) async throws
         -> (TagEditorModel, FailingTagDataService, SDTrack, URL) {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("EditorTest-\(UUID())")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -20,7 +39,7 @@ struct TagEditorModelTests {
         record.isInPlaylist = true; record.playlistOrder = 7
         data.insert(record); try data.save()
         let manager = CollectionManager(dataService: data)
-        let coordinator = PlaybackCoordinator(collectionManager: manager, dataService: data,
+        let coordinator = PlaybackCoordinator(collectionManager: manager, dataService: data, playerCore: core,
             defaults: try #require(UserDefaults(suiteName: "TagEditorTest-\(UUID())")))
         let player = PlayerViewModel(coordinator: coordinator)
         while player.restorationPhase != .completed { await Task.yield() }
@@ -32,7 +51,8 @@ struct TagEditorModelTests {
 
     @Test("File commit survives database failure; retry only synchronizes and keeps stable identity")
     func databaseFailureRetry() async throws {
-        let (model, data, record, dir) = try await setup()
+        let core = TagEditorPlaybackCore()
+        let (model, data, record, dir) = try await setup(core: core)
         defer { try? FileManager.default.removeItem(at: dir) }
         let id = record.stableId
         let oldRevision = model.player.playlistManager.tracks.first?.metadataRevision
@@ -54,12 +74,17 @@ struct TagEditorModelTests {
         #expect(!model.player.isSavingTags)
         let savedFile = try Data(contentsOf: model.track.url)
         data.failSaves = false
+        model.player.play()
+        #expect(await waitUntil { model.player.isPlaying })
+        let stops = core.stopCount
         var dismissed = false
         model.onDismiss = { dismissed = true }
         model.retrySynchronization()
         #expect(await waitUntil { !model.isSaving })
         #expect(dismissed)
         #expect(model.receipt == nil)
+        #expect(model.player.isPlaying)
+        #expect(core.stopCount == stops)
         #expect(try Data(contentsOf: model.track.url) == savedFile)
         #expect(record.stableId == id)
         #expect(record.playlistOrder == 7)
@@ -132,6 +157,9 @@ struct TagEditorModelTests {
         let (model, _, record, dir) = try await setup(useAlias: true)
         defer { try? FileManager.default.removeItem(at: dir) }
         let alias = model.track.url
+        let localLyrics = alias.deletingPathExtension().appendingPathExtension("lrc")
+        try "[00:01.00] Local lyrics".write(to: localLyrics, atomically: true, encoding: .utf8)
+        #expect(model.localLyricsURL == localLyrics)
         model.draft[.title] = "Alias edit"
         model.save()
         #expect(await waitUntil { !model.isSaving })
@@ -146,6 +174,23 @@ struct TagEditorModelTests {
         while !condition(), ContinuousClock.now < deadline { try? await Task.sleep(for: .milliseconds(10)) }
         return condition()
     }
+}
+
+@MainActor
+private final class TagEditorPlaybackCore: AudioPlayerCoreProtocol {
+    weak var delegate: (any AudioPlayerCoreDelegate)?
+    var isPlaying = false
+    var repeatMode: RepeatMode = .off
+    var stopCount = 0
+    func loadTrack(_ track: AudioTrack, startingAt time: TimeInterval) async -> Bool { true }
+    func enqueueTrack(_ track: AudioTrack) -> AudioEnqueueResult { .enqueued(track.id) }
+    func play() { isPlaying = true; delegate?.playerCoreDidUpdatePlaybackState(true) }
+    func pause() { isPlaying = false; delegate?.playerCoreDidUpdatePlaybackState(false) }
+    func prepareForTrackSwitch() { stopCount += 1; pause() }
+    func seek(to time: TimeInterval) {}
+    func setVolume(_ volume: Double) {}
+    func getCurrentPlaybackTime() -> TimeInterval { 0 }
+    func updateDockIcon(_ artwork: NSImage?) {}
 }
 
 @MainActor

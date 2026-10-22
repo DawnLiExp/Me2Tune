@@ -8,7 +8,8 @@ nonisolated enum TagField: String, CaseIterable, Codable, Sendable {
     case trackNumber = "TRACKNUMBER", trackTotal = "TRACKTOTAL", discNumber = "DISCNUMBER", discTotal = "DISCTOTAL"
     case comment = "COMMENT", lyrics = "LYRICS"
 
-    var label: String { String(localized: String.LocalizationValue("tag_\(rawValue.lowercased())")) }
+    var localizationKey: String { "tag_" + rawValue.lowercased() }
+    var label: String { String(localized: String.LocalizationValue(localizationKey)) }
     var isNumber: Bool { [.trackNumber, .trackTotal, .discNumber, .discTotal].contains(self) }
 }
 

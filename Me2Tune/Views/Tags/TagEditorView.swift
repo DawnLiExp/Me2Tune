@@ -42,12 +42,12 @@ struct TagEditorView: View {
                 Spacer()
                 if model.isSaving { ProgressView().controlSize(.small) }
                 Button("cancel") { model.requestClose() }.keyboardShortcut(.cancelAction).disabled(model.isSaving)
-                Button(model.player.hasPlaybackSession ? "tag_stop_save" : "tag_save") { model.save() }
+                Button("tag_save") { model.save() }
                     .keyboardShortcut("s", modifiers: .command)
                     .disabled(!model.canSave)
                     .buttonStyle(.borderedProminent)
             }
-            if model.player.hasPlaybackSession, model.receipt == nil {
+            if model.saveStopsPlayback, model.receipt == nil {
                 Text("tag_stop_hint").font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -135,9 +135,9 @@ struct TagEditorView: View {
 
     private var recovery: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(model.fileWasSaved ? "tag_saved_sync_failed" : "tag_recovery_needed")
+            Text(LocalizedStringKey(model.fileWasSaved ? "tag_saved_sync_failed" : "tag_recovery_needed"))
             Text("tag_recovery_hint").font(.callout).foregroundStyle(.secondary)
-            Button(model.fileWasSaved ? "tag_retry_sync" : "tag_read_current") { model.retrySynchronization() }
+            Button(LocalizedStringKey(model.fileWasSaved ? "tag_retry_sync" : "tag_read_current")) { model.retrySynchronization() }
                 .disabled(model.isBusy || model.player.isRestoring)
             if let receipt = model.receipt {
                 Button("tag_show_backup") { NSWorkspace.shared.activateFileViewerSelecting([receipt.backupURL]) }

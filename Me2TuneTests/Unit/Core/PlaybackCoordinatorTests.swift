@@ -687,8 +687,8 @@ struct PlaybackCoordinatorTests {
         #expect(coordinator.hasPlaybackSession)
         let playCount = core.playCallCount
         let loadCount = core.loadTrackCallIDs.count
-        #expect(await coordinator.beginTagSave())
-        #expect(await !coordinator.beginTagSave())
+        #expect(coordinator.beginTagSave(for: tracks[1].url))
+        #expect(!coordinator.beginTagSave(for: tracks[1].url))
         coordinator.play(); coordinator.next(); coordinator.previous(); coordinator.seek(to: 80)
         coordinator.playPlaylistTrack(at: 0)
         coordinator.playerCoreDecodingComplete(for: tracks[1])
@@ -718,7 +718,7 @@ struct PlaybackCoordinatorTests {
         coordinator.playPlaylistTrack(at: 1)
         #expect(await waitUntil { core.loadTrackCallIDs.count == 1 })
         #expect(coordinator.hasPlaybackSession)
-        #expect(await coordinator.beginTagSave())
+        #expect(coordinator.beginTagSave(for: tracks[1].url))
         core.releaseAllLoads()
         #expect(await waitUntil { core.completedLoadIDs.count == 1 })
         #expect(core.playCallCount == 0)
@@ -730,14 +730,51 @@ struct PlaybackCoordinatorTests {
         #expect(coordinator.playbackStateManager.currentTrackID == tracks[2].id)
     }
 
-    @Test("Decoder release failure refuses save and releases the playback gate")
-    func tagSaveReleaseFailure() async throws {
-        let (coordinator, core, _) = try playlistCoordinator(count: 1)
-        core.decoderReleaseSucceeds = false
-        #expect(await !coordinator.beginTagSave())
-        #expect(!coordinator.isSavingTags)
-        coordinator.play()
+    @Test("Saving another song preserves playback, position, preloading and automatic transitions", arguments: [false, true])
+    func tagSaveOtherSong(paused: Bool) async throws {
+        let (coordinator, core, _) = try playlistCoordinator(count: 3)
+        let tracks = coordinator.playlistManager.tracks
+        coordinator.playPlaylistTrack(at: 0)
         #expect(await waitUntil { coordinator.isPlaying })
+        coordinator.seek(to: 50)
+        if paused { coordinator.pause() }
+        coordinator.playerCoreDecodingComplete(for: tracks[0])
+        #expect(await waitUntil { core.enqueueTrackCallIDs == [tracks[1].id] })
+        let history = coordinator.playbackOrder.history
+        let prepareCount = core.prepareCallCount
+        #expect(!coordinator.tagSaveStopsPlayback(for: tracks[1].url))
+        #expect(coordinator.tagSaveStopsPlayback(for: tracks[0].url))
+        #expect(coordinator.beginTagSave(for: tracks[1].url))
+        #expect(coordinator.isSavingTags)
+        #expect(!coordinator.isPlaybackBlockedForTagSave)
+        #expect(coordinator.isPlaying == !paused)
+        #expect(core.getCurrentPlaybackTime() == 50)
+        #expect(core.prepareCallCount == prepareCount)
+        #expect(coordinator.playbackOrder.history == history)
+        coordinator.playerCoreDidUpdateTime(currentTime: 51, duration: 120)
+        #expect(coordinator.playbackProgressState.currentTime == 51)
+        // Events arriving while a different song is being saved must not be dropped.
+        coordinator.playerCoreNowPlayingChanged(to: tracks[1])
+        coordinator.playerCoreDecodingComplete(for: tracks[1])
+        #expect(await waitUntil { core.enqueueTrackCallIDs == [tracks[1].id, tracks[2].id] })
+        #expect(coordinator.playbackStateManager.currentTrackID == tracks[1].id)
+        coordinator.endTagSave()
+        #expect(core.prepareCallCount == prepareCount)
+        #expect(coordinator.playbackOrder.history == history + [tracks[1].id])
+    }
+
+    @Test("Saving another song does not cancel a suspended load")
+    func tagSaveOtherSongWhileLoading() async throws {
+        let (coordinator, core, _) = try playlistCoordinator(count: 2)
+        let tracks = coordinator.playlistManager.tracks
+        core.heldLoadIDs = [tracks[0].id]
+        coordinator.playPlaylistTrack(at: 0)
+        #expect(await waitUntil { core.loadTrackCallIDs.count == 1 })
+        #expect(coordinator.beginTagSave(for: tracks[1].url))
+        core.releaseAllLoads()
+        #expect(await waitUntil { coordinator.isPlaying })
+        #expect(core.loadTrackCallIDs == [tracks[0].id])
+        coordinator.endTagSave()
     }
 
     private func makeTracks(count: Int) -> [AudioTrack] {
@@ -808,8 +845,6 @@ private final class MockAudioPlayerCore: AudioPlayerCoreProtocol {
 
     private var loadedTrack: AudioTrack?
     var loadResults: [UUID: Bool] = [:]
-    var decoderReleaseSucceeds = true
-    func waitForStoppedDecoders() async -> Bool { decoderReleaseSucceeds }
     var loadDelay: Duration?
     var heldLoadIDs: Set<UUID> = []
     private var heldLoads: [UUID: [CheckedContinuation<Void, Never>]] = [:]
@@ -829,6 +864,7 @@ private final class MockAudioPlayerCore: AudioPlayerCoreProtocol {
     private(set) var enqueueTrackCallIDs: [UUID] = []
     private(set) var playCallCount = 0
     private(set) var pauseCallCount = 0
+    private(set) var prepareCallCount = 0
 
     private var currentTime: TimeInterval = 0
 
@@ -879,6 +915,7 @@ private final class MockAudioPlayerCore: AudioPlayerCoreProtocol {
     func setVolume(_ volume: Double) {}
 
     func prepareForTrackSwitch() {
+        prepareCallCount += 1
         currentTime = 0
         loadedTrack = nil
         isPlaying = false
