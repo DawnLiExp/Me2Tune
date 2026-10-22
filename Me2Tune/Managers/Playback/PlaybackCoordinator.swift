@@ -179,6 +179,8 @@ final class PlaybackCoordinator {
             playerCore.play()
             return
         }
+        // A second play action only updates intent while the selected track is loading.
+        guard !loadController.hasPendingStart else { return }
         if playbackStateManager.currentTrack == nil {
             playbackStateManager.switchToPlaylist()
         }

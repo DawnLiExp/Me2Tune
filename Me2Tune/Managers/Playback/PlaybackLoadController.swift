@@ -16,6 +16,7 @@ final class PlaybackLoadController {
     private(set) var submitted: PlaybackOrderState.Selection?
     private(set) var hasLoadedTrack = false
     private(set) var hasEnded = false
+    var hasPendingStart: Bool { pendingStart != nil }
     private var pendingStart: PlaybackOrderState.Selection?
     private var enqueueRequest: UUID?
     private var endWhileEnqueuing = false
@@ -58,6 +59,7 @@ final class PlaybackLoadController {
         wantsPlayback = autoplay
         loadingAutomatic = automatic
         order.request(selection)
+        pendingStart = selection
         onTrackRequestedIfPresent(selection.id)
         playerCore.prepareForTrackSwitch()
         let request = generation
@@ -118,6 +120,7 @@ final class PlaybackLoadController {
         guard generation == request else { return false }
         hasLoadedTrack = success
         if !success { pendingStart = nil }
+        else if wantsPlayback { playerCore.play() }
         return success
     }
 

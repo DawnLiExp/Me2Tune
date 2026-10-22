@@ -159,4 +159,73 @@ struct PlaybackOrderStateTests {
         #expect(order.history.isEmpty)
         #expect(order.next(repeatMode: .off, automatic: true, failed: []) == nil)
     }
+
+    @Test("加载中的选择跨随机切换保留锚点，旧确认不跳过新顺序")
+    func pendingSelectionSurvivesModeChange() throws {
+        let (order, ids) = setup()
+        order.setShuffling(false)
+        let pending = try #require(order.next(repeatMode: .off, automatic: false, failed: []))
+        order.request(pending)
+        order.setShuffling(true)
+        // The load task may start after the mode changed, carrying its original selection.
+        order.request(pending)
+        #expect(order.requested?.id == ids[1])
+        #expect(order.next(repeatMode: .off, automatic: false, failed: [])?.id == ids[3])
+        order.confirm(pending)
+        var rest: [UUID] = []
+        while let next = order.next(repeatMode: .off, automatic: true, failed: []) {
+            rest.append(next.id)
+            order.confirm(next)
+        }
+        #expect(rest == [ids[3], ids[2]])
+        #expect(order.history == [ids[0], ids[1], ids[3], ids[2]])
+    }
+
+    @Test("删除历史及切换模式不改变已选历史实例", arguments: [1, 2], [false, true])
+    func pendingHistorySurvivesDeletion(rounds: Int, changeMode: Bool) throws {
+        let ids = (0..<4).map { _ in UUID() }
+        let order = PlaybackOrderState(shuffle: { $0 })
+        order.reset(ids: ids, currentID: ids[0], shuffling: true)
+        order.confirm(order.select(ids[0]))
+        for _ in 1..<(4 * rounds) {
+            order.confirm(try #require(order.next(repeatMode: .all, automatic: true, failed: [])))
+        }
+        let history = order.history
+        let pending = try #require(order.previous(repeatMode: .off, failed: []))
+        order.request(pending)
+        if changeMode {
+            order.setShuffling(false)
+            order.setShuffling(true)
+        }
+        order.reconcile(ids: ids.filter { $0 != ids[1] })
+        // The loader still holds this original value, including its old revision.
+        order.confirm(pending)
+        #expect(order.history == history.filter { $0 != ids[1] })
+        #expect(order.currentID == ids[2])
+        #expect(order.next(repeatMode: .off, automatic: false, failed: [])?.id == ids[3])
+        #expect(order.previous(repeatMode: .off, failed: [])?.id == ids[0])
+    }
+
+    @Test("已预定后继前新增曲目不会被漏播，含跨轮预定", arguments: [false, true])
+    func insertionBeforeReservedSuccessor(startsNewRound: Bool) throws {
+        let (order, ids) = setup()
+        if startsNewRound {
+            for _ in 0..<3 {
+                order.confirm(try #require(order.next(repeatMode: .off, automatic: true, failed: [])))
+            }
+        }
+        let reserved = try #require(order.next(repeatMode: .all, automatic: true, failed: []))
+        let added = UUID()
+        order.reconcile(ids: ids + [added])
+        order.confirm(reserved)
+        var rest: [UUID] = []
+        while let next = order.next(repeatMode: .off, automatic: true, failed: []) {
+            rest.append(next.id)
+            order.confirm(next)
+        }
+        let expected = Set(ids + [added]).subtracting(startsNewRound ? [reserved.id] : [ids[0], reserved.id])
+        #expect(Set(rest) == expected)
+        #expect(rest.count == expected.count)
+    }
+
 }
