@@ -58,6 +58,11 @@ struct Me2TuneApp: App {
         .commands {
             CommandGroup(replacing: .newItem) {}
 
+            CommandGroup(replacing: .appTermination) {
+                Button("quit_app") { appDelegate.requestQuit() }
+                    .keyboardShortcut("q", modifiers: .command)
+            }
+
             CommandGroup(after: .windowArrangement) {
                 Button(String(localized: "lyrics_menu_item")) {
                     LyricsWindowController.shared.show()

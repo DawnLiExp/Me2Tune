@@ -17,7 +17,7 @@ struct TagEditorModelTests {
             let path = try #require(Bundle.main.path(forResource: language, ofType: "lproj"))
             let bundle = try #require(Bundle(path: path))
             for key in TagField.allCases.map(\.localizationKey) + ["tag_editor_title", "tag_save", "tag_stop_hint",
-                "tag_saved_sync_failed", "tag_recovery_needed", "tag_retry_sync", "tag_read_current", "tag_error_write"] {
+                "tag_saved_sync_failed", "tag_recovery_needed", "tag_retry_sync", "tag_read_current", "tag_error_write", "quit_app"] {
                 #expect(bundle.localizedString(forKey: key, value: nil, table: nil) != key)
             }
             #expect(bundle.localizedString(forKey: "tag_title", value: nil, table: nil) == (language == "en" ? "Title" : "标题"))
@@ -169,11 +169,102 @@ struct TagEditorModelTests {
         #expect(try FileManager.default.attributesOfItem(atPath: alias.path)[.type] as? FileAttributeType == .typeSymbolicLink)
     }
 
+    @Test("Pending input is committed before save, close, or quit checks the draft")
+    func markedInputBeforeActions() async throws {
+        for action in ["close", "save", "quit"] {
+            let (model, _, _, dir) = try await setup()
+            defer { try? FileManager.default.removeItem(at: dir) }
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 60),
+                                  styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            defer { window.close() }
+            let field = NSTextField(frame: NSRect(x: 10, y: 10, width: 280, height: 30))
+            field.stringValue = model.draft[.title] ?? ""
+            let delegate = TagInputCommitDelegate { model.draft[.title] = field.stringValue }
+            field.delegate = delegate
+            window.contentView?.addSubview(field)
+            model.editingWindow = window
+            #expect(window.makeFirstResponder(field))
+            let editor = try #require(field.currentEditor() as? NSTextView)
+            editor.setMarkedText("中文待确认", selectedRange: NSRange(location: 5, length: 0),
+                                 replacementRange: NSRange(location: 0, length: (editor.string as NSString).length))
+            #expect(editor.hasMarkedText())
+            #expect(!model.isDirty)
+            var dismissed = false
+            var quitReply: Bool?
+            model.onDismiss = { dismissed = true }
+            switch action {
+            case "save": model.save()
+            case "quit": model.requestTermination { quitReply = $0 }
+            default: model.requestClose()
+            }
+            #expect(model.draft[.title] == "中文待确认")
+            if action == "save" {
+                #expect(await waitUntil { !model.isSaving })
+                #expect(model.fileWasSaved)
+                #expect(dismissed)
+                let saved = try await TrackTagService().read(url: model.track.url)
+                #expect(saved.text(.title) == "中文待确认")
+            } else {
+                #expect(model.showUnsavedPrompt)
+                #expect(!dismissed)
+                #expect(quitReply == nil)
+                model.cancelClose()
+                #expect(model.isDirty)
+                #expect(!model.showUnsavedPrompt)
+                if action == "quit" { #expect(quitReply == false) }
+                #expect(field.currentEditor() != nil)
+            }
+            withExtendedLifetime(delegate) {}
+        }
+    }
+
+    @Test("The app quit entry checks the draft before starting native termination")
+    func quitEntryProtectsDraft() async throws {
+        let (model, _, _, dir) = try await setup()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let delegate = AppDelegate()
+        delegate.tagEditor = model
+        model.draft[.title] = "未保存的修改"
+        var dismissed = false
+        model.onDismiss = { dismissed = true }
+        delegate.requestQuit()
+        #expect(model.showUnsavedPrompt)
+        #expect(!dismissed)
+        model.cancelClose()
+        #expect(model.isDirty)
+        #expect(!dismissed)
+    }
+
+    @Test("Repeated quit requests resolve the earlier caller and keep the draft")
+    func repeatedQuitRequests() async throws {
+        let (model, _, _, dir) = try await setup()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        model.draft[.title] = "未保存的修改"
+        var first: Bool?
+        var second: Bool?
+        model.requestTermination { first = $0 }
+        model.requestTermination { second = $0 }
+        #expect(first == false)
+        #expect(second == nil)
+        #expect(model.showUnsavedPrompt)
+        model.cancelClose()
+        #expect(second == false)
+        #expect(model.isDirty)
+    }
+
     private func waitUntil(_ condition: () -> Bool) async -> Bool {
         let deadline = ContinuousClock.now + .seconds(5)
         while !condition(), ContinuousClock.now < deadline { try? await Task.sleep(for: .milliseconds(10)) }
         return condition()
     }
+}
+
+@MainActor
+private final class TagInputCommitDelegate: NSObject, NSTextFieldDelegate {
+    let commit: () -> Void
+    init(commit: @escaping () -> Void) { self.commit = commit }
+    func controlTextDidEndEditing(_ notification: Notification) { commit() }
 }
 
 @MainActor

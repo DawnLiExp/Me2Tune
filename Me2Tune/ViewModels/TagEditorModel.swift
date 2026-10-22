@@ -18,6 +18,7 @@ final class TagEditorModel: Identifiable {
     var message: String?
     var showUnsavedPrompt = false
     @ObservationIgnored var onDismiss: () -> Void = {}
+    @ObservationIgnored weak var editingWindow: NSWindow?
     @ObservationIgnored private var terminationReply: ((Bool) -> Void)?
     @ObservationIgnored private let service: TrackTagService
 
@@ -80,6 +81,8 @@ final class TagEditorModel: Identifiable {
     }
 
     func save() {
+        guard !isBusy else { return }
+        finishEditing()
         guard canSave, let baseline = snapshot else { return }
         let changes = patch
         isSaving = true; message = nil
@@ -146,13 +149,17 @@ final class TagEditorModel: Identifiable {
 
     func requestClose() {
         guard !isSaving else { return }
+        finishEditing()
         if isDirty { showUnsavedPrompt = true }
         else { onDismiss() }
     }
 
     func requestTermination(reply: @escaping (Bool) -> Void) {
+        let previousReply = terminationReply
         terminationReply = reply
+        previousReply?(false)
         if isSaving { return }
+        finishEditing()
         if isDirty { showUnsavedPrompt = true }
         else { terminationReply = nil; reply(true) }
     }
@@ -176,6 +183,17 @@ final class TagEditorModel: Identifiable {
         showUnsavedPrompt = false
         guard canSave else { cancelClose(); return }
         save()
+    }
+
+    private func finishEditing() {
+        // SwiftUI does not publish an IME's marked text until the field ends editing.
+        // Resolve it before checking the draft, including close/quit requests from AppKit.
+        guard let window = editingWindow, window.attachedSheet == nil,
+              let textView = window.firstResponder as? NSTextView, textView.hasMarkedText() else { return }
+        let responder = textView.isFieldEditor ? (textView.delegate as? NSResponder ?? textView) : textView
+        if window.makeFirstResponder(nil) {
+            window.makeFirstResponder(responder)
+        }
     }
 
     func chooseArtwork() {

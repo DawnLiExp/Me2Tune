@@ -1,6 +1,16 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "quit_app" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Quit Me2Tune" }
+        },
+        "zh-Hans" : {
+          "stringUnit" : { "state" : "translated", "value" : "退出 Me2Tune" }
+        }
+      }
+    },
     "shuffle_off" : {
       "localizations" : {
         "en" : {

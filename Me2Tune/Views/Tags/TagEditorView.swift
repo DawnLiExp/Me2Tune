@@ -53,6 +53,7 @@ struct TagEditorView: View {
         }
         .padding(20)
         .frame(width: 470, height: 620)
+        .background(TagEditorWindowReader(model: model))
         .interactiveDismissDisabled(true)
         .onExitCommand { model.requestClose() }
         .task { if model.snapshot == nil { await model.load() } }
@@ -149,5 +150,28 @@ struct TagEditorView: View {
 
     private func binding(_ field: TagField) -> Binding<String> {
         Binding(get: { model.draft[field] ?? "" }, set: { model.draft[field] = $0 })
+    }
+}
+
+private struct TagEditorWindowReader: NSViewRepresentable {
+    let model: TagEditorModel
+
+    func makeNSView(context: Context) -> ReaderView {
+        let view = ReaderView()
+        view.model = model
+        return view
+    }
+
+    func updateNSView(_ view: ReaderView, context: Context) {
+        view.model = model
+        model.editingWindow = view.window
+    }
+
+    final class ReaderView: NSView {
+        weak var model: TagEditorModel?
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            model?.editingWindow = window
+        }
     }
 }

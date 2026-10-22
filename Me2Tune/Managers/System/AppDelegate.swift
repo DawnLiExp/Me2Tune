@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import Carbon
 
 import OSLog
 import SwiftUI
@@ -18,7 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var windowDelegate: WindowInterceptor?
     private var miniWindowController: MiniWindowController?
     
-    private var commandWMonitor: Any?
+    private var windowCommandMonitor: Any?
     
     weak var tagEditor: TagEditorModel?
 
@@ -48,10 +49,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationDidFinishLaunching(_ notification: Notification) {
+        NSAppleEventManager.shared().setEventHandler(self, andSelector: #selector(handleQuitEvent(_:withReplyEvent:)),
+            forEventClass: AEEventClass(kCoreEventClass), andEventID: AEEventID(kAEQuitApplication))
         // ✅ 确保启动时总是Full模式
         UserDefaults.standard.set(DisplayMode.full.rawValue, forKey: "displayMode")
         
-        setupCommandWHandler()
+        setupWindowCommandHandler()
         configureFullModeWindow()
         setupDisplayModeObserver()
         
@@ -61,13 +64,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return false
     }
-    
-    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard let tagEditor else { return .terminateNow }
-        Task { @MainActor in
-            tagEditor.requestTermination { allowed in sender.reply(toApplicationShouldTerminate: allowed) }
+
+    /// Run before AppKit dismisses modal SwiftUI sheets and clears their editing state.
+    func requestQuit(reply: @escaping (Bool) -> Void = { _ in }) {
+        guard let editor = tagEditor else { reply(true); NSApp.terminate(nil); return }
+        editor.requestTermination { [weak editor] allowed in
+            reply(allowed)
+            guard allowed else { return }
+            editor?.editingWindow?.preventsApplicationTerminationWhenModal = false
+            NSApp.terminate(nil)
         }
-        return .terminateLater
+    }
+
+    @objc private func handleQuitEvent(_ event: NSAppleEventDescriptor, withReplyEvent reply: NSAppleEventDescriptor) {
+        let manager = NSAppleEventManager.shared()
+        guard let suspension = manager.suspendCurrentAppleEvent() else { requestQuit(); return }
+        requestQuit { allowed in
+            if !allowed {
+                manager.replyAppleEvent(forSuspensionID: suspension).setParam(
+                    NSAppleEventDescriptor(int32: Int32(userCanceledErr)), forKeyword: AEKeyword(keyErrorNumber))
+            }
+            manager.resume(withSuspensionID: suspension)
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -182,9 +200,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         displayModeTask?.cancel()
         displayModeTask = nil
         
-        if let monitor = commandWMonitor {
+        if let monitor = windowCommandMonitor {
             NSEvent.removeMonitor(monitor)
-            commandWMonitor = nil
+            windowCommandMonitor = nil
         }
         
         logger.debug("🧹 AppDelegate resources cleaned up")
@@ -299,23 +317,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         logger.debug("✅ Full mode window configured")
     }
     
-    // MARK: - Command+W Handler
+    // MARK: - Window Commands
     
-    /// ✅ 优化：更简洁的 Command+W 处理逻辑
-    private func setupCommandWHandler() {
-        commandWMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+    private func setupWindowCommandHandler() {
+        windowCommandMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, event.modifierFlags.contains(.command) else { return event }
             
-            // 只处理 Command+W 组合 (keyCode 13 = 'w')
-            guard event.keyCode == 13 || event.charactersIgnoringModifiers == "w" else { return event }
+            let closesWindow = event.keyCode == 13 || event.charactersIgnoringModifiers == "w"
+            let savesTags = event.keyCode == 1 || event.charactersIgnoringModifiers == "s"
+            guard closesWindow || savesTags else { return event }
             
             if let editor = self.tagEditor {
                 // Leave native file panels and alert sheets their own close behavior.
                 if NSApp.keyWindow is NSOpenPanel { return event }
-                if editor.showUnsavedPrompt { return nil }
+                if editor.showUnsavedPrompt { return closesWindow ? nil : event }
+                if savesTags {
+                    guard event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command,
+                          NSApp.keyWindow === editor.editingWindow else { return event }
+                    editor.save()
+                    return nil
+                }
                 editor.requestClose()
                 return nil
             }
+            guard closesWindow else { return event }
             // 优先处理鼠标位置所在的窗口
             let mouseLocation = NSEvent.mouseLocation
             for window in NSApp.windows where window.isVisible && window.frame.contains(mouseLocation) {
@@ -332,7 +357,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return event
         }
         
-        logger.debug("✅ Command+W handler installed")
+        logger.debug("Window command handler installed")
     }
 
     /// ✅ 优化：使用 switch 语句，更清晰的窗口类型判断
