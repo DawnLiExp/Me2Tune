@@ -14,6 +14,9 @@ struct ControlSectionView: View {
     let canGoPrevious: Bool
     let canGoNext: Bool
     let repeatMode: PlayerViewModel.RepeatMode
+    var canStartPlayback = false
+    var isShuffling = false
+    var onToggleShuffle: () -> Void = {}
     var isRestoring: Bool = false
     
     let onPlayPause: () -> Void
@@ -65,9 +68,11 @@ struct ControlSectionView: View {
         isRestoring && currentTrack == nil
     }
 
+    private var canPlay: Bool { currentTrack != nil || canStartPlayback }
+
     private var trackInfoSection: some View {
         ZStack(alignment: .leading) {
-            if !isHoveringTrackInfo || currentTrack == nil {
+            if !isHoveringTrackInfo || !canPlay {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(trackTitle)
                         .font(.system(size: 20, weight: .semibold))
@@ -85,7 +90,7 @@ struct ControlSectionView: View {
                 .transition(.opacity)
             }
             
-            if isHoveringTrackInfo, currentTrack != nil {
+            if isHoveringTrackInfo, canPlay {
                 settingsControls
                     .transition(.opacity)
             }
@@ -96,7 +101,7 @@ struct ControlSectionView: View {
             hoverDelayTask?.cancel()
             hoverDelayTask = nil
             
-            if hovering, currentTrack != nil {
+            if hovering, canPlay {
                 hoverDelayTask = Task {
                     do {
                         try await Task.sleep(for: .milliseconds(500))
@@ -149,6 +154,7 @@ struct ControlSectionView: View {
         HStack(spacing: 12) {
             switchToMiniButton
             volumeControl
+            shuffleButton
             repeatButton
         }
     }
@@ -170,6 +176,19 @@ struct ControlSectionView: View {
         displayMode = DisplayMode.mini.rawValue
     }
     
+    private var shuffleButton: some View {
+        Button(action: onToggleShuffle) {
+            Image(systemName: "shuffle")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(isShuffling ? .accent : .secondaryText)
+                .frame(width: 28, height: 28)
+        }
+        .buttonStyle(.plain)
+        .help(isShuffling ? String(localized: "shuffle_on") : String(localized: "shuffle_off"))
+        .accessibilityLabel(String(localized: "shuffle"))
+        .accessibilityValue(isShuffling ? String(localized: "shuffle_on") : String(localized: "shuffle_off"))
+    }
+
     // MARK: - Repeat Button
 
     private var repeatButton: some View {
@@ -295,8 +314,8 @@ struct ControlSectionView: View {
             }
         }
         .buttonStyle(PlainButtonStyle())
-        .disabled(transportDisabled || currentTrack == nil)
-        .opacity(transportDisabled ? 1.0 : (currentTrack == nil ? 0.5 : 1.0))
+        .disabled(transportDisabled || !canPlay)
+        .opacity(transportDisabled ? 1.0 : (canPlay ? 1.0 : 0.5))
     }
     
     /// - Parameters:

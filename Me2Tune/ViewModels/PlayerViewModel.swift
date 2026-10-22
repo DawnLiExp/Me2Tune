@@ -64,6 +64,11 @@ final class PlayerViewModel {
         coordinator.currentArtwork
     }
 
+    var isShuffling: Bool { coordinator.isShuffling }
+    var canStartPlayback: Bool { currentTrack != nil || !playlistManager.isEmpty }
+
+    func toggleShuffle() { coordinator.toggleShuffle() }
+
     var repeatMode: RepeatMode {
         get { coordinator.repeatMode }
         set { coordinator.repeatMode = newValue }

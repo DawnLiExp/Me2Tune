@@ -136,6 +136,7 @@ struct MiniPlayerView: View {
         
         return HStack(spacing: 0) {
             HStack(spacing: 14) {
+                shuffleButton
                 repeatButton
                 
                 HStack(spacing: 8) {
@@ -166,6 +167,19 @@ struct MiniPlayerView: View {
         }
     }
     
+    private var shuffleButton: some View {
+        Button(action: playerViewModel.toggleShuffle) {
+            Image(systemName: "shuffle")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(playerViewModel.isShuffling ? miniTheme.colors.accent : miniTheme.colors.controlButtonColor.opacity(0.5))
+                .frame(width: 24, height: 24)
+        }
+        .buttonStyle(.plain)
+        .help(playerViewModel.isShuffling ? String(localized: "shuffle_on") : String(localized: "shuffle_off"))
+        .accessibilityLabel(String(localized: "shuffle"))
+        .accessibilityValue(playerViewModel.isShuffling ? String(localized: "shuffle_on") : String(localized: "shuffle_off"))
+    }
+
     // MARK: - Repeat Button
     
     private var repeatButton: some View {
@@ -209,8 +223,8 @@ struct MiniPlayerView: View {
             }
         }
         .buttonStyle(.plain)
-        .disabled(miniTransportDisabled || playerViewModel.currentTrack == nil)
-        .opacity(miniTransportDisabled ? 1.0 : (playerViewModel.currentTrack == nil ? 0.5 : 1.0))
+        .disabled(miniTransportDisabled || !playerViewModel.canStartPlayback)
+        .opacity(miniTransportDisabled ? 1.0 : (playerViewModel.canStartPlayback ? 1.0 : 0.5))
     }
     
     // MARK: - Volume Control
