@@ -571,6 +571,89 @@ struct PlaybackCoordinatorTests {
         #expect(coordinator.playbackStateManager.currentTrackID == history.last)
     }
 
+
+    @Test("模式切换与连续回退、前进交叉时，只有最后请求落地", arguments: [false, true], [false, true])
+    func crossedModeNavigation(waitForLoad: Bool, reverseDirection: Bool) async throws {
+        let (coordinator, core, _) = try playlistCoordinator(count: 6)
+        let tracks = coordinator.playlistManager.tracks
+        coordinator.playPlaylistTrack(at: 0)
+        #expect(await waitUntil { core.playCallCount == 1 })
+        for count in 2...4 {
+            coordinator.next()
+            #expect(await waitUntil { core.playCallCount == count })
+        }
+        let history = coordinator.playbackOrder.history
+        core.heldLoadIDs = Set(tracks.map(\.id))
+        defer { core.releaseAllLoads() }
+        coordinator.previous() // Pending C in sequential mode.
+        if waitForLoad { #expect(await waitUntil { core.loadTrackCallIDs.count == 5 }) }
+        coordinator.toggleShuffle()
+        coordinator.previous() // B, not the still-audible D.
+        #expect(coordinator.playbackOrder.requested?.id == tracks[1].id)
+        coordinator.toggleRepeatMode()
+        coordinator.toggleShuffle()
+        coordinator.previous() // A in sequential mode.
+        coordinator.toggleShuffle()
+        coordinator.toggleRepeatMode()
+        coordinator.next() // B in history, manual next bypasses repeat-one.
+        if reverseDirection {
+            coordinator.next() // C
+            coordinator.next() // D
+        }
+        let final = tracks[reverseDirection ? 3 : 1].id
+        #expect(coordinator.playbackOrder.requested?.id == final)
+        #expect(await waitUntil { core.loadTrackCallIDs.last == final })
+        core.releaseLoads(for: final)
+        #expect(await waitUntil { core.playCallCount == 5 })
+        core.releaseAllLoads()
+        #expect(await waitUntil { core.completedLoadIDs.count == core.loadTrackCallIDs.count })
+        #expect(core.playCallCount == 5)
+        #expect(coordinator.playbackStateManager.currentTrackID == final)
+        #expect(coordinator.playbackOrder.history == history)
+    }
+
+    @Test("连续前进跨过历史末尾后不返回旧路径，过期加载不提交", arguments: [false, true])
+    func rapidNextBeyondHistory(waitForLoad: Bool) async throws {
+        let (coordinator, core, _) = try playlistCoordinator(count: 8)
+        let tracks = coordinator.playlistManager.tracks
+        coordinator.toggleShuffle()
+        coordinator.playPlaylistTrack(at: 0)
+        #expect(await waitUntil { core.playCallCount == 1 })
+        for count in 2...6 {
+            coordinator.next()
+            #expect(await waitUntil { core.playCallCount == count })
+        }
+        let history = coordinator.playbackOrder.history
+        for count in 7...10 {
+            coordinator.previous()
+            #expect(await waitUntil { core.playCallCount == count })
+        }
+        #expect(coordinator.playbackStateManager.currentTrackID == history[1])
+        core.heldLoadIDs = Set(tracks.map(\.id))
+        defer { core.releaseAllLoads() }
+        for id in history.dropFirst(2) {
+            coordinator.next()
+            #expect(coordinator.playbackOrder.requested?.id == id)
+            if waitForLoad { #expect(await waitUntil { core.loadTrackCallIDs.last == id }) }
+        }
+        coordinator.next()
+        let firstUnheard = try #require(coordinator.playbackOrder.requested?.id)
+        #expect(!history.contains(firstUnheard))
+        if waitForLoad { #expect(await waitUntil { core.loadTrackCallIDs.last == firstUnheard }) }
+        let final = try #require(tracks.first { !history.contains($0.id) && $0.id != firstUnheard }?.id)
+        coordinator.next()
+        #expect(coordinator.playbackOrder.requested?.id == final)
+        #expect(await waitUntil { core.loadTrackCallIDs.last == final })
+        core.releaseLoads(for: final)
+        #expect(await waitUntil { core.playCallCount == 11 })
+        core.releaseAllLoads()
+        #expect(await waitUntil { core.completedLoadIDs.count == core.loadTrackCallIDs.count })
+        #expect(core.playCallCount == 11)
+        #expect(coordinator.playbackStateManager.currentTrackID == final)
+        #expect(coordinator.playbackOrder.history == Array(history.prefix(2)) + [final])
+        #expect(!coordinator.canGoNext)
+    }
+
     private func playlistCoordinator(count: Int) throws -> (PlaybackCoordinator, MockAudioPlayerCore, UserDefaults) {
         let data = try createTestDataService()
         for (index, track) in makeTracks(count: count).enumerated() {

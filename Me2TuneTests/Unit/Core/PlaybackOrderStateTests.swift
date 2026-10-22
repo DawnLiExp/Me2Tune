@@ -228,4 +228,131 @@ struct PlaybackOrderStateTests {
         #expect(rest.count == expected.count)
     }
 
+    @Test("顺序回退跨模式切换保留历史位置，连续反向操作沿原路径", arguments: [RepeatMode.off, .all, .one], [false, true])
+    func sequentialBackAcrossModes(mode: RepeatMode, confirmIntermediate: Bool) throws {
+        let ids = (0..<6).map { _ in UUID() }
+        let order = PlaybackOrderState(shuffle: { $0 })
+        order.reset(ids: ids, currentID: ids[0], shuffling: false)
+        for id in ids.prefix(4) { order.confirm(order.select(id)) }
+        let originalHistory = order.history
+        func move(back: Bool, to index: Int) throws {
+            let selected = try #require(back ? order.previous(repeatMode: mode, failed: [])
+                : order.next(repeatMode: mode, automatic: false, failed: []))
+            #expect(selected.id == ids[index])
+            order.request(selected)
+            if confirmIntermediate { order.confirm(selected) }
+        }
+        try move(back: true, to: 2)
+        order.setShuffling(true)
+        try move(back: true, to: 1)
+        order.setShuffling(false)
+        try move(back: true, to: 0)
+        order.setShuffling(true)
+        for index in 1...3 { try move(back: false, to: index) }
+        try move(back: true, to: 2)
+        if let pending = order.requested { order.confirm(pending) }
+        #expect(order.currentID == ids[2])
+        #expect(order.history == originalHistory)
+        #expect(order.next(repeatMode: mode, automatic: false, failed: [])?.id == ids[3])
+    }
+
+    @Test("连续前进越过历史后保持待播位置，反向只回到已播放历史", arguments: [RepeatMode.off, .all, .one], [false, true])
+    func rapidNextAcrossHistoryFrontier(mode: RepeatMode, reverseBeforeConfirm: Bool) throws {
+        let ids = (0..<6).map { _ in UUID() }
+        let order = PlaybackOrderState(shuffle: { $0 })
+        order.reset(ids: ids, currentID: ids[0], shuffling: true)
+        order.confirm(order.select(ids[0]))
+        for _ in 0..<3 { order.confirm(try #require(order.next(repeatMode: mode, automatic: false, failed: []))) }
+        for _ in 0..<2 { order.confirm(try #require(order.previous(repeatMode: mode, failed: []))) }
+        for index in 2...5 {
+            let next = try #require(order.next(repeatMode: mode, automatic: false, failed: []))
+            #expect(next.id == ids[index])
+            #expect(order.next(repeatMode: mode, automatic: false, failed: []) == next)
+            order.request(next)
+        }
+        #expect(order.currentID == ids[1])
+        #expect(order.history == Array(ids.prefix(4)))
+        if reverseBeforeConfirm {
+            for index in [3, 2] {
+                let back = try #require(order.previous(repeatMode: mode, failed: []))
+                #expect(back.id == ids[index])
+                order.request(back)
+            }
+            for index in 3...5 {
+                let next = try #require(order.next(repeatMode: mode, automatic: false, failed: []))
+                #expect(next.id == ids[index])
+                order.request(next)
+            }
+        }
+        order.confirm(try #require(order.requested))
+        #expect(order.history == [ids[0], ids[1], ids[5]])
+        #expect(order.next(repeatMode: .off, automatic: false, failed: []) == nil)
+        #expect(order.previous(repeatMode: mode, failed: [])?.id == ids[1])
+    }
+
+    @Test("重复轮次中的顺序导航匹配最近的历史实例", arguments: [false, true])
+    func sequentialHistoryInstances(confirmBeforeToggle: Bool) throws {
+        let ids = (0..<4).map { _ in UUID() }
+        let order = PlaybackOrderState(shuffle: { $0 })
+        order.reset(ids: ids, currentID: ids[0], shuffling: false)
+        order.confirm(order.select(ids[0]))
+        for _ in 0..<7 { order.confirm(try #require(order.next(repeatMode: .all, automatic: false, failed: []))) }
+        let history = order.history
+        let back = try #require(order.previous(repeatMode: .all, failed: []))
+        order.request(back)
+        if confirmBeforeToggle { order.confirm(back) }
+        order.setShuffling(true)
+        for index in [1, 0, 3, 2, 1, 0] {
+            let previous = try #require(order.previous(repeatMode: .all, failed: []))
+            #expect(previous.id == ids[index])
+            order.request(previous)
+        }
+        #expect(order.previous(repeatMode: .all, failed: []) == nil)
+        order.confirm(try #require(order.requested))
+        #expect(order.history == history)
+        for id in history.dropFirst() {
+            let next = try #require(order.next(repeatMode: .off, automatic: false, failed: []))
+            #expect(next.id == id)
+            order.confirm(next)
+        }
+        #expect(order.history == history)
+    }
+
+    @Test("历史外的顺序请求切回随机后不能复用旧历史游标")
+    func sequentialRequestOutsideHistory() throws {
+        let ids = (0..<6).map { _ in UUID() }
+        let order = PlaybackOrderState(shuffle: { $0 })
+        order.reset(ids: ids, currentID: ids[0], shuffling: false)
+        for id in ids.prefix(4) { order.confirm(order.select(id)) }
+        order.confirm(try #require(order.previous(repeatMode: .off, failed: []))) // C
+        order.confirm(try #require(order.previous(repeatMode: .off, failed: []))) // B
+        for index in 2...4 {
+            let next = try #require(order.next(repeatMode: .off, automatic: false, failed: []))
+            #expect(next.id == ids[index])
+            order.request(next)
+        }
+        order.setShuffling(true) // E is retained ahead of the new round A C D F.
+        #expect(order.next(repeatMode: .off, automatic: false, failed: [])?.id == ids[0])
+        #expect(order.previous(repeatMode: .off, failed: [])?.id == ids[3])
+        #expect(order.next(repeatMode: .one, automatic: true, failed: [])?.id == ids[1])
+    }
+
+    @Test("顺序回退跨模式及历史删除后，旧请求仍指向同一实例")
+    func sequentialBackWithDeletionAndFailures() throws {
+        let ids = (0..<6).map { _ in UUID() }
+        let order = PlaybackOrderState(shuffle: { $0 })
+        order.reset(ids: ids, currentID: ids[0], shuffling: false)
+        for id in ids.prefix(5) { order.confirm(order.select(id)) }
+        let back = try #require(order.previous(repeatMode: .off, failed: [ids[3]]))
+        #expect(back.id == ids[2])
+        order.request(back)
+        order.setShuffling(true)
+        order.reconcile(ids: Array(ids.dropFirst()))
+        order.request(back) // A delayed load task still holds the old mode revision.
+        #expect(order.previous(repeatMode: .off, failed: [])?.id == ids[1])
+        order.confirm(back)
+        #expect(order.history == Array(ids[1...4]))
+        #expect(order.next(repeatMode: .off, automatic: false, failed: [ids[3]])?.id == ids[4])
+    }
+
 }

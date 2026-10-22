@@ -97,6 +97,25 @@ final class PlaybackOrderState {
         return historyEntries.firstIndex { $0.id == entryID }
     }
 
+    private func navigationHistoryPosition(automatic: Bool = false) -> Int? {
+        // A request without a history identity has already left the history path.
+        // Falling back to the audible cursor would replay that path on the next click.
+        automatic || requested == nil ? historyIndex : historyPosition(of: requested)
+    }
+
+    private func sequentialSelection(_ id: UUID, backwards: Bool, automatic: Bool = false) -> Selection {
+        let cursor = navigationHistoryPosition(automatic: automatic)
+        let indices: [Int]
+        if backwards {
+            indices = Array(historyEntries.indices.prefix(cursor ?? historyEntries.count).reversed())
+        } else {
+            indices = cursor.map { Array(historyEntries.indices.dropFirst($0 + 1)) } ?? []
+        }
+        // Resolve in the navigation direction, so repeated tracks keep the right instance.
+        let entry = indices.first { historyEntries[$0].trackID == id }.map { historyEntries[$0].id }
+        return Selection(id: id, revision: revision, historyEntryID: entry)
+    }
+
     func request(_ selection: Selection) { requested = selectionInCurrentOrder(selection) }
     func cancelRequest() { requested = nil }
 
@@ -107,7 +126,7 @@ final class PlaybackOrderState {
             return failed.contains(anchor) ? nil : select(anchor)
         }
         if isShuffling {
-            let cursor = automatic ? historyIndex : (historyPosition(of: requested) ?? historyIndex)
+            let cursor = navigationHistoryPosition(automatic: automatic)
             if let cursor, cursor + 1 < historyEntries.count,
                let index = ((cursor + 1)..<historyEntries.count).first(where: { !failed.contains(historyEntries[$0].trackID) }) {
                 return Selection(id: historyEntries[index].trackID, revision: revision, historyEntryID: historyEntries[index].id)
@@ -132,7 +151,7 @@ final class PlaybackOrderState {
         }
         guard let index = ids.firstIndex(of: anchor) else { return first(failed: failed) }
         let candidates = Array(ids.dropFirst(index + 1)) + (repeatMode == .all ? Array(ids.prefix(index + 1)) : [])
-        return candidates.first { !failed.contains($0) }.map { select($0) }
+        return candidates.first { !failed.contains($0) }.map { sequentialSelection($0, backwards: false, automatic: automatic) }
     }
 
     func previous(repeatMode: RepeatMode, failed: Set<UUID>) -> Selection? {
@@ -145,7 +164,7 @@ final class PlaybackOrderState {
         }
         guard let anchor = requested?.id ?? currentID, let index = ids.firstIndex(of: anchor) else { return nil }
         let candidates = Array(ids.prefix(index).reversed()) + (repeatMode == .all ? Array(ids.suffix(from: index).reversed()) : [])
-        return candidates.first { !failed.contains($0) }.map { select($0) }
+        return candidates.first { !failed.contains($0) }.map { sequentialSelection($0, backwards: true) }
     }
 
     func confirm(_ selection: Selection) {
