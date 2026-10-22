@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A16200000000000000000001 /* taglib in Frameworks */ = {isa = PBXBuildFile; productRef = A16200000000000000000002 /* taglib */; };
 		FC8A148C2F42F0AB00FADD0B /* SFBAudioEngine in Frameworks */ = {isa = PBXBuildFile; productRef = FC8A148B2F42F0AB00FADD0B /* SFBAudioEngine */; };
 /* End PBXBuildFile section */
 
@@ -43,6 +44,7 @@
 			isa = PBXFrameworksBuildPhase;
 			files = (
 				FC8A148C2F42F0AB00FADD0B /* SFBAudioEngine in Frameworks */,
+				A16200000000000000000001 /* taglib in Frameworks */,
 			);
 		};
 		FC9429782F417A5200542E69 /* Frameworks */ = {
@@ -90,6 +92,7 @@
 			name = Me2Tune;
 			packageProductDependencies = (
 				FC8A148B2F42F0AB00FADD0B /* SFBAudioEngine */,
+				A16200000000000000000002 /* taglib */,
 			);
 			productName = Me2Tune;
 			productReference = FC16622A2EEFAE2C00F01BCE /* Me2Tune.app */;
@@ -148,6 +151,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				FC70B4592FD86D5E004DBD53 /* XCRemoteSwiftPackageReference "SFBAudioEngine" */,
+				A16200000000000000000003 /* XCRemoteSwiftPackageReference "CXXTagLib" */,
 			);
 			preferredProjectObjectVersion = 90;
 			productRefGroup = FC16622B2EEFAE2C00F01BCE /* Products */;
@@ -375,6 +379,7 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_OBJC_BRIDGING_HEADER = "Me2Tune/Me2Tune-Bridging-Header.h";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
@@ -433,6 +438,7 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_OBJC_BRIDGING_HEADER = "Me2Tune/Me2Tune-Bridging-Header.h";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
@@ -516,6 +522,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		A16200000000000000000003 = {isa = XCRemoteSwiftPackageReference; repositoryURL = "https://github.com/sbooth/CXXTagLib"; requirement = {kind = exactVersion; version = 2.3.2; }; };
 		FC70B4592FD86D5E004DBD53 /* XCRemoteSwiftPackageReference "SFBAudioEngine" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sbooth/SFBAudioEngine";
@@ -527,6 +534,7 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		A16200000000000000000002 = {isa = XCSwiftPackageProductDependency; package = A16200000000000000000003; productName = taglib; };
 		FC8A148B2F42F0AB00FADD0B /* SFBAudioEngine */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = FC70B4592FD86D5E004DBD53 /* XCRemoteSwiftPackageReference "SFBAudioEngine" */;
