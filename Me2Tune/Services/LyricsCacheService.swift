@@ -59,12 +59,12 @@ actor LyricsCacheService {
     
     // MARK: - Initialization
     
-    private init() {
-        self.cacheDirectory = CacheConfigManager.getLyricsCacheDirectory()
-        self.metadataURL = cacheDirectory.appendingPathComponent("cache_metadata.json")
+    init(cacheDirectory: URL? = nil) {
+        self.cacheDirectory = cacheDirectory ?? CacheConfigManager.getLyricsCacheDirectory()
+        self.metadataURL = self.cacheDirectory.appendingPathComponent("cache_metadata.json")
         
         try? FileManager.default.createDirectory(
-            at: cacheDirectory,
+            at: self.cacheDirectory,
             withIntermediateDirectories: true
         )
         
@@ -78,11 +78,12 @@ actor LyricsCacheService {
         
         let urlHash = cacheKey(audioURL: audioURL)
         
-        let metadata = loadMetadata()
-        guard let entry = metadata.entries.first(where: { $0.urlHash == urlHash }) else {
+        var metadata = loadMetadata()
+        guard let index = metadata.entries.firstIndex(where: { $0.urlHash == urlHash }) else {
             return nil
         }
         
+        let entry = metadata.entries[index]
         let fileURL = cacheDirectory.appendingPathComponent("\(entry.fileName).lrc")
         
         if Task.isCancelled { return nil }
@@ -95,7 +96,8 @@ actor LyricsCacheService {
             return nil
         }
         
-        updateAccessTime(urlHash: urlHash)
+        metadata.entries[index].lastAccess = Date()
+        saveMetadata(metadata)
         
         let lyrics = Lyrics.fromText(
             content,
@@ -210,15 +212,6 @@ actor LyricsCacheService {
         }
         
         return String(urlHash.prefix(8))
-    }
-    
-    private func updateAccessTime(urlHash: String) {
-        var metadata = loadMetadata()
-        
-        if let index = metadata.entries.firstIndex(where: { $0.urlHash == urlHash }) {
-            metadata.entries[index].lastAccess = Date()
-            saveMetadata(metadata)
-        }
     }
     
     private func cleanupIfNeeded() {

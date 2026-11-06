@@ -185,8 +185,10 @@ extension FileMetadataReaderTests {
 
     @Test("Old lyrics downloads cannot repopulate an invalidated disk cache")
     func staleLyricsCacheWriteIsDiscarded() async throws {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("lyrics-\(UUID()).mp3")
-        let cache = LyricsCacheService.shared
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("lyrics-stale-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("track.mp3")
+        let cache = LyricsCacheService(cacheDirectory: root)
         let old = await cache.revision(for: url)
         await cache.invalidate(url: url)
         let lyrics = await Lyrics.fromText("old lyrics", trackName: "test", artistName: "test", albumName: nil, duration: 1)
