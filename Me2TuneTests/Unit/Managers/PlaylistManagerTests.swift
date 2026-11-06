@@ -8,6 +8,7 @@
 import Testing
 import Foundation
 import SwiftData
+import Observation
 @testable import Me2Tune
 
 @MainActor
@@ -466,6 +467,178 @@ extension PlaylistManagerTests {
         #expect(result.newTracksCount == urls.count)
     }
 
+    @Test("重叠导入按完成顺序提交并使用重排后的索引", arguments: [false, true], [false, true])
+    func testConcurrentImports(overlapping: Bool, secondFinishesFirst: Bool) async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let urls = try makeImportFiles(in: directory, names: ["a", "b", "c", "d"])
+        let storeURL = directory.appendingPathComponent("test.store")
+        let service = try createSQLiteTestDataService(at: storeURL)
+        let initialIDs = try seedPlaylist(Array(urls.prefix(2)), in: service)
+        let gate = PlaylistMetadataGate()
+        let manager = PlaylistManager(dataService: service) { await gate.load($0) }
+        let secondURL = overlapping ? urls[2] : urls[3]
+        let first = Task { await manager.addTracks(urls: [urls[2], urls[0]]) }
+        await gate.waitForBatch(0)
+        #expect(manager.isLoading && manager.loadingCount == 1)
+        manager.moveTrack(from: 0, to: 1)
+        let second = Task { await manager.addTracks(urls: [secondURL, urls[0]]) }
+        await gate.waitForBatch(1)
+        #expect(gate.requests == [[urls[2]], [secondURL]])
+        #expect(manager.isLoading && manager.loadingCount == 2)
+
+        let winner = secondFinishesFirst ? 1 : 0
+        let winnerURL = secondFinishesFirst ? secondURL : urls[2]
+        let loserURL = secondFinishesFirst ? urls[2] : secondURL
+        gate.complete(winner)
+        let winnerResult = await (secondFinishesFirst ? second : first).value
+        #expect(winnerResult.newTracksCount == 1)
+        #expect(winnerResult.firstNewTrackIndex == 2)
+        #expect(winnerResult.existingTrackIndices == [urls[0]: 1])
+        #expect(manager.tracks.map(\.url) == [urls[1], urls[0], winnerURL])
+        #expect(manager.isLoading && manager.loadingCount == 1)
+        let winnerID = manager.tracks[2].id
+
+        gate.complete(1 - winner)
+        let loserResult = await (secondFinishesFirst ? first : second).value
+        #expect(loserResult.newTracksCount == (overlapping ? 0 : 1))
+        #expect(loserResult.firstNewTrackIndex == (overlapping ? nil : 3))
+        #expect(loserResult.existingTrackIndices == (overlapping ? [urls[0]: 1, urls[2]: 2] : [urls[0]: 1]))
+        let expectedURLs = [urls[1], urls[0], winnerURL] + (overlapping ? [] : [loserURL])
+        #expect(manager.tracks.map(\.url) == expectedURLs)
+        #expect(manager.tracks.prefix(2).map(\.id) == initialIDs.reversed())
+        #expect(manager.tracks[2].id == winnerID)
+        #expect(Set(manager.tracks.map(\.id)).count == expectedURLs.count)
+        #expect(!manager.isLoading && manager.loadingCount == 0)
+
+        let reopened = try createSQLiteTestDataService(at: storeURL)
+        let persisted = try reopened.fetchPlaylistTracks()
+        #expect(persisted.map(\.urlString) == expectedURLs.map(\.absoluteString))
+        #expect(persisted.map(\.stableId) == manager.tracks.map(\.id))
+        #expect(persisted.map(\.playlistOrder) == Array(0..<expectedURLs.count).map { Optional($0) })
+        #expect(try reopened.fetchCount(FetchDescriptor<SDTrack>()) == expectedURLs.count)
+    }
+
+    @Test("早返回保留挂起批次计数且加载变化可被观察")
+    func testEarlyReturnsPreservePendingLoad() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let urls = try makeImportFiles(in: directory, names: ["a", "b", "c"])
+        let service = try createTestDataService()
+        _ = try seedPlaylist([urls[0]], in: service)
+        let gate = PlaylistMetadataGate()
+        let manager = PlaylistManager(dataService: service) { await gate.load($0) }
+        await confirmation("isLoading invalidates when loading starts") { changed in
+            withObservationTracking { _ = manager.isLoading } onChange: { changed() }
+            let pending = Task { await manager.addTracks(urls: [urls[0], urls[1], urls[2]]) }
+            await gate.waitForBatch(0)
+            #expect(manager.isLoading && manager.loadingCount == 2)
+            let invalid = await manager.addTracks(urls: [directory.appendingPathComponent("missing.mp3")])
+            #expect(invalid.newTracksCount == 0 && invalid.firstNewTrackIndex == nil)
+            #expect(invalid.existingTrackIndices.isEmpty)
+            #expect(manager.isLoading && manager.loadingCount == 2)
+            let existing = await manager.addTracks(urls: [urls[0], urls[0]])
+            #expect(existing.newTracksCount == 0 && existing.firstNewTrackIndex == nil)
+            #expect(existing.existingTrackIndices == [urls[0]: 0])
+            #expect(manager.isLoading && manager.loadingCount == 2)
+            #expect(gate.requests == [[urls[1], urls[2]]])
+            await confirmation("isLoading invalidates when loading ends") { finished in
+                withObservationTracking { _ = manager.isLoading } onChange: { finished() }
+                gate.complete(0)
+                let result = await pending.value
+                #expect(result.newTracksCount == 2 && result.firstNewTrackIndex == 1)
+                #expect(result.existingTrackIndices == [urls[0]: 0])
+                #expect(manager.tracks.map(\.url) == urls)
+                #expect(!manager.isLoading && manager.loadingCount == 0)
+            }
+        }
+    }
+
+    @Test("等待中删除或清空不返回旧索引且继续提交已读取的新文件", arguments: [false, true])
+    func testRemovalDuringImport(clearAll: Bool) async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let urls = try makeImportFiles(in: directory, names: ["a", "b", "c"])
+        let service = try createTestDataService()
+        _ = try seedPlaylist(Array(urls.prefix(2)), in: service)
+        let gate = PlaylistMetadataGate()
+        let manager = PlaylistManager(dataService: service) { await gate.load($0) }
+        let pending = Task { await manager.addTracks(urls: urls) }
+        await gate.waitForBatch(0)
+        #expect(gate.requests == [[urls[2]]])
+        if clearAll { manager.clearAll() } else { manager.removeTrack(at: 0) }
+        #expect(manager.isLoading && manager.loadingCount == 1)
+        gate.complete(0)
+        let result = await pending.value
+        #expect(result.newTracksCount == 1)
+        #expect(result.firstNewTrackIndex == (clearAll ? 0 : 1))
+        #expect(result.existingTrackIndices == (clearAll ? [:] : [urls[1]: 0]))
+        #expect(manager.tracks.map(\.url) == (clearAll ? [urls[2]] : [urls[1], urls[2]]))
+        #expect(!manager.isLoading && manager.loadingCount == 0)
+        #expect(service.findTrack(byURL: urls[0].absoluteString) == nil)
+        #expect(try service.fetchPlaylistTracks().map(\.stableId) == manager.tracks.map(\.id))
+    }
+
+    @Test("分块查询失败只归还本批计数且另一挂起批可完成")
+    func testLookupFailurePreservesOtherPendingBatch() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let urls = try makeImportFiles(in: directory, names: (0..<259).map { String(format: "%03d", $0) })
+        let service = try createTestDataService()
+        let initialIDs = try seedPlaylist([urls[0]], in: service)
+        let stored = SDTrack.makeSample(urlString: urls[1].absoluteString)
+        service.insert(stored)
+        try service.save()
+        let failing = SecondFetchFailureService(base: service)
+        let gate = PlaylistMetadataGate()
+        let manager = PlaylistManager(dataService: failing) { await gate.load($0) }
+        let pending = Task { await manager.addTracks(urls: [urls[258]]) }
+        await gate.waitForBatch(0)
+        let failed = Task { await manager.addTracks(urls: Array(urls.prefix(258))) }
+        await gate.waitForBatch(1)
+        #expect(manager.isLoading && manager.loadingCount == 258)
+        gate.complete(1)
+        let result = await failed.value
+        #expect(failing.fetchCalls == 2)
+        #expect(result.newTracksCount == 0 && result.firstNewTrackIndex == nil)
+        #expect(result.existingTrackIndices == [urls[0]: 0])
+        #expect(manager.tracks.map(\.id) == initialIDs)
+        #expect(!stored.isInPlaylist && stored.playlistOrder == nil)
+        #expect(!service.modelContext.hasChanges)
+        #expect(try service.fetchCount(FetchDescriptor<SDTrack>()) == 2)
+        #expect(manager.isLoading && manager.loadingCount == 1)
+        gate.complete(0)
+        let success = await pending.value
+        #expect(success.newTracksCount == 1 && success.firstNewTrackIndex == 1)
+        #expect(success.existingTrackIndices.isEmpty)
+        #expect(manager.tracks.map(\.url) == [urls[0], urls[258]])
+        #expect(!manager.isLoading && manager.loadingCount == 0)
+        #expect(failing.fetchCalls == 3)
+        #expect(try service.fetchCount(FetchDescriptor<SDTrack>()) == 3)
+    }
+
+    private func makeImportFiles(in directory: URL, names: [String]) throws -> [URL] {
+        let urls = names.map { directory.appendingPathComponent($0 + ".mp3") }
+        for url in urls { try Data().write(to: url) }
+        return urls
+    }
+
+    private func seedPlaylist(_ urls: [URL], in service: DataService) throws -> [UUID] {
+        let tracks = urls.enumerated().map { index, url in
+            let track = SDTrack.makeSample(urlString: url.absoluteString)
+            track.isInPlaylist = true
+            track.playlistOrder = index
+            service.insert(track)
+            return track
+        }
+        try service.save()
+        return tracks.map(\.stableId)
+    }
+
     @Test("第二批查询失败时不产生部分新增或标记并保留已有索引")
     func testBatchLookupFailureLeavesPlaylistUnchanged() async throws {
         let service = try createTestDataService()
@@ -522,4 +695,33 @@ private final class SecondFetchFailureService: DataServiceProtocol {
     func findAlbum(byFolderURL urlString: String) -> SDAlbum? { base.findAlbum(byFolderURL: urlString) }
     func findAlbum(byStableId id: UUID) -> SDAlbum? { base.findAlbum(byStableId: id) }
     func albumCount() throws(AppError) -> Int { try base.albumCount() }
+}
+
+@MainActor
+private final class PlaylistMetadataGate {
+    private(set) var requests: [[URL]] = []
+    private var pending: [Int: CheckedContinuation<[AudioTrack], Never>] = [:]
+    private var arrivals: [Int: CheckedContinuation<Void, Never>] = [:]
+
+    func load(_ urls: [URL]) async -> [AudioTrack] {
+        let batch = requests.count
+        requests.append(urls)
+        return await withCheckedContinuation { continuation in
+            pending[batch] = continuation
+            arrivals.removeValue(forKey: batch)?.resume()
+        }
+    }
+
+    func waitForBatch(_ batch: Int) async {
+        if requests.indices.contains(batch) { return }
+        await withCheckedContinuation { arrivals[batch] = $0 }
+    }
+
+    func complete(_ batch: Int) {
+        let tracks = requests[batch].map { url in
+            AudioTrack(id: UUID(), url: url, title: url.lastPathComponent, artist: nil,
+                       albumTitle: nil, duration: 1, format: .unknown, bookmark: nil)
+        }
+        pending.removeValue(forKey: batch)!.resume(returning: tracks)
+    }
 }

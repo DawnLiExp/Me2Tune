@@ -35,12 +35,13 @@ final class PlaylistManager {
     // MARK: - Published States
 
     private var entries: [PlaylistEntry] = []
-    private(set) var isLoading = false
+    var isLoading: Bool { loadingCount > 0 }
     private(set) var loadingCount = 0
 
     // MARK: - Private Properties
 
     private let dataService: DataServiceProtocol
+    private let metadataLoader: @Sendable ([URL]) async -> [AudioTrack]
 
     // MARK: - Computed Properties
 
@@ -58,8 +59,14 @@ final class PlaylistManager {
 
     // MARK: - Initialization
 
-    init(dataService: DataServiceProtocol = DataService.shared) {
+    init(
+        dataService: DataServiceProtocol = DataService.shared,
+        metadataLoader: @escaping @Sendable ([URL]) async -> [AudioTrack] = {
+            await AudioTrack.readForPlaylistImport($0)
+        }
+    ) {
         self.dataService = dataService
+        self.metadataLoader = metadataLoader
         loadPlaylistContent()
         logger.debug("✅ PlaylistManager initialized (SwiftData)")
     }
@@ -89,13 +96,11 @@ final class PlaylistManager {
     @discardableResult
     func addTracks(urls: [URL]) async -> AddTracksResult {
         let startTime = CFAbsoluteTimeGetCurrent()
-        isLoading = true
 
         let allAudioURLs = expandAndFilterAudioURLs(urls)
 
         guard !allAudioURLs.isEmpty else {
             logger.warning("No valid audio files found")
-            isLoading = false
             return AddTracksResult(newTracksCount: 0, firstNewTrackIndex: nil, existingTrackIndices: [:])
         }
 
@@ -120,26 +125,39 @@ final class PlaylistManager {
         }
 
         // Only load metadata for truly new URLs
-        loadingCount = newURLs.count
 
         guard !newURLs.isEmpty else {
             // All files already exist in playlist
             logger.info("All \(sortedURLs.count) tracks already in playlist")
-            isLoading = false
-            loadingCount = 0
             return AddTracksResult(newTracksCount: 0, firstNewTrackIndex: nil, existingTrackIndices: existingTrackIndices)
         }
 
         logger.info("Adding \(newURLs.count) new tracks (\(existingTrackIndices.count) already in playlist)")
 
-        let newDTOTracks = await loadTracksFromURLs(newURLs)
+        let pendingCount = newURLs.count
+        loadingCount += pendingCount
+        defer { loadingCount -= pendingCount }
+
+        let loadedTracks = await loadTracksFromURLs(newURLs)
+        let currentURLMap: [String: Int] = Dictionary(
+            entries.enumerated().map { ($1.sdTrack.urlString, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        existingTrackIndices = [:]
+        for url in sortedURLs {
+            if let index = currentURLMap[url.absoluteString] {
+                existingTrackIndices[url] = index
+            }
+        }
+        let newDTOTracks = loadedTracks.filter { currentURLMap[$0.url.absoluteString] == nil }
+        guard !newDTOTracks.isEmpty else {
+            return AddTracksResult(newTracksCount: 0, firstNewTrackIndex: nil, existingTrackIndices: existingTrackIndices)
+        }
         var tracksByURL: [String: SDTrack]
         do {
             tracksByURL = try dataService.findTracks(byURLs: newDTOTracks.map { $0.url.absoluteString })
         } catch {
             logger.logError(error, context: "addTracks lookup")
-            isLoading = false
-            loadingCount = 0
             return AddTracksResult(newTracksCount: 0, firstNewTrackIndex: nil, existingTrackIndices: existingTrackIndices)
         }
         let baseOrder = entries.count
@@ -169,8 +187,6 @@ final class PlaylistManager {
 
         let firstNewIndex = newEntries.isEmpty ? nil : baseOrder
 
-        isLoading = false
-        loadingCount = 0
 
         let elapsed = CFAbsoluteTimeGetCurrent() - startTime
         logger.logPerformance("Add \(newEntries.count) tracks", duration: elapsed)
@@ -301,6 +317,6 @@ final class PlaylistManager {
     }
 
     private func loadTracksFromURLs(_ urls: [URL]) async -> [AudioTrack] {
-        await AudioTrack.readForPlaylistImport(urls)
+        await metadataLoader(urls)
     }
 }
