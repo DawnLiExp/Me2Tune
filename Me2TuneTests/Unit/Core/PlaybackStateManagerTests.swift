@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Observation
 import SwiftData
 import Testing
 @testable import Me2Tune
@@ -164,6 +165,105 @@ struct PlaybackStateManagerTests {
     }
     
     // MARK: - 计算属性测试
+
+    @Test("实际移动和删除后按当前 ID 派生索引与曲目")
+    func testCurrentTrackFollowsPlaylistMutations() throws {
+        let (manager, playlist, _, _) = try setupWithPlaylistTracks(count: 4)
+        defer { withExtendedLifetime(playlist) {} }
+        manager.switchToPlaylist(selecting: 1)
+        let current = try #require(manager.currentTrack)
+
+        playlist.moveTrack(from: 1, to: 3)
+        manager.handlePlaylistTrackMoved(from: 1, to: 3)
+        #expect(manager.currentTrackID == current.id)
+        #expect(manager.currentTrackIndex == 3)
+        #expect(playlist.index(ofID: current.id) == 3)
+        #expect(manager.currentTrack?.title == current.title)
+
+        let removed = try #require(playlist.track(at: 0))
+        playlist.removeTrack(at: 0)
+        manager.handlePlaylistTrackRemoved(removedTrackID: removed.id, wasPlaying: false)
+        #expect(playlist.index(ofID: removed.id) == nil)
+        #expect(manager.currentTrackID == current.id)
+        #expect(manager.currentTrackIndex == 2)
+        #expect(manager.currentTrack?.metadataRevision == current.metadataRevision)
+
+        playlist.removeTrack(at: 2)
+        manager.handlePlaylistTrackRemoved(removedTrackID: current.id, wasPlaying: true)
+        #expect(manager.currentTrackID == nil)
+        #expect(manager.currentTrackIndex == nil)
+        #expect(manager.currentTrack == nil)
+    }
+
+    @Test("同 ID 元数据更新仍通知当前曲目的观察者", arguments: [false, true])
+    func testCurrentTrackMetadataObservation(albumSource: Bool) async throws {
+        let (_, playlist, dataService, _) = try setupWithPlaylistTracks(count: 2)
+        let collection = CollectionManager(dataService: dataService)
+        defer { withExtendedLifetime((playlist, collection)) {} }
+        let manager = PlaybackStateManager(playlistManager: playlist, collectionManager: collection,
+                                           dataService: dataService, sessionStore: makeSessionStore())
+        let original = try #require(playlist.track(at: 1))
+        if albumSource {
+            let album = Album(id: UUID(), name: "Shared tracks", folderURL: nil, tracks: playlist.tracks)
+            manager.switchToAlbum(album, selecting: 1)
+        } else {
+            manager.switchToPlaylist(selecting: 1)
+        }
+        let updated = AudioTrack(id: original.id, url: original.url, title: "Updated title",
+                                 artist: original.artist, albumTitle: original.albumTitle,
+                                 duration: original.duration, format: original.format, bookmark: original.bookmark)
+        await confirmation("Current track invalidated") { changed in
+            withObservationTracking {
+                _ = manager.currentTrack?.title
+            } onChange: {
+                changed()
+            }
+            if albumSource {
+                manager.refreshTrackMetadata(updated)
+            } else {
+                playlist.refreshTrackMetadata(updated)
+            }
+        }
+        #expect(manager.currentTrack?.title == updated.title)
+        #expect(manager.currentTrack?.metadataRevision == updated.metadataRevision)
+        #expect(manager.currentTrack?.metadataRevision != original.metadataRevision)
+        #expect(manager.currentTrackIndex == 1)
+        #expect(manager.currentTrackID == original.id)
+        if albumSource {
+            #expect(playlist.track(at: 1)?.title == original.title)
+            manager.switchToPlaylist(selecting: 1)
+            #expect(manager.currentTrack?.title == original.title)
+        }
+    }
+
+    @Test("当前曲目查询的无效 ID、索引和来源隔离", arguments: [false, true])
+    func testCurrentTrackLookupBoundaries(albumSource: Bool) throws {
+        let (manager, playlist, dataService, _) = try setupWithPlaylistTracks(count: 2)
+        defer { withExtendedLifetime(playlist) {} }
+        let (album, _) = createTestAlbum(name: "Isolated", trackCount: 2, dataService: dataService)
+        if albumSource { manager.switchToAlbum(album, selecting: 1) }
+        else { manager.switchToPlaylist(selecting: 1) }
+        for index: Int? in [nil, -1, 2] {
+            manager.setCurrentIndex(index)
+            #expect(manager.currentTrackID == nil)
+            #expect(manager.currentTrackIndex == nil)
+            #expect(manager.currentTrack == nil)
+        }
+        let otherSourceID = albumSource ? playlist.track(at: 0)!.id : album.tracks[0].id
+        manager.setCurrentTrack(id: otherSourceID)
+        #expect(manager.currentTrackIndex == nil)
+        #expect(manager.currentTrack == nil)
+        manager.setCurrentTrack(id: UUID())
+        #expect(manager.currentTrackIndex == nil)
+        #expect(manager.currentTrack == nil)
+        manager.setCurrentTrack(id: nil)
+        manager.handlePlaylistTracksAdded()
+        #expect(manager.currentTrackID == (albumSource ? nil : playlist.track(at: 0)?.id))
+        manager.setCurrentIndex(1)
+        let selectedID = manager.currentTrackID
+        manager.handlePlaylistTracksAdded()
+        #expect(manager.currentTrackID == selectedID)
+    }
     
     @Test("currentTrack - 有效索引")
     func testCurrentTrackValid() throws {
@@ -425,6 +525,27 @@ struct PlaybackStateManagerTests {
     }
     
     // MARK: - 状态持久化测试
+
+    @Test("播放列表恢复缺失或空 ID 时清空旧选择", arguments: [false, true])
+    func testRestorePlaylistMissingTrack(hasID: Bool) async throws {
+        let (_, playlist, dataService, _) = try setupWithPlaylistTracks(count: 2)
+        let collection = CollectionManager(dataService: dataService)
+        defer { withExtendedLifetime((playlist, collection)) {} }
+        let store = makeSessionStore()
+        store.save(PlaybackSessionSnapshot(sourceKind: .playlist,
+                                           currentTrackID: hasID ? UUID() : nil,
+                                           albumID: nil, volume: 0.4))
+        let manager = PlaybackStateManager(playlistManager: playlist, collectionManager: collection,
+                                           dataService: dataService, sessionStore: store)
+        let (album, _) = createTestAlbum(name: "Previous", trackCount: 1, dataService: dataService)
+        manager.switchToAlbum(album, selecting: 0)
+        let restored = await manager.restoreState()
+        #expect(restored == nil)
+        #expect(manager.playingSource == .playlist)
+        #expect(manager.currentTrackID == nil)
+        #expect(manager.currentTrackIndex == nil)
+        #expect(manager.currentTrack == nil)
+    }
     
     @Test("保存状态 - 播放列表源")
     func testSaveStatePlaylist() throws {

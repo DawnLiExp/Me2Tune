@@ -356,11 +356,10 @@ final class PlaybackCoordinator {
     func playPlaylistTrack(at index: Int) {
         guard !isPlaybackBlockedForTagSave else { return }
         tagSaveRestartID = nil
-        guard playlistManager.tracks.indices.contains(index) else { return }
+        guard let track = playlistManager.track(at: index) else { return }
 
         playbackStateManager.switchToPlaylist(selecting: index)
         persistenceController.scheduleSave()
-        let track = playlistManager.tracks[index]
         loadController.retryIfFailed(track)
         resetOrder()
         loadController.start(playbackOrder.select(track.id))
@@ -398,9 +397,8 @@ final class PlaybackCoordinator {
 
     func removeTrackFromPlaylist(at index: Int) {
         guard !isPlaybackBlockedForTagSave else { return }
-        guard playlistManager.tracks.indices.contains(index) else { return }
+        guard let removedTrack = playlistManager.track(at: index) else { return }
         let active = playbackStateManager.playingSource == .playlist
-        let removedTrack = playlistManager.tracks[index]
         let wasCurrent = active && playbackStateManager.currentTrackID == removedTrack.id
         let wasRequested = active && playbackOrder.requested?.id == removedTrack.id
         let wasSubmitted = active && loadController.submitted?.id == removedTrack.id

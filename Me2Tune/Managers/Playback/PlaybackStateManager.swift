@@ -56,12 +56,23 @@ final class PlaybackStateManager {
 
     var currentTrackIndex: Int? {
         guard let id = currentTrackID else { return nil }
-        return currentTracks.firstIndex(where: { $0.id == id })
+        _ = metadataRevision
+        switch playingSource {
+        case .playlist:
+            return playlistManager?.index(ofID: id)
+        case .album:
+            return currentAlbumSnapshot?.tracks.firstIndex(where: { $0.id == id })
+        }
     }
 
     var currentTrack: AudioTrack? {
-        guard let id = currentTrackID else { return nil }
-        return currentTracks.first(where: { $0.id == id })
+        guard let index = currentTrackIndex else { return nil }
+        switch playingSource {
+        case .playlist:
+            return playlistManager?.track(at: index)
+        case .album:
+            return currentAlbumSnapshot?.tracks[safe: index]
+        }
     }
 
     var canGoPrevious: Bool {
@@ -127,7 +138,12 @@ final class PlaybackStateManager {
             currentTrackID = nil
             return
         }
-        currentTrackID = currentTracks[safe: index]?.id
+        switch playingSource {
+        case .playlist:
+            currentTrackID = playlistManager?.track(at: index)?.id
+        case .album:
+            currentTrackID = currentAlbumSnapshot?.tracks[safe: index]?.id
+        }
     }
 
     // MARK: - Playlist Updates Handling
@@ -156,7 +172,7 @@ final class PlaybackStateManager {
 
     func handlePlaylistTracksAdded() {
         guard playingSource == .playlist else { return }
-        if currentTrackID == nil, let first = playlistManager?.tracks.first {
+        if currentTrackID == nil, let first = playlistManager?.track(at: 0) {
             currentTrackID = first.id
         }
     }
@@ -216,8 +232,8 @@ final class PlaybackStateManager {
             currentTrackID = nil
 
             if let trackID = snapshot.currentTrackID,
-               let restoredTrack = playlistManager.tracks.first(where: { $0.id == trackID }),
-               let restoredIndex = playlistManager.tracks.firstIndex(where: { $0.id == trackID })
+               let restoredIndex = playlistManager.index(ofID: trackID),
+               let restoredTrack = playlistManager.track(at: restoredIndex)
             {
                 currentTrackID = trackID
                 logger.info("📋 Restored playlist track: \(restoredTrack.title)")

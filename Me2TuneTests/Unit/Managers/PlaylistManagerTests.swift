@@ -29,6 +29,8 @@ struct PlaylistManagerTests {
         #expect(manager.tracks.isEmpty)
         #expect(manager.count == 0)
         #expect(manager.isEmpty)
+        #expect(manager.track(at: 0) == nil)
+        #expect(manager.index(ofID: UUID()) == nil)
     }
 
     // MARK: - Query Tests
@@ -67,6 +69,7 @@ struct PlaylistManagerTests {
         
         let dto = manager2.tracks[0]
         #expect(manager2.index(of: dto) == 0)
+        #expect(manager2.index(ofID: dto.id) == 0)
         
         let unrelatedDTO = AudioTrack(
             id: UUID(),
@@ -79,6 +82,7 @@ struct PlaylistManagerTests {
             bookmark: nil
         )
         #expect(manager2.index(of: unrelatedDTO) == nil)
+        #expect(manager2.index(ofID: unrelatedDTO.id) == nil)
     }
 
     // MARK: - Remove Tests

@@ -415,6 +415,9 @@ struct PlaybackCoordinatorTests {
         #expect(!coordinator.playbackOrder.ids.contains(tracks[1].id))
         coordinator.removeTrackFromPlaylist(at: 0)
         #expect(coordinator.playbackStateManager.currentTrackID == nil)
+        #expect(coordinator.playbackStateManager.currentTrackIndex == nil)
+        #expect(coordinator.playbackStateManager.currentTrack == nil)
+        #expect(coordinator.playlistManager.index(ofID: tracks[0].id) == nil)
         #expect(!core.isPlaying)
         coordinator.clearPlaylist()
         #expect(coordinator.playbackOrder.ids.isEmpty)
@@ -706,6 +709,22 @@ struct PlaybackCoordinatorTests {
         try #require(await waitUntil { coordinator.playbackStateManager.currentTrackID != track.id })
         coordinator.seek(to: 20, trackID: track.id, metadataRevision: track.metadataRevision)
         #expect(core.seekRequests.isEmpty)
+    }
+
+    @Test("无效播放列表索引不改变当前来源或加载状态", arguments: [0, 2])
+    func invalidPlaylistIndices(count: Int) throws {
+        let (coordinator, core, _) = try playlistCoordinator(count: count)
+        let album = makeAlbum(with: makeTracks(count: 1))
+        coordinator.playbackStateManager.switchToAlbum(album, selecting: 0)
+        for index in [-1, count] {
+            coordinator.playPlaylistTrack(at: index)
+            coordinator.removeTrackFromPlaylist(at: index)
+        }
+        #expect(coordinator.playbackStateManager.playingSource == .album(album.id))
+        #expect(coordinator.playbackStateManager.currentTrack?.id == album.tracks[0].id)
+        #expect(coordinator.playlistManager.count == count)
+        #expect(core.loadTrackCallIDs.isEmpty)
+        #expect(core.prepareCallCount == 0)
     }
 
     private func playlistCoordinator(count: Int) throws -> (PlaybackCoordinator, MockAudioPlayerCore, UserDefaults) {

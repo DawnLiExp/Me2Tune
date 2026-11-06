@@ -71,7 +71,11 @@ final class PlaylistManager {
     }
 
     func index(of track: AudioTrack) -> Int? {
-        entries.firstIndex(where: { $0.track.id == track.id })
+        index(ofID: track.id)
+    }
+
+    func index(ofID id: UUID) -> Int? {
+        entries.firstIndex(where: { $0.track.id == id })
     }
 
     func refreshTrackMetadata(_ track: AudioTrack) {
