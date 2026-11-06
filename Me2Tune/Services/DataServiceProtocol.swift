@@ -35,3 +35,19 @@ protocol DataServiceProtocol {
     func albumCount() throws(AppError) -> Int
     
 }
+
+extension DataServiceProtocol {
+    func findTracks(byURLs urlStrings: [String]) throws(AppError) -> [String: SDTrack] {
+        var tracksByURL: [String: SDTrack] = [:]
+        for start in stride(from: 0, to: urlStrings.count, by: 256) {
+            let chunk = Array(urlStrings[start..<min(start + 256, urlStrings.count)])
+            let descriptor = FetchDescriptor<SDTrack>(
+                predicate: #Predicate { chunk.contains($0.urlString) }
+            )
+            for track in try fetch(descriptor) {
+                tracksByURL[track.urlString] = track
+            }
+        }
+        return tracksByURL
+    }
+}

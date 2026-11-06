@@ -194,27 +194,44 @@ extension PlaylistManagerTests {
 
     @Test("复用已有 SDTrack 时保持 stableId 并支持重排持久化")
     func testReuseExistingTrackKeepsStableIDAndReorderPersists() async throws {
-        let dataService = try createTestDataService()
-
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
+        let storeURL = tempDir.appendingPathComponent("test.store")
+        let dataService = try createSQLiteTestDataService(at: storeURL)
         let existingFile = tempDir.appendingPathComponent("a_existing.mp3")
         let newFile = tempDir.appendingPathComponent("b_new.mp3")
-        try "dummy".write(to: existingFile, atomically: true, encoding: .utf8)
-        try "dummy".write(to: newFile, atomically: true, encoding: .utf8)
+        let fixture = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/Tags/id3v3.mp3")
+        try FileManager.default.copyItem(at: fixture, to: existingFile)
+        try FileManager.default.copyItem(at: fixture, to: newFile)
 
         let existingTrack = SDTrack.makeSample(
             title: "Existing",
             urlString: existingFile.absoluteString
         )
+        existingTrack.bookmark = Data([1, 2, 3])
+        let album = SDAlbum.makeSample()
         dataService.insert(existingTrack)
+        dataService.insert(album)
+        dataService.insert(SDAlbumTrackEntry(trackOrder: 7, album: album, track: existingTrack))
         try dataService.save()
 
         let manager = PlaylistManager(dataService: dataService)
-        await manager.addTracks(urls: [existingFile, newFile])
+        let result = await manager.addTracks(urls: [newFile, existingFile])
 
+        #expect(result.newTracksCount == 2)
+        #expect(result.firstNewTrackIndex == 0)
+        #expect(result.existingTrackIndices.isEmpty)
+        #expect(manager.tracks.map(\.url) == [existingFile, newFile])
+        #expect(manager.tracks[0].title == "Existing")
+        #expect(manager.tracks[0].artist == "Test Artist")
+        #expect(manager.tracks[0].bookmark == Data([1, 2, 3]))
+        #expect(manager.tracks[1].duration > 0)
+        #expect(existingTrack.albumEntries.first?.album === album)
+        #expect(existingTrack.albumEntries.first?.trackOrder == 7)
         #expect(manager.count == 2)
         #expect(manager.tracks[0].id == existingTrack.stableId, "Reused SDTrack must project stableId to AudioTrack.id")
 
@@ -223,6 +240,18 @@ extension PlaylistManagerTests {
         let playlistTracks = try dataService.fetchPlaylistTracks()
         let persistedExisting = playlistTracks.first(where: { $0.stableId == existingTrack.stableId })
         #expect(persistedExisting?.playlistOrder == 1)
+        let reopened = try createSQLiteTestDataService(at: storeURL)
+        let persisted = try reopened.fetchPlaylistTracks()
+        #expect(persisted.map(\.stableId) == manager.tracks.map(\.id))
+        #expect(persisted.last?.albumEntries.first?.album?.stableId == album.stableId)
+        #expect(try reopened.fetchCount(FetchDescriptor<SDTrack>()) == 2)
+
+        let duplicate = await manager.addTracks(urls: [existingFile, newFile, existingFile])
+        #expect(duplicate.newTracksCount == 0)
+        #expect(duplicate.firstNewTrackIndex == nil)
+        #expect(duplicate.existingTrackIndices == [existingFile: 1, newFile: 0])
+        #expect(manager.count == 2)
+        #expect(!manager.isLoading && manager.loadingCount == 0)
     }
 
     @Test("添加曲目")
@@ -333,4 +362,113 @@ extension PlaylistManagerTests {
         #expect(manager.count == 1)
         #expect(manager.tracks.first?.title == "Existing")
     }
+}
+
+extension PlaylistManagerTests {
+    @Test("同批重复 URL 保留 entries 数量并复用一个模型", arguments: [false, true])
+    func testRepeatedURLInBatch(alreadyStored: Bool) async throws {
+        let (manager, service) = try setup()
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("repeat.mp3")
+        try Data().write(to: url)
+        let existing = SDTrack.makeSample(title: "Stored title", urlString: url.absoluteString)
+        if alreadyStored { service.insert(existing); try service.save() }
+        let result = await manager.addTracks(urls: [url, url])
+        #expect(result.newTracksCount == 2)
+        #expect(result.firstNewTrackIndex == 0)
+        #expect(result.existingTrackIndices.isEmpty)
+        #expect(manager.tracks.map(\.url) == [url, url])
+        #expect(manager.tracks[0].id == manager.tracks[1].id)
+        if alreadyStored {
+            #expect(manager.tracks[0].id == existing.stableId)
+            #expect(manager.tracks[0].title == "Stored title")
+        }
+        let stored = try service.fetchPlaylistTracks()
+        #expect(stored.count == 1)
+        #expect(stored.first?.playlistOrder == 1)
+        #expect(!manager.isLoading && manager.loadingCount == 0)
+    }
+
+    @Test("排序保留多目录、数字、中文及相等键的原比较规则")
+    func testSortMatchesOriginalComparator() async throws {
+        #expect(Locale.current.identifier == "en_US")
+        let (manager, _) = try setup()
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let names = ["乙/曲目10.mp3", "a/曲目2.mp3", "a/曲目10.mp3", "a/曲目02.mp3",
+                     "a/阿.mp3", "a/中.mp3", "a/曲目2.mp3", "b/1.mp3", "a/曲目2.mp3"]
+        let urls = names.map { directory.appendingPathComponent($0) }
+        for url in Set(urls) {
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data().write(to: url)
+        }
+        let expected = urls.sorted { lhs, rhs in
+            let left = lhs.deletingLastPathComponent().path
+            let right = rhs.deletingLastPathComponent().path
+            if left != right { return left < right }
+            return lhs.lastPathComponent.localizedStandardCompare(rhs.lastPathComponent) == .orderedAscending
+        }
+        let result = await manager.addTracks(urls: urls)
+        #expect(manager.tracks.map(\.url) == expected)
+        #expect(result.newTracksCount == urls.count)
+    }
+
+    @Test("第二批查询失败时不产生部分新增或标记并保留已有索引")
+    func testBatchLookupFailureLeavesPlaylistUnchanged() async throws {
+        let service = try createTestDataService()
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let urls = (0..<258).map { directory.appendingPathComponent(String(format: "%03d.mp3", $0)) }
+        for url in urls { try Data().write(to: url) }
+        let playlistTrack = SDTrack.makeSample(urlString: urls[0].absoluteString)
+        playlistTrack.isInPlaylist = true
+        playlistTrack.playlistOrder = 0
+        let albumTrack = SDTrack.makeSample(urlString: urls[1].absoluteString)
+        service.insert(playlistTrack)
+        service.insert(albumTrack)
+        try service.save()
+        let failing = SecondFetchFailureService(base: service)
+        let manager = PlaylistManager(dataService: failing)
+        let result = await manager.addTracks(urls: urls)
+        #expect(failing.fetchCalls == 2)
+        #expect(result.newTracksCount == 0)
+        #expect(result.firstNewTrackIndex == nil)
+        #expect(result.existingTrackIndices == [urls[0]: 0])
+        #expect(manager.tracks.map(\.id) == [playlistTrack.stableId])
+        #expect(!manager.isLoading && manager.loadingCount == 0)
+        #expect(!albumTrack.isInPlaylist && albumTrack.playlistOrder == nil)
+        #expect(playlistTrack.isInPlaylist && playlistTrack.playlistOrder == 0)
+        #expect(!service.modelContext.hasChanges)
+        #expect(try service.fetchCount(FetchDescriptor<SDTrack>()) == 2)
+    }
+}
+
+@MainActor
+private final class SecondFetchFailureService: DataServiceProtocol {
+    let base: DataService
+    var fetchCalls = 0
+    var modelContext: ModelContext { base.modelContext }
+    init(base: DataService) { self.base = base }
+    func fetch<T: PersistentModel>(_ descriptor: FetchDescriptor<T>) throws(AppError) -> [T] {
+        fetchCalls += 1
+        if fetchCalls == 2 {
+            throw .swiftDataFailed(underlying: NSError(domain: "BatchLookupTest", code: 2))
+        }
+        return try base.fetch(descriptor)
+    }
+    func insert(_ model: some PersistentModel) { base.insert(model) }
+    func delete(_ model: some PersistentModel) { base.delete(model) }
+    func fetchCount(_ descriptor: FetchDescriptor<some PersistentModel>) throws(AppError) -> Int { try base.fetchCount(descriptor) }
+    func save() throws(AppError) { try base.save() }
+    func findTrack(byURL urlString: String) -> SDTrack? { base.findTrack(byURL: urlString) }
+    func findTrack(byStableId id: UUID) -> SDTrack? { base.findTrack(byStableId: id) }
+    func fetchPlaylistTracks() throws(AppError) -> [SDTrack] { try base.fetchPlaylistTracks() }
+    func playlistTrackCount() throws(AppError) -> Int { try base.playlistTrackCount() }
+    func fetchAlbums() throws(AppError) -> [SDAlbum] { try base.fetchAlbums() }
+    func findAlbum(byFolderURL urlString: String) -> SDAlbum? { base.findAlbum(byFolderURL: urlString) }
+    func findAlbum(byStableId id: UUID) -> SDAlbum? { base.findAlbum(byStableId: id) }
+    func albumCount() throws(AppError) -> Int { try base.albumCount() }
 }

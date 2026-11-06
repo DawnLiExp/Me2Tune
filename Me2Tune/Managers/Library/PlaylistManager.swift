@@ -133,16 +133,26 @@ final class PlaylistManager {
         logger.info("Adding \(newURLs.count) new tracks (\(existingTrackIndices.count) already in playlist)")
 
         let newDTOTracks = await loadTracksFromURLs(newURLs)
+        var tracksByURL: [String: SDTrack]
+        do {
+            tracksByURL = try dataService.findTracks(byURLs: newDTOTracks.map { $0.url.absoluteString })
+        } catch {
+            logger.logError(error, context: "addTracks lookup")
+            isLoading = false
+            loadingCount = 0
+            return AddTracksResult(newTracksCount: 0, firstNewTrackIndex: nil, existingTrackIndices: existingTrackIndices)
+        }
         let baseOrder = entries.count
         var newEntries: [PlaylistEntry] = []
 
         for (offset, dto) in newDTOTracks.enumerated() {
             let sdTrack: SDTrack
-            if let existing = dataService.findTrack(byURL: dto.url.absoluteString) {
+            if let existing = tracksByURL[dto.url.absoluteString] {
                 sdTrack = existing
             } else {
                 sdTrack = SDTrack(from: dto)
                 dataService.insert(sdTrack)
+                tracksByURL[dto.url.absoluteString] = sdTrack
             }
             sdTrack.isInPlaylist = true
             sdTrack.playlistOrder = baseOrder + offset
@@ -279,14 +289,15 @@ final class PlaylistManager {
     }
 
     private func sortURLsByDirectory(_ urls: [URL]) -> [URL] {
-        urls.sorted { lhs, rhs in
-            let lhsDir = lhs.deletingLastPathComponent().path
-            let rhsDir = rhs.deletingLastPathComponent().path
-            if lhsDir != rhsDir {
-                return lhsDir < rhsDir
-            }
-            return lhs.lastPathComponent.localizedStandardCompare(rhs.lastPathComponent) == .orderedAscending
+        let keys = urls.map { url in
+            (url: url, directory: url.deletingLastPathComponent().path, filename: url.lastPathComponent)
         }
+        return keys.sorted { lhs, rhs in
+            if lhs.directory != rhs.directory {
+                return lhs.directory < rhs.directory
+            }
+            return lhs.filename.localizedStandardCompare(rhs.filename) == .orderedAscending
+        }.map(\.url)
     }
 
     private func loadTracksFromURLs(_ urls: [URL]) async -> [AudioTrack] {

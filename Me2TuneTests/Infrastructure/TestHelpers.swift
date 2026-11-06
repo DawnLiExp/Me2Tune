@@ -29,6 +29,16 @@ func createTestDataService() throws -> DataService {
     return DataService(modelContainer: container)
 }
 
+/// The caller owns the temporary directory and removes it after the service is released.
+@MainActor
+func createSQLiteTestDataService(at storeURL: URL) throws -> DataService {
+    let schema = Schema(Me2TuneSchemaV2.models)
+    let config = ModelConfiguration(schema: schema, url: storeURL, cloudKitDatabase: .none)
+    let container = try ModelContainer(for: schema, configurations: [config])
+    container.mainContext.autosaveEnabled = false
+    return DataService(modelContainer: container)
+}
+
 /// 创建测试用的 StatisticsManager 实例
 @MainActor
 func createTestStatisticsManager() throws -> StatisticsManager {

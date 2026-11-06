@@ -13,6 +13,28 @@ import Testing
 @MainActor
 @Suite("DataService 单元测试")
 struct DataServiceTests {
+    @Test("批量 URL 查询跨批次并包含已保存与未保存模型")
+    func testFindTracksByURLsSQLite() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let service = try createSQLiteTestDataService(at: directory.appendingPathComponent("test.store"))
+        let saved = (0..<260).map { SDTrack.makeSample(urlString: "file:///batch/\($0).mp3") }
+        for track in saved { service.insert(track) }
+        try service.save()
+        saved[0].title = "Unsaved edit"
+        let pending = SDTrack.makeSample(urlString: "file:///batch/pending.mp3")
+        service.insert(pending)
+
+        #expect(try service.findTracks(byURLs: []).isEmpty)
+        #expect(try service.findTracks(byURLs: ["file:///missing.mp3"]).isEmpty)
+        let requested = saved.map(\.urlString) + [pending.urlString, saved[0].urlString, "file:///missing.mp3"]
+        let found = try service.findTracks(byURLs: requested)
+        #expect(found.count == 261)
+        for track in saved { #expect(found[track.urlString] === track) }
+        #expect(found[pending.urlString] === pending)
+        #expect(found[saved[0].urlString]?.title == "Unsaved edit")
+    }
     
     // MARK: - Track 操作测试
     
