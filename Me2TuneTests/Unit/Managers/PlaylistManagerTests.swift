@@ -192,6 +192,56 @@ struct PlaylistManagerTests {
 extension PlaylistManagerTests {
     // MARK: - Add Tests
 
+    @Test("批量元数据读取保持单曲字段、输入顺序及独立 ID")
+    func testPlaylistMetadataBatchMatchesSingleTrack() async throws {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let fixture = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/Tags/id3v3.mp3")
+        let valid = tempDir.appendingPathComponent("valid.mp3")
+        let broken = tempDir.appendingPathComponent("broken.flac")
+        let missing = tempDir.appendingPathComponent("missing.mp3")
+        try FileManager.default.copyItem(at: fixture, to: valid)
+        try Data("audio data".utf8).write(to: broken)
+        let urls = [valid, missing, broken, valid]
+        var singles: [AudioTrack] = []
+        for url in urls { singles.append(await AudioTrack(url: url)) }
+        let batch = await AudioTrack.readForPlaylistImport(urls)
+
+        #expect(batch.map(\.url) == urls)
+        #expect(batch.count == singles.count)
+        #expect(Set(batch.map(\.id)).count == urls.count)
+        #expect(Set(batch.map(\.metadataRevision)).count == urls.count)
+        #expect(singles[0].duration > 0)
+        for (actual, expected) in zip(batch, singles) {
+            #expect(actual.id != expected.id)
+            #expect(actual.metadataRevision != expected.metadataRevision)
+            #expect(actual.title == expected.title)
+            #expect(actual.artist == expected.artist)
+            #expect(actual.albumTitle == expected.albumTitle)
+            #expect(actual.duration == expected.duration)
+            #expect(actual.format.codec == expected.format.codec)
+            #expect(actual.format.bitrate == expected.format.bitrate)
+            #expect(actual.format.sampleRate == expected.format.sampleRate)
+            #expect(actual.format.bitDepth == expected.format.bitDepth)
+            #expect(actual.format.channels == expected.format.channels)
+            #expect((actual.bookmark != nil) == (expected.bookmark != nil))
+        }
+        for fallback in batch[1...2] {
+            #expect(fallback.title == fallback.url.deletingPathExtension().lastPathComponent)
+            #expect(fallback.artist == nil && fallback.albumTitle == nil)
+            #expect(fallback.duration == 0)
+            #expect(fallback.format.codec == nil && fallback.format.bitrate == nil)
+            #expect(fallback.format.sampleRate == nil && fallback.format.bitDepth == nil)
+            #expect(fallback.format.channels == nil)
+        }
+        let empty = await AudioTrack.readForPlaylistImport([])
+        #expect(empty.isEmpty)
+    }
+
     @Test("复用已有 SDTrack 时保持 stableId 并支持重排持久化")
     func testReuseExistingTrackKeepsStableIDAndReorderPersists() async throws {
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -230,6 +280,7 @@ extension PlaylistManagerTests {
         #expect(manager.tracks[0].artist == "Test Artist")
         #expect(manager.tracks[0].bookmark == Data([1, 2, 3]))
         #expect(manager.tracks[1].duration > 0)
+        #expect(!manager.isLoading && manager.loadingCount == 0)
         #expect(existingTrack.albumEntries.first?.album === album)
         #expect(existingTrack.albumEntries.first?.trackOrder == 7)
         #expect(manager.count == 2)

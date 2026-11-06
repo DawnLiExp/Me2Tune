@@ -9,7 +9,7 @@ import Foundation
 import OSLog
 import SFBAudioEngine
 
-private let logger = Logger.audio
+private nonisolated let logger = Logger.audio
 
 // MARK: - Audio Format
 
@@ -48,7 +48,7 @@ struct AudioFormat: Sendable {
         return components.isEmpty ? String(localized: "unknown_format") : components.joined(separator: " | ")
     }
     
-    static let unknown = AudioFormat(
+    nonisolated static let unknown = AudioFormat(
         codec: nil,
         bitrate: nil,
         sampleRate: nil,
@@ -71,6 +71,10 @@ struct AudioTrack: Identifiable, Equatable, Sendable {
     let metadataRevision: UUID
     
     init(url: URL) async {
+        self.init(reading: url)
+    }
+
+    private nonisolated init(reading url: URL) {
         self.id = UUID()
         self.metadataRevision = UUID()
         self.url = url
@@ -126,6 +130,17 @@ struct AudioTrack: Identifiable, Equatable, Sendable {
             logger.warning("Failed to read metadata for: \(filename)")
         }
     }
+
+    @concurrent
+    static func readForPlaylistImport(_ urls: [URL]) async -> [AudioTrack] {
+        var tracks: [AudioTrack] = []
+        tracks.reserveCapacity(urls.count)
+        for url in urls {
+            tracks.append(autoreleasepool { AudioTrack(reading: url) })
+        }
+        return tracks
+    }
+
     
     // MARK: - Internal Initializer (for DTO conversion / testing / preview)
 
@@ -174,7 +189,7 @@ struct AudioTrack: Identifiable, Equatable, Sendable {
 
 // MARK: - Format Extraction Helpers
 
-private func estimateBitrate(url: URL, duration: TimeInterval) -> Int? {
+private nonisolated func estimateBitrate(url: URL, duration: TimeInterval) -> Int? {
     guard duration > 0 else { return nil }
     
     guard let fileSize = try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? UInt64 else {

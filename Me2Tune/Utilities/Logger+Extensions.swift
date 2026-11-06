@@ -9,12 +9,12 @@ import Foundation
 import OSLog
 
 nonisolated extension Logger {
-    private static let subsystem = "me2.Me2Tune"
+    private nonisolated static let subsystem = "me2.Me2Tune"
 
     static let app = Logger(subsystem: subsystem, category: "App")
     static let application = Logger(subsystem: subsystem, category: "Application")
     static let artwork = Logger(subsystem: subsystem, category: "Artwork")
-    static let audio = Logger(subsystem: subsystem, category: "Audio")
+    nonisolated static let audio = Logger(subsystem: subsystem, category: "Audio")
     static let cache = Logger(subsystem: subsystem, category: "Cache")
     static let collection = Logger(subsystem: subsystem, category: "Collection")
     static let coordinator = Logger(subsystem: subsystem, category: "Coordinator")

@@ -301,19 +301,6 @@ final class PlaylistManager {
     }
 
     private func loadTracksFromURLs(_ urls: [URL]) async -> [AudioTrack] {
-        await withTaskGroup(of: (Int, AudioTrack).self) { group in
-            for (index, url) in urls.enumerated() {
-                group.addTask {
-                    let track = await AudioTrack(url: url)
-                    return (index, track)
-                }
-            }
-
-            var tracksWithIndex: [(Int, AudioTrack)] = []
-            for await result in group {
-                tracksWithIndex.append(result)
-            }
-            return tracksWithIndex.sorted { $0.0 < $1.0 }.map(\.1)
-        }
+        await AudioTrack.readForPlaylistImport(urls)
     }
 }
