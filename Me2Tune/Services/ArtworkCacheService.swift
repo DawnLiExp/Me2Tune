@@ -61,9 +61,9 @@ actor ArtworkCacheService {
     
     // MARK: - Initialization
     
-    private init() {
+    init(cacheDirectory: URL? = nil) {
         // ✅ 使用静态方法获取路径
-        self.diskCacheURL = CacheConfigManager.getArtworkCacheDirectory()
+        self.diskCacheURL = cacheDirectory ?? CacheConfigManager.getArtworkCacheDirectory()
         self.metadataURL = diskCacheURL.appendingPathComponent("cache_metadata.json")
         
         memoryCache.countLimit = 100
@@ -257,10 +257,12 @@ actor ArtworkCacheService {
     private func resizeImage(_ image: NSImage, to size: CGSize) -> NSImage {
         let newImage = NSImage(size: size)
         
-        guard let tiffData = image.tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: tiffData),
-              let cgImage = bitmap.cgImage
-        else {
+        let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) ?? {
+            guard let tiffData = image.tiffRepresentation,
+                  let bitmap = NSBitmapImageRep(data: tiffData) else { return nil as CGImage? }
+            return bitmap.cgImage
+        }()
+        guard let cgImage else {
             return image
         }
         
