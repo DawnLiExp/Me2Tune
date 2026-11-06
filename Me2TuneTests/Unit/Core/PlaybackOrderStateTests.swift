@@ -117,6 +117,74 @@ struct PlaybackOrderStateTests {
         #expect(Set(rest) == Set([ids[1], ids[2], added]))
     }
 
+    @Test("批量新增保留旧待播顺序，已播放曲目不回流", arguments: [false, true])
+    func batchInsertionPreservesCurrentRound(shuffling: Bool) throws {
+        let ids = (0..<6).map { _ in UUID() }
+        let order = PlaybackOrderState(shuffle: { Array($0.reversed()) })
+        order.reset(ids: ids, currentID: ids[0], shuffling: shuffling)
+        order.confirm(order.select(ids[0]))
+        for _ in 0..<2 {
+            order.confirm(try #require(order.next(repeatMode: .off, automatic: true, failed: [])))
+        }
+        let played = order.history
+        let added = (0..<3).map { _ in UUID() }
+        let updated = Array(ids.prefix(3)) + Array(ids.suffix(3).reversed()) + added
+        order.reconcile(ids: updated)
+        #expect(order.history == played)
+        #expect(order.currentID == played.last)
+        let oldRemaining = shuffling ? [ids[3], ids[2], ids[1]] : [ids[5], ids[4], ids[3]]
+        let expected = Set(oldRemaining + added)
+        var rest: [UUID] = []
+        for _ in 0..<expected.count {
+            let next = try #require(order.next(repeatMode: .off, automatic: true, failed: []))
+            rest.append(next.id)
+            order.confirm(next)
+        }
+        #expect(order.next(repeatMode: .off, automatic: true, failed: []) == nil)
+        #expect(Set(rest) == expected)
+        #expect(rest.filter { ids.contains($0) } == oldRemaining)
+        #expect(order.history == played + rest)
+        if !shuffling { #expect(rest == oldRemaining + added) }
+    }
+
+    @Test("顺序模式批量新增后打开随机，新一轮包含全部非当前曲目")
+    func batchInsertionBeforeEnablingShuffle() throws {
+        let ids = (0..<4).map { _ in UUID() }
+        let order = PlaybackOrderState(shuffle: { Array($0.reversed()) })
+        order.reset(ids: ids, currentID: ids[0], shuffling: false)
+        order.confirm(order.select(ids[0]))
+        let added = (0..<3).map { _ in UUID() }
+        order.reconcile(ids: ids + added)
+        #expect(order.next(repeatMode: .off, automatic: true, failed: [])?.id == ids[1])
+        order.setShuffling(true)
+        #expect(order.history == [ids[0]])
+        let expected = Set(Array(ids.dropFirst()) + added)
+        var rest: [UUID] = []
+        for _ in 0..<expected.count {
+            let next = try #require(order.next(repeatMode: .off, automatic: true, failed: []))
+            rest.append(next.id)
+            order.confirm(next)
+        }
+        #expect(Set(rest) == expected)
+        #expect(order.next(repeatMode: .off, automatic: true, failed: []) == nil)
+    }
+
+    @Test("批量新增的洗牌处理量随列表规模线性增长", arguments: [64, 256, 1024], [false, true])
+    func batchInsertionHasLinearShuffleWork(initialCount: Int, shuffling: Bool) {
+        let ids = (0..<initialCount).map { _ in UUID() }
+        let added = (0..<(4 * initialCount)).map { _ in UUID() }
+        var processedElements = 0
+        let order = PlaybackOrderState(shuffle: {
+            processedElements += $0.count
+            return $0
+        })
+        order.reset(ids: ids, currentID: ids[0], shuffling: shuffling)
+        processedElements = 0
+        order.reconcile(ids: ids + added)
+        // Bound total work, allowing a constant number of linear passes over both rounds.
+        #expect(processedElements <= 3 * (ids.count + added.count))
+    }
+
     @Test("顺序播放边界、循环回绕与失败跳过")
     func sequentialNavigation() throws {
         let (order, ids) = setup(3)
@@ -206,8 +274,8 @@ struct PlaybackOrderStateTests {
         #expect(order.previous(repeatMode: .off, failed: [])?.id == ids[0])
     }
 
-    @Test("已预定后继前新增曲目不会被漏播，含跨轮预定", arguments: [false, true])
-    func insertionBeforeReservedSuccessor(startsNewRound: Bool) throws {
+    @Test("已预定后继前新增曲目不会被漏播，含跨轮预定", arguments: [false, true], [false, true])
+    func insertionBeforeReservedSuccessor(startsNewRound: Bool, deleting: Bool) throws {
         let (order, ids) = setup()
         if startsNewRound {
             for _ in 0..<3 {
@@ -215,15 +283,20 @@ struct PlaybackOrderStateTests {
             }
         }
         let reserved = try #require(order.next(repeatMode: .all, automatic: true, failed: []))
-        let added = UUID()
-        order.reconcile(ids: ids + [added])
+        let history = order.history
+        let current = order.currentID
+        let added = (0..<3).map { _ in UUID() }
+        let updated = ids.filter { !deleting || ($0 != ids[0] && $0 != ids[2]) } + added
+        order.reconcile(ids: updated)
+        #expect(order.history == history.filter { updated.contains($0) })
+        #expect(order.currentID == current.flatMap { updated.contains($0) ? $0 : nil })
         order.confirm(reserved)
         var rest: [UUID] = []
         while let next = order.next(repeatMode: .off, automatic: true, failed: []) {
             rest.append(next.id)
             order.confirm(next)
         }
-        let expected = Set(ids + [added]).subtracting(startsNewRound ? [reserved.id] : [ids[0], reserved.id])
+        let expected = Set(updated).subtracting(startsNewRound ? [reserved.id] : [ids[0], reserved.id])
         #expect(Set(rest) == expected)
         #expect(rest.count == expected.count)
     }

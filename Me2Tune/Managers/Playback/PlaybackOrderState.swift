@@ -73,9 +73,16 @@ final class PlaybackOrderState {
         historyIndex = prefixCount > 0 ? prefixCount - 1 : nil
         if let currentID, !valid.contains(currentID) { self.currentID = nil }
         if let requested, !valid.contains(requested.id) { self.requested = nil }
-        for id in added {
-            let insertion = shuffle(remaining + [id]).firstIndex(of: id) ?? remaining.count
-            remaining.insert(id, at: insertion)
+        if !added.isEmpty {
+            let oldRemaining = remaining
+            let oldRemainingIDs = Set(oldRemaining)
+            var oldIndex = 0
+            // Randomize the additions and their positions while retaining the old relative order.
+            remaining = shuffle(oldRemaining + added).map { id in
+                guard oldRemainingIDs.contains(id) else { return id }
+                defer { oldIndex += 1 }
+                return oldRemaining[oldIndex]
+            }
         }
         if !added.isEmpty || Set(nextRound) != valid { nextRound = shuffle(newIDs) }
     }
