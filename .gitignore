@@ -40,3 +40,7 @@ Tree.md
 
 # Local build artifacts and reports
 /output/
+
+# Local development rules and documentation
+/.agents/
+/docs/dev/
