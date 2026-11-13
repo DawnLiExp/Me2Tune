@@ -56,18 +56,19 @@ struct VinylSectionView: View {
 
     private var timeOverlay: some View {
         HStack {
-            timeLabel(timeString(from: playbackProgressState.currentTime))
+            timeLabel(timeString(from: playbackProgressState.currentTime), alignment: .leading)
             Spacer()
-            timeLabel(timeString(from: duration))
+            timeLabel(timeString(from: duration), alignment: .trailing)
         }
-        .padding(.horizontal, 12)
+        // ContentView adds 12 pt, matching the progress bar's 28 pt inset.
+        .padding(.horizontal, 16)
     }
 
-    private func timeLabel(_ text: String) -> some View {
+    private func timeLabel(_ text: String, alignment: Alignment) -> some View {
         Text(text)
             .font(.system(size: 15, weight: .light, design: .rounded))
             .foregroundColor(.timeDisplayColor)
-            .frame(width: 60)
+            .frame(width: 60, alignment: alignment)
     }
 
     // MARK: - Utils
