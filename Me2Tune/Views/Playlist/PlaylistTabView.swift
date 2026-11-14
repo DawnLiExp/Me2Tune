@@ -34,43 +34,68 @@ struct PlaylistTabView: View {
             } else {
                 ZStack {
                     @Bindable var viewModel = playerViewModel
-                    ScrollView(showsIndicators: false) {
-                        LazyVStack(spacing: 0) {
-                            ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
-                                VStack(spacing: 0) {
-                                    if dropTargetIndex == index {
-                                        dropIndicator
+                    ScrollViewReader { proxy in
+                        ScrollView(showsIndicators: false) {
+                            LazyVStack(spacing: 0) {
+                                ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
+                                    VStack(spacing: 0) {
+                                        if dropTargetIndex == index {
+                                            dropIndicator
+                                        }
+                                        
+                                        songRow(track: track, index: index)
                                     }
-                                    
-                                    songRow(track: track, index: index)
+                                    .id(track.id)
+                                }
+                                
+                                if !tracks.isEmpty {
+                                    VStack(spacing: 0) {
+                                        if dropTargetIndex == tracks.count {
+                                            dropIndicator
+                                        }
+                                        
+                                        Color.clear
+                                            .frame(height: 20)
+                                            .onDrop(of: [.text, .fileURL], delegate: TrackDropDelegate(
+                                                targetIndex: tracks.count,
+                                                draggingIndex: $draggingIndex,
+                                                dropTargetIndex: $dropTargetIndex,
+                                                onDrop: { from, _ in
+                                                    let fromSet = IndexSet(integer: from)
+                                                    onTrackMoved(fromSet, tracks.count - 1)
+                                                },
+                                                onFilesDrop: onFilesDrop
+                                            ))
+                                    }
                                 }
                             }
-                            
-                            if !tracks.isEmpty {
-                                VStack(spacing: 0) {
-                                    if dropTargetIndex == tracks.count {
-                                        dropIndicator
+                            .scrollTargetLayout()
+                        }
+                        .scrollPosition(id: $viewModel.lastScrollTrackId)
+                        .frame(maxHeight: .infinity)
+                        .onChange(of: playerViewModel.currentTrack?.id) { _, newID in
+                            guard let newID,
+                                  playingSource == .playlist,
+                                  draggingIndex == nil,
+                                  tracks.contains(where: { $0.id == newID }) else { return }
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                proxy.scrollTo(newID, anchor: .center)
+                            }
+                        }
+                        .onAppear {
+                            if playerViewModel.lastScrollTrackId == nil,
+                               let currentTrackID = playerViewModel.currentTrack?.id,
+                               playingSource == .playlist,
+                               tracks.contains(where: { $0.id == currentTrackID }) {
+                                Task { @MainActor in
+                                    try? await Task.sleep(for: .milliseconds(120))
+                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                        proxy.scrollTo(currentTrackID, anchor: .center)
                                     }
-                                    
-                                    Color.clear
-                                        .frame(height: 20)
-                                        .onDrop(of: [.text, .fileURL], delegate: TrackDropDelegate(
-                                            targetIndex: tracks.count,
-                                            draggingIndex: $draggingIndex,
-                                            dropTargetIndex: $dropTargetIndex,
-                                            onDrop: { from, _ in
-                                                let fromSet = IndexSet(integer: from)
-                                                onTrackMoved(fromSet, tracks.count - 1)
-                                            },
-                                            onFilesDrop: onFilesDrop
-                                        ))
                                 }
                             }
                         }
-                        .scrollTargetLayout()
                     }
-                    .scrollPosition(id: $viewModel.lastScrollTrackId)
-                    .frame(maxHeight: .infinity)
                     
                     if isLoadingTracks {
                         loadingOverlay

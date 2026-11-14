@@ -40,25 +40,36 @@ struct AlbumDetailView: View {
         VStack(spacing: 5) {
             albumHeader
             
-            ScrollView(showsIndicators: false) {
-                LazyVStack(spacing: 0) {
-                    ForEach(album.tracks.indices, id: \.self) { index in
-                        let track = album.tracks[index]
-                        AlbumTrackRowView(
-                            track: track,
-                            index: index,
-                            isPlaying: isCurrentAlbumPlaying && currentIndex == index,
-                            isFailed: playerViewModel.isTrackFailed(track.id),
-                            cleanMode: cleanMode,
-                            onTap: { onTrackTap(index) },
-                            onShowInFinder: { onShowInFinder(track) },
-                            onAddToPlaylist: { onAddToPlaylist(track) },
-                            onShowTagEditor: { onShowTagEditor(track) }
-                        )
-                        .equatable()
+            ScrollViewReader { proxy in
+                ScrollView(showsIndicators: false) {
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(album.tracks.indices), id: \.self) { index in
+                            let track = album.tracks[index]
+                            AlbumTrackRowView(
+                                track: track,
+                                index: index,
+                                isPlaying: isCurrentAlbumPlaying && currentIndex == index,
+                                isFailed: playerViewModel.isTrackFailed(track.id),
+                                cleanMode: cleanMode,
+                                onTap: { onTrackTap(index) },
+                                onShowInFinder: { onShowInFinder(track) },
+                                onAddToPlaylist: { onAddToPlaylist(track) },
+                                onShowTagEditor: { onShowTagEditor(track) }
+                            )
+                            .equatable()
+                            .id(track.id)
+                        }
+                    }
+                    .padding(.bottom, 20)
+                }
+                .onChange(of: playerViewModel.currentTrack?.id) { _, newID in
+                    guard let newID,
+                          isCurrentAlbumPlaying,
+                          album.tracks.contains(where: { $0.id == newID }) else { return }
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        proxy.scrollTo(newID, anchor: .center)
                     }
                 }
-                .padding(.bottom, 20)
             }
         }
         .task(id: album.id) {
