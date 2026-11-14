@@ -13,7 +13,7 @@ import Testing
 @testable import Me2Tune
 
 @MainActor
-@Suite("SFBAudioEngine 0.14 实际播放", .serialized)
+@Suite("SFBAudioEngine 实际播放", .serialized)
 struct AudioEngineIntegrationTests {
     @Test("Saving preloaded tags preserves playback and activation uses refreshed metadata", arguments: TrackTagServiceTests.names)
     func savePreloadedTags(_ name: String) async throws {
