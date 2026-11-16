@@ -131,7 +131,7 @@ final class PlaybackCoordinator {
         }
     }
 
-    let playbackOrder = PlaybackOrderState()
+    let playbackOrder: PlaybackOrderState
     @ObservationIgnored private let defaults: UserDefaults
     var isShuffling: Bool { playbackOrder.isShuffling }
 
@@ -187,8 +187,10 @@ final class PlaybackCoordinator {
         dataService: DataServiceProtocol = DataService.shared,
         statisticsManager: some StatisticsManagerProtocol = StatisticsManager.shared,
         playerCore: (any AudioPlayerCoreProtocol)? = nil,
-        defaults: UserDefaults = .standard
+        defaults: UserDefaults = .standard,
+        playbackOrder: PlaybackOrderState = PlaybackOrderState()
     ) {
+        self.playbackOrder = playbackOrder
         self.defaults = defaults
         self.dataService = dataService
         self.collectionManager = collectionManager
@@ -290,12 +292,13 @@ final class PlaybackCoordinator {
             playbackStateManager.switchToPlaylist()
         }
         let ids = playbackStateManager.currentTracks.map(\.id)
-        playbackOrder.reset(ids: ids, currentID: nil, shuffling: isShuffling)
+        let previewID = loadController.hasEnded ? nil : playbackStateManager.currentTrack?.id
+        // Keep the preview outside the shuffled remainder so a failed load cannot skip other tracks.
+        playbackOrder.reset(ids: ids, currentID: previewID, shuffling: isShuffling)
         let failed = failedTrackRegistry.snapshot()
         let first: PlaybackOrderState.Selection?
         // Before the first load, play the track already shown in the player.
-        if !loadController.hasEnded, let previewID = playbackStateManager.currentTrack?.id,
-           !failed.contains(previewID) {
+        if let previewID, !failed.contains(previewID) {
             first = playbackOrder.select(previewID)
         } else {
             first = playbackOrder.first(failed: failed)

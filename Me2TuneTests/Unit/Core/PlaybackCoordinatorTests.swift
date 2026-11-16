@@ -480,6 +480,32 @@ struct PlaybackCoordinatorTests {
         }
     }
 
+    @Test("预览曲目加载失败后随机播放其余曲目", arguments: [false, true])
+    func firstPreviewFailureKeepsShuffleRemainder(previewAtEnd: Bool) async throws {
+        let order = PlaybackOrderState(shuffle: { ids in
+            previewAtEnd ? Array(ids.suffix(1)) + Array(ids.dropLast()) : Array(ids.reversed())
+        })
+        let (coordinator, core, _) = try playlistCoordinator(count: 3, playbackOrder: order)
+        let tracks = coordinator.playlistManager.tracks
+        coordinator.playbackStateManager.handlePlaylistTracksAdded()
+        coordinator.moveTrackInPlaylist(from: 1, to: 0)
+        coordinator.toggleShuffle()
+        core.loadResults[tracks[0].id] = false
+        #expect(coordinator.playbackStateManager.currentTrack?.id == tracks[0].id)
+        #expect(core.loadTrackCallIDs.isEmpty)
+
+        coordinator.play()
+        try #require(await waitUntil { core.playCallCount == 1 })
+        #expect(core.loadTrackCallIDs == [tracks[0].id, tracks[2].id])
+        #expect(coordinator.isTrackFailed(tracks[0].id))
+        #expect(order.history == [tracks[2].id])
+        coordinator.next()
+        try #require(await waitUntil { core.playCallCount == 2 })
+        #expect(core.loadTrackCallIDs == [tracks[0].id, tracks[2].id, tracks[1].id])
+        #expect(order.history == [tracks[2].id, tracks[1].id])
+        #expect(!coordinator.canGoNext)
+    }
+
     @Test("播放列表结束后重新播放从首曲开始")
     func playAfterPlaylistEndsStartsNewRound() async throws {
         let (coordinator, core, _) = try playlistCoordinator(count: 3)
@@ -782,7 +808,7 @@ struct PlaybackCoordinatorTests {
         #expect(core.prepareCallCount == 0)
     }
 
-    private func playlistCoordinator(count: Int) throws -> (PlaybackCoordinator, MockAudioPlayerCore, UserDefaults) {
+    private func playlistCoordinator(count: Int, playbackOrder: PlaybackOrderState? = nil) throws -> (PlaybackCoordinator, MockAudioPlayerCore, UserDefaults) {
         let data = try createTestDataService()
         for (index, track) in makeTracks(count: count).enumerated() {
             let stored = SDTrack(from: track)
@@ -795,7 +821,8 @@ struct PlaybackCoordinatorTests {
         let core = MockAudioPlayerCore()
         let coordinator = PlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
                                               dataService: data, statisticsManager: MockStatisticsManager(),
-                                              playerCore: core, defaults: defaults)
+                                              playerCore: core, defaults: defaults,
+                                              playbackOrder: playbackOrder ?? PlaybackOrderState())
         return (coordinator, core, defaults)
     }
 
