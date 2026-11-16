@@ -291,7 +291,16 @@ final class PlaybackCoordinator {
         }
         let ids = playbackStateManager.currentTracks.map(\.id)
         playbackOrder.reset(ids: ids, currentID: nil, shuffling: isShuffling)
-        guard let first = playbackOrder.first(failed: failedTrackRegistry.snapshot()) else { return }
+        let failed = failedTrackRegistry.snapshot()
+        let first: PlaybackOrderState.Selection?
+        // Before the first load, play the track already shown in the player.
+        if !loadController.hasEnded, let previewID = playbackStateManager.currentTrack?.id,
+           !failed.contains(previewID) {
+            first = playbackOrder.select(previewID)
+        } else {
+            first = playbackOrder.first(failed: failed)
+        }
+        guard let first else { return }
         loadController.start(first)
     }
 

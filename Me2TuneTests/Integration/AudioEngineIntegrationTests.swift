@@ -15,6 +15,29 @@ import Testing
 @MainActor
 @Suite("SFBAudioEngine 实际播放", .serialized)
 struct AudioEngineIntegrationTests {
+    @Test("首次导入并重排后真实引擎播放预览曲目")
+    func firstPlayAfterReorderUsesPreview() async throws {
+        let tracks = try (0..<3).map { _ in try makeSilentTrack(seconds: 4) }
+        defer { for track in tracks { try? FileManager.default.removeItem(at: track.url) } }
+        let data = try createTestDataService()
+        let core = AudioPlayerCore()
+        let coordinator = PlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
+            dataService: data, statisticsManager: EngineTestStatistics(), playerCore: core,
+            defaults: try #require(UserDefaults(suiteName: "FirstPlayEngine.\(UUID())")))
+        defer { core.prepareForTrackSwitch() }
+        let result = await coordinator.addTracksToPlaylist(urls: tracks.map(\.url))
+        try #require(result.newTracksCount == 3)
+        let preview = try #require(coordinator.playbackStateManager.currentTrack)
+        coordinator.moveTrackInPlaylist(from: 1, to: 0)
+        #expect(coordinator.playlistManager.track(at: 0)?.id != preview.id)
+        #expect(coordinator.playbackStateManager.currentTrack?.id == preview.id)
+
+        core.setVolume(0)
+        coordinator.play()
+        try #require(await waitUntil { core.currentTrack?.id == preview.id && core.getCurrentPlaybackTime() > 0.05 })
+        #expect(coordinator.playbackStateManager.currentTrack?.id == preview.id)
+    }
+
     @Test("Saving preloaded tags preserves playback and activation uses refreshed metadata", arguments: TrackTagServiceTests.names)
     func savePreloadedTags(_ name: String) async throws {
         let first = try makeSilentTrack(seconds: 4)

@@ -439,6 +439,61 @@ struct PlaybackCoordinatorTests {
         #expect(coordinator.playbackOrder.history == [tracks[0].id, tracks[2].id])
     }
 
+    @Test("首次导入并重排后，播放显示的预览曲目", arguments: [false, true])
+    func firstPlayUsesPreviewAfterReorder(shuffle: Bool) async throws {
+        let data = try createTestDataService()
+        let defaults = try #require(UserDefaults(suiteName: "Me2TuneFirstPlayTests.\(UUID())"))
+        let core = MockAudioPlayerCore()
+        let coordinator = PlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
+                                              dataService: data, statisticsManager: MockStatisticsManager(),
+                                              playerCore: core, defaults: defaults)
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let urls = try ["A", "B", "C"].map { name in
+            let url = directory.appendingPathComponent("\(name).mp3")
+            try Data().write(to: url)
+            return url
+        }
+
+        let result = await coordinator.addTracksToPlaylist(urls: urls)
+        try #require(result.newTracksCount == 3)
+        let preview = try #require(coordinator.playbackStateManager.currentTrack)
+        #expect(preview.title == "A")
+        #expect(core.loadTrackCallIDs.isEmpty)
+        coordinator.moveTrackInPlaylist(from: 1, to: 0)
+        #expect(coordinator.playlistManager.tracks.map(\.title) == ["B", "A", "C"])
+        #expect(coordinator.playbackStateManager.currentTrack?.id == preview.id)
+        if shuffle { coordinator.toggleShuffle() }
+
+        coordinator.play()
+        try #require(await waitUntil { core.playCallCount == 1 })
+        #expect(core.loadTrackCallIDs == [preview.id])
+        #expect(coordinator.playbackStateManager.currentTrack?.id == preview.id)
+        if shuffle {
+            coordinator.next()
+            try #require(await waitUntil { core.playCallCount == 2 })
+            coordinator.next()
+            try #require(await waitUntil { core.playCallCount == 3 })
+            #expect(Set(coordinator.playbackOrder.history) == Set(coordinator.playlistManager.tracks.map(\.id)))
+            #expect(coordinator.playbackOrder.history.count == 3)
+        }
+    }
+
+    @Test("播放列表结束后重新播放从首曲开始")
+    func playAfterPlaylistEndsStartsNewRound() async throws {
+        let (coordinator, core, _) = try playlistCoordinator(count: 3)
+        let tracks = coordinator.playlistManager.tracks
+        coordinator.playPlaylistTrack(at: 2)
+        try #require(await waitUntil { core.playCallCount == 1 })
+        coordinator.playerCoreDecodingComplete(for: tracks[2])
+        coordinator.playerCoreDidReachEnd()
+        try #require(await waitUntil { core.pauseCallCount == 1 })
+        coordinator.play()
+        try #require(await waitUntil { core.playCallCount == 2 })
+        #expect(core.loadTrackCallIDs == [tracks[2].id, tracks[0].id])
+    }
+
     @Test("只记住随机开关，首次播放加载曲目且不提前自动播放")
     func shufflePreferenceAndFirstPlay() async throws {
         let (coordinator, core, defaults) = try playlistCoordinator(count: 3)
