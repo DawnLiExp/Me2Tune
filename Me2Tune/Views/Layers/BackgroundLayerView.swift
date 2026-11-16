@@ -40,12 +40,7 @@ struct BackgroundLayerView: View {
             case .legacy:
                 LegacyGlowView(albumGlowColor: albumGlowColor)
             case .meshGradient:
-                if #available(macOS 15.0, *) {
-                    MeshGradientGlowView(albumGlowColor: albumGlowColor)
-                } else {
-                    // Fallback to legacy for macOS < 15
-                    LegacyGlowView(albumGlowColor: albumGlowColor)
-                }
+                MeshGradientGlowView(albumGlowColor: albumGlowColor)
             }
         } else {
             LegacyGlowView(albumGlowColor: albumGlowColor)
@@ -219,9 +214,8 @@ private struct LegacyGlowView: View {
     }
 }
 
-// MARK: - MeshGradient Glow View (macOS 15+)
+// MARK: - MeshGradient Glow View
 
-@available(macOS 15.0, *)
 private struct MeshGradientGlowView: View {
     let albumGlowColor: Color
     

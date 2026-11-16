@@ -707,13 +707,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dynamic (macOS 15+)"
+            "value" : "Dynamic"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "动态 (macOS 15+)"
+            "value" : "动态"
           }
         }
       }
