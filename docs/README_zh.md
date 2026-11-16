@@ -50,7 +50,7 @@ Me2Tune 是一款 macOS 本地音乐播放器。官方的不顺手，界面不�
 
 ## 📦 安装
 
-由于本项目使用免费 Apple Developer 账号签名，安装后需要解除 Gatekeeper 安全限制。
+本应用使用临时签名，未经 Apple 公证。安装后请移除 Gatekeeper 隔离属性并重新签名：
 
 ```bash
 xattr -cr /Applications/Me2Tune.app

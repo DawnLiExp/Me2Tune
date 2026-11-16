@@ -50,7 +50,7 @@ Me2Tune is a macOS local music player. The official one just didn't feel right, 
 
 ## 📦 Installation
 
-The app is signed with a free Apple Developer account, so you'll need to remove the Gatekeeper quarantine attribute after installation.
+The app is ad-hoc signed and not notarized. After installation, remove the Gatekeeper quarantine attribute and re-sign the app:
 
 ```bash
 xattr -cr /Applications/Me2Tune.app
