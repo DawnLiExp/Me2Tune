@@ -116,47 +116,7 @@ final class CollectionManager {
             return nil
         }
 
-        let currentMaxOrder = albums.count
-        let albumId = UUID()
-
-        let sdAlbum = SDAlbum(
-            name: name,
-            folderURLString: nil,
-            displayOrder: currentMaxOrder,
-            stableId: albumId
-        )
-        dataService.insert(sdAlbum)
-
-        for (order, dto) in tracks.enumerated() {
-            let sdTrack: SDTrack
-            if let existing = dataService.findTrack(byURL: dto.url.absoluteString) {
-                sdTrack = existing
-            } else {
-                sdTrack = SDTrack(from: dto)
-                dataService.insert(sdTrack)
-            }
-
-            let entry = SDAlbumTrackEntry(trackOrder: order, album: sdAlbum, track: sdTrack)
-            dataService.insert(entry)
-        }
-
-        do {
-            try dataService.save()
-        } catch {
-            logger.logError(error, context: "addAlbumFromPlaylist")
-        }
-
-        // Build Album DTO directly from existing data, avoid re-conversion
-        let album = Album(
-            id: albumId,
-            name: name,
-            folderURL: nil,
-            tracks: tracks
-        )
-        albums.append(album)
-
-        logger.info("📀 Created album from playlist: \(name) (\(tracks.count) tracks)")
-        return album.id
+        return createAlbum(name: name, folderURL: nil, tracks: tracks).id
     }
 
     func addAlbum(from url: URL) async {
@@ -195,58 +155,40 @@ final class CollectionManager {
     }
 
     private func createAlbum(from url: URL, audioURLs: [URL]) async {
-        if dataService.findAlbum(byFolderURL: url.absoluteString) != nil {
-            logger.debug("Album already exists for path: \(url.path)")
-            return
-        }
+        guard !containsAlbum(at: url) else { return }
+        let tracks = await loadTracksFromURLs(audioURLs)
+        // Another import may have committed this folder while metadata was loading.
+        guard !containsAlbum(at: url) else { return }
+        _ = createAlbum(name: url.lastPathComponent, folderURL: url, tracks: tracks)
+    }
 
-        if albums.contains(where: { $0.folderURL?.path == url.path }) {
-            logger.debug("Album already exists in memory: \(url.path)")
-            return
-        }
+    private func containsAlbum(at url: URL) -> Bool {
+        albums.contains { $0.folderURL?.path == url.path } ||
+            dataService.findAlbum(byFolderURL: url.absoluteString) != nil
+    }
 
-        let currentMaxOrder = albums.count
-        let albumId = UUID()
-
-        let sdAlbum = SDAlbum(
-            name: url.lastPathComponent,
-            folderURLString: url.absoluteString,
-            displayOrder: currentMaxOrder,
-            stableId: albumId
-        )
-        dataService.insert(sdAlbum)
-
-        let trackDTOs = await loadTracksFromURLs(audioURLs)
-
-        for (order, dto) in trackDTOs.enumerated() {
-            let sdTrack: SDTrack
-            if let existing = dataService.findTrack(byURL: dto.url.absoluteString) {
-                sdTrack = existing
+    private func createAlbum(name: String, folderURL: URL?, tracks: [AudioTrack]) -> Album {
+        let stored = SDAlbum(name: name, folderURLString: folderURL?.absoluteString, displayOrder: albums.count)
+        dataService.insert(stored)
+        for (index, track) in tracks.enumerated() {
+            let record: SDTrack
+            if let existing = dataService.findTrack(byURL: track.url.absoluteString) {
+                record = existing
             } else {
-                sdTrack = SDTrack(from: dto)
-                dataService.insert(sdTrack)
+                record = SDTrack(from: track)
+                dataService.insert(record)
             }
-
-            let entry = SDAlbumTrackEntry(trackOrder: order, album: sdAlbum, track: sdTrack)
-            dataService.insert(entry)
+            dataService.insert(SDAlbumTrackEntry(trackOrder: index, album: stored, track: record))
         }
-
         do {
             try dataService.save()
         } catch {
             logger.logError(error, context: "createAlbum")
         }
-
-        // Build Album DTO directly from existing data
-        let album = Album(
-            id: albumId,
-            name: url.lastPathComponent,
-            folderURL: url,
-            tracks: trackDTOs
-        )
+        let album = stored.toAlbum()
         albums.append(album)
-
-        logger.info("📀 Added album: \(album.name) (\(trackDTOs.count) tracks)")
+        logger.info("Added album: \(name) (\(tracks.count) tracks)")
+        return album
     }
 
     func removeAlbum(id: UUID) {

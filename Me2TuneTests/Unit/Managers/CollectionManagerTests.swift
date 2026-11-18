@@ -332,6 +332,39 @@ struct CollectionManagerTests {
         #expect(manager.albums.first?.folderURL?.path == tempDir.path)
     }
     
+    @Test("共享文件的专辑曲目沿用曲库 ID，重开库可恢复")
+    func sharedTrackRestoresFromFolderAlbum() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let folder = root.appendingPathComponent("music", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try Data().write(to: folder.appendingPathComponent("shared.mp3"))
+        let file = try #require(FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil).first)
+        let url = root.appendingPathComponent("library.store")
+        let data = try createSQLiteTestDataService(at: url)
+        let playlist = PlaylistManager(dataService: data)
+        _ = await playlist.addTracks(urls: [file])
+        let track = try #require(playlist.track(at: 0))
+        let collection = CollectionManager(dataService: data)
+        await collection.addAlbum(from: folder)
+        let album = try #require(collection.albums.first)
+        #expect(album.tracks.first?.id == track.id)
+        let suite = "AlbumSession.\(UUID())"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = PlaybackSessionStore(defaults: defaults)
+        let state = PlaybackStateManager(playlistManager: playlist, collectionManager: collection,
+                                         dataService: data, sessionStore: store)
+        state.switchToAlbum(album, selecting: 0)
+        state.saveState(volume: 0.5)
+        let reopened = try createSQLiteTestDataService(at: url)
+        let freshPlaylist = PlaylistManager(dataService: reopened)
+        let freshCollection = CollectionManager(dataService: reopened)
+        let restored = PlaybackStateManager(playlistManager: freshPlaylist, collectionManager: freshCollection,
+                                            dataService: reopened, sessionStore: store)
+        #expect(await restored.restoreState()?.track.id == track.id)
+    }
+
     @Test("从音频文件添加专辑")
     func testAddAlbumFromAudioFile() async throws {
         let (manager, _) = try setup()
