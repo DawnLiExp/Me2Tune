@@ -91,15 +91,13 @@ struct LyricsDisplaySettingsTests {
         #expect(clampedSettings.translationFontSize(isCurrent: false) == CGFloat(11))
     }
 
-    // MARK: - LyricsTimeOffset 枚举映射完整性 (属性 1)
+    // MARK: - LyricsTimeOffset 枚举映射
 
-    /// **Validates: Requirements 2.2, 2.3**
     @Test("LyricsTimeOffset 枚举包含 7 个档位")
     func timeOffsetAllCasesCountIsSeven() {
         #expect(LyricsTimeOffset.allCases.count == 7)
     }
 
-    /// **Validates: Requirements 2.2, 2.3**
     @Test("LyricsTimeOffset offsetValue 值集合匹配预期")
     func timeOffsetValuesMatchExpected() {
         let expected: [Double] = [-1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5]
@@ -107,7 +105,6 @@ struct LyricsDisplaySettingsTests {
         #expect(actual == expected)
     }
 
-    /// **Validates: Requirements 2.2, 2.3**
     @Test("无效 timeOffsetRaw 回退到 .zero（offsetValue == 0.0）")
     func invalidTimeOffsetRawFallsBackToZero() {
         for invalidRaw in ["abc", "2.0", "", "null", "1.5", "-2.0"] {

@@ -2,15 +2,6 @@
 //  ColdStartFlashBugConditionTests.swift
 //  Me2TuneTests
 //
-//  Bug 条件探索性测试 — 冷启动恢复期间不显示 "no_track"
-//
-//  **Validates: Requirements 1.1, 1.2, 1.3, 2.1, 2.2, 2.3**
-//
-//  此测试编码了期望行为：冷启动时存在已保存的播放会话快照，
-//  恢复尚未完成时，UI 应能区分"真实无曲目"和"恢复中"两种状态。
-//  修复后 PlayerViewModel 提供 isRestoring 属性，UI 据此决定是否渲染 no_track。
-//  测试验证：isRestoring == true 期间，修复后的 UI 逻辑不会显示 no_track。
-//
 
 import AppKit
 import Foundation
@@ -18,7 +9,7 @@ import Testing
 @testable import Me2Tune
 
 @MainActor
-@Suite("冷启动闪烁 Bug 条件探索性测试")
+@Suite("冷启动恢复期间的播放状态")
 struct ColdStartFlashBugConditionTests {
 
     // MARK: - Helpers
@@ -72,8 +63,6 @@ struct ColdStartFlashBugConditionTests {
         return (coordinator, sessionStore, savedTrackID)
     }
 
-    // MARK: - Bug Condition Test
-
     @Test("有快照时首帧状态：currentTrack == nil 且 isPlaylistLoaded == false")
     func testFirstFrameStateWithSavedSnapshot() throws {
         let (coordinator, sessionStore, savedTrackID) = try setupWithSavedSession()
@@ -90,40 +79,20 @@ struct ColdStartFlashBugConditionTests {
         #expect(snapshot?.currentTrackID == savedTrackID, "快照中应保存了曲目 ID")
     }
 
-    @Test(
-        "Bug 条件核心：有快照时 PlayerViewModel 缺乏恢复阶段标识，UI 无法区分'真实无曲目'和'恢复中'",
-        .bug(
-            "https://github.com/nicbus/Me2Tune/issues/cold-start-flash",
-            "冷启动闪烁：currentTrack == nil 同时表示两种语义"
-        )
-    )
-    func testNoRestorationPhaseDistinction() throws {
+    @Test("有快照时，首帧进入恢复状态并隐藏空曲目提示")
+    func testSavedSessionStartsInRestoringState() throws {
         let (coordinator, _, _) = try setupWithSavedSession()
         let vm = PlayerViewModel(coordinator: coordinator)
 
-        // === 首帧状态确认 ===
         #expect(vm.currentTrack == nil)
         #expect(vm.isPlaylistLoaded == false)
 
-        // === Bug 条件核心断言 ===
-        // 修复后的 UI 渲染逻辑：先检查 isRestoring，
-        // 如果 isRestoring == true 且 currentTrack == nil，
-        // 则不显示 "no_track"（保持静默/空白）。
-        //
-        // 修复前：UI 直接用 `currentTrack?.title ?? "no_track"`，
-        // 无法区分"真实无曲目"和"恢复中"。
-        //
-        // 修复后：UI 先检查 `isRestoring`，恢复期间不渲染 no_track。
-        // PlayerViewModel 提供了 isRestoring 属性，让 UI 能区分两种状态。
-
-        // 验证 isRestoring 在有快照的首帧为 true
         #expect(
             vm.isRestoring == true,
             "有快照的冷启动首帧，isRestoring 应为 true"
         )
 
-        // 模拟修复后的 UI 渲染逻辑（与 ControlSectionView 一致）：
-        // 当 isRestoring == true 且 currentTrack == nil 时，不显示 no_track
+        // 模拟 ControlSectionView 的标题选择。
         let wouldShowNoTrack: Bool
         if vm.isRestoring && vm.currentTrack == nil {
             wouldShowNoTrack = false  // 恢复期间保持静默，不渲染 no_track
@@ -131,15 +100,7 @@ struct ColdStartFlashBugConditionTests {
             wouldShowNoTrack = (vm.currentTrack?.title ?? "no_track") == "no_track"
         }
 
-        // 在有快照的恢复期间，UI 不应该显示 no_track
-        #expect(
-            wouldShowNoTrack == false,
-            """
-            期望行为验证：冷启动有快照时，修复后的 UI 不再渲染 "no_track"。
-            isRestoring == true 期间，UI 保持静默/空白状态，
-            直到恢复完成后才按实际状态渲染。
-            """
-        )
+        #expect(wouldShowNoTrack == false, "恢复已保存会话时应隐藏空曲目提示")
     }
 }
 

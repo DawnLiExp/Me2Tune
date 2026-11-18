@@ -2,14 +2,6 @@
 //  ColdStartFlashPreservationTests.swift
 //  Me2TuneTests
 //
-//  保持性测试 — 非恢复阶段行为不变
-//
-//  **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5**
-//
-//  遵循 observation-first 方法论：先在未修复代码上观察非 bug 输入的行为，
-//  然后编写确定性单元测试捕获观察到的基线行为。
-//  这些测试在未修复代码上应 PASS — 确认基线行为已正确捕获。
-//
 
 import AppKit
 import Foundation
@@ -17,7 +9,7 @@ import Testing
 @testable import Me2Tune
 
 @MainActor
-@Suite("冷启动闪烁 — 保持性测试（非恢复阶段行为不变）")
+@Suite("播放列表为空或恢复失败时的播放状态")
 struct ColdStartFlashPreservationTests {
 
     // MARK: - Helpers
@@ -48,12 +40,6 @@ struct ColdStartFlashPreservationTests {
         return (dataService, trackIDs)
     }
 
-    // MARK: - Test 1: 无快照时（首次安装）
-
-    /// **Validates: Requirements 3.1**
-    ///
-    /// 观察：无会话快照时（首次安装），`currentTrack == nil` 且 UI 应显示 "no_track"。
-    /// 这是正确行为 — 首次安装确实没有曲目，no_track 是真实状态。
     @Test("首次安装（无快照）：currentTrack == nil，UI 正确显示 no_track")
     func testFreshInstallShowsNoTrack() throws {
         // 无快照的 sessionStore — 模拟首次安装
@@ -76,7 +62,6 @@ struct ColdStartFlashPreservationTests {
 
         let vm = PlayerViewModel(coordinator: coordinator)
 
-        // === 基线行为断言 ===
         // 无快照时，currentTrack 应为 nil — 这是真实的"无曲目"状态
         #expect(vm.currentTrack == nil, "首次安装 currentTrack 应为 nil")
 
@@ -94,12 +79,6 @@ struct ColdStartFlashPreservationTests {
         )
     }
 
-    // MARK: - Test 2: 手动清空播放列表后
-
-    /// **Validates: Requirements 3.3**
-    ///
-    /// 观察：手动清空播放列表后，`currentTrack == nil` 且 UI 应显示 "no_track"。
-    /// 这是正确行为 — 用户主动清空了列表。
     @Test("清空播放列表后：currentTrack == nil，UI 正确显示 no_track")
     func testClearPlaylistShowsNoTrack() throws {
         let (dataService, _) = try makeDataServiceWithPlaylistTracks(count: 3)
@@ -121,7 +100,6 @@ struct ColdStartFlashPreservationTests {
         // 手动清空播放列表
         try vm.clearPlaylist()
 
-        // === 基线行为断言 ===
         // 清空后 currentTrack 应为 nil
         #expect(vm.currentTrack == nil, "清空播放列表后 currentTrack 应为 nil")
 
@@ -136,12 +114,6 @@ struct ColdStartFlashPreservationTests {
         )
     }
 
-    // MARK: - Test 3: 恢复失败后（保存的曲目已被删除）
-
-    /// **Validates: Requirements 3.5**
-    ///
-    /// 观察：恢复失败时（保存的曲目已被删除），正确回退到 "no_track" 状态。
-    /// 这是正确行为 — 保存的曲目不存在了，应回退到空态。
     @Test("恢复失败（曲目已删除）：回退到 no_track 状态")
     func testFailedRestoreFallsBackToNoTrack() async throws {
         let dataService = try createTestDataService()
@@ -175,7 +147,6 @@ struct ColdStartFlashPreservationTests {
         // 执行恢复 — 因为 playlist 中没有匹配的曲目，恢复应失败
         let restored = await stateManager.restoreState()
 
-        // === 基线行为断言 ===
         // 恢复失败：返回 nil
         #expect(restored == nil, "恢复应失败（曲目已被删除，playlist 中无匹配）")
 
