@@ -611,7 +611,7 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
         // Queued decoders retain the old DTO; resolve metadata from the library at activation.
         let track = playbackStateManager.currentTracks.first { $0.id == reportedTrack.id } ?? reportedTrack
         loadController.confirmStarted(track)
-        statisticsTracker.synchronizeObservedTrack(track.id)
+        statisticsTracker.didActivateTrack(track.id)
         let tracks = playbackStateManager.currentTracks
         if let index = tracks.firstIndex(where: { $0.id == track.id }) {
             let idChanged = (playbackStateManager.currentTrackID != track.id)

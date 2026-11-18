@@ -14,6 +14,7 @@ final class PlaybackStatisticsTracker {
     private let resetBoundary: TimeInterval
 
     private var currentTrackID: UUID?
+    private var awaitingFirstActivation = false
     private var hasCountedCurrentSession = false
 
     init(
@@ -28,22 +29,20 @@ final class PlaybackStatisticsTracker {
 
     func prepareForRequestedTrack(_ trackID: UUID) {
         currentTrackID = trackID
+        awaitingFirstActivation = true
         hasCountedCurrentSession = false
     }
 
-    func synchronizeObservedTrack(_ trackID: UUID) {
-        guard currentTrackID != trackID else { return }
+    // The core emits one activation per decoder, including same-track successors.
+    func didActivateTrack(_ trackID: UUID) {
+        let confirmsRequest = awaitingFirstActivation && currentTrackID == trackID
+        awaitingFirstActivation = false
         currentTrackID = trackID
-        hasCountedCurrentSession = false
+        if !confirmsRequest { hasCountedCurrentSession = false }
     }
 
     func evaluate(currentTime: TimeInterval, duration: TimeInterval) {
         guard currentTrackID != nil, duration > 0 else { return }
-
-        if hasCountedCurrentSession, currentTime < resetBoundary {
-            hasCountedCurrentSession = false
-        }
-
         guard !hasCountedCurrentSession else { return }
         guard currentTime >= duration * playCountThreshold else { return }
 
@@ -54,6 +53,7 @@ final class PlaybackStatisticsTracker {
     }
 
     func handleSeek(to time: TimeInterval, duration: TimeInterval) {
+        if time < resetBoundary { hasCountedCurrentSession = false }
         evaluate(currentTime: time, duration: duration)
     }
 }

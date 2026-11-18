@@ -79,16 +79,34 @@ struct PlaybackStatisticsTrackerTests {
     }
 
     @Test("gapless 切到新曲会重置会话")
-    func synchronizeObservedTrackResetsForNewTrack() async throws {
+    func activationResetsForNewTrack() async throws {
         let statistics = MockTrackerStatisticsManager()
         let tracker = PlaybackStatisticsTracker(statisticsManager: statistics)
 
         tracker.prepareForRequestedTrack(UUID())
         tracker.evaluate(currentTime: 81, duration: 100)
-        tracker.synchronizeObservedTrack(UUID())
+        tracker.didActivateTrack(UUID())
         tracker.evaluate(currentTime: 81, duration: 100)
         try? await Task.sleep(for: .milliseconds(50))
 
+        #expect(statistics.incrementCount == 2)
+    }
+
+    @Test("请求的首次确认与暂停共用计数，同曲后继独立计数")
+    func sameTrackSuccessorCountsWithoutAnEarlySample() async throws {
+        let statistics = MockTrackerStatisticsManager()
+        let tracker = PlaybackStatisticsTracker(statisticsManager: statistics)
+        let track = UUID()
+        tracker.prepareForRequestedTrack(track)
+        tracker.handleSeek(to: 81, duration: 100)
+        tracker.didActivateTrack(track)
+        tracker.evaluate(currentTime: 0.3, duration: 100)
+        tracker.evaluate(currentTime: 90, duration: 100)
+        tracker.didActivateTrack(track)
+        tracker.evaluate(currentTime: 2, duration: 100)
+        tracker.evaluate(currentTime: 81, duration: 100)
+        tracker.evaluate(currentTime: 90, duration: 100)
+        try await Task.sleep(for: .milliseconds(50))
         #expect(statistics.incrementCount == 2)
     }
 
