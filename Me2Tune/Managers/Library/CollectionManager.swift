@@ -9,9 +9,14 @@ import AppKit
 import Foundation
 import Observation
 import OSLog
-import SwiftUI
+import SwiftData
 
 private let logger = Logger.collection
+
+struct AlbumImportFailure {
+    let folder: URL
+    let error: AppError
+}
 
 @MainActor
 @Observable
@@ -108,7 +113,7 @@ final class CollectionManager {
 
     // MARK: - Album Management
 
-    func addAlbumFromPlaylist(name: String, tracks: [AudioTrack]) async -> UUID? {
+    func addAlbumFromPlaylist(name: String, tracks: [AudioTrack]) async throws(AppError) -> UUID? {
         await ensureLoaded()
 
         guard !tracks.isEmpty else {
@@ -116,155 +121,138 @@ final class CollectionManager {
             return nil
         }
 
-        return createAlbum(name: name, folderURL: nil, tracks: tracks).id
+        return try createAlbum(name: name, folderURL: nil, tracks: tracks)?.id
     }
 
-    func addAlbum(from url: URL) async {
+    @discardableResult
+    func addAlbum(from url: URL) async -> [AlbumImportFailure] {
         await ensureLoaded()
-
+        var failures: [AlbumImportFailure] = []
         var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
-              isDirectory.boolValue
-        else {
-            let parentURL = url.deletingLastPathComponent()
-            let audioFiles = scanFolderOnly(parentURL)
-            if !audioFiles.isEmpty {
-                await createAlbum(from: parentURL, audioURLs: audioFiles)
-            }
-            return
+        if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
+            await scanAndAddAlbums(at: url, failures: &failures)
+        } else {
+            await importAudioFiles(in: url.deletingLastPathComponent(), failures: &failures)
         }
-
-        await scanAndAddAlbums(at: url)
+        return failures
     }
 
-    private func scanAndAddAlbums(at url: URL) async {
+    private func scanAndAddAlbums(at url: URL, failures: inout [AlbumImportFailure]) async {
+        await importAudioFiles(in: url, failures: &failures)
         let fileManager = FileManager.default
-
-        let audioFiles = scanFolderOnly(url)
-        if !audioFiles.isEmpty {
-            await createAlbum(from: url, audioURLs: audioFiles)
-        }
-
         let contents = (try? fileManager.contentsOfDirectory(at: url, includingPropertiesForKeys: nil)) ?? []
         for item in contents {
-            var isSubDir: ObjCBool = false
-            if fileManager.fileExists(atPath: item.path, isDirectory: &isSubDir), isSubDir.boolValue {
-                await scanAndAddAlbums(at: item)
+            var isDirectory: ObjCBool = false
+            if fileManager.fileExists(atPath: item.path, isDirectory: &isDirectory), isDirectory.boolValue {
+                await scanAndAddAlbums(at: item, failures: &failures)
             }
         }
     }
 
-    private func createAlbum(from url: URL, audioURLs: [URL]) async {
-        guard !containsAlbum(at: url) else { return }
-        let tracks = await loadTracksFromURLs(audioURLs)
-        // Another import may have committed this folder while metadata was loading.
-        guard !containsAlbum(at: url) else { return }
-        _ = createAlbum(name: url.lastPathComponent, folderURL: url, tracks: tracks)
+    private func importAudioFiles(in folder: URL, failures: inout [AlbumImportFailure]) async {
+        guard !albums.contains(where: { $0.folderURL?.path == folder.path }) else { return }
+        let urls = scanFolderOnly(folder)
+        guard !urls.isEmpty else { return }
+        let tracks = await loadTracksFromURLs(urls)
+        do {
+            _ = try createAlbum(name: folder.lastPathComponent, folderURL: folder, tracks: tracks)
+        } catch {
+            failures.append(AlbumImportFailure(folder: folder, error: error))
+        }
     }
 
-    private func containsAlbum(at url: URL) -> Bool {
-        albums.contains { $0.folderURL?.path == url.path } ||
-            dataService.findAlbum(byFolderURL: url.absoluteString) != nil
-    }
+    private func createAlbum(name: String, folderURL: URL?, tracks: [AudioTrack]) throws(AppError) -> Album? {
+        let writer = dataService.makeLibraryWriter()
+        if let folderURL {
+            let key = folderURL.absoluteString
+            let descriptor = FetchDescriptor<SDAlbum>(predicate: #Predicate { $0.folderURLString == key })
+            // Another import may have committed this folder while metadata was loading.
+            if albums.contains(where: { $0.folderURL?.path == folderURL.path }) { return nil }
+            if try writer.fetchCount(descriptor) > 0 { return nil }
+        }
 
-    private func createAlbum(name: String, folderURL: URL?, tracks: [AudioTrack]) -> Album {
+        var byURL = try writer.findTracks(byURLs: tracks.map { $0.url.absoluteString })
         let stored = SDAlbum(name: name, folderURLString: folderURL?.absoluteString, displayOrder: albums.count)
-        dataService.insert(stored)
+        writer.insert(stored)
         for (index, track) in tracks.enumerated() {
+            let key = track.url.absoluteString
             let record: SDTrack
-            if let existing = dataService.findTrack(byURL: track.url.absoluteString) {
+            if let existing = byURL[key] {
                 record = existing
             } else {
                 record = SDTrack(from: track)
-                dataService.insert(record)
+                writer.insert(record)
+                byURL[key] = record
             }
-            dataService.insert(SDAlbumTrackEntry(trackOrder: index, album: stored, track: record))
+            writer.insert(SDAlbumTrackEntry(trackOrder: index, album: stored, track: record))
         }
-        do {
-            try dataService.save()
-        } catch {
-            logger.logError(error, context: "createAlbum")
-        }
+        try writer.save()
         let album = stored.toAlbum()
         albums.append(album)
         logger.info("Added album: \(name) (\(tracks.count) tracks)")
         return album
     }
 
-    func removeAlbum(id: UUID) {
-        if let sdAlbum = sdAlbum(for: id) {
-            for entry in sdAlbum.trackEntries {
-                if let track = entry.track, !track.isInPlaylist, track.albumEntries.count <= 1 {
-                    dataService.delete(track)
-                }
-            }
-            dataService.delete(sdAlbum)
-            try? dataService.save()
+    func removeAlbum(id: UUID) throws(AppError) {
+        let writer = dataService.makeLibraryWriter()
+        if let stored = try storedAlbum(id, using: writer) {
+            try deleteAlbums([stored], using: writer)
         }
-
         albums.removeAll { $0.id == id }
-        logger.info("Album removed: \(id)")
     }
 
-    func renameAlbum(id: UUID, newName: String) {
-        guard let index = albums.firstIndex(where: { $0.id == id }) else { return }
-
-        let oldName = albums[index].name
-        guard oldName != newName else { return }
-
-        var updatedAlbums = albums
-        updatedAlbums[index].name = newName
-        albums = updatedAlbums
-
-        if let sdAlbum = sdAlbum(for: id) {
-            sdAlbum.name = newName
-            try? dataService.save()
-        }
-
-        logger.info("Album renamed: \(oldName) → \(newName)")
+    func renameAlbum(id: UUID, newName: String) throws(AppError) {
+        guard let index = albums.firstIndex(where: { $0.id == id }), albums[index].name != newName else { return }
+        let writer = dataService.makeLibraryWriter()
+        guard let stored = try storedAlbum(id, using: writer) else { throw .persistenceFailed("rename album") }
+        stored.name = newName
+        try writer.save()
+        albums[index].name = newName
     }
 
-    func moveAlbum(from source: Int, to destination: Int) {
-        guard albums.indices.contains(source),
-              albums.indices.contains(destination),
-              source != destination
-        else {
-            return
-        }
-
-        let movedAlbum = albums.remove(at: source)
-        albums.insert(movedAlbum, at: destination)
-
+    func moveAlbum(from source: Int, to destination: Int) throws(AppError) {
+        guard albums.indices.contains(source), albums.indices.contains(destination), source != destination else { return }
         let start = min(source, destination)
-        let end = max(source, destination)
-        for i in start ... end {
-            if let sdAlbum = sdAlbum(for: albums[i].id) {
-                sdAlbum.displayOrder = i
-            }
+        let range = start...max(source, destination)
+        var reordered = Array(albums[range])
+        let moved = reordered.remove(at: source - start)
+        reordered.insert(moved, at: destination - start)
+        let writer = dataService.makeLibraryWriter()
+        for (offset, album) in reordered.enumerated() {
+            guard let stored = try storedAlbum(album.id, using: writer) else { throw .persistenceFailed("reorder albums") }
+            stored.displayOrder = start + offset
         }
-
-        try? dataService.save()
+        try writer.save()
+        albums.replaceSubrange(range, with: reordered)
     }
 
-    func clearAllAlbums() {
-        do {
-            let sdAlbums = try dataService.fetchAlbums()
-            for sdAlbum in sdAlbums {
-                for entry in sdAlbum.trackEntries {
-                    if let track = entry.track, !track.isInPlaylist, track.albumEntries.count <= 1 {
-                        dataService.delete(track)
-                    }
-                }
-                dataService.delete(sdAlbum)
-            }
-            try dataService.save()
-        } catch {
-            logger.logError(error, context: "clearAllAlbums")
-        }
-
-        let count = albums.count
+    func clearAllAlbums() throws(AppError) {
+        let writer = dataService.makeLibraryWriter()
+        try deleteAlbums(writer.fetchAlbums(), using: writer)
         albums.removeAll()
-        logger.info("Cleared all \(count) albums")
+    }
+
+    private func storedAlbum(_ id: UUID, using writer: any DataServiceProtocol) throws(AppError) -> SDAlbum? {
+        var descriptor = FetchDescriptor<SDAlbum>(predicate: #Predicate { $0.stableId == id })
+        descriptor.fetchLimit = 1
+        return try writer.fetch(descriptor).first
+    }
+
+    private func deleteAlbums(_ stored: [SDAlbum], using writer: any DataServiceProtocol) throws(AppError) {
+        let removedIDs = Set(stored.map(\.stableId))
+        var candidates: [UUID: SDTrack] = [:]
+        for album in stored {
+            for entry in album.trackEntries {
+                if let track = entry.track, !track.isInPlaylist { candidates[track.stableId] = track }
+            }
+        }
+        for track in candidates.values where track.albumEntries.allSatisfy({ entry in
+            entry.album.map { removedIDs.contains($0.stableId) } ?? true
+        }) {
+            writer.delete(track)
+        }
+        for album in stored { writer.delete(album) }
+        try writer.save()
     }
 
     // MARK: - Private Methods

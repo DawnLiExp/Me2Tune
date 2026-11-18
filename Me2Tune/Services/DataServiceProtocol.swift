@@ -11,6 +11,7 @@ import SwiftData
 @MainActor
 protocol DataServiceProtocol {
     var modelContext: ModelContext { get }
+    func makeLibraryWriter() -> any DataServiceProtocol
     
     // MARK: - Generic CRUD
     
@@ -37,6 +38,19 @@ protocol DataServiceProtocol {
 }
 
 extension DataServiceProtocol {
+    /// All models in a library mutation belong to this context until its explicit save.
+    func makeLibraryWriter() -> any DataServiceProtocol {
+        let context = ModelContext(modelContext.container)
+        context.autosaveEnabled = false
+        return DataService(context: context)
+    }
+
+    func trackForUpdate(id: UUID) throws(AppError) -> SDTrack? {
+        var descriptor = FetchDescriptor<SDTrack>(predicate: #Predicate { $0.stableId == id })
+        descriptor.fetchLimit = 1
+        return try fetch(descriptor).first
+    }
+
     func findTracks(byURLs urlStrings: [String]) throws(AppError) -> [String: SDTrack] {
         var tracksByURL: [String: SDTrack] = [:]
         for start in stride(from: 0, to: urlStrings.count, by: 256) {

@@ -118,7 +118,7 @@ struct ColdStartFlashPreservationTests {
         #expect(vm.playlistManager.tracks.count == 3, "应有 3 首 playlist 曲目")
 
         // 手动清空播放列表
-        vm.clearPlaylist()
+        try vm.clearPlaylist()
 
         // === 基线行为断言 ===
         // 清空后 currentTrack 应为 nil

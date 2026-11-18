@@ -28,15 +28,18 @@ final class DataService: DataServiceProtocol {
     let modelContainer: ModelContainer
     let isMigrationFailed: Bool
 
-    var modelContext: ModelContext {
-        modelContainer.mainContext
-    }
+    let modelContext: ModelContext
 
     // MARK: - Initialization
 
     /// 公开初始化器 - 用于测试时注入自定义 ModelContainer
-    init(modelContainer: ModelContainer, isMigrationFailed: Bool = false) {
-        self.modelContainer = modelContainer
+    convenience init(modelContainer: ModelContainer, isMigrationFailed: Bool = false) {
+        self.init(context: modelContainer.mainContext, isMigrationFailed: isMigrationFailed)
+    }
+
+    init(context: ModelContext, isMigrationFailed: Bool = false) {
+        self.modelContext = context
+        self.modelContainer = context.container
         self.isMigrationFailed = isMigrationFailed
     }
 

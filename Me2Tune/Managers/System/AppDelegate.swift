@@ -145,6 +145,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // ✅ 添加文件并播放（去重 + 精确索引）
         Task { @MainActor in
             let result = await playerViewModel.addTracksToPlaylist(urls: audioFiles)
+            if result.failure != nil {
+                LibraryErrorAlert.report(result)
+                return
+            }
             
             let firstFile = audioFiles[0]
             let playIndex: Int? = if let existingIndex = result.existingTrackIndices[firstFile] {

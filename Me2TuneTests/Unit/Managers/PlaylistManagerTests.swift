@@ -105,7 +105,7 @@ struct PlaylistManagerTests {
         await manager.addTracks(urls: [file1, file2])
         #expect(manager.count == 2, "Manager should have 2 tracks initially")
         
-        manager.removeTrack(at: 0)
+        try manager.removeTrack(at: 0)
         
         #expect(manager.count == 1, "Manager count should be 1 after removal")
         #expect(manager.tracks[0].title == "song2", "Remaining track should be song2")
@@ -135,7 +135,7 @@ struct PlaylistManagerTests {
         let manager2 = PlaylistManager(dataService: dataService)
         #expect(manager2.count == 1)
         
-        manager2.clearAll()
+        try manager2.clearAll()
         
         #expect(manager2.isEmpty)
         #expect(try dataService.fetchPlaylistTracks().isEmpty)
@@ -167,7 +167,7 @@ struct PlaylistManagerTests {
         let manager2 = PlaylistManager(dataService: dataService)
         
         // Move Song 1 to the end (index 2)
-        manager2.moveTrack(from: 0, to: 2)
+        try manager2.moveTrack(from: 0, to: 2)
         
         #expect(manager2.tracks[0].title == "Song 2")
         #expect(manager2.tracks[1].title == "Song 3")
@@ -287,7 +287,7 @@ extension PlaylistManagerTests {
         #expect(manager.count == 2)
         #expect(manager.tracks[0].id == existingTrack.stableId, "Reused SDTrack must project stableId to AudioTrack.id")
 
-        manager.moveTrack(from: 0, to: 1)
+        try manager.moveTrack(from: 0, to: 1)
 
         let playlistTracks = try dataService.fetchPlaylistTracks()
         let persistedExisting = playlistTracks.first(where: { $0.stableId == existingTrack.stableId })
@@ -504,7 +504,7 @@ extension PlaylistManagerTests {
         let first = Task { await manager.addTracks(urls: [urls[2], urls[0]]) }
         await gate.waitForBatch(0)
         #expect(manager.isLoading && manager.loadingCount == 1)
-        manager.moveTrack(from: 0, to: 1)
+        try manager.moveTrack(from: 0, to: 1)
         let second = Task { await manager.addTracks(urls: [secondURL, urls[0]]) }
         await gate.waitForBatch(1)
         #expect(gate.requests == [[urls[2]], [secondURL]])
@@ -591,7 +591,7 @@ extension PlaylistManagerTests {
         let pending = Task { await manager.addTracks(urls: urls) }
         await gate.waitForBatch(0)
         #expect(gate.requests == [[urls[2]]])
-        if clearAll { manager.clearAll() } else { manager.removeTrack(at: 0) }
+        if clearAll { try manager.clearAll() } else { try manager.removeTrack(at: 0) }
         #expect(manager.isLoading && manager.loadingCount == 1)
         gate.complete(0)
         let result = await pending.value
@@ -693,10 +693,10 @@ extension PlaylistManagerTests {
 }
 
 @MainActor
-private final class SecondFetchFailureService: DataServiceProtocol {
+private final class SecondFetchFailureService: TestDataServiceProxy {
     let base: DataService
     var fetchCalls = 0
-    var modelContext: ModelContext { base.modelContext }
+    func makeLibraryWriter() -> any DataServiceProtocol { self }
     init(base: DataService) { self.base = base }
     func fetch<T: PersistentModel>(_ descriptor: FetchDescriptor<T>) throws(AppError) -> [T] {
         fetchCalls += 1
@@ -705,18 +705,6 @@ private final class SecondFetchFailureService: DataServiceProtocol {
         }
         return try base.fetch(descriptor)
     }
-    func insert(_ model: some PersistentModel) { base.insert(model) }
-    func delete(_ model: some PersistentModel) { base.delete(model) }
-    func fetchCount(_ descriptor: FetchDescriptor<some PersistentModel>) throws(AppError) -> Int { try base.fetchCount(descriptor) }
-    func save() throws(AppError) { try base.save() }
-    func findTrack(byURL urlString: String) -> SDTrack? { base.findTrack(byURL: urlString) }
-    func findTrack(byStableId id: UUID) -> SDTrack? { base.findTrack(byStableId: id) }
-    func fetchPlaylistTracks() throws(AppError) -> [SDTrack] { try base.fetchPlaylistTracks() }
-    func playlistTrackCount() throws(AppError) -> Int { try base.playlistTrackCount() }
-    func fetchAlbums() throws(AppError) -> [SDAlbum] { try base.fetchAlbums() }
-    func findAlbum(byFolderURL urlString: String) -> SDAlbum? { base.findAlbum(byFolderURL: urlString) }
-    func findAlbum(byStableId id: UUID) -> SDAlbum? { base.findAlbum(byStableId: id) }
-    func albumCount() throws(AppError) -> Int { try base.albumCount() }
 }
 
 @MainActor

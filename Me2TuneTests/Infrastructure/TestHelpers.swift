@@ -31,9 +31,9 @@ func createTestDataService() throws -> DataService {
 
 /// The caller owns the temporary directory and removes it after the service is released.
 @MainActor
-func createSQLiteTestDataService(at storeURL: URL) throws -> DataService {
+func createSQLiteTestDataService(at storeURL: URL, allowsSave: Bool = true) throws -> DataService {
     let schema = Schema(Me2TuneSchemaV2.models)
-    let config = ModelConfiguration(schema: schema, url: storeURL, cloudKitDatabase: .none)
+    let config = ModelConfiguration(schema: schema, url: storeURL, allowsSave: allowsSave, cloudKitDatabase: .none)
     let container = try ModelContainer(for: schema, configurations: [config])
     container.mainContext.autosaveEnabled = false
     return DataService(modelContainer: container)
@@ -74,6 +74,28 @@ func createTestPlaybackStateManager(
         collectionManager: collectionManager,
         dataService: service
     )
+}
+
+@MainActor
+protocol TestDataServiceProxy: DataServiceProtocol {
+    var base: DataService { get }
+}
+
+extension TestDataServiceProxy {
+    var modelContext: ModelContext { base.modelContext }
+    func insert(_ model: some PersistentModel) { base.insert(model) }
+    func delete(_ model: some PersistentModel) { base.delete(model) }
+    func fetch<T: PersistentModel>(_ descriptor: FetchDescriptor<T>) throws(AppError) -> [T] { try base.fetch(descriptor) }
+    func fetchCount(_ descriptor: FetchDescriptor<some PersistentModel>) throws(AppError) -> Int { try base.fetchCount(descriptor) }
+    func save() throws(AppError) { try base.save() }
+    func findTrack(byURL url: String) -> SDTrack? { base.findTrack(byURL: url) }
+    func findTrack(byStableId id: UUID) -> SDTrack? { base.findTrack(byStableId: id) }
+    func fetchPlaylistTracks() throws(AppError) -> [SDTrack] { try base.fetchPlaylistTracks() }
+    func playlistTrackCount() throws(AppError) -> Int { try base.playlistTrackCount() }
+    func fetchAlbums() throws(AppError) -> [SDAlbum] { try base.fetchAlbums() }
+    func findAlbum(byFolderURL url: String) -> SDAlbum? { base.findAlbum(byFolderURL: url) }
+    func findAlbum(byStableId id: UUID) -> SDAlbum? { base.findAlbum(byStableId: id) }
+    func albumCount() throws(AppError) -> Int { try base.albumCount() }
 }
 
 // MARK: - Sample Data Builders

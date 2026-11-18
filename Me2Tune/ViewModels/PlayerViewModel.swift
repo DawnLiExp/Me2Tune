@@ -191,22 +191,22 @@ final class PlayerViewModel {
     @discardableResult
     func addTracksToPlaylist(urls: [URL]) async -> AddTracksResult {
         let result = await coordinator.addTracksToPlaylist(urls: urls)
-        if restorationPhase == .restoring {
+        if result.failure == nil, restorationPhase == .restoring {
             restorationPhase = .completed
         }
         return result
     }
 
-    func removeTrackFromPlaylist(at index: Int) {
-        coordinator.removeTrackFromPlaylist(at: index)
+    func removeTrackFromPlaylist(at index: Int) throws(AppError) {
+        try coordinator.removeTrackFromPlaylist(at: index)
     }
 
-    func clearPlaylist() {
-        coordinator.clearPlaylist()
+    func clearPlaylist() throws(AppError) {
+        try coordinator.clearPlaylist()
     }
 
-    func moveTrackInPlaylist(from source: Int, to destination: Int) {
-        coordinator.moveTrackInPlaylist(from: source, to: destination)
+    func moveTrackInPlaylist(from source: Int, to destination: Int) throws(AppError) {
+        try coordinator.moveTrackInPlaylist(from: source, to: destination)
     }
 
     func playPlaylistTrack(at index: Int) {

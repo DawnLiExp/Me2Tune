@@ -173,7 +173,7 @@ struct PlaybackStateManagerTests {
         manager.switchToPlaylist(selecting: 1)
         let current = try #require(manager.currentTrack)
 
-        playlist.moveTrack(from: 1, to: 3)
+        try playlist.moveTrack(from: 1, to: 3)
         manager.handlePlaylistTrackMoved(from: 1, to: 3)
         #expect(manager.currentTrackID == current.id)
         #expect(manager.currentTrackIndex == 3)
@@ -181,14 +181,14 @@ struct PlaybackStateManagerTests {
         #expect(manager.currentTrack?.title == current.title)
 
         let removed = try #require(playlist.track(at: 0))
-        playlist.removeTrack(at: 0)
+        try playlist.removeTrack(at: 0)
         manager.handlePlaylistTrackRemoved(removedTrackID: removed.id, wasPlaying: false)
         #expect(playlist.index(ofID: removed.id) == nil)
         #expect(manager.currentTrackID == current.id)
         #expect(manager.currentTrackIndex == 2)
         #expect(manager.currentTrack?.metadataRevision == current.metadataRevision)
 
-        playlist.removeTrack(at: 2)
+        try playlist.removeTrack(at: 2)
         manager.handlePlaylistTrackRemoved(removedTrackID: current.id, wasPlaying: true)
         #expect(manager.currentTrackID == nil)
         #expect(manager.currentTrackIndex == nil)

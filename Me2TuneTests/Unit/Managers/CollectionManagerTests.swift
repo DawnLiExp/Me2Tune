@@ -289,7 +289,7 @@ struct CollectionManagerTests {
         let track1 = await AudioTrack(url: file1)
         let track2 = await AudioTrack(url: file2)
         
-        let albumId = await manager.addAlbumFromPlaylist(name: "Playlist Album", tracks: [track1, track2])
+        let albumId = try await manager.addAlbumFromPlaylist(name: "Playlist Album", tracks: [track1, track2])
         
         #expect(albumId != nil)
         #expect(manager.albumCount == 1)
@@ -306,7 +306,7 @@ struct CollectionManagerTests {
     func testAddAlbumFromPlaylistEmpty() async throws {
         let (manager, _) = try setup()
         
-        let albumId = await manager.addAlbumFromPlaylist(name: "Empty Album", tracks: [])
+        let albumId = try await manager.addAlbumFromPlaylist(name: "Empty Album", tracks: [])
         
         #expect(albumId == nil)
         #expect(manager.albumCount == 0)
@@ -363,6 +363,37 @@ struct CollectionManagerTests {
         let restored = PlaybackStateManager(playlistManager: freshPlaylist, collectionManager: freshCollection,
                                             dataService: reopened, sessionStore: store)
         #expect(await restored.restoreState()?.track.id == track.id)
+    }
+
+    @Test("批量专辑逐张提交，只读失败保留待改数据并可单独重试")
+    func folderImportCommitsEachAlbumIndependently() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let library = root.appendingPathComponent("music", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        for folder in [library, library.appendingPathComponent("one"), library.appendingPathComponent("two")] {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try Data().write(to: folder.appendingPathComponent("song.mp3"))
+        }
+        let store = root.appendingPathComponent("test.store")
+        let data = try createSQLiteTestDataService(at: store)
+        let unrelated = SDAlbum.makeSample(name: "Original")
+        data.insert(unrelated)
+        try data.save()
+        unrelated.name = "Pending"
+        let mixed = MixedAlbumStore(base: data, readOnly: try createSQLiteTestDataService(at: store, allowsSave: false))
+        let collection = CollectionManager(dataService: mixed)
+        let failures = await collection.addAlbum(from: library)
+        #expect(failures.count == 1)
+        #expect(collection.albumCount == 3)
+        #expect(!collection.albums.contains { $0.folderURL == failures.first?.folder })
+        #expect(unrelated.name == "Pending" && data.modelContext.hasChanges)
+        let fresh = try createSQLiteTestDataService(at: store)
+        #expect(try fresh.albumCount() == 3)
+        #expect(fresh.findAlbum(byStableId: unrelated.stableId)?.name == "Original")
+        let retry = await collection.addAlbum(from: library)
+        #expect(retry.isEmpty)
+        #expect(try fresh.albumCount() == 4)
+        #expect(Set(collection.albums.map(\.id)).count == 4)
     }
 
     @Test("从音频文件添加专辑")
@@ -422,7 +453,7 @@ struct CollectionManagerTests {
         #expect(manager.albumCount == 3)
         
         let albumIdToRemove = albums[1].stableId
-        manager.removeAlbum(id: albumIdToRemove)
+        try manager.removeAlbum(id: albumIdToRemove)
         
         #expect(manager.albumCount == 2)
         #expect(!manager.albums.contains { $0.id == albumIdToRemove })
@@ -439,7 +470,7 @@ struct CollectionManagerTests {
         await manager.ensureLoaded()
         
         let randomId = UUID()
-        manager.removeAlbum(id: randomId)
+        try manager.removeAlbum(id: randomId)
         
         #expect(manager.albumCount == 0)
     }
@@ -451,7 +482,7 @@ struct CollectionManagerTests {
         await manager.ensureLoaded()
         
         let albumId = albums[0].stableId
-        manager.renameAlbum(id: albumId, newName: "Renamed Album")
+        try manager.renameAlbum(id: albumId, newName: "Renamed Album")
         
         #expect(manager.albums.first?.name == "Renamed Album")
         
@@ -467,7 +498,7 @@ struct CollectionManagerTests {
         await manager.ensureLoaded()
         
         let randomId = UUID()
-        manager.renameAlbum(id: randomId, newName: "Should Not Crash")
+        try manager.renameAlbum(id: randomId, newName: "Should Not Crash")
         
         #expect(manager.albumCount == 0)
     }
@@ -479,7 +510,7 @@ struct CollectionManagerTests {
         await manager.ensureLoaded()
         
         // 移动第 0 个到第 2 个位置
-        manager.moveAlbum(from: 0, to: 2)
+        try manager.moveAlbum(from: 0, to: 2)
         
         #expect(manager.albums[0].name == "Album 1")
         #expect(manager.albums[1].name == "Album 2")
@@ -501,7 +532,7 @@ struct CollectionManagerTests {
         
         let originalOrder = manager.albums.map { $0.name }
         
-        manager.moveAlbum(from: 1, to: 1)
+        try manager.moveAlbum(from: 1, to: 1)
         
         let newOrder = manager.albums.map { $0.name }
         #expect(originalOrder == newOrder)
@@ -515,7 +546,7 @@ struct CollectionManagerTests {
         
         let originalOrder = manager.albums.map { $0.name }
         
-        manager.moveAlbum(from: 0, to: 10)
+        try manager.moveAlbum(from: 0, to: 10)
         
         let newOrder = manager.albums.map { $0.name }
         #expect(originalOrder == newOrder)
@@ -528,7 +559,7 @@ struct CollectionManagerTests {
         await manager.ensureLoaded()
         #expect(manager.albumCount == 5)
         
-        manager.clearAllAlbums()
+        try manager.clearAllAlbums()
         
         #expect(manager.albumCount == 0)
         #expect(manager.albums.isEmpty)
@@ -641,5 +672,22 @@ struct CollectionManagerTests {
         manager.lastScrollAlbumId = testId
         
         #expect(manager.lastScrollAlbumId == testId)
+    }
+}
+
+@MainActor
+private final class MixedAlbumStore: TestDataServiceProxy {
+    let base: DataService
+    let readOnly: DataService
+    private var attempts = 0
+
+    init(base: DataService, readOnly: DataService) {
+        self.base = base
+        self.readOnly = readOnly
+    }
+
+    func makeLibraryWriter() -> any DataServiceProtocol {
+        attempts += 1
+        return (attempts == 2 ? readOnly : base).makeLibraryWriter()
     }
 }

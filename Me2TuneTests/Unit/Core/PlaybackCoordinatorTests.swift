@@ -370,7 +370,7 @@ struct PlaybackCoordinatorTests {
         #expect(coordinator.isShuffling)
         #expect(coordinator.playbackOrder.history == [album.tracks[2].id])
         #expect(Set(coordinator.playbackOrder.ids) == Set(album.tracks.map(\.id)))
-        coordinator.clearPlaylist()
+        try coordinator.clearPlaylist()
         #expect(Set(coordinator.playbackOrder.ids) == Set(album.tracks.map(\.id)))
         #expect(coordinator.isPlaying)
     }
@@ -407,20 +407,59 @@ struct PlaybackCoordinatorTests {
         #expect(await waitUntil { core.enqueueTrackCallIDs.count == 1 })
         core.confirmSeek(to: 30)
         coordinator.pause()
-        coordinator.removeTrackFromPlaylist(at: 1)
+        try coordinator.removeTrackFromPlaylist(at: 1)
         #expect(await waitUntil { core.loadTrackCallIDs.count == 2 })
         #expect(core.loadTrackCallIDs == [tracks[0].id, tracks[0].id])
         #expect(core.getCurrentPlaybackTime() == 30)
         #expect(!core.isPlaying)
         #expect(!coordinator.playbackOrder.ids.contains(tracks[1].id))
-        coordinator.removeTrackFromPlaylist(at: 0)
+        try coordinator.removeTrackFromPlaylist(at: 0)
         #expect(coordinator.playbackStateManager.currentTrackID == nil)
         #expect(coordinator.playbackStateManager.currentTrackIndex == nil)
         #expect(coordinator.playbackStateManager.currentTrack == nil)
         #expect(coordinator.playlistManager.index(ofID: tracks[0].id) == nil)
         #expect(!core.isPlaying)
-        coordinator.clearPlaylist()
+        try coordinator.clearPlaylist()
         #expect(coordinator.playbackOrder.ids.isEmpty)
+    }
+
+    @Test("只读曲库写入失败时维持队列、选曲和播放")
+    func failedWritesPreservePlayback() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = root.appendingPathComponent("test.store")
+        let writable = try createSQLiteTestDataService(at: store)
+        for (index, track) in makeTracks(count: 2).enumerated() {
+            let record = SDTrack(from: track)
+            record.isInPlaylist = true
+            record.playlistOrder = index
+            writable.insert(record)
+        }
+        try writable.save()
+        let readOnly = try createSQLiteTestDataService(at: store, allowsSave: false)
+        let core = MockAudioPlayerCore()
+        let collection = CollectionManager(dataService: readOnly)
+        let coordinator = PlaybackCoordinator(collectionManager: collection, dataService: readOnly,
+            statisticsManager: MockStatisticsManager(), playerCore: core,
+            defaults: try #require(UserDefaults(suiteName: "ReadOnlyPlaylist.\(UUID())")))
+        coordinator.playPlaylistTrack(at: 0)
+        try #require(await waitUntil { coordinator.isPlaying })
+        let original = coordinator.playlistManager.tracks
+        #expect(throws: AppError.self) { try coordinator.removeTrackFromPlaylist(at: 0) }
+        #expect(throws: AppError.self) { try coordinator.clearPlaylist() }
+        #expect(throws: AppError.self) { try coordinator.moveTrackInPlaylist(from: 1, to: 0) }
+        let extra = root.appendingPathComponent("extra.mp3")
+        try Data().write(to: extra)
+        let add = await coordinator.addTracksToPlaylist(urls: [extra])
+        #expect(add.failure != nil && add.newTracksCount == 0 && add.firstNewTrackIndex == nil)
+        await #expect(throws: AppError.self) { try await collection.addAlbumFromPlaylist(name: "Failed", tracks: original) }
+        #expect(collection.albums.isEmpty)
+        #expect(coordinator.isPlaying && core.playCallCount == 1)
+        #expect(coordinator.playbackStateManager.currentTrackID == original[0].id)
+        #expect(coordinator.playlistManager.tracks == original)
+        #expect(try writable.fetchPlaylistTracks().map(\.stableId) == original.map(\.id))
+        #expect(try writable.albumCount() == 0)
     }
 
     @Test("切歌等待时排序通过 ID 提交，连续下一首仅最后请求生效")
@@ -432,7 +471,7 @@ struct PlaybackCoordinatorTests {
         core.loadDelay = .milliseconds(80)
         coordinator.next()
         coordinator.next()
-        coordinator.moveTrackInPlaylist(from: 2, to: 0)
+        try coordinator.moveTrackInPlaylist(from: 2, to: 0)
         #expect(await waitUntil { core.playCallCount == 2 })
         #expect(coordinator.playbackStateManager.currentTrackID == tracks[2].id)
         #expect(core.loadTrackCallIDs.last == tracks[2].id)
@@ -461,7 +500,7 @@ struct PlaybackCoordinatorTests {
         let preview = try #require(coordinator.playbackStateManager.currentTrack)
         #expect(preview.title == "A")
         #expect(core.loadTrackCallIDs.isEmpty)
-        coordinator.moveTrackInPlaylist(from: 1, to: 0)
+        try coordinator.moveTrackInPlaylist(from: 1, to: 0)
         #expect(coordinator.playlistManager.tracks.map(\.title) == ["B", "A", "C"])
         #expect(coordinator.playbackStateManager.currentTrack?.id == preview.id)
         if shuffle { coordinator.toggleShuffle() }
@@ -488,7 +527,7 @@ struct PlaybackCoordinatorTests {
         let (coordinator, core, _) = try playlistCoordinator(count: 3, playbackOrder: order)
         let tracks = coordinator.playlistManager.tracks
         coordinator.playbackStateManager.handlePlaylistTracksAdded()
-        coordinator.moveTrackInPlaylist(from: 1, to: 0)
+        try coordinator.moveTrackInPlaylist(from: 1, to: 0)
         coordinator.toggleShuffle()
         core.loadResults[tracks[0].id] = false
         #expect(coordinator.playbackStateManager.currentTrack?.id == tracks[0].id)
@@ -646,7 +685,7 @@ struct PlaybackCoordinatorTests {
         defer { core.releaseAllLoads() }
         coordinator.previous()
         #expect(await waitUntil { core.loadTrackCallIDs.count == 5 })
-        coordinator.removeTrackFromPlaylist(at: 0)
+        try coordinator.removeTrackFromPlaylist(at: 0)
         core.releaseLoads(for: previousID)
         #expect(await waitUntil { core.playCallCount == 5 })
         #expect(coordinator.playbackOrder.history == history.filter { $0 != tracks[0].id })
@@ -799,7 +838,7 @@ struct PlaybackCoordinatorTests {
         coordinator.playbackStateManager.switchToAlbum(album, selecting: 0)
         for index in [-1, count] {
             coordinator.playPlaylistTrack(at: index)
-            coordinator.removeTrackFromPlaylist(at: index)
+            try coordinator.removeTrackFromPlaylist(at: index)
         }
         #expect(coordinator.playbackStateManager.playingSource == .album(album.id))
         #expect(coordinator.playbackStateManager.currentTrack?.id == album.tracks[0].id)

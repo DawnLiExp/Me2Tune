@@ -66,8 +66,8 @@ struct ContentView: View {
                     showClearPlaylistConfirm: $showClearPlaylistConfirm,
                     showClearCollectionsConfirm: $showClearCollectionsConfirm,
                     onExport: exportPlaylistToAlbum,
-                    onClearPlaylist: playerViewModel.clearPlaylist,
-                    onClearCollections: collectionManager.clearAllAlbums
+                    onClearPlaylist: { LibraryErrorAlert.perform("library_clear_playlist_failed") { try playerViewModel.clearPlaylist() } },
+                    onClearCollections: { LibraryErrorAlert.perform("library_clear_albums_failed") { try collectionManager.clearAllAlbums() } }
                 ))
                 .onChange(of: playerViewModel.currentTrack?.id) { _, newID in
                     updateAlbumGlow(newID: newID)
@@ -259,11 +259,12 @@ struct ContentView: View {
         guard !trimmedName.isEmpty else { return }
         
         Task {
-            if let _ = await collectionManager.addAlbumFromPlaylist(
-                name: trimmedName,
-                tracks: playerViewModel.playlistManager.tracks
-            ) {
-                selectedTab = .collections
+            do {
+                if try await collectionManager.addAlbumFromPlaylist(name: trimmedName, tracks: playerViewModel.playlistManager.tracks) != nil {
+                    selectedTab = .collections
+                }
+            } catch {
+                LibraryErrorAlert.show("library_create_album_failed", detail: error.localizedDescription)
             }
         }
     }
@@ -351,15 +352,48 @@ struct ContentView: View {
     
     private func handlePlaylistDrop(_ urls: [URL]) {
         Task { @MainActor in
-            await playerViewModel.addTracksToPlaylist(urls: urls)
+            LibraryErrorAlert.report(await playerViewModel.addTracksToPlaylist(urls: urls))
         }
     }
     
     private func handleCollectionsDrop(_ urls: [URL]) {
         Task {
+            var failures: [AlbumImportFailure] = []
             for url in urls {
-                await collectionManager.addAlbum(from: url)
+                failures += await collectionManager.addAlbum(from: url)
             }
+            if !failures.isEmpty {
+                let details = failures.map { "\($0.folder.path)\n\($0.error.localizedDescription)" }
+                LibraryErrorAlert.show("library_import_albums_failed", detail: details.joined(separator: "\n\n"))
+            }
+        }
+    }
+}
+
+@MainActor
+enum LibraryErrorAlert {
+    static func perform(_ title: LocalizedStringResource, _ change: () throws -> Void) {
+        do { try change() }
+        catch { show(title, detail: error.localizedDescription) }
+    }
+
+    static func report(_ result: AddTracksResult) {
+        if let failure = result.failure {
+            show("library_add_tracks_failed", detail: failure.localizedDescription)
+        }
+    }
+
+    static func show(_ title: LocalizedStringResource, detail: String) {
+        let alert = NSAlert()
+        alert.messageText = String(localized: title)
+        alert.informativeText = detail
+        alert.addButton(withTitle: String(localized: "ok"))
+        if let player = NSApp.orderedWindows.first(where: {
+            $0.isVisible && ($0.identifier?.rawValue == "main" || $0.identifier?.rawValue == "mini")
+        }) {
+            alert.beginSheetModal(for: player)
+        } else {
+            alert.runModal()
         }
     }
 }

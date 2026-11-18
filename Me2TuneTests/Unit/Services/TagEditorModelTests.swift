@@ -118,7 +118,10 @@ struct TagEditorModelTests {
         #expect(record.albumEntries.first?.trackOrder == 3)
         #expect(model.player.currentTrack?.title == "已保存的新标题")
         #expect(model.player.currentTrack?.metadataRevision == model.player.playlistManager.tracks.first?.metadataRevision)
-        #expect(record.title == "已保存的新标题")
+        let saved = data.makeLibraryWriter()
+        #expect(try saved.trackForUpdate(id: id)?.title == "已保存的新标题")
+        #expect(saved.findAlbum(byStableId: unrelated.stableId)?.name == "Original album")
+        #expect(unrelated.name == "Unrelated pending change")
         #expect(model.player.playlistManager.tracks.first?.metadataRevision != oldRevision)
         #expect(model.player.playlistManager.tracks.first?.id == id)
     }
@@ -313,25 +316,19 @@ private final class TagEditorPlaybackCore: AudioPlayerCoreProtocol {
 }
 
 @MainActor
-private final class FailingTagDataService: DataServiceProtocol {
+private final class FailingTagDataService: TestDataServiceProxy {
     let base: DataService
     var failSaves = false
     init(base: DataService) { self.base = base }
-    var modelContext: ModelContext { base.modelContext }
-    func insert(_ model: some PersistentModel) { base.insert(model) }
-    func delete(_ model: some PersistentModel) { base.delete(model) }
-    func fetch<T: PersistentModel>(_ descriptor: FetchDescriptor<T>) throws(AppError) -> [T] { try base.fetch(descriptor) }
-    func fetchCount(_ descriptor: FetchDescriptor<some PersistentModel>) throws(AppError) -> Int { try base.fetchCount(descriptor) }
+    func makeLibraryWriter() -> any DataServiceProtocol {
+        let context = ModelContext(base.modelContainer)
+        context.autosaveEnabled = false
+        let writer = FailingTagDataService(base: DataService(context: context))
+        writer.failSaves = failSaves
+        return writer
+    }
     func save() throws(AppError) {
         if failSaves { throw AppError.swiftDataFailed(underlying: CocoaError(.fileWriteUnknown)) }
         try base.save()
     }
-    func findTrack(byURL url: String) -> SDTrack? { base.findTrack(byURL: url) }
-    func findTrack(byStableId id: UUID) -> SDTrack? { base.findTrack(byStableId: id) }
-    func fetchPlaylistTracks() throws(AppError) -> [SDTrack] { try base.fetchPlaylistTracks() }
-    func playlistTrackCount() throws(AppError) -> Int { try base.playlistTrackCount() }
-    func fetchAlbums() throws(AppError) -> [SDAlbum] { try base.fetchAlbums() }
-    func findAlbum(byFolderURL url: String) -> SDAlbum? { base.findAlbum(byFolderURL: url) }
-    func findAlbum(byStableId id: UUID) -> SDAlbum? { base.findAlbum(byStableId: id) }
-    func albumCount() throws(AppError) -> Int { try base.albumCount() }
 }

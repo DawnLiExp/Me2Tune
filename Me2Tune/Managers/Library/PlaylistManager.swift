@@ -15,7 +15,7 @@ private let logger = Logger.viewModel
 
 private struct PlaylistEntry {
     var track: AudioTrack
-    let sdTrack: SDTrack
+    let urlString: String
 }
 
 // MARK: - Add Tracks Result
@@ -27,6 +27,7 @@ struct AddTracksResult {
     let firstNewTrackIndex: Int?
     /// 已有曲目的 URL 到 entries 索引的映射
     let existingTrackIndices: [URL: Int]
+    private(set) var failure: AppError? = nil
 }
 
 @MainActor
@@ -87,7 +88,7 @@ final class PlaylistManager {
 
     func refreshTrackMetadata(_ track: AudioTrack) {
         for index in entries.indices where entries[index].track.id == track.id {
-            entries[index].track = track
+            entries[index] = PlaylistEntry(track: track, urlString: track.url.absoluteString)
         }
     }
 
@@ -109,7 +110,7 @@ final class PlaylistManager {
 
         // Build URL lookup for deduplication against current entries
         let existingURLMap: [String: Int] = Dictionary(
-            entries.enumerated().map { ($1.sdTrack.urlString, $0) },
+            entries.enumerated().map { ($1.urlString, $0) },
             uniquingKeysWith: { first, _ in first }
         )
 
@@ -139,9 +140,9 @@ final class PlaylistManager {
         loadingCount += pendingCount
         defer { loadingCount -= pendingCount }
 
-        let loadedTracks = await loadTracksFromURLs(newURLs)
+        let loadedTracks = await metadataLoader(newURLs)
         let currentURLMap: [String: Int] = Dictionary(
-            entries.enumerated().map { ($1.sdTrack.urlString, $0) },
+            entries.enumerated().map { ($1.urlString, $0) },
             uniquingKeysWith: { first, _ in first }
         )
         existingTrackIndices = [:]
@@ -154,113 +155,94 @@ final class PlaylistManager {
         guard !newDTOTracks.isEmpty else {
             return AddTracksResult(newTracksCount: 0, firstNewTrackIndex: nil, existingTrackIndices: existingTrackIndices)
         }
-        var tracksByURL: [String: SDTrack]
-        do {
-            tracksByURL = try dataService.findTracks(byURLs: newDTOTracks.map { $0.url.absoluteString })
-        } catch {
-            logger.logError(error, context: "addTracks lookup")
-            return AddTracksResult(newTracksCount: 0, firstNewTrackIndex: nil, existingTrackIndices: existingTrackIndices)
-        }
+        let writer = dataService.makeLibraryWriter()
         let baseOrder = entries.count
         var newEntries: [PlaylistEntry] = []
-
-        for (offset, dto) in newDTOTracks.enumerated() {
-            let sdTrack: SDTrack
-            if let existing = tracksByURL[dto.url.absoluteString] {
-                sdTrack = existing
-            } else {
-                sdTrack = SDTrack(from: dto)
-                dataService.insert(sdTrack)
-                tracksByURL[dto.url.absoluteString] = sdTrack
-            }
-            sdTrack.isInPlaylist = true
-            sdTrack.playlistOrder = baseOrder + offset
-            newEntries.append(PlaylistEntry(track: sdTrack.toAudioTrack(), sdTrack: sdTrack))
-        }
-
         do {
-            try dataService.save()
+            var records = try writer.findTracks(byURLs: newDTOTracks.map { $0.url.absoluteString })
+            for dto in newDTOTracks {
+                let key = dto.url.absoluteString
+                let record: SDTrack
+                if let existing = records[key] {
+                    record = existing
+                } else {
+                    record = SDTrack(from: dto)
+                    writer.insert(record)
+                    records[key] = record
+                }
+                record.isInPlaylist = true
+                record.playlistOrder = baseOrder + newEntries.count
+                newEntries.append(PlaylistEntry(track: record.toAudioTrack(), urlString: record.urlString))
+            }
+            try writer.save()
         } catch {
             logger.logError(error, context: "addTracks")
+            return AddTracksResult(newTracksCount: 0, firstNewTrackIndex: nil,
+                                   existingTrackIndices: existingTrackIndices, failure: error)
         }
 
         entries.append(contentsOf: newEntries)
-
-        let firstNewIndex = newEntries.isEmpty ? nil : baseOrder
-
-
-        let elapsed = CFAbsoluteTimeGetCurrent() - startTime
-        logger.logPerformance("Add \(newEntries.count) tracks", duration: elapsed)
-
-        return AddTracksResult(
-            newTracksCount: newEntries.count,
-            firstNewTrackIndex: firstNewIndex,
-            existingTrackIndices: existingTrackIndices
-        )
+        logger.logPerformance("Add \(newEntries.count) tracks", duration: CFAbsoluteTimeGetCurrent() - startTime)
+        return AddTracksResult(newTracksCount: newEntries.count, firstNewTrackIndex: baseOrder,
+                               existingTrackIndices: existingTrackIndices)
     }
 
     // MARK: - Public Methods - Remove
 
-    func removeTrack(at index: Int) {
+    func removeTrack(at index: Int) throws(AppError) {
         guard entries.indices.contains(index) else { return }
-
-        let entry = entries.remove(at: index)
-        let sdTrack = entry.sdTrack
-        sdTrack.isInPlaylist = false
-        sdTrack.playlistOrder = nil
-
-        if sdTrack.albumEntries.isEmpty {
-            dataService.delete(sdTrack)
+        let writer = dataService.makeLibraryWriter()
+        let affected = try records(for: entries[index...], using: writer)
+        removeFromPlaylist(affected[0], using: writer)
+        for (offset, record) in affected.dropFirst().enumerated() {
+            record.playlistOrder = index + offset
         }
-
-        for i in index ..< entries.count {
-            entries[i].sdTrack.playlistOrder = i
-        }
-
-        try? dataService.save()
+        try writer.save()
+        entries.remove(at: index)
     }
 
-    func clearAll() {
-        for entry in entries {
-            let sdTrack = entry.sdTrack
-            sdTrack.isInPlaylist = false
-            sdTrack.playlistOrder = nil
-            if sdTrack.albumEntries.isEmpty {
-                dataService.delete(sdTrack)
-            }
+    func clearAll() throws(AppError) {
+        guard !entries.isEmpty else { return }
+        let writer = dataService.makeLibraryWriter()
+        for record in try records(for: entries[...], using: writer) {
+            removeFromPlaylist(record, using: writer)
         }
-
-        do {
-            try dataService.save()
-        } catch {
-            logger.logError(error, context: "clearAll")
-        }
-
+        try writer.save()
         entries.removeAll()
-        logger.info("🗑️ Cleared playlist")
     }
 
-    // MARK: - Public Methods - Reorder
+    private func removeFromPlaylist(_ record: SDTrack, using writer: any DataServiceProtocol) {
+        record.isInPlaylist = false
+        record.playlistOrder = nil
+        if record.albumEntries.isEmpty { writer.delete(record) }
+    }
 
-    func moveTrack(from source: Int, to destination: Int) {
-        guard entries.indices.contains(source),
-              entries.indices.contains(destination),
-              source != destination
-        else {
-            return
-        }
-
-        let movedEntry = entries.remove(at: source)
-        entries.insert(movedEntry, at: destination)
-
+    func moveTrack(from source: Int, to destination: Int) throws(AppError) {
+        guard entries.indices.contains(source), entries.indices.contains(destination), source != destination else { return }
         let start = min(source, destination)
-        let end = max(source, destination)
-        for i in start ... end {
-            entries[i].sdTrack.playlistOrder = i
-        }
+        let range = start...max(source, destination)
+        var reordered = Array(entries[range])
+        let moved = reordered.remove(at: source - start)
+        reordered.insert(moved, at: destination - start)
 
-        try? dataService.save()
-        logger.debug("Moved track from \(source) to \(destination)")
+        let writer = dataService.makeLibraryWriter()
+        for (offset, record) in try records(for: reordered[...], using: writer).enumerated() {
+            record.playlistOrder = start + offset
+        }
+        try writer.save()
+        entries.replaceSubrange(range, with: reordered)
+    }
+
+    private func records(for entries: ArraySlice<PlaylistEntry>, using writer: any DataServiceProtocol) throws(AppError) -> [SDTrack] {
+        let byURL = try writer.findTracks(byURLs: entries.map(\.urlString))
+        var result: [SDTrack] = []
+        for entry in entries {
+            guard let record = byURL[entry.urlString], record.stableId == entry.track.id else {
+                throw .persistenceFailed("update playlist")
+            }
+            result.append(record)
+        }
+        return result
     }
 
     // MARK: - Private Methods - Persistence
@@ -268,7 +250,7 @@ final class PlaylistManager {
     private func loadPlaylistContent() {
         do {
             let sdTracks = try dataService.fetchPlaylistTracks()
-            entries = sdTracks.map { PlaylistEntry(track: $0.toAudioTrack(), sdTrack: $0) }
+            entries = sdTracks.map { PlaylistEntry(track: $0.toAudioTrack(), urlString: $0.urlString) }
             logger.info("📋 Loaded \(sdTracks.count) playlist tracks")
         } catch {
             logger.notice("No saved playlist content found")
@@ -315,9 +297,5 @@ final class PlaylistManager {
             }
             return lhs.filename.localizedStandardCompare(rhs.filename) == .orderedAscending
         }.map(\.url)
-    }
-
-    private func loadTracksFromURLs(_ urls: [URL]) async -> [AudioTrack] {
-        await metadataLoader(urls)
     }
 }

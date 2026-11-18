@@ -28,7 +28,7 @@ struct AudioEngineIntegrationTests {
         let result = await coordinator.addTracksToPlaylist(urls: tracks.map(\.url))
         try #require(result.newTracksCount == 3)
         let preview = try #require(coordinator.playbackStateManager.currentTrack)
-        coordinator.moveTrackInPlaylist(from: 1, to: 0)
+        try coordinator.moveTrackInPlaylist(from: 1, to: 0)
         #expect(coordinator.playlistManager.track(at: 0)?.id != preview.id)
         #expect(coordinator.playbackStateManager.currentTrack?.id == preview.id)
 
@@ -443,7 +443,7 @@ struct AudioEngineIntegrationTests {
         #expect(await waitUntil { core.queuedTrackID == tracks[1].id })
         coordinator.pause()
         let position = core.getCurrentPlaybackTime()
-        coordinator.removeTrackFromPlaylist(at: 1)
+        try coordinator.removeTrackFromPlaylist(at: 1)
         #expect(await waitUntil { abs(core.getCurrentPlaybackTime() - position) < 0.03 })
         #expect(!core.isPlaying)
         coordinator.play()

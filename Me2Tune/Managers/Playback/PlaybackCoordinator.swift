@@ -80,7 +80,8 @@ final class PlaybackCoordinator {
             await ArtworkCacheService.shared.invalidate(url: url)
             await LyricsCacheService.shared.invalidate(url: url)
         }
-        let record = dataService.findTrack(byStableId: id)
+        let writer = dataService.makeLibraryWriter()
+        let record = try writer.trackForUpdate(id: id)
         let existingURL = old?.url ?? record.flatMap { URL(string: $0.urlString) }
         let referenceURL = existingURL.flatMap { $0.resolvingSymlinksInPath() == snapshot.url ? $0 : nil } ?? snapshot.url
         let title = snapshot.text(.title).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -90,18 +91,12 @@ final class PlaybackCoordinator {
                                                      includingResourceValuesForKeys: nil, relativeTo: nil)
         let refreshed: AudioTrack?
         if let record {
-            let previous = (record.title, record.artist, record.albumTitle, record.urlString, record.bookmark)
             record.title = title.isEmpty ? referenceURL.deletingPathExtension().lastPathComponent : title
             record.artist = artist.isEmpty ? nil : artist
             record.albumTitle = album.isEmpty ? nil : album
             record.urlString = referenceURL.absoluteString
             record.bookmark = bookmark
-            do { try dataService.save() }
-            catch {
-                // Revert only this operation's properties; unrelated context changes remain intact.
-                (record.title, record.artist, record.albumTitle, record.urlString, record.bookmark) = previous
-                throw error
-            }
+            try writer.save()
             refreshed = record.toAudioTrack()
         } else if let old {
             refreshed = AudioTrack(id: id, url: referenceURL,
@@ -406,7 +401,7 @@ final class PlaybackCoordinator {
         return result
     }
 
-    func removeTrackFromPlaylist(at index: Int) {
+    func removeTrackFromPlaylist(at index: Int) throws(AppError) {
         guard !isPlaybackBlockedForTagSave else { return }
         guard let removedTrack = playlistManager.track(at: index) else { return }
         let active = playbackStateManager.playingSource == .playlist
@@ -415,9 +410,9 @@ final class PlaybackCoordinator {
         let wasSubmitted = active && loadController.submitted?.id == removedTrack.id
         let resumeTime = playerCore.getCurrentPlaybackTime()
         let resumePlayback = isPlaying
+        try playlistManager.removeTrack(at: index)
         if wasCurrent || wasRequested || wasSubmitted { loadController.stop() }
         failedTrackRegistry.clear(removedTrack.id)
-        playlistManager.removeTrack(at: index)
         playbackStateManager.handlePlaylistTrackRemoved(removedTrackID: removedTrack.id, wasPlaying: wasCurrent)
         if active {
             loadController.synchronizeOrder()
@@ -435,15 +430,15 @@ final class PlaybackCoordinator {
         }
     }
 
-    func clearPlaylist() {
+    func clearPlaylist() throws(AppError) {
         guard !isPlaybackBlockedForTagSave else { return }
         let isClearingCurrentSource = (playbackStateManager.playingSource == .playlist)
 
+        try playlistManager.clearAll()
         if isClearingCurrentSource {
             loadController.stop()
         }
 
-        playlistManager.clearAll()
         playbackStateManager.handlePlaylistCleared()
         failedTrackRegistry.pruneStale(keeping: Set(playbackStateManager.currentTracks.map(\.id)))
 
@@ -455,9 +450,9 @@ final class PlaybackCoordinator {
         }
     }
 
-    func moveTrackInPlaylist(from source: Int, to destination: Int) {
+    func moveTrackInPlaylist(from source: Int, to destination: Int) throws(AppError) {
         guard !isPlaybackBlockedForTagSave else { return }
-        playlistManager.moveTrack(from: source, to: destination)
+        try playlistManager.moveTrack(from: source, to: destination)
         playbackStateManager.handlePlaylistTrackMoved(from: source, to: destination)
         if playbackStateManager.playingSource == .playlist { loadController.synchronizeOrder() }
     }

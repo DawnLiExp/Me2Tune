@@ -89,17 +89,17 @@ struct ContentSectionView: View {
                     viewModel.playAlbum(album, startAt: index)
                 },
                 onAlbumRemoved: { albumId in
-                    collectionManager.removeAlbum(id: albumId)
+                    LibraryErrorAlert.perform("library_remove_album_failed") { try collectionManager.removeAlbum(id: albumId) }
                 },
                 onAlbumRenamed: { albumId, newName in
-                    collectionManager.renameAlbum(id: albumId, newName: newName)
+                    LibraryErrorAlert.perform("library_rename_album_failed") { try collectionManager.renameAlbum(id: albumId, newName: newName) }
                 },
                 onAlbumMoved: { from, to in
-                    collectionManager.moveAlbum(from: from, to: to)
+                    LibraryErrorAlert.perform("library_move_album_failed") { try collectionManager.moveAlbum(from: from, to: to) }
                 },
                 onTrackAddedToPlaylist: { track in
                     Task { @MainActor in
-                        await viewModel.addTracksToPlaylist(urls: [track.url])
+                        LibraryErrorAlert.report(await viewModel.addTracksToPlaylist(urls: [track.url]))
                     }
                 },
                 onEnsureLoaded: {
@@ -125,11 +125,11 @@ struct ContentSectionView: View {
                         viewModel.playPlaylistTrack(at: index)
                     },
                     onTrackRemoved: { index in
-                        viewModel.removeTrackFromPlaylist(at: index)
+                        LibraryErrorAlert.perform("library_remove_track_failed") { try viewModel.removeTrackFromPlaylist(at: index) }
                     },
                     onTrackMoved: { from, to in
                         if let sourceIndex = from.first {
-                            viewModel.moveTrackInPlaylist(from: sourceIndex, to: to)
+                            LibraryErrorAlert.perform("library_move_track_failed") { try viewModel.moveTrackInPlaylist(from: sourceIndex, to: to) }
                         }
                     },
                     onFilesDrop: onPlaylistDrop

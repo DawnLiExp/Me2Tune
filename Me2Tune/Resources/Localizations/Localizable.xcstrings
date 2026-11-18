@@ -1,6 +1,66 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "library_clear_playlist_failed" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Couldn’t clear the playlist" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未能清空播放列表" } }
+      }
+    },
+    "library_clear_albums_failed" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Couldn’t clear the album collection" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未能清空专辑收藏" } }
+      }
+    },
+    "library_create_album_failed" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Couldn’t save the album" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未能保存专辑" } }
+      }
+    },
+    "library_import_albums_failed" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Some albums couldn’t be saved" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "部分专辑未能保存" } }
+      }
+    },
+    "library_add_tracks_failed" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Couldn’t add tracks to the playlist" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未能将曲目加入播放列表" } }
+      }
+    },
+    "library_remove_album_failed" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Couldn’t remove the album" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未能删除专辑" } }
+      }
+    },
+    "library_rename_album_failed" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Couldn’t rename the album" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未能重命名专辑" } }
+      }
+    },
+    "library_move_album_failed" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Couldn’t reorder the albums" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未能调整专辑顺序" } }
+      }
+    },
+    "library_remove_track_failed" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Couldn’t remove the track" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未能移除曲目" } }
+      }
+    },
+    "library_move_track_failed" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Couldn’t reorder the playlist" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未能调整播放列表顺序" } }
+      }
+    },
     "lyrics_seek_hint" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Click a lyric to seek" } },
