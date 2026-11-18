@@ -79,10 +79,8 @@ final class PlaybackTimeSampler {
         pollingTask = nil
     }
 
-    nonisolated func stopFromDeinit() {
-        Task { @MainActor [weak self] in
-            self?.stop()
-        }
+    deinit {
+        pollingTask?.cancel()
     }
 
     private var shouldSample: Bool {
@@ -131,8 +129,6 @@ final class PlaybackTimeSampler {
                 guard self.shouldSample else { break }
                 self.emitSample()
             }
-
-            self?.pollingTask = nil
         }
     }
 

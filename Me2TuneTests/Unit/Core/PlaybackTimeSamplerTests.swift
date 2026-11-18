@@ -224,6 +224,24 @@ struct PlaybackTimeSamplerTests {
         #expect(statisticsTickCount == snapshot)
     }
 
+    @Test("更换窗口采样频率后仍可停止当前任务")
+    func stopsReplacementTaskAfterVisibilityChanges() async throws {
+        var count = 0
+        let sampler = PlaybackTimeSampler(timeProvider: { 1 }, uiHandler: { _ in },
+            statisticsHandler: { _ in count += 1 }, intervalResolver: Self.testInterval(for:))
+        defer { sampler.updatePlaybackState(isPlaying: false) }
+        sampler.updatePlaybackState(isPlaying: true)
+        for state in [WindowStateMonitor.WindowVisibilityState.inactive, .miniHidden, .activeFocused] {
+            sampler.updateVisibilityState(state)
+            let before = count
+            try #require(await waitUntil { count > before })
+        }
+        sampler.stop()
+        let atStop = count
+        try await Task.sleep(for: .milliseconds(160))
+        #expect(count == atStop)
+    }
+
     @Test("统计处理接收的时间来自 timeProvider")
     func statisticsHandlerUsesProviderValue() async throws {
         var providerValue: TimeInterval = 0

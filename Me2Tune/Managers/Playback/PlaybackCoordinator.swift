@@ -266,7 +266,6 @@ final class PlaybackCoordinator {
     }
 
     deinit {
-        timeSampler.stopFromDeinit()
         persistenceController.cancelAllFromDeinit()
     }
 
