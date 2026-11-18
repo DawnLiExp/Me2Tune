@@ -223,7 +223,6 @@ private final class LyricsInteractionCore: AudioPlayerCoreProtocol {
     var seeks: [TimeInterval] = []
     func loadTrack(_ track: AudioTrack, startingAt time: TimeInterval) async -> Bool {
         self.track = track
-        delegate?.playerCoreDidLoadTrack(track, artwork: nil)
         return true
     }
     func enqueueTrack(_ track: AudioTrack) -> AudioEnqueueResult { .failed }

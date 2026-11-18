@@ -18,16 +18,6 @@ final class PlaybackCoordinator {
         var provider: @MainActor () -> Double = { 0.7 }
     }
 
-    @MainActor
-    private final class RepeatModeProviderBox {
-        var provider: @MainActor () -> RepeatMode = { .off }
-    }
-
-    @MainActor
-    private final class PauseHandlerBox {
-        var handler: @MainActor () -> Void = {}
-    }
-
     private(set) var isPlaying = false
     private(set) var isSavingTags = false
     private(set) var isPlaybackBlockedForTagSave = false
@@ -57,7 +47,7 @@ final class PlaybackCoordinator {
         // including a preloaded successor, can continue using its original file handle.
         guard isPlaybackBlockedForTagSave else { return true }
         tagSaveRestartID = playbackStateManager.currentTrackID
-        loadController.stop()
+        stopLoading()
         isPlaying = false
         playbackProgressState.currentTime = 0
         timeSampler.updatePlaybackState(isPlaying: false)
@@ -109,10 +99,11 @@ final class PlaybackCoordinator {
         collectionManager.refreshTrackMetadata(refreshed)
         playbackStateManager.refreshTrackMetadata(refreshed)
         if playbackStateManager.currentTrackID == id {
+            let request = loadController.generation
             let artwork = await artworkProvider.artwork(for: snapshot.url)
-            guard playbackStateManager.currentTrack?.metadataRevision == refreshed.metadataRevision else { return }
-            currentArtwork = artwork
-            effectsController.updateDockIcon(artwork)
+            guard loadController.generation == request, playbackStateManager.currentTrackID == id,
+                  playbackStateManager.currentTrack?.metadataRevision == refreshed.metadataRevision else { return }
+            publishArtwork(artwork, for: refreshed)
             updateNowPlayingInfo()
         }
     }
@@ -168,7 +159,20 @@ final class PlaybackCoordinator {
     @ObservationIgnored private let effectsController: any PlaybackEffects
     @ObservationIgnored private let artworkProvider: any PlaybackArtworkProviding
     @ObservationIgnored private let statisticsTracker: PlaybackStatisticsTracker
-    @ObservationIgnored private let loadController: PlaybackLoadController
+    @ObservationIgnored private var activationArtworkTask: Task<Void, Never>?
+    @ObservationIgnored private var presentedArtworkRevision: UUID?
+    @ObservationIgnored private lazy var loadController: PlaybackLoadController = PlaybackLoadController(
+        playerCore: playerCore, stateManager: playbackStateManager, registry: failedTrackRegistry,
+        onTrackPrepared: { [weak self] track in await self?.preparePresentation(for: track) },
+        onTrackLoaded: { [weak self] track in self?.commitCurrentTrack(track) },
+        repeatModeProvider: { [weak self] in self?.repeatMode ?? .off },
+        onPause: { [weak self] in self?.pause() },
+        onTrackRequested: { [weak self] track in
+            self?.activationArtworkTask?.cancel()
+            self?.statisticsTracker.prepareForRequestedTrack(track.id)
+        },
+        order: playbackOrder
+    )
     @ObservationIgnored private var timeSampler: PlaybackTimeSampler!
 
     @ObservationIgnored private var windowStateMonitor: WindowStateMonitor?
@@ -200,18 +204,15 @@ final class PlaybackCoordinator {
             sessionStore: PlaybackSessionStore(defaults: defaults)
         )
 
-        let playerCore = playerCore ?? AudioPlayerCore(artworkProvider: artworkProvider)
+        let playerCore = playerCore ?? AudioPlayerCore()
         self.playerCore = playerCore
         self.failedTrackRegistry = FailedTrackRegistry()
         self.effectsController = effects
         self.artworkProvider = artworkProvider
         self.statisticsTracker = PlaybackStatisticsTracker(statisticsManager: statisticsManager ?? StatisticsManager(dataService: dataService))
-        let statisticsTracker = self.statisticsTracker
 
         let playbackStateManager = self.playbackStateManager
         let volumeProviderBox = VolumeProviderBox()
-        let repeatModeProviderBox = RepeatModeProviderBox()
-        let pauseHandlerBox = PauseHandlerBox()
         self.persistenceController = PlaybackPersistenceController(
             saveHandler: { [weak playbackStateManager, volumeProviderBox] in
                 playbackStateManager?.saveState(volume: volumeProviderBox.provider())
@@ -220,32 +221,9 @@ final class PlaybackCoordinator {
                 playerCore?.setVolume(volume)
             }
         )
-        self.loadController = PlaybackLoadController(
-            playerCore: playerCore,
-            stateManager: self.playbackStateManager,
-            registry: self.failedTrackRegistry,
-            persistenceController: self.persistenceController,
-            repeatModeProvider: { [repeatModeProviderBox] in
-                repeatModeProviderBox.provider()
-            },
-            onPause: { [pauseHandlerBox] in
-                pauseHandlerBox.handler()
-            },
-            onTrackRequested: { track in
-                statisticsTracker.prepareForRequestedTrack(track.id)
-            },
-            order: playbackOrder
-        )
         volumeProviderBox.provider = { [weak self] in
             self?.volume ?? 0.7
         }
-        repeatModeProviderBox.provider = { [weak self] in
-            self?.repeatMode ?? .off
-        }
-        pauseHandlerBox.handler = { [weak self] in
-            self?.pause()
-        }
-
         self.playbackOrder.setShuffling(defaults.bool(forKey: "shuffleEnabled"))
         playerCore.delegate = self
         self.timeSampler = PlaybackTimeSampler(
@@ -265,6 +243,7 @@ final class PlaybackCoordinator {
     }
 
     deinit {
+        activationArtworkTask?.cancel()
         persistenceController.cancelAllFromDeinit()
     }
 
@@ -280,6 +259,8 @@ final class PlaybackCoordinator {
             }
         }
         loadController.setPlaybackIntent(true)
+        // A paused decoder can activate before the explicit load finishes preparing its artwork.
+        guard loadController.preparingID == nil else { return }
         if loadController.hasLoadedTrack, !loadController.hasEnded {
             playerCore.play()
             return
@@ -415,7 +396,7 @@ final class PlaybackCoordinator {
         let resumeTime = playerCore.getCurrentPlaybackTime()
         let resumePlayback = isPlaying
         try playlistManager.removeTrack(at: index)
-        if wasCurrent || wasRequested || wasSubmitted { loadController.stop() }
+        if wasCurrent || wasRequested || wasSubmitted { stopLoading() }
         failedTrackRegistry.clear(removedTrack.id)
         playbackStateManager.handlePlaylistTrackRemoved(removedTrackID: removedTrack.id, wasPlaying: wasCurrent)
         if active {
@@ -440,7 +421,7 @@ final class PlaybackCoordinator {
 
         try playlistManager.clearAll()
         if isClearingCurrentSource {
-            loadController.stop()
+            stopLoading()
         }
 
         playbackStateManager.handlePlaylistCleared()
@@ -483,6 +464,7 @@ final class PlaybackCoordinator {
         }
 
         resetOrder()
+        activationArtworkTask?.cancel()
         return await loadController.restore(restored.track)
     }
 
@@ -551,6 +533,57 @@ final class PlaybackCoordinator {
         logger.debug("Coordinator visibility: \(state.description)")
     }
 
+    private func stopLoading() {
+        activationArtworkTask?.cancel()
+        loadController.stop()
+    }
+
+    private func commitCurrentTrack(_ track: AudioTrack) {
+        if playbackStateManager.currentTrackID != track.id {
+            playbackStateManager.setCurrentTrack(id: track.id)
+        }
+        persistenceController.scheduleSave()
+    }
+
+    private func publishArtwork(_ artwork: NSImage?, for track: AudioTrack) {
+        currentArtwork = artwork
+        presentedArtworkRevision = track.metadataRevision
+        effectsController.updateDockIcon(artwork)
+    }
+
+    private func preparePresentation(for track: AudioTrack) async {
+        let request = loadController.generation
+        let artwork = await artworkProvider.artwork(for: track.url)
+        guard loadController.generation == request, !isPlaybackBlockedForTagSave,
+              let latest = playbackStateManager.currentTracks.first(where: { $0.id == track.id }) else { return }
+        if latest.metadataRevision == track.metadataRevision {
+            publishArtwork(artwork, for: track)
+        }
+        duration = latest.duration
+        effectsController.ensureRemoteCommandsReady(handlers: makePlaybackCommandHandlers())
+        if !loadController.hasPendingStart, playbackStateManager.currentTrackID == track.id {
+            updateNowPlayingInfo()
+        }
+    }
+
+    private func updateActivatedArtwork(for track: AudioTrack) {
+        activationArtworkTask?.cancel()
+        if presentedArtworkRevision == track.metadataRevision {
+            updateNowPlayingInfo()
+            return
+        }
+        guard loadController.preparingID != track.id else { return }
+        let request = loadController.generation
+        activationArtworkTask = Task { @MainActor [weak self, artworkProvider] in
+            let artwork = await artworkProvider.artwork(for: track.url)
+            guard !Task.isCancelled, let self, self.loadController.generation == request,
+                  self.playbackStateManager.currentTrackID == track.id,
+                  self.playbackStateManager.currentTrack?.metadataRevision == track.metadataRevision else { return }
+            self.publishArtwork(artwork, for: track)
+            self.updateNowPlayingInfo()
+        }
+    }
+
     private func updateNowPlayingInfo() {
         guard let track = playbackStateManager.currentTrack else { return }
         effectsController.updateNowPlayingInfo(
@@ -585,17 +618,6 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
         }
     }
 
-    func playerCoreDidLoadTrack(_ track: AudioTrack, artwork: NSImage?) {
-        guard !isPlaybackBlockedForTagSave else { return }
-        // A tag save can finish while this load is awaiting artwork.
-        if playbackStateManager.currentTracks.first(where: { $0.id == track.id })?.metadataRevision == track.metadataRevision {
-            currentArtwork = artwork
-            effectsController.updateDockIcon(artwork)
-        }
-        duration = track.duration
-        effectsController.ensureRemoteCommandsReady(handlers: makePlaybackCommandHandlers())
-    }
-
     func playerCoreDidEncounterError(_ error: Error) {
         logger.logError(error, context: "PlayerCore")
     }
@@ -607,38 +629,18 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
             return
         }
 
-        // Queued decoders retain the old DTO; resolve metadata from the library at activation.
-        let track = playbackStateManager.currentTracks.first { $0.id == reportedTrack.id } ?? reportedTrack
+        // Queued decoders retain the old DTO; use current library metadata on activation.
+        guard let track = playbackStateManager.currentTracks.first(where: { $0.id == reportedTrack.id }) else {
+            logger.warning("Track not found in current tracks: \(reportedTrack.title)")
+            return
+        }
         loadController.confirmStarted(track)
         statisticsTracker.didActivateTrack(track.id)
-        let tracks = playbackStateManager.currentTracks
-        if let index = tracks.firstIndex(where: { $0.id == track.id }) {
-            let idChanged = (playbackStateManager.currentTrackID != track.id)
-            if idChanged {
-                logger.info("Auto switched to track \(index + 1): \(track.title)")
-                playbackStateManager.setCurrentTrack(id: track.id)
-            }
-
-            let generation = loadController.generation
-            Task { @MainActor in
-                let artwork = await self.artworkProvider.artwork(for: track.url)
-                guard self.loadController.generation == generation,
-                      self.playbackStateManager.currentTrackID == track.id,
-                      self.playbackStateManager.currentTrack?.metadataRevision == track.metadataRevision else { return }
-
-                self.currentArtwork = artwork
-                self.duration = track.duration
-
-                self.updateNowPlayingInfo()
-                self.effectsController.updateDockIcon(artwork)
-
-                if idChanged {
-                    self.persistenceController.scheduleSave()
-                }
-            }
-        } else {
-            logger.warning("Track not found in current tracks: \(track.title)")
+        if playbackStateManager.currentTrackID != track.id {
+            commitCurrentTrack(track)
         }
+        duration = track.duration
+        updateActivatedArtwork(for: track)
     }
 
     func playerCoreDecodingComplete(for track: AudioTrack) {

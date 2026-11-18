@@ -5,7 +5,6 @@
 //  音频播放核心 - 纯播放逻辑 + 加载状态返回
 //
 
-import AppKit
 import Foundation
 import OSLog
 import SFBAudioEngine
@@ -18,7 +17,6 @@ private let logger = Logger.player
 protocol AudioPlayerCoreDelegate: AnyObject {
     func playerCoreDidUpdatePlaybackState(_ isPlaying: Bool)
     func playerCoreDidUpdateTime(currentTime: TimeInterval, duration: TimeInterval)
-    func playerCoreDidLoadTrack(_ track: AudioTrack, artwork: NSImage?)
     func playerCoreDidEncounterError(_ error: Error)
     func playerCoreDidConfirmSeek(to time: TimeInterval)
     func playerCoreDecodingFailed(for track: AudioTrack, isCurrent: Bool)
@@ -33,7 +31,6 @@ protocol AudioPlayerCoreDelegate: AnyObject {
 final class AudioPlayerCore: NSObject {
     weak var delegate: (any AudioPlayerCoreDelegate)?
     
-    private let artworkProvider: any PlaybackArtworkProviding
     private var player: AudioPlayer?
     private(set) var isPlaying = false
     private(set) var currentTime: TimeInterval = 0
@@ -62,8 +59,7 @@ final class AudioPlayerCore: NSObject {
     var repeatMode: RepeatMode = .off
     var volume: Double = 0.7
     
-    init(artworkProvider: any PlaybackArtworkProviding = ArtworkCacheService.shared) {
-        self.artworkProvider = artworkProvider
+    override init() {
         super.init()
         let stream = events.stream
         eventTask = Task { @MainActor [weak self] in
@@ -88,7 +84,6 @@ final class AudioPlayerCore: NSObject {
         decoderQueue.reset()
         pendingSeek = nil
         seekingDecoderID = nil
-        let generation = decoderQueue.generation
         isPlaying = false
         currentTrack = track
         currentTime = 0
@@ -98,9 +93,6 @@ final class AudioPlayerCore: NSObject {
             try enqueueCurrentDecoder(for: track, startingAt: time, player: player)
             delegate?.playerCoreDidUpdatePlaybackState(false)
             delegate?.playerCoreDidUpdateTime(currentTime: currentTime, duration: duration)
-            let artwork = await artworkProvider.artwork(for: track.url)
-            guard decoderQueue.generation == generation, decoderQueue.currentID != nil else { return false }
-            delegate?.playerCoreDidLoadTrack(track, artwork: artwork)
             logger.logPerformance("Track load", duration: CFAbsoluteTimeGetCurrent() - loadStartedAt)
             return true
         } catch {
@@ -111,7 +103,6 @@ final class AudioPlayerCore: NSObject {
         }
     }
 
-    // Keep the decoder's local strong reference out of the artwork suspension point.
     private func enqueueCurrentDecoder(for track: AudioTrack, startingAt time: TimeInterval, player: AudioPlayer) throws {
         let decoder = try makeDecoder(for: track)
         if time > 0 {
@@ -125,7 +116,7 @@ final class AudioPlayerCore: NSObject {
             currentTime = Double(decoder.position) / decoder.processingFormat.sampleRate
         }
         decoderQueue.register(DecoderReference(decoder), track: track, current: true)
-        // Queue without briefly rendering the track while artwork is loading.
+        // Playback starts only when the application confirms playback intent.
         try player.enqueue(decoder, immediate: true)
     }
 

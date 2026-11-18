@@ -43,16 +43,12 @@ struct PlaybackLoadControllerTests {
 
         let registry = FailedTrackRegistry()
         let requestedTracks = RequestedTrackRecorder()
-        let persistenceController = PlaybackPersistenceController(
-            saveHandler: {},
-            volumeApplyHandler: { _ in }
-        )
-
         let controller = PlaybackLoadController(
             playerCore: playerCore,
             stateManager: stateManager,
             registry: registry,
-            persistenceController: persistenceController,
+            onTrackPrepared: { _ in },
+            onTrackLoaded: { stateManager.setCurrentTrack(id: $0.id) },
             repeatModeProvider: { repeatMode },
             onPause: onPause,
             onTrackRequested: { track in

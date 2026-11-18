@@ -118,6 +118,28 @@ struct TestPlaybackArtwork: PlaybackArtworkProviding {
 }
 
 @MainActor
+final class HeldPlaybackArtwork: PlaybackArtworkProviding {
+    private var nextURL: URL?
+    private var continuation: CheckedContinuation<NSImage?, Never>?
+    var isWaiting: Bool { continuation != nil }
+
+    init(holdingNext url: URL) { nextURL = url }
+
+    @MainActor func artwork(for url: URL) async -> NSImage? {
+        guard nextURL == url else { return nil }
+        nextURL = nil
+        return await withCheckedContinuation { continuation = $0 }
+    }
+
+    func invalidate(url: URL) async {}
+
+    func release(with image: NSImage? = nil) {
+        continuation?.resume(returning: image)
+        continuation = nil
+    }
+}
+
+@MainActor
 final class RecordingPlaybackEffects: PlaybackEffects {
     enum Event: Equatable {
         case seek(TimeInterval), playing(Bool), commandsReady, commandsDisabled, nowPlaying(UUID), cleared, dock(Bool)

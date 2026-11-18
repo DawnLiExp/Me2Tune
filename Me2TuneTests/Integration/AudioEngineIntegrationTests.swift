@@ -38,6 +38,48 @@ struct AudioEngineIntegrationTests {
         #expect(coordinator.playbackStateManager.currentTrack?.id == preview.id)
     }
 
+    @Test("慢封面期间保留手动暂停与恢复意图", arguments: [false, true])
+    func explicitLoadWaitsForArtwork(restoring: Bool) async throws {
+        let track = try makeSilentTrack(seconds: 3)
+        defer { try? FileManager.default.removeItem(at: track.url) }
+        let data = try createTestDataService()
+        let record = SDTrack(from: track)
+        record.isInPlaylist = true
+        record.playlistOrder = 0
+        data.insert(record)
+        try data.save()
+        let suite = "SlowCover.\(UUID())"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let core = AudioPlayerCore()
+        let cover = HeldPlaybackArtwork(holdingNext: track.url)
+        let effects = RecordingPlaybackEffects()
+        let coordinator = makeTestPlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
+            dataService: data, playerCore: core, defaults: defaults, effects: effects, artworkProvider: cover)
+        defer { cover.release(); core.prepareForTrackSwitch() }
+        let restore: Task<Bool, Never>?
+        if restoring {
+            PlaybackSessionStore(defaults: defaults).save(.init(sourceKind: .playlist, currentTrackID: track.id,
+                                                                 albumID: nil, volume: 0))
+            restore = Task { await coordinator.restoreState() }
+        } else {
+            restore = nil
+            coordinator.playPlaylistTrack(at: 0)
+        }
+        try #require(await waitUntil { cover.isWaiting })
+        #expect(!core.isPlaying && coordinator.playbackStateManager.currentTrackID == track.id)
+        if restoring { coordinator.play() } else { coordinator.pause() }
+        #expect(!core.isPlaying)
+        let image = NSImage(size: NSSize(width: 8, height: 8))
+        cover.release(with: image)
+        if let restore { #expect(await restore.value) }
+        try #require(await waitUntil { effects.events.contains(.commandsReady) })
+        #expect(core.isPlaying == restoring && coordinator.currentArtwork === image)
+        core.setVolume(0)
+        coordinator.play()
+        #expect(await waitUntil { core.getCurrentPlaybackTime() > 0.05 })
+    }
+
     @Test("Saving preloaded tags preserves playback and activation uses refreshed metadata", arguments: TrackTagServiceTests.names)
     func savePreloadedTags(_ name: String) async throws {
         let first = try makeSilentTrack(seconds: 4)
@@ -67,7 +109,7 @@ struct AudioEngineIntegrationTests {
         }
         try data.save()
         let cache = ArtworkCacheService(cacheDirectory: url.deletingLastPathComponent().appendingPathComponent("artwork"))
-        let core = AudioPlayerCore(artworkProvider: cache)
+        let core = AudioPlayerCore()
         let coordinator = makeTestPlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
             dataService: data, statisticsManager: EngineTestStatistics(), playerCore: core,
             defaults: try #require(UserDefaults(suiteName: "TagSaveEngine.\(UUID())")), artworkProvider: cache)
@@ -490,7 +532,6 @@ private final class AudioCoreSpy: AudioPlayerCoreDelegate {
     var onDecoded: ((AudioTrack) -> Void)?
     func playerCoreDidUpdatePlaybackState(_ isPlaying: Bool) {}
     func playerCoreDidUpdateTime(currentTime: TimeInterval, duration: TimeInterval) {}
-    func playerCoreDidLoadTrack(_ track: AudioTrack, artwork: NSImage?) {}
     func playerCoreDidEncounterError(_ error: Error) { errors.append(error) }
     func playerCoreDidConfirmSeek(to time: TimeInterval) { seekTimes.append(time) }
     func playerCoreDecodingFailed(for track: AudioTrack, isCurrent: Bool) { failures.append((track.id, isCurrent)) }

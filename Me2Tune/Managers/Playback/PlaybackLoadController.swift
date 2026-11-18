@@ -8,7 +8,8 @@ final class PlaybackLoadController {
     private let playerCore: any AudioPlayerCoreProtocol
     private let stateManager: PlaybackStateManager
     private let registry: FailedTrackRegistry
-    private let persistenceController: PlaybackPersistenceController
+    private let onTrackPrepared: @MainActor (AudioTrack) async -> Void
+    private let onTrackLoaded: @MainActor (AudioTrack) -> Void
     private let repeatModeProvider: @MainActor () -> RepeatMode
     private let onPause: @MainActor () -> Void
     private let onTrackRequested: @MainActor (AudioTrack) -> Void
@@ -16,6 +17,7 @@ final class PlaybackLoadController {
 
     private(set) var generation = UUID()
     private(set) var submitted: PlaybackOrderState.Selection?
+    private(set) var preparingID: UUID?
     private(set) var hasLoadedTrack = false
     private(set) var hasEnded = false
     var hasPendingStart: Bool { pendingStart != nil }
@@ -30,7 +32,8 @@ final class PlaybackLoadController {
         playerCore: any AudioPlayerCoreProtocol,
         stateManager: PlaybackStateManager,
         registry: FailedTrackRegistry,
-        persistenceController: PlaybackPersistenceController,
+        onTrackPrepared: @escaping @MainActor (AudioTrack) async -> Void,
+        onTrackLoaded: @escaping @MainActor (AudioTrack) -> Void,
         repeatModeProvider: @escaping @MainActor () -> RepeatMode,
         onPause: @escaping @MainActor () -> Void,
         onTrackRequested: @escaping @MainActor (AudioTrack) -> Void,
@@ -39,7 +42,8 @@ final class PlaybackLoadController {
         self.playerCore = playerCore
         self.stateManager = stateManager
         self.registry = registry
-        self.persistenceController = persistenceController
+        self.onTrackPrepared = onTrackPrepared
+        self.onTrackLoaded = onTrackLoaded
         self.repeatModeProvider = repeatModeProvider
         self.onPause = onPause
         self.onTrackRequested = onTrackRequested
@@ -75,16 +79,17 @@ final class PlaybackLoadController {
                   attempted.insert(target.id).inserted {
                 self.order.request(target)
                 self.pendingStart = target
+                self.preparingID = track.id
                 let success: Bool
                 if self.registry.isMarked(track.id) { success = false }
-                else { success = await self.playerCore.loadTrack(track, startingAt: resumeTime ?? 0) }
+                else { success = await self.prepare(track, startingAt: resumeTime ?? 0) }
                 guard self.generation == request, self.stateManager.playingSource == source else { return }
+                self.preparingID = nil
                 self.synchronizeOrder()
                 guard self.order.ids.contains(track.id) else { return }
                 if success {
                     self.hasLoadedTrack = true
-                    self.stateManager.setCurrentTrack(id: track.id)
-                    self.persistenceController.scheduleSave()
+                    self.onTrackLoaded(track)
                     if self.wantsPlayback { self.playerCore.play() }
                     return
                 }
@@ -109,6 +114,16 @@ final class PlaybackLoadController {
         }
     }
 
+    private func prepare(_ track: AudioTrack, startingAt time: TimeInterval) async -> Bool {
+        let request = generation
+        let source = stateManager.playingSource
+        guard await playerCore.loadTrack(track, startingAt: time),
+              generation == request, stateManager.playingSource == source else { return false }
+        // Explicit loads and paused restores keep their presentation-ready timing.
+        await onTrackPrepared(track)
+        return generation == request && stateManager.playingSource == source
+    }
+
     private func onTrackRequestedIfPresent(_ id: UUID) {
         if let track = stateManager.currentTracks.first(where: { $0.id == id }) { onTrackRequested(track) }
     }
@@ -118,8 +133,10 @@ final class PlaybackLoadController {
         wantsPlayback = false
         let request = generation
         pendingStart = order.select(track.id)
-        let success = await playerCore.loadTrack(track)
+        preparingID = track.id
+        let success = await prepare(track, startingAt: 0)
         guard generation == request else { return false }
+        preparingID = nil
         hasLoadedTrack = success
         if !success { pendingStart = nil }
         else if wantsPlayback { playerCore.play() }
@@ -129,6 +146,7 @@ final class PlaybackLoadController {
     func invalidate() {
         generation = UUID()
         submitted = nil
+        preparingID = nil
         pendingStart = nil
         enqueueRequest = nil
         endWhileEnqueuing = false

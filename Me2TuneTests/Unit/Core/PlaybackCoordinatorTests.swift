@@ -173,11 +173,10 @@ struct PlaybackCoordinatorTests {
         coordinator.playAlbum(makeAlbum(with: [trackA, trackB]), startAt: 1)
 
         let loadedSecond = await waitUntil {
-            coordinator.playbackStateManager.currentTrackIndex == 1
+            playerCore.playCallCount > 0
         }
         #expect(loadedSecond)
 
-        coordinator.playerCoreDidLoadTrack(trackB, artwork: nil)
         #expect(coordinator.duration == 385)
 
         coordinator.playerCoreDidUpdateTime(currentTime: 10, duration: 277)
@@ -257,11 +256,10 @@ struct PlaybackCoordinatorTests {
         coordinator.playAlbum(makeAlbum(with: [track]), startAt: 0)
 
         let loaded = await waitUntil {
-            coordinator.playbackStateManager.currentTrackIndex == 0
+            playerCore.playCallCount > 0
         }
         #expect(loaded)
 
-        coordinator.playerCoreDidLoadTrack(track, artwork: nil)
         coordinator.seek(to: 80)
 
         let didCount = await waitUntil {
@@ -280,12 +278,54 @@ struct PlaybackCoordinatorTests {
         let track = makeTracks(count: 1)[0]
         coordinator.playAlbum(makeAlbum(with: [track]))
         try #require(await waitUntil { effects.events.contains(.nowPlaying(track.id)) })
-        coordinator.playerCoreDidLoadTrack(track, artwork: nil)
         coordinator.seek(to: track.duration)
         try #require(await waitUntil { (try? data.fetch(FetchDescriptor<SDStatistics>()).first?.playCount) == 1 })
         #expect(effects.events.contains(.commandsReady))
         #expect(effects.events.contains(.dock(false)))
         #expect(effects.events.contains(.seek(track.duration)))
+    }
+
+    @Test("自动切歌先保存快照，过期封面不覆盖新曲或新标签", arguments: [false, true])
+    func activationSavesWhileArtworkIsSuspended(editTags: Bool) async throws {
+        let (url, tags) = try TrackTagServiceTests().setup("id3v3.mp3")
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let successor = await AudioTrack(url: url)
+        let other = makeTracks(count: 2)
+        let album = makeAlbum(with: [other[0], successor, other[1]])
+        let data = try createTestDataService()
+        let suite = "ActivationCover.\(UUID())"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let snapshots = PlaybackSessionStore(defaults: defaults)
+        let core = MockAudioPlayerCore()
+        let cover = HeldPlaybackArtwork(holdingNext: url)
+        let effects = RecordingPlaybackEffects()
+        let coordinator = makeTestPlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
+            dataService: data, playerCore: core, defaults: defaults, effects: effects, artworkProvider: cover)
+        defer { cover.release() }
+        coordinator.playAlbum(album)
+        try #require(await waitUntil { snapshots.load()?.currentTrackID == other[0].id })
+        coordinator.playerCoreDecodingComplete(for: other[0])
+        try #require(await waitUntil { core.enqueueTrackCallIDs.contains(successor.id) })
+        coordinator.playerCoreNowPlayingChanged(to: successor)
+        try #require(await waitUntil { cover.isWaiting && snapshots.load()?.currentTrackID == successor.id })
+        #expect(coordinator.duration == successor.duration)
+        let expectedID: UUID
+        if editTags {
+            expectedID = successor.id
+            try await coordinator.refreshTrackMetadata(id: successor.id, snapshot: tags.read(url: url))
+            #expect(coordinator.playbackStateManager.currentTrack?.metadataRevision != successor.metadataRevision)
+        } else {
+            expectedID = other[1].id
+            coordinator.playAlbum(album, startAt: 2)
+            try #require(await waitUntil { effects.events.contains(.nowPlaying(expectedID)) })
+        }
+        cover.release(with: NSImage(size: NSSize(width: 8, height: 8)))
+        // Allow the suspended activation to deliver its late result.
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(coordinator.playbackStateManager.currentTrackID == expectedID)
+        #expect(coordinator.currentArtwork == nil)
+        #expect(!effects.events.contains(.dock(true)))
     }
 
     @Test("自动切歌到新曲后可再次计数")
@@ -328,11 +368,10 @@ struct PlaybackCoordinatorTests {
         coordinator.playAlbum(makeAlbum(with: tracks), startAt: 0)
 
         let loadedFirst = await waitUntil {
-            coordinator.playbackStateManager.currentTrackIndex == 0
+            playerCore.playCallCount > 0
         }
         #expect(loadedFirst)
 
-        coordinator.playerCoreDidLoadTrack(tracks[0], artwork: nil)
         coordinator.seek(to: 80)
 
         let firstCounted = await waitUntil {
@@ -341,7 +380,6 @@ struct PlaybackCoordinatorTests {
         #expect(firstCounted)
 
         coordinator.playerCoreNowPlayingChanged(to: tracks[1])
-        coordinator.playerCoreDidLoadTrack(tracks[1], artwork: nil)
         coordinator.seek(to: 80)
 
         let secondCounted = await waitUntil {
@@ -363,7 +401,6 @@ struct PlaybackCoordinatorTests {
                                artist: nil, albumTitle: nil, duration: 100, format: .unknown, bookmark: nil)
         coordinator.playAlbum(makeAlbum(with: [track]), startAt: 0)
         #expect(await waitUntil { core.playCallCount == 1 })
-        coordinator.playerCoreDidLoadTrack(track, artwork: nil)
         coordinator.seek(to: 95)
         try await Task.sleep(for: .milliseconds(30))
         #expect(statistics.incrementCount == 0)
@@ -802,7 +839,6 @@ struct PlaybackCoordinatorTests {
         coordinator.playPlaylistTrack(at: 0)
         try #require(await waitUntil { coordinator.isPlaying })
         let track = try #require(coordinator.playbackStateManager.currentTrack)
-        coordinator.playerCoreDidLoadTrack(track, artwork: nil)
         coordinator.pause()
         core.automaticallyConfirmsSeek = false
         let revision = coordinator.playbackProgressState.seekRevision
@@ -828,7 +864,6 @@ struct PlaybackCoordinatorTests {
         coordinator.playPlaylistTrack(at: 0)
         try #require(await waitUntil { coordinator.isPlaying })
         let track = try #require(coordinator.playbackStateManager.currentTrack)
-        coordinator.playerCoreDidLoadTrack(track, artwork: nil)
         #expect(coordinator.canSeek)
         coordinator.seek(to: 20, trackID: UUID(), metadataRevision: track.metadataRevision)
         coordinator.seek(to: 20, trackID: track.id, metadataRevision: UUID())
