@@ -33,6 +33,7 @@ protocol AudioPlayerCoreDelegate: AnyObject {
 final class AudioPlayerCore: NSObject {
     weak var delegate: (any AudioPlayerCoreDelegate)?
     
+    private let artworkProvider: any PlaybackArtworkProviding
     private var player: AudioPlayer?
     private(set) var isPlaying = false
     private(set) var currentTime: TimeInterval = 0
@@ -61,7 +62,8 @@ final class AudioPlayerCore: NSObject {
     var repeatMode: RepeatMode = .off
     var volume: Double = 0.7
     
-    override init() {
+    init(artworkProvider: any PlaybackArtworkProviding = ArtworkCacheService.shared) {
+        self.artworkProvider = artworkProvider
         super.init()
         let stream = events.stream
         eventTask = Task { @MainActor [weak self] in
@@ -96,7 +98,7 @@ final class AudioPlayerCore: NSObject {
             try enqueueCurrentDecoder(for: track, startingAt: time, player: player)
             delegate?.playerCoreDidUpdatePlaybackState(false)
             delegate?.playerCoreDidUpdateTime(currentTime: currentTime, duration: duration)
-            let artwork = await ArtworkCacheService.shared.artwork(for: track.url)
+            let artwork = await artworkProvider.artwork(for: track.url)
             guard decoderQueue.generation == generation, decoderQueue.currentID != nil else { return false }
             delegate?.playerCoreDidLoadTrack(track, artwork: artwork)
             logger.logPerformance("Track load", duration: CFAbsoluteTimeGetCurrent() - loadStartedAt)
@@ -267,33 +269,6 @@ final class AudioPlayerCore: NSObject {
         player = AudioPlayer()
         player?.delegate = events
         logger.debug("Audio player initialized")
-    }
-    
-    func updateDockIcon(_ artwork: NSImage?) {
-        guard let artwork else {
-            NSApp.dockTile.contentView = nil
-            NSApp.dockTile.display()
-            return
-        }
-            
-        let containerView = NSView(frame: NSRect(x: 0, y: 0, width: 128, height: 128))
-        containerView.wantsLayer = true
-        containerView.layer?.backgroundColor = NSColor.clear.cgColor
-            
-        let imageView = NSImageView(frame: NSRect(x: 6, y: 6, width: 116, height: 116))
-        imageView.image = artwork
-        imageView.imageScaling = .scaleProportionallyUpOrDown
-        imageView.wantsLayer = true
-            
-        imageView.layer?.cornerRadius = 6
-        imageView.layer?.masksToBounds = true
-        imageView.layer?.borderWidth = 2
-        imageView.layer?.borderColor = NSColor.black.cgColor
-            
-        containerView.addSubview(imageView)
-            
-        NSApp.dockTile.contentView = containerView
-        NSApp.dockTile.display()
     }
 }
 

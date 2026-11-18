@@ -45,7 +45,6 @@ enum StatPeriod: String, CaseIterable {
 
 @MainActor
 final class StatisticsManager: StatisticsManagerProtocol {
-    static let shared = StatisticsManager()
     
     private let dataService: DataServiceProtocol
     private(set) var statisticsRevision = 0

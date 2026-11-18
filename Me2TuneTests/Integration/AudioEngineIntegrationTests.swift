@@ -21,7 +21,7 @@ struct AudioEngineIntegrationTests {
         defer { for track in tracks { try? FileManager.default.removeItem(at: track.url) } }
         let data = try createTestDataService()
         let core = AudioPlayerCore()
-        let coordinator = PlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
+        let coordinator = makeTestPlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
             dataService: data, statisticsManager: EngineTestStatistics(), playerCore: core,
             defaults: try #require(UserDefaults(suiteName: "FirstPlayEngine.\(UUID())")))
         defer { core.prepareForTrackSwitch() }
@@ -66,10 +66,11 @@ struct AudioEngineIntegrationTests {
             data.insert(stored)
         }
         try data.save()
-        let core = AudioPlayerCore()
-        let coordinator = PlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
+        let cache = ArtworkCacheService(cacheDirectory: url.deletingLastPathComponent().appendingPathComponent("artwork"))
+        let core = AudioPlayerCore(artworkProvider: cache)
+        let coordinator = makeTestPlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
             dataService: data, statisticsManager: EngineTestStatistics(), playerCore: core,
-            defaults: try #require(UserDefaults(suiteName: "TagSaveEngine.\(UUID())")))
+            defaults: try #require(UserDefaults(suiteName: "TagSaveEngine.\(UUID())")), artworkProvider: cache)
         coordinator.playPlaylistTrack(at: 0)
         defer { core.prepareForTrackSwitch() }
         try #require(await waitUntil { coordinator.isPlaying })
@@ -131,7 +132,7 @@ struct AudioEngineIntegrationTests {
         defer { try? FileManager.default.removeItem(at: track.url) }
         let data = try createTestDataService()
         let core = AudioPlayerCore()
-        let coordinator = PlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
+        let coordinator = makeTestPlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
             dataService: data, statisticsManager: EngineTestStatistics(), playerCore: core,
             defaults: try #require(UserDefaults(suiteName: "LyricSeeking.\(UUID())")))
         #expect(!coordinator.canSeek)
@@ -377,7 +378,7 @@ struct AudioEngineIntegrationTests {
         let data = try createTestDataService()
         let defaults = try #require(UserDefaults(suiteName: "Me2TuneShuffleEngine.\(UUID())"))
         let core = AudioPlayerCore()
-        let coordinator = PlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
+        let coordinator = makeTestPlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
                                               dataService: data, statisticsManager: EngineTestStatistics(),
                                               playerCore: core, defaults: defaults)
         coordinator.toggleShuffle()
@@ -400,7 +401,7 @@ struct AudioEngineIntegrationTests {
         let data = try createTestDataService()
         let defaults = try #require(UserDefaults(suiteName: "Me2TuneShuffleEngine.\(UUID())"))
         let core = AudioPlayerCore()
-        let coordinator = PlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
+        let coordinator = makeTestPlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
                                               dataService: data, statisticsManager: EngineTestStatistics(),
                                               playerCore: core, defaults: defaults)
         coordinator.playAlbum(Album(id: UUID(), name: "Modes", folderURL: nil, tracks: tracks))
@@ -433,7 +434,7 @@ struct AudioEngineIntegrationTests {
         try data.save()
         let defaults = try #require(UserDefaults(suiteName: "Me2TuneShuffleEngine.\(UUID())"))
         let core = AudioPlayerCore()
-        let coordinator = PlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
+        let coordinator = makeTestPlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
                                               dataService: data, statisticsManager: EngineTestStatistics(),
                                               playerCore: core, defaults: defaults)
         coordinator.playPlaylistTrack(at: 0)

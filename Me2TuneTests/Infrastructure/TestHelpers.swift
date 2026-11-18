@@ -5,6 +5,7 @@
 //  测试辅助工具 - 提供内存数据库和测试服务工厂函数
 //
 
+import AppKit
 import Foundation
 import SwiftData
 import Testing
@@ -96,6 +97,41 @@ extension TestDataServiceProxy {
     func findAlbum(byFolderURL url: String) -> SDAlbum? { base.findAlbum(byFolderURL: url) }
     func findAlbum(byStableId id: UUID) -> SDAlbum? { base.findAlbum(byStableId: id) }
     func albumCount() throws(AppError) -> Int { try base.albumCount() }
+}
+
+@MainActor
+func makeTestPlaybackCoordinator(
+    collectionManager: CollectionManager, dataService: any DataServiceProtocol,
+    statisticsManager: (any StatisticsManagerProtocol)? = nil, playerCore: (any AudioPlayerCoreProtocol)? = nil,
+    defaults: UserDefaults? = nil, playbackOrder: PlaybackOrderState? = nil,
+    effects: (any PlaybackEffects)? = nil, artworkProvider: any PlaybackArtworkProviding = TestPlaybackArtwork()
+) -> PlaybackCoordinator {
+    PlaybackCoordinator(collectionManager: collectionManager, dataService: dataService, statisticsManager: statisticsManager,
+                        playerCore: playerCore, defaults: defaults ?? UserDefaults(suiteName: "PlaybackTest.\(UUID())")!,
+                        playbackOrder: playbackOrder ?? PlaybackOrderState(), effects: effects ?? RecordingPlaybackEffects(),
+                        artworkProvider: artworkProvider)
+}
+
+struct TestPlaybackArtwork: PlaybackArtworkProviding {
+    func artwork(for url: URL) async -> NSImage? { nil }
+    func invalidate(url: URL) async {}
+}
+
+@MainActor
+final class RecordingPlaybackEffects: PlaybackEffects {
+    enum Event: Equatable {
+        case seek(TimeInterval), playing(Bool), commandsReady, commandsDisabled, nowPlaying(UUID), cleared, dock(Bool)
+    }
+    private(set) var events: [Event] = []
+    func handleSeek(to time: TimeInterval) { events.append(.seek(time)) }
+    func handlePlaybackStateChanged(isPlaying: Bool, currentTimeProvider: @escaping () -> TimeInterval) { events.append(.playing(isPlaying)) }
+    func ensureRemoteCommandsReady(handlers: PlaybackCommandHandlers) { events.append(.commandsReady) }
+    func disableRemoteCommands() { events.append(.commandsDisabled) }
+    func updateNowPlayingInfo(track: AudioTrack, artwork: NSImage?, currentTime: TimeInterval, duration: TimeInterval, isPlaying: Bool) {
+        events.append(.nowPlaying(track.id))
+    }
+    func clearNowPlayingInfo() { events.append(.cleared) }
+    func updateDockIcon(_ artwork: NSImage?) { events.append(.dock(artwork != nil)) }
 }
 
 // MARK: - Sample Data Builders

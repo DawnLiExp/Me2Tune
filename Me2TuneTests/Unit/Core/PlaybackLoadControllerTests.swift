@@ -346,5 +346,4 @@ private final class MockLoadPlayerCore: AudioPlayerCoreProtocol {
         0
     }
 
-    func updateDockIcon(_ artwork: NSImage?) {}
 }

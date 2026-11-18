@@ -39,7 +39,7 @@ struct TagEditorModelTests {
         record.isInPlaylist = true; record.playlistOrder = 7
         data.insert(record); try data.save()
         let manager = CollectionManager(dataService: data)
-        let coordinator = PlaybackCoordinator(collectionManager: manager, dataService: data, playerCore: core,
+        let coordinator = makeTestPlaybackCoordinator(collectionManager: manager, dataService: data, playerCore: core,
             defaults: try #require(UserDefaults(suiteName: "TagEditorTest-\(UUID())")))
         let player = PlayerViewModel(coordinator: coordinator)
         while player.restorationPhase != .completed { await Task.yield() }
@@ -312,7 +312,6 @@ private final class TagEditorPlaybackCore: AudioPlayerCoreProtocol {
     func seek(to time: TimeInterval) {}
     func setVolume(_ volume: Double) {}
     func getCurrentPlaybackTime() -> TimeInterval { 0 }
-    func updateDockIcon(_ artwork: NSImage?) {}
 }
 
 @MainActor

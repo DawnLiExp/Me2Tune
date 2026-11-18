@@ -23,14 +23,6 @@ struct ColdStartFlashBugConditionTests {
 
     // MARK: - Helpers
 
-    /// 创建隔离的 PlaybackSessionStore（独立 UserDefaults，避免污染）
-    private func makeIsolatedSessionStore() -> PlaybackSessionStore {
-        let suiteName = "ColdStartFlashTest.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
-        return PlaybackSessionStore(defaults: defaults)
-    }
-
     /// 创建带有 playlist 曲目的测试环境，并在 sessionStore 中保存快照
     private func setupWithSavedSession() throws -> (
         PlaybackCoordinator,
@@ -53,7 +45,8 @@ struct ColdStartFlashBugConditionTests {
         }
         try dataService.save()
 
-        let sessionStore = makeIsolatedSessionStore()
+        let defaults = try #require(UserDefaults(suiteName: "ColdStartFlashTest.\(UUID())"))
+        let sessionStore = PlaybackSessionStore(defaults: defaults)
         let playlistManager = PlaylistManager(dataService: dataService)
 
         // 模拟上次退出前正在播放第 2 首（index=1）
@@ -68,19 +61,12 @@ struct ColdStartFlashBugConditionTests {
         )
 
         let collectionManager = CollectionManager(dataService: dataService)
-        let stateManager = PlaybackStateManager(
-            playlistManager: playlistManager,
-            collectionManager: collectionManager,
-            dataService: dataService,
-            sessionStore: sessionStore
-        )
-
         let playerCore = StubAudioPlayerCore()
-        let coordinator = PlaybackCoordinator(
+        let coordinator = makeTestPlaybackCoordinator(
             collectionManager: collectionManager,
             dataService: dataService,
             statisticsManager: StubStatisticsManager(),
-            playerCore: playerCore
+            playerCore: playerCore, defaults: defaults
         )
 
         return (coordinator, sessionStore, savedTrackID)
@@ -90,44 +76,7 @@ struct ColdStartFlashBugConditionTests {
 
     @Test("有快照时首帧状态：currentTrack == nil 且 isPlaylistLoaded == false")
     func testFirstFrameStateWithSavedSnapshot() throws {
-        let dataService = try createTestDataService()
-        let sessionStore = makeIsolatedSessionStore()
-
-        // 创建 playlist 曲目
-        for i in 0..<3 {
-            let track = SDTrack.makeSample(
-                title: "Track \(i)",
-                urlString: "file:///tmp/first_frame_\(i).mp3"
-            )
-            track.isInPlaylist = true
-            track.playlistOrder = i
-            dataService.insert(track)
-        }
-        try dataService.save()
-
-        let playlistManager = PlaylistManager(dataService: dataService)
-        let savedTrackID = playlistManager.tracks[1].id
-
-        // 保存快照 — 模拟上次退出前正在播放
-        sessionStore.save(
-            PlaybackSessionSnapshot(
-                sourceKind: .playlist,
-                currentTrackID: savedTrackID,
-                albumID: nil,
-                volume: 0.7
-            )
-        )
-
-        let collectionManager = CollectionManager(dataService: dataService)
-        let playerCore = StubAudioPlayerCore()
-        let coordinator = PlaybackCoordinator(
-            collectionManager: collectionManager,
-            dataService: dataService,
-            statisticsManager: StubStatisticsManager(),
-            playerCore: playerCore
-        )
-
-        // 模拟冷启动：创建 PlayerViewModel（init 中会启动异步 restoreState）
+        let (coordinator, sessionStore, savedTrackID) = try setupWithSavedSession()
         let vm = PlayerViewModel(coordinator: coordinator)
 
         // === 首帧状态断言 ===
@@ -149,41 +98,7 @@ struct ColdStartFlashBugConditionTests {
         )
     )
     func testNoRestorationPhaseDistinction() throws {
-        let dataService = try createTestDataService()
-        let sessionStore = makeIsolatedSessionStore()
-
-        for i in 0..<3 {
-            let track = SDTrack.makeSample(
-                title: "Track \(i)",
-                urlString: "file:///tmp/distinction_\(i).mp3"
-            )
-            track.isInPlaylist = true
-            track.playlistOrder = i
-            dataService.insert(track)
-        }
-        try dataService.save()
-
-        let playlistManager = PlaylistManager(dataService: dataService)
-        let savedTrackID = playlistManager.tracks[1].id
-
-        sessionStore.save(
-            PlaybackSessionSnapshot(
-                sourceKind: .playlist,
-                currentTrackID: savedTrackID,
-                albumID: nil,
-                volume: 0.7
-            )
-        )
-
-        let collectionManager = CollectionManager(dataService: dataService)
-        let playerCore = StubAudioPlayerCore()
-        let coordinator = PlaybackCoordinator(
-            collectionManager: collectionManager,
-            dataService: dataService,
-            statisticsManager: StubStatisticsManager(),
-            playerCore: playerCore
-        )
-
+        let (coordinator, _, _) = try setupWithSavedSession()
         let vm = PlayerViewModel(coordinator: coordinator)
 
         // === 首帧状态确认 ===
@@ -246,7 +161,6 @@ private final class StubAudioPlayerCore: AudioPlayerCoreProtocol {
     func setVolume(_ volume: Double) {}
     func prepareForTrackSwitch() {}
     func getCurrentPlaybackTime() -> TimeInterval { 0 }
-    func updateDockIcon(_ artwork: NSImage?) {}
 }
 
 /// 最小化 StatisticsManager stub

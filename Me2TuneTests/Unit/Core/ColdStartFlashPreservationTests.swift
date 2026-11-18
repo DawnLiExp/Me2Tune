@@ -23,11 +23,11 @@ struct ColdStartFlashPreservationTests {
     // MARK: - Helpers
 
     /// 创建隔离的 PlaybackSessionStore（独立 UserDefaults，避免污染）
-    private func makeIsolatedSessionStore() -> PlaybackSessionStore {
+    private func makeIsolatedDefaults() -> UserDefaults {
         let suiteName = "PreservationTest.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        return PlaybackSessionStore(defaults: defaults)
+        return defaults
     }
 
     /// 创建带有 playlist 曲目的 DataService，返回 (dataService, trackIDs)
@@ -57,7 +57,8 @@ struct ColdStartFlashPreservationTests {
     @Test("首次安装（无快照）：currentTrack == nil，UI 正确显示 no_track")
     func testFreshInstallShowsNoTrack() throws {
         // 无快照的 sessionStore — 模拟首次安装
-        let sessionStore = makeIsolatedSessionStore()
+        let defaults = makeIsolatedDefaults()
+        let sessionStore = PlaybackSessionStore(defaults: defaults)
 
         // 确认无快照
         #expect(sessionStore.load() == nil, "首次安装不应有会话快照")
@@ -66,11 +67,11 @@ struct ColdStartFlashPreservationTests {
         let dataService = try createTestDataService()
         let collectionManager = CollectionManager(dataService: dataService)
         let playerCore = StubAudioPlayerCore()
-        let coordinator = PlaybackCoordinator(
+        let coordinator = makeTestPlaybackCoordinator(
             collectionManager: collectionManager,
             dataService: dataService,
             statisticsManager: StubStatisticsManager(),
-            playerCore: playerCore
+            playerCore: playerCore, defaults: defaults
         )
 
         let vm = PlayerViewModel(coordinator: coordinator)
@@ -102,14 +103,14 @@ struct ColdStartFlashPreservationTests {
     @Test("清空播放列表后：currentTrack == nil，UI 正确显示 no_track")
     func testClearPlaylistShowsNoTrack() throws {
         let (dataService, _) = try makeDataServiceWithPlaylistTracks(count: 3)
-        let sessionStore = makeIsolatedSessionStore()
+        let defaults = makeIsolatedDefaults()
         let collectionManager = CollectionManager(dataService: dataService)
         let playerCore = StubAudioPlayerCore()
-        let coordinator = PlaybackCoordinator(
+        let coordinator = makeTestPlaybackCoordinator(
             collectionManager: collectionManager,
             dataService: dataService,
             statisticsManager: StubStatisticsManager(),
-            playerCore: playerCore
+            playerCore: playerCore, defaults: defaults
         )
 
         let vm = PlayerViewModel(coordinator: coordinator)
@@ -144,7 +145,8 @@ struct ColdStartFlashPreservationTests {
     @Test("恢复失败（曲目已删除）：回退到 no_track 状态")
     func testFailedRestoreFallsBackToNoTrack() async throws {
         let dataService = try createTestDataService()
-        let sessionStore = makeIsolatedSessionStore()
+        let defaults = makeIsolatedDefaults()
+        let sessionStore = PlaybackSessionStore(defaults: defaults)
 
         // 保存一个指向不存在曲目的快照（模拟曲目已被删除）
         let deletedTrackID = UUID()
@@ -208,7 +210,6 @@ private final class StubAudioPlayerCore: AudioPlayerCoreProtocol {
     func setVolume(_ volume: Double) {}
     func prepareForTrackSwitch() {}
     func getCurrentPlaybackTime() -> TimeInterval { 0 }
-    func updateDockIcon(_ artwork: NSImage?) {}
 }
 
 /// 最小化 StatisticsManager stub

@@ -57,10 +57,10 @@ final class StatisticsViewModel {
     
     init(
         dataService: DataServiceProtocol = DataService.shared,
-        statisticsManager: StatisticsManagerProtocol = StatisticsManager.shared
+        statisticsManager: (any StatisticsManagerProtocol)? = nil
     ) {
         self.dataService = dataService
-        self.statisticsManager = statisticsManager
+        self.statisticsManager = statisticsManager ?? StatisticsManager(dataService: dataService)
     }
     
     // MARK: - Actions

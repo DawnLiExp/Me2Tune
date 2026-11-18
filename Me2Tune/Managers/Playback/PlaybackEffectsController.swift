@@ -22,7 +22,18 @@ struct PlaybackCommandHandlers {
 }
 
 @MainActor
-final class PlaybackEffectsController {
+protocol PlaybackEffects: AnyObject {
+    func handleSeek(to time: TimeInterval)
+    func handlePlaybackStateChanged(isPlaying: Bool, currentTimeProvider: @escaping () -> TimeInterval)
+    func ensureRemoteCommandsReady(handlers: PlaybackCommandHandlers)
+    func disableRemoteCommands()
+    func updateNowPlayingInfo(track: AudioTrack, artwork: NSImage?, currentTime: TimeInterval, duration: TimeInterval, isPlaying: Bool)
+    func clearNowPlayingInfo()
+    func updateDockIcon(_ artwork: NSImage?)
+}
+
+@MainActor
+final class PlaybackEffectsController: PlaybackEffects {
     private let nowPlayingService: NowPlayingService
     private let remoteCommandController: RemoteCommandController
 
@@ -85,5 +96,32 @@ final class PlaybackEffectsController {
 
     func clearNowPlayingInfo() {
         nowPlayingService.clearNowPlayingInfo()
+    }
+
+    func updateDockIcon(_ artwork: NSImage?) {
+        guard let artwork else {
+            NSApp.dockTile.contentView = nil
+            NSApp.dockTile.display()
+            return
+        }
+
+        let containerView = NSView(frame: NSRect(x: 0, y: 0, width: 128, height: 128))
+        containerView.wantsLayer = true
+        containerView.layer?.backgroundColor = NSColor.clear.cgColor
+
+        let imageView = NSImageView(frame: NSRect(x: 6, y: 6, width: 116, height: 116))
+        imageView.image = artwork
+        imageView.imageScaling = .scaleProportionallyUpOrDown
+        imageView.wantsLayer = true
+
+        imageView.layer?.cornerRadius = 6
+        imageView.layer?.masksToBounds = true
+        imageView.layer?.borderWidth = 2
+        imageView.layer?.borderColor = NSColor.black.cgColor
+
+        containerView.addSubview(imageView)
+
+        NSApp.dockTile.contentView = containerView
+        NSApp.dockTile.display()
     }
 }

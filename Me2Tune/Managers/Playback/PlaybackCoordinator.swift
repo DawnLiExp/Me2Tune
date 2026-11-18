@@ -77,7 +77,7 @@ final class PlaybackCoordinator {
             ?? collectionManager.albums.lazy.flatMap(\.tracks).first { $0.id == id }
         for url in Set([snapshot.url, old?.url].compactMap { $0 }) {
             await FileMetadataReader.shared.invalidate(url: url)
-            await ArtworkCacheService.shared.invalidate(url: url)
+            await artworkProvider.invalidate(url: url)
             await LyricsCacheService.shared.invalidate(url: url)
         }
         let writer = dataService.makeLibraryWriter()
@@ -109,10 +109,10 @@ final class PlaybackCoordinator {
         collectionManager.refreshTrackMetadata(refreshed)
         playbackStateManager.refreshTrackMetadata(refreshed)
         if playbackStateManager.currentTrackID == id {
-            let artwork = await ArtworkCacheService.shared.artwork(for: snapshot.url)
+            let artwork = await artworkProvider.artwork(for: snapshot.url)
             guard playbackStateManager.currentTrack?.metadataRevision == refreshed.metadataRevision else { return }
             currentArtwork = artwork
-            playerCore.updateDockIcon(artwork)
+            effectsController.updateDockIcon(artwork)
             updateNowPlayingInfo()
         }
     }
@@ -165,7 +165,8 @@ final class PlaybackCoordinator {
     @ObservationIgnored private let playerCore: any AudioPlayerCoreProtocol
     @ObservationIgnored private let failedTrackRegistry: FailedTrackRegistry
     @ObservationIgnored private let persistenceController: PlaybackPersistenceController
-    @ObservationIgnored private let effectsController: PlaybackEffectsController
+    @ObservationIgnored private let effectsController: any PlaybackEffects
+    @ObservationIgnored private let artworkProvider: any PlaybackArtworkProviding
     @ObservationIgnored private let statisticsTracker: PlaybackStatisticsTracker
     @ObservationIgnored private let loadController: PlaybackLoadController
     @ObservationIgnored private var timeSampler: PlaybackTimeSampler!
@@ -180,10 +181,12 @@ final class PlaybackCoordinator {
     init(
         collectionManager: CollectionManager,
         dataService: DataServiceProtocol = DataService.shared,
-        statisticsManager: some StatisticsManagerProtocol = StatisticsManager.shared,
+        statisticsManager: (any StatisticsManagerProtocol)? = nil,
         playerCore: (any AudioPlayerCoreProtocol)? = nil,
         defaults: UserDefaults = .standard,
-        playbackOrder: PlaybackOrderState = PlaybackOrderState()
+        playbackOrder: PlaybackOrderState = PlaybackOrderState(),
+        effects: any PlaybackEffects = PlaybackEffectsController(),
+        artworkProvider: any PlaybackArtworkProviding = ArtworkCacheService.shared
     ) {
         self.playbackOrder = playbackOrder
         self.defaults = defaults
@@ -197,11 +200,12 @@ final class PlaybackCoordinator {
             sessionStore: PlaybackSessionStore(defaults: defaults)
         )
 
-        let playerCore = playerCore ?? AudioPlayerCore()
+        let playerCore = playerCore ?? AudioPlayerCore(artworkProvider: artworkProvider)
         self.playerCore = playerCore
         self.failedTrackRegistry = FailedTrackRegistry()
-        self.effectsController = PlaybackEffectsController()
-        self.statisticsTracker = PlaybackStatisticsTracker(statisticsManager: statisticsManager)
+        self.effectsController = effects
+        self.artworkProvider = artworkProvider
+        self.statisticsTracker = PlaybackStatisticsTracker(statisticsManager: statisticsManager ?? StatisticsManager(dataService: dataService))
         let statisticsTracker = self.statisticsTracker
 
         let playbackStateManager = self.playbackStateManager
@@ -586,7 +590,7 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
         // A tag save can finish while this load is awaiting artwork.
         if playbackStateManager.currentTracks.first(where: { $0.id == track.id })?.metadataRevision == track.metadataRevision {
             currentArtwork = artwork
-            playerCore.updateDockIcon(artwork)
+            effectsController.updateDockIcon(artwork)
         }
         duration = track.duration
         effectsController.ensureRemoteCommandsReady(handlers: makePlaybackCommandHandlers())
@@ -617,7 +621,7 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
 
             let generation = loadController.generation
             Task { @MainActor in
-                let artwork = await ArtworkCacheService.shared.artwork(for: track.url)
+                let artwork = await self.artworkProvider.artwork(for: track.url)
                 guard self.loadController.generation == generation,
                       self.playbackStateManager.currentTrackID == track.id,
                       self.playbackStateManager.currentTrack?.metadataRevision == track.metadataRevision else { return }
@@ -626,7 +630,7 @@ extension PlaybackCoordinator: AudioPlayerCoreDelegate {
                 self.duration = track.duration
 
                 self.updateNowPlayingInfo()
-                self.playerCore.updateDockIcon(artwork)
+                self.effectsController.updateDockIcon(artwork)
 
                 if idChanged {
                     self.persistenceController.scheduleSave()

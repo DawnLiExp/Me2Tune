@@ -5,7 +5,6 @@
 //  Playback core abstraction for coordinator and unit tests.
 //
 
-import AppKit
 import Foundation
 
 enum AudioEnqueueResult {
@@ -35,7 +34,6 @@ protocol AudioPlayerCoreProtocol: AnyObject {
     func setVolume(_ volume: Double)
     func prepareForTrackSwitch()
     func getCurrentPlaybackTime() -> TimeInterval
-    func updateDockIcon(_ artwork: NSImage?)
 }
 
 extension AudioPlayerCoreProtocol {

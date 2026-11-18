@@ -12,7 +12,30 @@ import SwiftUI
 private let logger = Logger.app
 
 @main
+enum Me2TuneEntry {
+    @MainActor static func main() {
+        #if DEBUG
+        // Hosted unit tests build their own player and store.
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+            Me2TuneTestHost.main()
+            return
+        }
+        #endif
+        Me2TuneApp.main()
+    }
+}
+
+#if DEBUG
+private struct Me2TuneTestHost: App {
+    var body: some Scene {
+        Settings { EmptyView() }
+    }
+}
+#endif
+
 struct Me2TuneApp: App {
+    private let dataService: DataService
+    private let statisticsManager: StatisticsManager
     @State private var isMigrationFailed: Bool
     @State private var collectionManager: CollectionManager
     @State private var playerViewModel: PlayerViewModel
@@ -21,13 +44,16 @@ struct Me2TuneApp: App {
     init() {
         logger.debug("🚀 Me2TuneApp.init() START")
 
-        _isMigrationFailed = State(wrappedValue: DataService.shared.isMigrationFailed)
+        let data = DataService.shared
+        dataService = data
+        statisticsManager = StatisticsManager(dataService: data)
+        _isMigrationFailed = State(wrappedValue: data.isMigrationFailed)
 
         // ✅ 单一初始化路径：CollectionManager -> PlaybackCoordinator -> PlayerViewModel
-        let manager = CollectionManager()
+        let manager = CollectionManager(dataService: data)
         _collectionManager = State(wrappedValue: manager)
 
-        let coordinator = PlaybackCoordinator(collectionManager: manager)
+        let coordinator = PlaybackCoordinator(collectionManager: manager, dataService: data, statisticsManager: statisticsManager)
         let viewModel = PlayerViewModel(coordinator: coordinator)
         _playerViewModel = State(wrappedValue: viewModel)
 
@@ -54,7 +80,7 @@ struct Me2TuneApp: App {
         .windowResizability(.automatic)
         .defaultSize(width: 495, height: 800)
         .defaultPosition(.center)
-        .modelContainer(DataService.shared.modelContainer)
+        .modelContainer(dataService.modelContainer)
         .commands {
             CommandGroup(replacing: .newItem) {}
 
@@ -72,7 +98,7 @@ struct Me2TuneApp: App {
         }
 
         Settings {
-            SettingsView()
+            SettingsView(dataService: dataService, statisticsManager: statisticsManager)
         }
     }
 

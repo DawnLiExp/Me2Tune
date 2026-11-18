@@ -10,7 +10,12 @@ import CryptoKit
 import Foundation
 import OSLog
 
-actor ArtworkCacheService {
+nonisolated protocol PlaybackArtworkProviding: Sendable {
+    func artwork(for url: URL) async -> NSImage?
+    func invalidate(url: URL) async
+}
+
+actor ArtworkCacheService: PlaybackArtworkProviding {
     // MARK: - Singleton
     
     static let shared = ArtworkCacheService()

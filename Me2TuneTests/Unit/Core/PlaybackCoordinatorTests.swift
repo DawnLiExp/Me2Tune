@@ -7,6 +7,7 @@
 
 import AppKit
 import Foundation
+import SwiftData
 import Testing
 @testable import Me2Tune
 
@@ -19,7 +20,7 @@ struct PlaybackCoordinatorTests {
         let collectionManager = CollectionManager(dataService: dataService)
         let playerCore = MockAudioPlayerCore()
         let statistics = MockStatisticsManager()
-        let coordinator = PlaybackCoordinator(
+        let coordinator = makeTestPlaybackCoordinator(
             collectionManager: collectionManager,
             dataService: dataService,
             statisticsManager: statistics,
@@ -48,7 +49,7 @@ struct PlaybackCoordinatorTests {
         let collectionManager = CollectionManager(dataService: dataService)
         let playerCore = MockAudioPlayerCore()
         let statistics = MockStatisticsManager()
-        let coordinator = PlaybackCoordinator(
+        let coordinator = makeTestPlaybackCoordinator(
             collectionManager: collectionManager,
             dataService: dataService,
             statisticsManager: statistics,
@@ -76,7 +77,7 @@ struct PlaybackCoordinatorTests {
         let collectionManager = CollectionManager(dataService: dataService)
         let playerCore = MockAudioPlayerCore()
         let statistics = MockStatisticsManager()
-        let coordinator = PlaybackCoordinator(
+        let coordinator = makeTestPlaybackCoordinator(
             collectionManager: collectionManager,
             dataService: dataService,
             statisticsManager: statistics,
@@ -103,7 +104,7 @@ struct PlaybackCoordinatorTests {
         let collectionManager = CollectionManager(dataService: dataService)
         let playerCore = MockAudioPlayerCore()
         let statistics = MockStatisticsManager()
-        let coordinator = PlaybackCoordinator(
+        let coordinator = makeTestPlaybackCoordinator(
             collectionManager: collectionManager,
             dataService: dataService,
             statisticsManager: statistics,
@@ -140,7 +141,7 @@ struct PlaybackCoordinatorTests {
         let collectionManager = CollectionManager(dataService: dataService)
         let playerCore = MockAudioPlayerCore()
         let statistics = MockStatisticsManager()
-        let coordinator = PlaybackCoordinator(
+        let coordinator = makeTestPlaybackCoordinator(
             collectionManager: collectionManager,
             dataService: dataService,
             statisticsManager: statistics,
@@ -198,7 +199,7 @@ struct PlaybackCoordinatorTests {
         let playerCore = MockAudioPlayerCore()
         playerCore.loadDelay = .milliseconds(200)
         let statistics = MockStatisticsManager()
-        let coordinator = PlaybackCoordinator(
+        let coordinator = makeTestPlaybackCoordinator(
             collectionManager: collectionManager,
             dataService: dataService,
             statisticsManager: statistics,
@@ -234,7 +235,7 @@ struct PlaybackCoordinatorTests {
         let collectionManager = CollectionManager(dataService: dataService)
         let playerCore = MockAudioPlayerCore()
         let statistics = MockStatisticsManager()
-        let coordinator = PlaybackCoordinator(
+        let coordinator = makeTestPlaybackCoordinator(
             collectionManager: collectionManager,
             dataService: dataService,
             statisticsManager: statistics,
@@ -269,13 +270,31 @@ struct PlaybackCoordinatorTests {
         #expect(didCount)
     }
 
+    @Test("协调器使用注入的媒体效果并向同一曲库写入播放次数")
+    func isolatedPlaybackEffectsAndStatistics() async throws {
+        let data = try createTestDataService()
+        let core = MockAudioPlayerCore()
+        let effects = RecordingPlaybackEffects()
+        let coordinator = makeTestPlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
+            dataService: data, playerCore: core, effects: effects)
+        let track = makeTracks(count: 1)[0]
+        coordinator.playAlbum(makeAlbum(with: [track]))
+        try #require(await waitUntil { effects.events.contains(.nowPlaying(track.id)) })
+        coordinator.playerCoreDidLoadTrack(track, artwork: nil)
+        coordinator.seek(to: track.duration)
+        try #require(await waitUntil { (try? data.fetch(FetchDescriptor<SDStatistics>()).first?.playCount) == 1 })
+        #expect(effects.events.contains(.commandsReady))
+        #expect(effects.events.contains(.dock(false)))
+        #expect(effects.events.contains(.seek(track.duration)))
+    }
+
     @Test("自动切歌到新曲后可再次计数")
     func testAutoSwitchedTrackCanCountAgain() async throws {
         let dataService = try createTestDataService()
         let collectionManager = CollectionManager(dataService: dataService)
         let playerCore = MockAudioPlayerCore()
         let statistics = MockStatisticsManager()
-        let coordinator = PlaybackCoordinator(
+        let coordinator = makeTestPlaybackCoordinator(
             collectionManager: collectionManager,
             dataService: dataService,
             statisticsManager: statistics,
@@ -338,7 +357,7 @@ struct PlaybackCoordinatorTests {
         let core = MockAudioPlayerCore()
         core.automaticallyConfirmsSeek = false
         let statistics = MockStatisticsManager()
-        let coordinator = PlaybackCoordinator(collectionManager: collection, dataService: dataService,
+        let coordinator = makeTestPlaybackCoordinator(collectionManager: collection, dataService: dataService,
                                                statisticsManager: statistics, playerCore: core)
         let track = AudioTrack(id: UUID(), url: URL(fileURLWithPath: "/tmp/confirmed.wav"), title: "Track",
                                artist: nil, albumTitle: nil, duration: 100, format: .unknown, bookmark: nil)
@@ -440,7 +459,7 @@ struct PlaybackCoordinatorTests {
         let readOnly = try createSQLiteTestDataService(at: store, allowsSave: false)
         let core = MockAudioPlayerCore()
         let collection = CollectionManager(dataService: readOnly)
-        let coordinator = PlaybackCoordinator(collectionManager: collection, dataService: readOnly,
+        let coordinator = makeTestPlaybackCoordinator(collectionManager: collection, dataService: readOnly,
             statisticsManager: MockStatisticsManager(), playerCore: core,
             defaults: try #require(UserDefaults(suiteName: "ReadOnlyPlaylist.\(UUID())")))
         coordinator.playPlaylistTrack(at: 0)
@@ -483,7 +502,7 @@ struct PlaybackCoordinatorTests {
         let data = try createTestDataService()
         let defaults = try #require(UserDefaults(suiteName: "Me2TuneFirstPlayTests.\(UUID())"))
         let core = MockAudioPlayerCore()
-        let coordinator = PlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
+        let coordinator = makeTestPlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
                                               dataService: data, statisticsManager: MockStatisticsManager(),
                                               playerCore: core, defaults: defaults)
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -570,7 +589,7 @@ struct PlaybackCoordinatorTests {
         #expect(await waitUntil { core.playCallCount == 1 })
         #expect(core.loadTrackCallIDs.count == 1)
         let data = try createTestDataService()
-        let restored = PlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
+        let restored = makeTestPlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
                                            dataService: data, statisticsManager: MockStatisticsManager(),
                                            playerCore: MockAudioPlayerCore(), defaults: defaults)
         #expect(restored.isShuffling)
@@ -594,7 +613,7 @@ struct PlaybackCoordinatorTests {
         }
         try data.save()
         let restoredCore = MockAudioPlayerCore()
-        let restored = PlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
+        let restored = makeTestPlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
                                            dataService: data, statisticsManager: MockStatisticsManager(),
                                            playerCore: restoredCore, defaults: defaults)
         if playWhileRestoring {
@@ -858,7 +877,7 @@ struct PlaybackCoordinatorTests {
         try data.save()
         let defaults = try #require(UserDefaults(suiteName: "Me2TuneShuffleTests.\(UUID())"))
         let core = MockAudioPlayerCore()
-        let coordinator = PlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
+        let coordinator = makeTestPlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
                                               dataService: data, statisticsManager: MockStatisticsManager(),
                                               playerCore: core, defaults: defaults,
                                               playbackOrder: playbackOrder ?? PlaybackOrderState())
@@ -1123,5 +1142,4 @@ private final class MockAudioPlayerCore: AudioPlayerCoreProtocol {
         currentTime
     }
 
-    func updateDockIcon(_ artwork: NSImage?) {}
 }

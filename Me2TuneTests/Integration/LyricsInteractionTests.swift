@@ -98,7 +98,7 @@ private final class LyricsInteractionFixture {
                               albumTitle: nil, duration: 300, format: .unknown, bookmark: nil)
         let data = try createTestDataService()
         let core = LyricsInteractionCore()
-        let coordinator = PlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
+        let coordinator = makeTestPlaybackCoordinator(collectionManager: CollectionManager(dataService: data),
             dataService: data, playerCore: core,
             defaults: try #require(UserDefaults(suiteName: "LyricsInteraction.\(UUID())")))
         let viewModel = PlayerViewModel(coordinator: coordinator)
@@ -241,5 +241,4 @@ private final class LyricsInteractionCore: AudioPlayerCoreProtocol {
     func setVolume(_ volume: Double) {}
     func prepareForTrackSwitch() {}
     func getCurrentPlaybackTime() -> TimeInterval { currentTime }
-    func updateDockIcon(_ artwork: NSImage?) {}
 }

@@ -76,7 +76,7 @@ struct SettingsView: View {
     @State private var pendingTheme: ThemeManager.ThemeMode?
     @State private var selectedTab: SettingsTab = .features
     
-    @State private var statisticsViewModel = StatisticsViewModel()
+    @State private var statisticsViewModel: StatisticsViewModel
     @State private var showResetConfirmation = false
 
     @AppStorage("CleanMode") private var cleanMode = false
@@ -86,6 +86,10 @@ struct SettingsView: View {
     @AppStorage("glowBreathingRate") private var glowBreathingRate = GlowBreathingRate.medium.rawValue
     @AppStorage("glowBreathingIntensity") private var glowBreathingIntensity = GlowBreathingIntensity.medium.rawValue
     
+    init(dataService: any DataServiceProtocol = DataService.shared, statisticsManager: (any StatisticsManagerProtocol)? = nil) {
+        _statisticsViewModel = State(initialValue: StatisticsViewModel(dataService: dataService, statisticsManager: statisticsManager))
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             customTabBar
