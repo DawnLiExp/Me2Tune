@@ -417,7 +417,7 @@ extension PlaylistManagerTests {
 }
 
 extension PlaylistManagerTests {
-    @Test("同批重复 URL 保留 entries 数量并复用一个模型", arguments: [false, true])
+    @Test("同批重复 URL 只加入一次并复用已有模型", arguments: [false, true])
     func testRepeatedURLInBatch(alreadyStored: Bool) async throws {
         let (manager, service) = try setup()
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -428,19 +428,40 @@ extension PlaylistManagerTests {
         let existing = SDTrack.makeSample(title: "Stored title", urlString: url.absoluteString)
         if alreadyStored { service.insert(existing); try service.save() }
         let result = await manager.addTracks(urls: [url, url])
-        #expect(result.newTracksCount == 2)
+        #expect(result.newTracksCount == 1)
         #expect(result.firstNewTrackIndex == 0)
         #expect(result.existingTrackIndices.isEmpty)
-        #expect(manager.tracks.map(\.url) == [url, url])
-        #expect(manager.tracks[0].id == manager.tracks[1].id)
+        #expect(manager.tracks.map(\.url) == [url])
         if alreadyStored {
             #expect(manager.tracks[0].id == existing.stableId)
             #expect(manager.tracks[0].title == "Stored title")
         }
         let stored = try service.fetchPlaylistTracks()
         #expect(stored.count == 1)
-        #expect(stored.first?.playlistOrder == 1)
+        #expect(stored.first?.playlistOrder == 0)
         #expect(!manager.isLoading && manager.loadingCount == 0)
+    }
+
+    @Test("混合拖入文件夹和其中单曲时保持唯一顺序")
+    func folderAndFileImportUsesOnePlaylistPosition() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let folder = directory.appendingPathComponent("music", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        for name in ["A.mp3", "B.mp3", ".hidden.mp3"] {
+            try Data().write(to: folder.appendingPathComponent(name))
+        }
+        let a = try #require(FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
+            .first { $0.lastPathComponent == "A.mp3" })
+        let store = directory.appendingPathComponent("test.store")
+        let manager = PlaylistManager(dataService: try createSQLiteTestDataService(at: store))
+        let result = await manager.addTracks(urls: [folder, a, a])
+        #expect(result.newTracksCount == 2)
+        #expect(manager.tracks.map { $0.url.lastPathComponent } == ["A.mp3", "B.mp3"])
+        let reopened = PlaylistManager(dataService: try createSQLiteTestDataService(at: store))
+        #expect(reopened.tracks.map(\.id) == manager.tracks.map(\.id))
+        let again = await reopened.addTracks(urls: [a])
+        #expect(again.existingTrackIndices[a] == 0 && again.newTracksCount == 0)
     }
 
     @Test("排序保留多目录、数字、中文及相等键的原比较规则")
@@ -456,7 +477,8 @@ extension PlaylistManagerTests {
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             try Data().write(to: url)
         }
-        let expected = urls.sorted { lhs, rhs in
+        var seen: Set<URL> = []
+        let expected = urls.filter { seen.insert($0).inserted }.sorted { lhs, rhs in
             let left = lhs.deletingLastPathComponent().path
             let right = rhs.deletingLastPathComponent().path
             if left != right { return left < right }
@@ -464,7 +486,7 @@ extension PlaylistManagerTests {
         }
         let result = await manager.addTracks(urls: urls)
         #expect(manager.tracks.map(\.url) == expected)
-        #expect(result.newTracksCount == urls.count)
+        #expect(result.newTracksCount == expected.count)
     }
 
     @Test("重叠导入按完成顺序提交并使用重排后的索引", arguments: [false, true], [false, true])

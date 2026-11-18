@@ -350,9 +350,8 @@ struct ContentView: View {
     }
     
     private func handlePlaylistDrop(_ urls: [URL]) {
-        let allURLs = expandFolders(urls)
         Task { @MainActor in
-            await playerViewModel.addTracksToPlaylist(urls: allURLs)
+            await playerViewModel.addTracksToPlaylist(urls: urls)
         }
     }
     
@@ -362,38 +361,6 @@ struct ContentView: View {
                 await collectionManager.addAlbum(from: url)
             }
         }
-    }
-    
-    private func expandFolders(_ urls: [URL]) -> [URL] {
-        var result: [URL] = []
-        let fileManager = FileManager.default
-        
-        for url in urls {
-            var isDirectory: ObjCBool = false
-            guard fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
-                continue
-            }
-            
-            if isDirectory.boolValue {
-                if let enumerator = fileManager.enumerator(
-                    at: url,
-                    includingPropertiesForKeys: [.isRegularFileKey],
-                    options: [.skipsHiddenFiles]
-                ) {
-                    while let fileURL = enumerator.nextObject() as? URL {
-                        if AudioFileSupport.isSupportedAudioFile(fileURL) {
-                            result.append(fileURL)
-                        }
-                    }
-                }
-            } else {
-                if AudioFileSupport.isSupportedAudioFile(url) {
-                    result.append(url)
-                }
-            }
-        }
-        
-        return result
     }
 }
 

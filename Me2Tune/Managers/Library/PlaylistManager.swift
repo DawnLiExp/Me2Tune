@@ -104,7 +104,8 @@ final class PlaylistManager {
             return AddTracksResult(newTracksCount: 0, firstNewTrackIndex: nil, existingTrackIndices: [:])
         }
 
-        let sortedURLs = sortURLsByDirectory(allAudioURLs)
+        var seen: Set<String> = []
+        let sortedURLs = sortURLsByDirectory(allAudioURLs.filter { seen.insert($0.absoluteString).inserted })
 
         // Build URL lookup for deduplication against current entries
         let existingURLMap: [String: Int] = Dictionary(
