@@ -80,7 +80,8 @@ nonisolated struct TagSaveReceipt: Codable, Sendable, Identifiable {
 }
 
 nonisolated enum TagEditError: LocalizedError {
-    case unreadable, conflict, readOnly, unsupported, pendingRecovery, validation, invalidArtwork, emptyPatch, playbackBusy
+    case unreadable, conflict, readOnly, unsupported, pendingRecovery, validation, emptyPatch, playbackBusy
+    case invalidArtwork, unsupportedArtwork
     var errorDescription: String? {
         let key: String = switch self {
         case .unreadable: "tag_error_read"
@@ -90,6 +91,7 @@ nonisolated enum TagEditError: LocalizedError {
         case .pendingRecovery: "tag_error_recovery"
         case .validation: "tag_error_validation"
         case .invalidArtwork: "tag_cover_invalid"
+        case .unsupportedArtwork: "tag_cover_unsupported"
         case .emptyPatch: "tag_error_no_changes"
         case .playbackBusy: "tag_error_playback_busy"
         }

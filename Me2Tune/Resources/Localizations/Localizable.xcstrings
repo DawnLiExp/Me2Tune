@@ -3213,13 +3213,47 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose a readable, single-frame JPEG or PNG image."
+            "value" : "This file could not be read as an image."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "请选择可读取的单帧 JPEG 或 PNG 图片。"
+            "value" : "无法读取图片，请检查文件是否完整。"
+          }
+        }
+      }
+    },
+    "tag_cover_unsupported" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a JPEG, PNG, WebP, HEIC/HEIF, AVIF, GIF, TIFF, or BMP image."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请选择 JPEG、PNG、WebP、HEIC/HEIF、AVIF、GIF、TIFF 或 BMP 图片。"
+          }
+        }
+      }
+    },
+    "tag_remove_cover_hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After removal, the player may display another embedded picture."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除主封面后，播放器可能显示其他内嵌图片。"
           }
         }
       }
@@ -3230,13 +3264,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Drag a JPEG or PNG onto the artwork above. Removing the main artwork may reveal another embedded picture."
+            "value" : "Drag an image file onto the artwork above. Single-frame JPEG and PNG are kept as-is. Other images are converted to a still cover."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "可将 JPEG 或 PNG 图片拖到上方。移除主封面后，播放器可能显示其他内嵌图片。"
+            "value" : "可将本地图片拖到上方。单帧 JPEG 和 PNG 原样保存，其他支持的图片会转换为静态封面。"
           }
         }
       }

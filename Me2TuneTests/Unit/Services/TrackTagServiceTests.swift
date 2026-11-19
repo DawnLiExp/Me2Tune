@@ -58,7 +58,7 @@ struct TrackTagServiceTests {
         #expect(after.pictures.count == before.pictures.count)
         #expect(after.text(.lyrics).contains("新歌词"))
         try await service.finishSave(receipt: receipt)
-        let png = try Data(contentsOf: Self.fixtures.appendingPathComponent("cover.png"))
+        let png = try await TagArtworkImporter.load(from: TagArtworkImporterTests.fixtures.appendingPathComponent("transparent.webp"))
         let cleared = try await service.save(trackID: UUID(), baseline: after,
             patch: TagPatch(fields: ["LYRICS":""], artworkChanged: true, artwork: png))
         let final = try await service.read(url: url)
@@ -66,6 +66,21 @@ struct TrackTagServiceTests {
         #expect(final.text(.lyrics).isEmpty)
         #expect(final.pictures.dropFirst() == before.pictures.dropFirst())
         try await service.finishSave(receipt: cleared)
+    }
+
+    @Test("Editing text keeps an existing GIF cover byte-for-byte")
+    func legacyArtwork() async throws {
+        let (url, service) = try setup("legacy-gif.mp3")
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let before = try await service.read(url: url)
+        let cover = try #require(before.artwork)
+        #expect(cover.starts(with: Data("GIF".utf8)))
+        let patch = TagPatch(fields: ["TITLE": "Retitled"], artworkChanged: false, artwork: cover)
+        let receipt = try await service.save(trackID: UUID(), baseline: before, patch: patch)
+        let after = try await service.read(url: url)
+        #expect(after.text(.title) == "Retitled")
+        #expect(after.pictures == before.pictures)
+        try await service.finishSave(receipt: receipt)
     }
 
     @Test("Editing only a total preserves the number stored in legacy MP3 tags")

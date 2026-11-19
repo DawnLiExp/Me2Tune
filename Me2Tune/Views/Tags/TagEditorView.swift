@@ -102,7 +102,9 @@ struct TagEditorView: View {
             }
             HStack {
                 Button("tag_choose_cover") { model.chooseArtwork() }
+                    .help(Text("tag_cover_unsupported"))
                 Button("tag_remove_cover", role: .destructive) { model.removeArtwork() }.disabled(model.artwork == nil)
+                    .help(Text("tag_remove_cover_hint"))
                 if model.isImportingArtwork { ProgressView().controlSize(.small) }
             }
             .disabled(!model.canEditArtwork)

@@ -264,7 +264,7 @@ void writeFile(NSURL *url, NSDictionary *patch, BOOL changeArt, NSData *art) {
     NSDictionary *snapshot = readFile(url);
     if (![snapshot[@"writable"] boolValue]) throw std::runtime_error("Unsupported audio codec");
     for (NSString *key in patch) if ([snapshot[@"fields"][key] count] > 1 || [snapshot[@"readonly"] containsObject:key]) throw std::runtime_error("Multiple values are read-only");
-    if (art) {
+    if (changeArt && art) {
         CGImageSourceRef source = CGImageSourceCreateWithData((__bridge CFDataRef)art, nullptr);
         bool valid = source && CGImageSourceGetCount(source) == 1;
         NSString *type = source ? (__bridge NSString *)CGImageSourceGetType(source) : nil;
