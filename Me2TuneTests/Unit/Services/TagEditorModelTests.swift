@@ -76,6 +76,36 @@ struct TagEditorModelTests {
         #expect(!model.isDirty)
     }
 
+    @Test("Cover imports update only the draft and rejected drops keep earlier edits")
+    func importArtwork() async throws {
+        let (model, _, _, dir) = try await setup()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let original = try Data(contentsOf: model.track.url)
+        let jpeg = TrackTagServiceTests.fixtures.appendingPathComponent("cover.jpg")
+        let replacement = try Data(contentsOf: jpeg)
+        model.draft[.title] = "Draft title"
+        model.removeArtwork()
+        #expect(model.importArtwork(from: [jpeg]))
+        #expect(!model.canSave)
+        #expect(await waitUntil { !model.isImportingArtwork })
+        #expect(model.artwork == replacement)
+        #expect(model.canSave)
+
+        #expect(!model.importArtwork(from: [jpeg, jpeg]))
+        #expect(model.artworkError != nil)
+        let broken = dir.appendingPathComponent("broken.png")
+        try Data("not an image".utf8).write(to: broken)
+        #expect(model.importArtwork(from: [broken]))
+        #expect(await waitUntil { !model.isImportingArtwork })
+        #expect(model.artworkError != nil)
+        #expect(model.artwork == replacement)
+        #expect(model.draft[.title] == "Draft title")
+        model.requestClose()
+        #expect(model.showUnsavedPrompt)
+        model.discardAndClose()
+        #expect(try Data(contentsOf: model.track.url) == original)
+    }
+
     @Test("File commit survives database failure; retry only synchronizes and keeps stable identity")
     func databaseFailureRetry() async throws {
         let core = TagEditorPlaybackCore()

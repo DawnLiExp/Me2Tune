@@ -1,5 +1,4 @@
 import Foundation
-import ImageIO
 import SFBAudioEngine
 
 nonisolated enum TagField: String, CaseIterable, Codable, Sendable {
@@ -55,15 +54,8 @@ nonisolated struct TagPatch: Sendable {
     var isEmpty: Bool { fields.isEmpty && !artworkChanged }
 
     func validate(baseline: TagSnapshot) throws {
-        if artworkChanged, let artwork {
-            guard let source = CGImageSourceCreateWithData(artwork as CFData, nil),
-                  CGImageSourceGetCount(source) == 1,
-                  let type = CGImageSourceGetType(source) as String?,
-                  ["public.jpeg", "public.png"].contains(type),
-                  CGImageSourceCreateThumbnailAtIndex(source, 0, [
-                    kCGImageSourceCreateThumbnailFromImageAlways: true,
-                    kCGImageSourceThumbnailMaxPixelSize: 256
-                  ] as CFDictionary) != nil else { throw TagEditError.validation }
+        if artworkChanged, let artwork, !TagArtworkImporter.canEmbed(artwork) {
+            throw TagEditError.invalidArtwork
         }
         for field in TagField.allCases where field.isNumber {
             guard let value = fields[field.rawValue], !value.isEmpty else { continue }
@@ -88,7 +80,7 @@ nonisolated struct TagSaveReceipt: Codable, Sendable, Identifiable {
 }
 
 nonisolated enum TagEditError: LocalizedError {
-    case unreadable, conflict, readOnly, unsupported, pendingRecovery, validation, emptyPatch, playbackBusy
+    case unreadable, conflict, readOnly, unsupported, pendingRecovery, validation, invalidArtwork, emptyPatch, playbackBusy
     var errorDescription: String? {
         let key: String = switch self {
         case .unreadable: "tag_error_read"
@@ -97,6 +89,7 @@ nonisolated enum TagEditError: LocalizedError {
         case .unsupported: "tag_error_format"
         case .pendingRecovery: "tag_error_recovery"
         case .validation: "tag_error_validation"
+        case .invalidArtwork: "tag_cover_invalid"
         case .emptyPatch: "tag_error_no_changes"
         case .playbackBusy: "tag_error_playback_busy"
         }

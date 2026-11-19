@@ -14,7 +14,9 @@ final class TagEditorModel: Identifiable {
     let player: PlayerViewModel
     private(set) var snapshot: TagSnapshot?
     var draft: [TagField: String] = [:]
-    var artwork: Data?
+    private(set) var artwork: Data?
+    private(set) var artworkError: String?
+    private(set) var isImportingArtwork = false
     private(set) var readState: ReadState = .idle
     private(set) var isSaving = false
     private(set) var receipt: TagSaveReceipt?
@@ -32,7 +34,8 @@ final class TagEditorModel: Identifiable {
     }
 
     var isReading: Bool { readState == .reading }
-    var isBusy: Bool { isReading || isSaving }
+    var isBusy: Bool { isReading || isSaving || isImportingArtwork }
+    var canEditArtwork: Bool { snapshot?.writableFormat == true && receipt == nil && !isBusy }
     var saveStopsPlayback: Bool { player.tagSaveStopsPlayback(for: snapshot?.url ?? track.url) }
     var patch: TagPatch {
         guard let snapshot else { return TagPatch() }
@@ -80,6 +83,7 @@ final class TagEditorModel: Identifiable {
             snapshot = read
             draft = Dictionary(uniqueKeysWithValues: TagField.allCases.map { ($0, read.text($0)) })
             artwork = read.artwork
+            artworkError = nil
             message = nil
             readState = .loaded
         } catch {
@@ -206,17 +210,42 @@ final class TagEditorModel: Identifiable {
     }
 
     func chooseArtwork() {
+        guard canEditArtwork else { return }
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.jpeg, .png]
+        panel.allowedContentTypes = TagArtworkImporter.supportedTypes
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.begin { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
-            Task { @MainActor in
-                do { self?.artwork = try Data(contentsOf: url) }
-                catch { self?.message = error.localizedDescription }
+            self?.importArtwork(from: [url])
+        }
+    }
+
+    @discardableResult
+    func importArtwork(from urls: [URL]) -> Bool {
+        guard canEditArtwork else { return false }
+        guard urls.count == 1, let url = urls.first, url.isFileURL else {
+            artworkError = String(localized: "tag_cover_drop_one")
+            return false
+        }
+        artworkError = nil
+        isImportingArtwork = true
+        Task { [weak self] in
+            defer { self?.isImportingArtwork = false }
+            do {
+                let data = try await TagArtworkImporter.load(from: url)
+                self?.artwork = data
+            } catch {
+                self?.artworkError = error.localizedDescription
             }
         }
+        return true
+    }
+
+    func removeArtwork() {
+        guard canEditArtwork else { return }
+        artwork = nil
+        artworkError = nil
     }
 
     func importLyrics() {

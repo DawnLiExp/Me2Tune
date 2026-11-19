@@ -4,6 +4,7 @@ import AppKit
 struct TagEditorView: View {
     @Bindable var model: TagEditorModel
     @State private var selection = 0
+    @State private var isArtworkTargeted = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -91,21 +92,49 @@ struct TagEditorView: View {
 
     private var cover: some View {
         VStack(spacing: 16) {
-            if let data = model.artwork, let image = NSImage(data: data) {
-                Image(nsImage: image).resizable().scaledToFit().frame(maxWidth: 260, maxHeight: 270)
-                    .accessibilityLabel(Text("tag_main_cover"))
+            if model.canEditArtwork {
+                artworkPreview
+                    .dropDestination(for: URL.self) { urls, _ in
+                        model.importArtwork(from: urls)
+                    } isTargeted: { isArtworkTargeted = $0 }
             } else {
-                Image(systemName: "photo").font(.system(size: 80)).foregroundStyle(.secondary)
-                    .frame(height: 230).accessibilityLabel(Text("tag_no_cover"))
+                artworkPreview
             }
             HStack {
                 Button("tag_choose_cover") { model.chooseArtwork() }
-                Button("tag_remove_cover", role: .destructive) { model.artwork = nil }.disabled(model.artwork == nil)
+                Button("tag_remove_cover", role: .destructive) { model.removeArtwork() }.disabled(model.artwork == nil)
+                if model.isImportingArtwork { ProgressView().controlSize(.small) }
             }
-            .disabled(model.snapshot?.writableFormat != true)
-            Text("tag_cover_hint").font(.caption).foregroundStyle(.secondary)
+            .disabled(!model.canEditArtwork)
+            if let error = model.artworkError {
+                Text(error).font(.caption).foregroundStyle(.red)
+            } else if model.snapshot?.writableFormat == true {
+                Text("tag_cover_hint").font(.caption).foregroundStyle(.secondary)
+            }
             Spacer()
         }.padding(16).frame(maxWidth: .infinity)
+    }
+
+    private var artworkPreview: some View {
+        ZStack {
+            if let data = model.artwork, let image = NSImage(data: data) {
+                Image(nsImage: image).resizable().scaledToFit()
+                    .accessibilityLabel(Text("tag_main_cover"))
+            } else {
+                Image(systemName: "photo").font(.system(size: 80)).foregroundStyle(.secondary)
+                    .accessibilityLabel(Text("tag_no_cover"))
+            }
+        }
+        .frame(maxWidth: 260)
+        .frame(height: 250)
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
+        .overlay {
+            if isArtworkTargeted && model.canEditArtwork {
+                RoundedRectangle(cornerRadius: 8).strokeBorder(Color.accentColor, lineWidth: 2)
+                    .allowsHitTesting(false)
+            }
+        }
     }
 
     private var lyrics: some View {
